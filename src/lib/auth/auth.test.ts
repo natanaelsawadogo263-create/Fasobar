@@ -86,11 +86,15 @@ describe("routes et redirections", () => {
   it("protège les routes applicatives", () => {
     expect(isProtectedPath("/application")).toBe(true);
     expect(isProtectedPath("/onboarding")).toBe(true);
+    expect(isProtectedPath("/platform")).toBe(true);
+    expect(isProtectedPath("/acces-refuse")).toBe(true);
+    expect(isProtectedPath("/acces-suspendu")).toBe(true);
     expect(isProtectedPath("/connexion")).toBe(false);
   });
 
   it("redirige un visiteur non connecté", () => {
     expect(shouldRedirectUnauthenticated("/application", false)).toBe(true);
+    expect(shouldRedirectUnauthenticated("/platform", false)).toBe(true);
     expect(shouldRedirectUnauthenticated("/connexion", false)).toBe(false);
   });
 
@@ -103,6 +107,8 @@ describe("routes et redirections", () => {
   it("choisit la bonne destination après connexion", () => {
     expect(resolvePostLoginPath(false)).toBe("/onboarding");
     expect(resolvePostLoginPath(true)).toBe("/application");
+    expect(resolvePostLoginPath(false, true)).toBe("/platform");
+    expect(resolvePostLoginPath(true, true)).toBe("/platform");
   });
 
   it("refuse un second bootstrap", () => {

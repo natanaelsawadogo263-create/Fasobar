@@ -144,5 +144,5 @@ export async function closeBarSessionAction(
 
   revalidateBarSessionOps();
   await supabase.auth.signOut();
-  redirect("/connexion");
+  redirect("/");
 }

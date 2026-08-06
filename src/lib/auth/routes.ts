@@ -1,6 +1,13 @@
 export const AUTH_ROUTES = new Set(["/connexion", "/inscription"]);
 
-export const PROTECTED_PREFIXES = ["/application", "/onboarding", "/premiere-connexion"];
+export const PROTECTED_PREFIXES = [
+  "/application",
+  "/onboarding",
+  "/premiere-connexion",
+  "/platform",
+  "/acces-refuse",
+  "/acces-suspendu",
+];
 
 export function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
@@ -18,7 +25,14 @@ export function shouldRedirectAuthenticatedFromAuth(pathname: string, isAuthenti
   return isAuthenticated && isAuthRoute(pathname);
 }
 
-export function resolvePostLoginPath(hasActiveOrganization: boolean): string {
+export function resolvePostLoginPath(
+  hasActiveOrganization: boolean,
+  isPlatformAdmin = false,
+): string {
+  if (isPlatformAdmin) {
+    return "/platform";
+  }
+
   return hasActiveOrganization ? "/application" : "/onboarding";
 }
 

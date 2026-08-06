@@ -54,7 +54,7 @@ export async function updateSession(request: NextRequest) {
 
   if (isProtectedPath(pathname) && !user) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/connexion";
+    redirectUrl.pathname = "/";
     redirectUrl.searchParams.set("redirect", pathname);
 
     const redirectResponse = NextResponse.redirect(redirectUrl);
@@ -64,7 +64,7 @@ export async function updateSession(request: NextRequest) {
 
   if (user && isAuthRoute(pathname)) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/application";
+    redirectUrl.pathname = "/";
     redirectUrl.search = "";
 
     const redirectResponse = NextResponse.redirect(redirectUrl);

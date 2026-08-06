@@ -165,7 +165,7 @@ export async function closeCashSessionAction(
   revalidateCashSessionOps();
   revalidatePaymentPages();
   await supabase.auth.signOut();
-  redirect("/connexion");
+  redirect("/");
 }
 
 /**

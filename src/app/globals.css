@@ -48,7 +48,8 @@ html {
 .pos-workspace,
 .checkout-shell,
 .fasobar-shell,
-.space-shell {
+.space-shell,
+.platform-shell {
   height: 100dvh;
   max-width: 100%;
   overflow: hidden;

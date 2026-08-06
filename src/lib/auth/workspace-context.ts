@@ -233,7 +233,7 @@ export async function requireAuthenticatedWorkspace(): Promise<WorkspaceContext>
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/connexion");
+    redirect("/");
   }
 
   const { data: profile } = await supabase

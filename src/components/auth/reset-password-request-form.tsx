@@ -21,7 +21,7 @@ export function ResetPasswordRequestForm() {
       description="Recevez un lien sécurisé pour définir un nouveau mot de passe."
       footer={
         <p className="text-center text-sm text-slate-600">
-          <Link href="/connexion" className="font-medium text-emerald-700 hover:underline">
+          <Link href="/" className="font-medium text-emerald-700 hover:underline">
             Retour à la connexion
           </Link>
         </p>

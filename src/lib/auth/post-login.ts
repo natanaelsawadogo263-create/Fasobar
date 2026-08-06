@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 
 import { getWorkspaceContext } from "@/lib/auth/workspace-context";
+import { isActivePlatformAdmin } from "@/lib/platform/auth";
 import { profileRequiresPasswordChange } from "@/lib/users/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -21,6 +22,10 @@ export async function resolvePostLoginRedirect(userId: string): Promise<string> 
 
   if (await profileRequiresPasswordChange(userId)) {
     return "/premiere-connexion";
+  }
+
+  if (await isActivePlatformAdmin()) {
+    return "/platform";
   }
 
   const context = await getWorkspaceContext(userId);

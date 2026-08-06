@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { resolvePostLoginPath } from "@/lib/auth/routes";
-import { userHasActiveOrganization } from "@/lib/auth/session";
+import { resolvePostLoginRedirect } from "@/lib/auth/post-login";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
@@ -19,15 +18,13 @@ export async function GET(request: Request) {
       } = await supabase.auth.getUser();
 
       if (user && !nextPath) {
-        const hasOrganization = await userHasActiveOrganization(user.id);
-        return NextResponse.redirect(
-          `${origin}${resolvePostLoginPath(hasOrganization)}`,
-        );
+        const path = await resolvePostLoginRedirect(user.id);
+        return NextResponse.redirect(`${origin}${path}`);
       }
 
       return NextResponse.redirect(`${origin}${nextPath ?? "/application"}`);
     }
   }
 
-  return NextResponse.redirect(`${origin}/connexion?error=auth`);
+  return NextResponse.redirect(`${origin}/?error=auth`);
 }

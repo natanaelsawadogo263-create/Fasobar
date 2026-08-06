@@ -22,7 +22,7 @@ export async function requireAuthenticatedUser() {
   const user = await getAuthenticatedUser();
 
   if (!user) {
-    redirect("/connexion");
+    redirect("/");
   }
 
   return user;
@@ -59,10 +59,6 @@ export async function redirectIfAuthenticated() {
     return;
   }
 
-  const hasOrganization = await userHasActiveOrganization(user.id);
-  if (hasOrganization) {
-    const { redirectAfterLogin } = await import("@/lib/auth/post-login");
-    await redirectAfterLogin(user.id);
-  }
-  redirect("/onboarding");
+  const { redirectAfterLogin } = await import("@/lib/auth/post-login");
+  await redirectAfterLogin(user.id);
 }
