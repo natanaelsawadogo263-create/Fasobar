@@ -128,8 +128,13 @@ export function StockEntryModal({
     setConversionFactor(String(selectedPackaging.conversionFactor));
   }, [selectedPackaging]);
 
+  const unitKey = selectedItem?.unit;
   const unitLabel =
-    PRODUCT_UNIT_LABELS[selectedItem?.unit ?? "UNIT"] ?? selectedItem?.unit ?? "unité";
+    (unitKey && unitKey in PRODUCT_UNIT_LABELS
+      ? PRODUCT_UNIT_LABELS[unitKey as keyof typeof PRODUCT_UNIT_LABELS]
+      : null) ??
+    selectedItem?.unit ??
+    "unité";
   const packagingFormat = selectedPackaging
     ? packagingFormatLabel(selectedPackaging.packagingUnit)
     : null;

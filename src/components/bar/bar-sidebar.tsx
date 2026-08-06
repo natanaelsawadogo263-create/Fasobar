@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ComponentType } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   Clock3,
   GlassWater,
@@ -16,7 +16,7 @@ import {
 
 import type { NavItem } from "@/lib/navigation/space-navigation";
 
-const NAV_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+const NAV_ICONS: Record<string, LucideIcon> = {
   "/application/bar": LayoutDashboard,
   "/application/bar/commandes": GlassWater,
   "/application/bar/stock": Package,
