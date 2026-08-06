@@ -1,0 +1,136 @@
+import type { AdminDashboardData } from "@/lib/admin/dashboard-queries";
+
+const MOCK_HOURLY = [
+  12_000, 8_000, 5_000, 4_000, 6_000, 18_000, 45_000, 95_000, 140_000, 180_000, 210_000, 250_000,
+  280_000, 260_000, 230_000, 200_000, 220_000, 310_000, 380_000, 420_000, 350_000, 240_000, 120_000,
+  60_000,
+];
+
+/** Données maquette pour preview visuelle — aucune requête SQL. */
+export function getMockAdminDashboardData(): AdminDashboardData {
+  const salesToday = 1_245_800;
+  const now = Date.now();
+  return {
+    kpis: {
+      salesToday,
+      salesYesterday: Math.round(salesToday / 1.186),
+      ordersToday: 86,
+      ordersYesterday: Math.round(86 / 1.12),
+      openCashBalance: 325_000,
+      openCashOpenedAt: new Date().toISOString().replace(/T.*/, "T08:15:00.000Z"),
+      stockAlertCount: 8,
+    },
+    stockAlerts: [
+      {
+        id: "m1",
+        name: "Whisky Johnnie Walker",
+        unit: "bouteille",
+        currentQuantity: 2,
+        minimumQuantity: 6,
+        active: true,
+        departmentCode: "BAR",
+        departmentName: "Bar",
+        departmentId: "",
+        productId: null,
+        categoryId: null,
+        categoryName: null,
+        status: "low",
+        estimatedUnitCost: null,
+      },
+      {
+        id: "m2",
+        name: "Huile de palme",
+        unit: "L",
+        currentQuantity: 1,
+        minimumQuantity: 5,
+        active: true,
+        departmentCode: "KITCHEN",
+        departmentName: "Cuisine",
+        departmentId: "",
+        productId: null,
+        categoryId: null,
+        categoryName: null,
+        status: "low",
+        estimatedUnitCost: null,
+      },
+      {
+        id: "m3",
+        name: "Coca-Cola 33cl",
+        unit: "casier",
+        currentQuantity: 0,
+        minimumQuantity: 3,
+        active: true,
+        departmentCode: "BAR",
+        departmentName: "Bar",
+        departmentId: "",
+        productId: null,
+        categoryId: null,
+        categoryName: null,
+        status: "out",
+        estimatedUnitCost: null,
+      },
+    ] as AdminDashboardData["stockAlerts"],
+    topProducts: [
+      { name: "Brakina", quantity: 48, revenue: 216_000, imageHint: "brakina" },
+      { name: "Poulet braisé", quantity: 32, revenue: 160_000, imageHint: "poulet" },
+      { name: "Attiéké poisson", quantity: 28, revenue: 140_000, imageHint: "attieke" },
+      { name: "Heineken", quantity: 24, revenue: 72_000, imageHint: "heineken" },
+    ],
+    activity: [
+      {
+        id: "mock-1",
+        title: "Encaissement",
+        detail: "Commande #0142 · 18 500 FCFA",
+        at: new Date(now - 15 * 60_000).toISOString(),
+        kind: "payment",
+      },
+      {
+        id: "mock-2",
+        title: "Nouvelle entrée de stock",
+        detail: "Brakina · +24 caisses",
+        at: new Date(now - 42 * 60_000).toISOString(),
+        kind: "stock",
+      },
+      {
+        id: "mock-3",
+        title: "Produit créé",
+        detail: "Fanta Orange · 500 FCFA",
+        at: new Date(now - 2 * 3_600_000).toISOString(),
+        kind: "order",
+      },
+      {
+        id: "mock-4",
+        title: "Clôture de caisse",
+        detail: "Caisse 2 · 890 500 FCFA",
+        at: new Date(now - 5 * 3_600_000).toISOString(),
+        kind: "session",
+      },
+    ],
+    cashSessions: [
+      {
+        id: "mock-open",
+        label: "Caisse 1",
+        cashierName: "Aïcha Ouédraogo",
+        openedAt: new Date().toISOString().replace(/T.*/, "T08:15:00.000Z"),
+        status: "OPEN",
+        balance: 325_000,
+      },
+      {
+        id: "mock-closed",
+        label: "Caisse 2",
+        cashierName: "Ibrahim Sawadogo",
+        openedAt: new Date(now - 86_400_000).toISOString().replace(/T.*/, "T18:40:00.000Z"),
+        status: "CLOSED",
+        balance: 890_500,
+      },
+    ],
+    salesByHour: MOCK_HOURLY.map((v) => Math.round(v)),
+    salesByDept: {
+      bar: Math.round(salesToday * 0.58),
+      kitchen: Math.round(salesToday * 0.32),
+      other: Math.round(salesToday * 0.1),
+    },
+    usedMockSalesSeries: true,
+    usedMockTopProducts: true,
+  };
+}

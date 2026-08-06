@@ -1,0 +1,431 @@
+"use client";
+
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Search, Wallet, X } from "lucide-react";
+
+import {
+  cancelExpenseAction,
+  createExpenseAction,
+  updateExpenseAction,
+} from "@/app/(protected)/application/depenses/actions";
+import { AlertMessage } from "@/components/auth/alert-message";
+import { ModalFooter } from "@/components/ui/modal-footer";
+import {
+  FormSection,
+  NumberField,
+  SelectField,
+  TextField,
+} from "@/components/ui/form-controls";
+import {
+  EXPENSE_CATEGORY_LABELS,
+  EXPENSE_STATUS_LABELS,
+  EXPENSE_STATUS_STYLES,
+  formatPriceXof,
+} from "@/lib/expenses/constants";
+import type { ExpenseCategory, ExpenseFiltersInput } from "@/lib/expenses/schemas";
+import type { ExpenseListItem } from "@/lib/expenses/types";
+
+type ExpensesWorkspaceProps = {
+  expenses: ExpenseListItem[];
+  periodTotal: number;
+  recordedCount: number;
+  cancelledCount: number;
+  kitchenTotal: number;
+  filters: ExpenseFiltersInput;
+  establishmentName: string;
+};
+
+const CATEGORY_OPTIONS = Object.entries(EXPENSE_CATEGORY_LABELS);
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function ExpensesWorkspace({
+  expenses,
+  periodTotal,
+  recordedCount,
+  cancelledCount,
+  kitchenTotal,
+  filters,
+  establishmentName,
+}: ExpensesWorkspaceProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+  const [modal, setModal] = useState<"create" | "edit" | "cancel" | null>(null);
+  const [selected, setSelected] = useState<ExpenseListItem | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  function openCreate() {
+    setSelected(null);
+    setFormError(null);
+    setModal("create");
+  }
+
+  function openEdit(item: ExpenseListItem) {
+    setSelected(item);
+    setFormError(null);
+    setModal("edit");
+  }
+
+  function openCancel(item: ExpenseListItem) {
+    setSelected(item);
+    setFormError(null);
+    setModal("cancel");
+  }
+
+  function applyFilters(next: Partial<ExpenseFiltersInput>) {
+    const params = new URLSearchParams();
+    const merged = { ...filters, ...next };
+    if (merged.category) params.set("category", merged.category);
+    if (merged.status && merged.status !== "all") params.set("status", merged.status);
+    if (merged.search) params.set("search", merged.search);
+    if (merged.from) params.set("from", merged.from);
+    if (merged.to) params.set("to", merged.to);
+    router.push(`/application/depenses?${params.toString()}`);
+  }
+
+  function handleFormAction(formData: FormData) {
+    setFormError(null);
+    setMessage(null);
+    startTransition(async () => {
+      const result =
+        modal === "edit" && selected
+          ? await updateExpenseAction({}, formData)
+          : await createExpenseAction({}, formData);
+
+      if (result.error) {
+        setFormError(result.error);
+        return;
+      }
+      setMessage(result.success ?? "Enregistré.");
+      setModal(null);
+      router.refresh();
+    });
+  }
+
+  function handleCancelAction(formData: FormData) {
+    setFormError(null);
+    setMessage(null);
+    startTransition(async () => {
+      const result = await cancelExpenseAction({}, formData);
+      if (result.error) {
+        setFormError(result.error);
+        return;
+      }
+      setMessage(result.success ?? "Annulée.");
+      setModal(null);
+      router.refresh();
+    });
+  }
+
+  const stats = useMemo(
+    () => [
+      { title: "Total période", value: formatPriceXof(periodTotal), subtitle: "dépenses actives" },
+      {
+        title: "Achats Cuisine",
+        value: formatPriceXof(kitchenTotal),
+        subtitle: "sans stock boissons",
+      },
+      { title: "Enregistrées", value: String(recordedCount), subtitle: "lignes actives" },
+      { title: "Annulées", value: String(cancelledCount), subtitle: "historique conservé" },
+    ],
+    [periodTotal, kitchenTotal, recordedCount, cancelledCount],
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3 lg:gap-3.5 lg:p-4">
+      <header className="flex shrink-0 flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
+            Dépenses
+          </h1>
+          <p className="mt-0.5 text-[12px] text-slate-500">
+            {establishmentName} · charges réelles, sans modification du stock boissons
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openCreate}
+          disabled={isPending}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-60"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Nouvelle dépense
+        </button>
+      </header>
+
+      {message ? (
+        <div className="shrink-0">
+          <AlertMessage message={message} tone="success" />
+        </div>
+      ) : null}
+
+      <div className="grid shrink-0 grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-3">
+        {stats.map((stat) => (
+          <div
+            key={stat.title}
+            className="rounded-xl border border-slate-200/90 bg-white px-3.5 py-3 shadow-sm"
+          >
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              {stat.title}
+            </p>
+            <p className="mt-1 text-[18px] font-bold text-slate-900">{stat.value}</p>
+            <p className="text-[11px] text-slate-500">{stat.subtitle}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            defaultValue={filters.search ?? ""}
+            placeholder="Rechercher libellé, fournisseur…"
+            className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-[12px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                applyFilters({ search: (event.target as HTMLInputElement).value });
+              }
+            }}
+          />
+        </div>
+        <select
+          value={filters.category || ""}
+          onChange={(event) =>
+            applyFilters({ category: event.target.value as ExpenseCategory | "" })
+          }
+          className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px]"
+        >
+          <option value="">Toutes catégories</option>
+          {CATEGORY_OPTIONS.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filters.status || "all"}
+          onChange={(event) =>
+            applyFilters({ status: event.target.value as ExpenseFiltersInput["status"] })
+          }
+          className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px]"
+        >
+          <option value="all">Tous statuts</option>
+          <option value="RECORDED">Enregistrées</option>
+          <option value="CANCELLED">Annulées</option>
+        </select>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+        {expenses.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+              <Wallet className="h-6 w-6" />
+            </div>
+            <h2 className="mt-3 text-[15px] font-semibold text-slate-900">Aucune dépense</h2>
+            <p className="mt-1 max-w-sm text-[12px] text-slate-500">
+              Enregistrez les achats Cuisine et les autres charges. Cela n&apos;affecte jamais le
+              stock boissons.
+            </p>
+          </div>
+        ) : (
+          <div className="h-full overflow-auto">
+            <table className="min-w-full text-left text-[12px]">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-3 py-2.5 font-semibold">Date</th>
+                  <th className="px-3 py-2.5 font-semibold">Catégorie</th>
+                  <th className="px-3 py-2.5 font-semibold">Libellé</th>
+                  <th className="px-3 py-2.5 font-semibold">Fournisseur</th>
+                  <th className="px-3 py-2.5 font-semibold">Montant</th>
+                  <th className="px-3 py-2.5 font-semibold">Statut</th>
+                  <th className="px-3 py-2.5 font-semibold">Auteur</th>
+                  <th className="px-3 py-2.5 font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {expenses.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/80">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-slate-700">
+                      {new Intl.DateTimeFormat("fr-FR").format(new Date(item.expenseDate))}
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-700">
+                      {EXPENSE_CATEGORY_LABELS[item.category]}
+                    </td>
+                    <td className="px-3 py-2.5 font-medium text-slate-900">{item.label}</td>
+                    <td className="px-3 py-2.5 text-slate-600">{item.supplierName ?? "—"}</td>
+                    <td className="px-3 py-2.5 font-semibold text-slate-900">
+                      {formatPriceXof(item.amount)}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${EXPENSE_STATUS_STYLES[item.status]}`}
+                      >
+                        {EXPENSE_STATUS_LABELS[item.status]}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-600">{item.createdByName ?? "—"}</td>
+                    <td className="px-3 py-2.5">
+                      {item.status === "RECORDED" ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="text-[11px] font-semibold text-emerald-700 hover:underline"
+                            onClick={() => openEdit(item)}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            type="button"
+                            className="text-[11px] font-semibold text-red-600 hover:underline"
+                            onClick={() => openCancel(item)}
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-400" title={item.cancelReason ?? ""}>
+                          Verrouillée
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {modal === "create" || modal === "edit" ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/45 p-4">
+          <form
+            action={handleFormAction}
+            className="flex max-h-[min(90dvh,720px)] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+          >
+            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-[16px] font-bold text-slate-900">
+                  {modal === "edit" ? "Modifier la dépense" : "Nouvelle dépense"}
+                </h2>
+                <p className="mt-0.5 text-[12px] text-slate-500">
+                  Montants en XOF entiers. Aucun impact sur le stock boissons.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModal(null)}
+                className="rounded-lg p-1 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4 text-slate-500" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
+              {formError ? <AlertMessage message={formError} /> : null}
+              {selected ? <input type="hidden" name="expenseId" value={selected.id} /> : null}
+              <FormSection title="Informations">
+                <SelectField
+                  id="category"
+                  name="category"
+                  label="Catégorie"
+                  defaultValue={selected?.category ?? "KITCHEN_PURCHASE"}
+                  required
+                >
+                  {CATEGORY_OPTIONS.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </SelectField>
+                <TextField
+                  id="label"
+                  name="label"
+                  label="Libellé"
+                  defaultValue={selected?.label ?? ""}
+                  placeholder="Ex. Sac de riz 50 kg"
+                  required
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberField
+                    id="amount"
+                    name="amount"
+                    label="Montant (XOF)"
+                    defaultValue={selected ? String(selected.amount) : ""}
+                    required
+                  />
+                  <TextField
+                    id="expenseDate"
+                    name="expenseDate"
+                    type="date"
+                    label="Date"
+                    defaultValue={selected?.expenseDate ?? todayIso()}
+                    required
+                  />
+                </div>
+                <TextField
+                  id="supplierName"
+                  name="supplierName"
+                  label="Fournisseur"
+                  defaultValue={selected?.supplierName ?? ""}
+                />
+                <TextField
+                  id="reference"
+                  name="reference"
+                  label="Référence"
+                  defaultValue={selected?.reference ?? ""}
+                />
+                <TextField
+                  id="note"
+                  name="note"
+                  label="Note"
+                  defaultValue={selected?.note ?? ""}
+                />
+              </FormSection>
+            </div>
+            <div className="border-t border-slate-100 px-5 py-3">
+              <ModalFooter
+                onCancel={() => setModal(null)}
+                submitLabel={modal === "edit" ? "Enregistrer" : "Créer la dépense"}
+              />
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {modal === "cancel" && selected ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/45 p-4">
+          <form
+            action={handleCancelAction}
+            className="w-full max-w-md rounded-2xl bg-white shadow-2xl"
+          >
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="text-[16px] font-bold text-slate-900">Annuler la dépense</h2>
+              <p className="mt-0.5 text-[12px] text-slate-500">
+                {selected.label} · {formatPriceXof(selected.amount)}. L&apos;historique est
+                conservé.
+              </p>
+            </div>
+            <div className="space-y-3 px-5 py-4">
+              {formError ? <AlertMessage message={formError} /> : null}
+              <input type="hidden" name="expenseId" value={selected.id} />
+              <TextField
+                id="reason"
+                name="reason"
+                label="Motif obligatoire"
+                placeholder="Ex. saisie en double"
+                required
+              />
+            </div>
+            <div className="border-t border-slate-100 px-5 py-3">
+              <ModalFooter onCancel={() => setModal(null)} submitLabel="Confirmer l'annulation" />
+            </div>
+          </form>
+        </div>
+      ) : null}
+    </div>
+  );
+}

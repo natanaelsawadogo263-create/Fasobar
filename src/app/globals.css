@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --primary: #059669;
+  --primary-dark: #047857;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  overflow: hidden;
+  height: 100dvh;
+  max-width: 100%;
+}
+
+html {
+  overflow: hidden;
+  height: 100dvh;
+  max-width: 100%;
+}
+
+.input-no-spinner::-webkit-outer-spin-button,
+.input-no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input-no-spinner {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Shells : un seul viewport, pas de scroll global */
+.app-shell,
+.admin-shell,
+.pos-shell,
+.pos-workspace,
+.checkout-shell,
+.fasobar-shell,
+.space-shell {
+  height: 100dvh;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.pos-workspace {
+  font-feature-settings: "tnum";
+  max-width: 100%;
+}
+
+.pos-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.pos-scroll,
+.app-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) transparent;
+}
+
+.pos-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.pos-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Liste panier caisse : scroll + snap article par article */
+.cart-snap-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184) transparent;
+}
+
+.cart-snap-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cart-snap-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(148 163 184);
+}
+
+.cart-snap-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .no-print,
+  aside,
+  nav,
+  header:not(.thermal-receipt header) {
+    display: none !important;
+  }
+
+  .thermal-receipt-page {
+    max-width: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .thermal-receipt {
+    width: 80mm;
+    max-width: 80mm;
+    margin: 0 auto;
+    padding: 2mm 3mm;
+    color: #000;
+    background: #fff;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .thermal-receipt table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .thermal-receipt th,
+  .thermal-receipt td {
+    padding: 1px 0;
+  }
+}
+
+.thermal-receipt {
+  width: 100%;
+  max-width: 320px;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}

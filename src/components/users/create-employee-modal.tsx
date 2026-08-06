@@ -1,0 +1,226 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+
+import { createEmployeeAccountAction } from "@/app/(protected)/application/utilisateurs/actions";
+import { AlertMessage } from "@/components/auth/alert-message";
+import { FormField, FormSelect } from "@/components/auth/form-field";
+import { CredentialsSuccessModal } from "@/components/users/credentials-success-modal";
+import { INVITABLE_SPACES } from "@/lib/auth/roles";
+import { DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD } from "@/lib/users/constants";
+import type { CreatedCredentialsSummary } from "@/lib/users/types";
+import { ModalShell } from "@/components/ui/modal-shell";
+
+type CreateEmployeeModalProps = {
+  establishments: Array<{ id: string; name: string }>;
+  defaultEstablishmentId: string;
+  onClose: () => void;
+  onCreated: () => void;
+};
+
+const emptyForm = {
+  fullName: "",
+  email: "",
+  phone: "",
+  space: "cashier_kitchen",
+  establishmentId: "",
+};
+
+export function CreateEmployeeModal({
+  establishments,
+  defaultEstablishmentId,
+  onClose,
+  onCreated,
+}: CreateEmployeeModalProps) {
+  const [form, setForm] = useState({
+    ...emptyForm,
+    establishmentId: defaultEstablishmentId,
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [successSummary, setSuccessSummary] = useState<CreatedCredentialsSummary | null>(
+    null,
+  );
+  const [isPending, startTransition] = useTransition();
+  const idempotencyKey = useMemo(
+    () => (typeof crypto !== "undefined" ? crypto.randomUUID() : ""),
+    [],
+  );
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    submittedRef.current = false;
+  }, []);
+
+  function updateField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (submittedRef.current || isPending) {
+      return;
+    }
+
+    submittedRef.current = true;
+    setError(null);
+
+    const selectedEstablishment =
+      establishments.find((item) => item.id === form.establishmentId) ??
+      establishments[0];
+    const selectedSpace = INVITABLE_SPACES.find((item) => item.id === form.space);
+
+    const formData = new FormData();
+    formData.set("fullName", form.fullName);
+    formData.set("email", form.email);
+    formData.set("phone", form.phone);
+    formData.set("space", form.space);
+    formData.set("establishmentId", form.establishmentId);
+    formData.set("idempotencyKey", idempotencyKey);
+
+    startTransition(async () => {
+      const result = await createEmployeeAccountAction({}, formData);
+
+      if (result.error) {
+        setError(result.error);
+        submittedRef.current = false;
+        return;
+      }
+
+      setSuccessSummary({
+        fullName: form.fullName,
+        email: form.email.trim().toLowerCase(),
+        spaceLabel: selectedSpace?.label ?? "—",
+        establishmentName: selectedEstablishment?.name ?? "—",
+        temporaryPassword: DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD,
+      });
+
+      setForm({ ...emptyForm, establishmentId: defaultEstablishmentId });
+      onCreated();
+    });
+  }
+
+  if (successSummary) {
+    return (
+      <CredentialsSuccessModal
+        summary={successSummary}
+        onClose={() => {
+          setSuccessSummary(null);
+          onClose();
+        }}
+      />
+    );
+  }
+
+  return (
+    <ModalShell
+      formId="create-employee-form"
+      title="Créer un compte employé"
+      subtitle="FasoBar attribue automatiquement un mot de passe temporaire. Communiquez les identifiants à l'employé."
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      footer={
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPending}
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            form="create-employee-form"
+            disabled={isPending}
+            aria-busy={isPending}
+            className="inline-flex h-10 items-center justify-center rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isPending ? "Création..." : "Créer le compte"}
+          </button>
+        </div>
+      }
+    >
+      {error ? <AlertMessage message={error} /> : null}
+
+      <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm text-slate-700">
+        Mot de passe temporaire automatique :{" "}
+        <span className="font-mono font-medium text-slate-900">
+          {DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD}
+        </span>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField
+          id="fullName"
+          name="fullName"
+          label="Nom complet"
+          autoComplete="name"
+          required
+          value={form.fullName}
+          onChange={(event) => updateField("fullName", event.target.value)}
+        />
+
+        <FormField
+          id="email"
+          name="email"
+          label="E-mail"
+          type="email"
+          autoComplete="email"
+          required
+          value={form.email}
+          onChange={(event) => updateField("email", event.target.value)}
+        />
+
+        <FormField
+          id="phone"
+          name="phone"
+          label="Téléphone"
+          type="tel"
+          autoComplete="tel"
+          value={form.phone}
+          onChange={(event) => updateField("phone", event.target.value)}
+        />
+
+        <FormSelect
+          id="establishmentId"
+          name="establishmentId"
+          label="Établissement"
+          required
+          value={form.establishmentId}
+          onChange={(event) => updateField("establishmentId", event.target.value)}
+        >
+          {establishments.map((establishment) => (
+            <option key={establishment.id} value={establishment.id}>
+              {establishment.name}
+            </option>
+          ))}
+        </FormSelect>
+      </div>
+
+      <fieldset className="mt-6 space-y-3">
+        <legend className="text-sm font-medium text-slate-900">Espace attribué</legend>
+        {INVITABLE_SPACES.map((space) => (
+          <label
+            key={space.id}
+            className="flex cursor-pointer gap-3 rounded-xl border border-slate-200 p-4 transition hover:border-emerald-200 has-checked:border-emerald-300 has-checked:bg-emerald-50/50"
+          >
+            <input
+              type="radio"
+              name="space"
+              value={space.id}
+              checked={form.space === space.id}
+              onChange={() => updateField("space", space.id)}
+              className="mt-1 h-4 w-4 accent-emerald-700"
+              required
+            />
+            <span>
+              <span className="block text-sm font-medium text-slate-900">{space.label}</span>
+              <span className="mt-1 block text-sm text-slate-600">{space.description}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+    </ModalShell>
+  );
+}
