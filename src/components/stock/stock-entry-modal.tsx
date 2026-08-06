@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Package, X } from "lucide-react";
 
@@ -108,25 +108,16 @@ export function StockEntryModal({
     return packagingsByProduct[selectedItem.productId] ?? [];
   }, [packagingsByProduct, selectedItem]);
 
-  const selectedPackaging =
-    packagings.find((packaging) => packaging.id === packagingId) ??
-    packagings[0] ??
-    null;
-
-  useEffect(() => {
-    if (packagings.length === 0) {
-      if (packagingId) setPackagingId("");
-      return;
+  const resolvedPackagingId = useMemo(() => {
+    if (packagings.length === 0) return "";
+    if (packagingId && packagings.some((packaging) => packaging.id === packagingId)) {
+      return packagingId;
     }
-    if (!packagingId || !packagings.some((packaging) => packaging.id === packagingId)) {
-      setPackagingId(packagings[0]!.id);
-    }
+    return packagings[0]?.id ?? "";
   }, [packagings, packagingId]);
 
-  useEffect(() => {
-    if (!selectedPackaging) return;
-    setConversionFactor(String(selectedPackaging.conversionFactor));
-  }, [selectedPackaging]);
+  const selectedPackaging =
+    packagings.find((packaging) => packaging.id === resolvedPackagingId) ?? null;
 
   const unitKey = selectedItem?.unit;
   const unitLabel =
@@ -159,6 +150,7 @@ export function StockEntryModal({
 
   function handleStockItemChange(nextId: string) {
     setStockItemId(nextId);
+    setPackagingId("");
     setPurchasedQuantity("1");
     setPackPrice("");
     setLocalError(null);

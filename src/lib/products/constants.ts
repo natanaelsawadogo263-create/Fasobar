@@ -26,14 +26,16 @@ export const PRODUCT_UNIT_LABELS: Record<ProductUnit, string> = {
 };
 
 /** Unités de stock / vente pour les boissons (exemplaires individuels). */
-export const BAR_BASE_UNITS: ProductUnit[] = [
+export const BAR_BASE_UNITS = [
   "BOTTLE",
   "CAN",
   "JERRYCAN",
   "SACHET",
-];
+] as const satisfies readonly ProductUnit[];
 
-export const BAR_BASE_UNIT_HINTS: Record<(typeof BAR_BASE_UNITS)[number], string> = {
+export type BarBaseUnit = (typeof BAR_BASE_UNITS)[number];
+
+export const BAR_BASE_UNIT_HINTS: Record<BarBaseUnit, string> = {
   BOTTLE: "Bière, soda en verre ou plastique",
   CAN: "Boisson en canette",
   JERRYCAN: "Eau, jus ou spiritueux en bidon",

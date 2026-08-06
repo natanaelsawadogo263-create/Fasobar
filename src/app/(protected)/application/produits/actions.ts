@@ -64,14 +64,6 @@ function readNamedImageFile(formData: FormData, key: string): File | null {
   return value;
 }
 
-function readImageFile(formData: FormData): File | null {
-  return (
-    readNamedImageFile(formData, "image") ??
-    readNamedImageFile(formData, "imageOptimized") ??
-    readNamedImageFile(formData, "imageOriginal")
-  );
-}
-
 type ResolvedProductImages = {
   imageUrl: string | null;
   imageOriginalUrl: string | null;
@@ -150,21 +142,6 @@ async function resolveProductImagesFromForm(
     imageOptimizedUrl,
     warning,
   };
-}
-
-async function resolveImageUrlFromForm(
-  workspace: Awaited<ReturnType<typeof requireProductManagementContext>>,
-  formData: FormData,
-  productName: string,
-  keepExistingUrl?: string | null,
-): Promise<{ url: string | null; error?: string }> {
-  const resolved = await resolveProductImagesFromForm(workspace, formData, productName, {
-    imageUrl: keepExistingUrl,
-  });
-  if (resolved.warning && !resolved.imageUrl) {
-    return { url: null, error: resolved.warning };
-  }
-  return { url: resolved.imageUrl };
 }
 
 function mapProductWriteError(error: { message?: string; code?: string } | null): string {

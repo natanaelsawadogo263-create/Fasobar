@@ -70,6 +70,20 @@ export function getMockAdminDashboardData(): AdminDashboardData {
         estimatedUnitCost: null,
       },
     ] as AdminDashboardData["stockAlerts"],
+    liveOps: {
+      openOrdersCount: 12,
+      readyToPayCount: 3,
+      barToPrepareCount: 4,
+      barInPrepCount: 2,
+      barReadyCount: 5,
+      kitchenToPrepareCount: 3,
+      kitchenReadyCount: 2,
+      openCashSessionsCount: 1,
+      openBarSession: {
+        openedByName: "Fatou Diallo",
+        openedAt: new Date().toISOString().replace(/T.*/, "T09:00:00.000Z"),
+      },
+    },
     topProducts: [
       { name: "Brakina", quantity: 48, revenue: 216_000, imageHint: "brakina" },
       { name: "Poulet braisé", quantity: 32, revenue: 160_000, imageHint: "poulet" },

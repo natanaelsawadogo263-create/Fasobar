@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Check,
   ImagePlus,
@@ -122,7 +122,6 @@ export function ProductImageField({
 }: ProductImageFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const onAssetsChangeRef = useRef(onAssetsChange);
-  onAssetsChangeRef.current = onAssetsChange;
 
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [optimizedFile, setOptimizedFile] = useState<File | null>(null);
@@ -135,17 +134,26 @@ export function ProductImageField({
   const [message, setMessage] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [bgVariant, setBgVariant] = useState(0);
-  const [scene, setScene] = useState<ProductImageScene>(() =>
-    inferProductImageScene({ categoryName, productName, departmentCode }),
-  );
   const [modelUsed, setModelUsed] = useState<string | null>(null);
+  const [aiSceneOverride, setAiSceneOverride] = useState<{
+    key: string;
+    scene: ProductImageScene;
+  } | null>(null);
+
+  const sceneKey = `${departmentCode}|${categoryName}|${productName}`;
+  const inferredScene = useMemo(
+    () => inferProductImageScene({ categoryName, productName, departmentCode }),
+    [categoryName, productName, departmentCode],
+  );
+  const scene =
+    aiSceneOverride?.key === sceneKey ? aiSceneOverride.scene : inferredScene;
 
   const displayOriginal = originalPreview ?? existingOriginalUrl ?? null;
   const displayOptimized = optimizedPreview ?? existingOptimizedUrl ?? null;
 
   useEffect(() => {
-    setScene(inferProductImageScene({ categoryName, productName, departmentCode }));
-  }, [categoryName, productName, departmentCode]);
+    onAssetsChangeRef.current = onAssetsChange;
+  }, [onAssetsChange]);
 
   useEffect(() => {
     onAssetsChangeRef.current({
@@ -248,7 +256,7 @@ export function ProductImageField({
       revokeIfBlob(optimizedPreview);
       setOptimizedFile(optimized);
       setOptimizedPreview(nextPreview);
-      setScene(data.scene);
+      setAiSceneOverride({ key: sceneKey, scene: data.scene });
       setModelUsed(data.model);
       setSelection("optimized");
       setProgress(1);
@@ -301,6 +309,7 @@ export function ProductImageField({
     setProgress(0);
     setBgVariant(0);
     setModelUsed(null);
+    setAiSceneOverride(null);
   }
 
   const hasAnyImage = Boolean(displayOriginal || displayOptimized);

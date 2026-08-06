@@ -26,7 +26,7 @@ import {
   PRODUCT_UNITS,
 } from "@/lib/products/constants";
 import type { CategoryOption, ProductListItem, ProductPackaging } from "@/lib/products/types";
-import type { BarPackagingUnit, DepartmentCode } from "@/lib/products/schemas";
+import type { BarPackagingUnit, DepartmentCode, ProductUnit } from "@/lib/products/schemas";
 
 const FORM_ID = "product-form";
 
@@ -95,8 +95,8 @@ export function ProductFormModal({
     if (!isBar) {
       return PRODUCT_UNITS;
     }
-    if (BAR_BASE_UNITS.includes(formState.unit)) {
-      return BAR_BASE_UNITS;
+    if ((BAR_BASE_UNITS as readonly ProductUnit[]).includes(formState.unit)) {
+      return [...BAR_BASE_UNITS];
     }
     return [formState.unit, ...BAR_BASE_UNITS];
   }, [formState.unit, isBar]);
