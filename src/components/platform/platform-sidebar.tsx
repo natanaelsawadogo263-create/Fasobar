@@ -19,7 +19,7 @@ import type { PlatformNavItem } from "@/lib/platform/navigation";
 const NAV_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   "/platform": LayoutDashboard,
   "/platform/clients": Users,
-  "/platform/demandes": FileText,
+  "/platform/demandes-abonnement": FileText,
   "/platform/abonnements": CreditCard,
   "/platform/machines": MonitorSmartphone,
   "/platform/super-admins": Shield,
@@ -34,17 +34,24 @@ export function PlatformSidebar({ navItems }: PlatformSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-full w-[220px] shrink-0 flex-col bg-[#0b1220] text-slate-300 lg:w-[248px]">
-      <div className="flex shrink-0 items-center px-4 py-4 lg:px-5">
+    <aside className="flex h-full w-[232px] shrink-0 flex-col border-r border-white/5 bg-[#0a101c] text-slate-300 lg:w-[260px]">
+      <div className="flex shrink-0 items-center gap-3 px-5 py-5">
         <FasoBarLogo size="sm" tone="dark" />
       </div>
 
-      <p className="px-5 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-        Super Admin
-      </p>
+      <div className="px-5 pb-3">
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400/90">
+            Control plane
+          </p>
+          <p className="mt-0.5 text-[12px] text-slate-400">
+            Super Admin FasoBar
+          </p>
+        </div>
+      </div>
 
       <nav
-        className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 pb-2 lg:px-3"
+        className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-3"
         aria-label="Navigation plateforme"
       >
         {navItems.map((item) => {
@@ -59,9 +66,9 @@ export function PlatformSidebar({ navItems }: PlatformSidebarProps) {
               <span
                 key={item.href}
                 title="Bientôt disponible"
-                className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-[13px] text-slate-600"
+                className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] text-slate-600"
               >
-                <Icon className="h-[15px] w-[15px] shrink-0 opacity-40" />
+                <Icon className="h-4 w-4 shrink-0 opacity-40" />
                 <span className="truncate">{item.label}</span>
               </span>
             );
@@ -71,17 +78,19 @@ export function PlatformSidebar({ navItems }: PlatformSidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex items-center gap-3 rounded-lg px-3 py-[9px] text-[13px] transition ${
+              className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] transition ${
                 isActive
-                  ? "bg-[#152033] font-semibold text-white"
+                  ? "bg-emerald-500/10 font-semibold text-white shadow-[inset_0_0_0_1px_rgba(16,185,129,0.18)]"
                   : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
               }`}
             >
               {isActive ? (
-                <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-emerald-500" />
+                <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-emerald-400" />
               ) : null}
               <Icon
-                className={`h-[15px] w-[15px] shrink-0 ${isActive ? "text-emerald-400" : ""}`}
+                className={`h-4 w-4 shrink-0 transition ${
+                  isActive ? "text-emerald-400" : "text-slate-500 group-hover:text-slate-300"
+                }`}
               />
               <span className="truncate">{item.label}</span>
             </Link>
@@ -89,9 +98,9 @@ export function PlatformSidebar({ navItems }: PlatformSidebarProps) {
         })}
       </nav>
 
-      <div className="shrink-0 border-t border-white/10 px-5 py-3 text-[11px] leading-relaxed text-slate-500">
-        <p>FasoBar Platform</p>
-        <p>© {new Date().getFullYear()}</p>
+      <div className="shrink-0 border-t border-white/10 px-5 py-4 text-[11px] leading-relaxed text-slate-500">
+        <p className="font-medium text-slate-400">FasoBar Platform</p>
+        <p>Gouvernance SaaS · © {new Date().getFullYear()}</p>
       </div>
     </aside>
   );

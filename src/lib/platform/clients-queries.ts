@@ -18,19 +18,10 @@ export type PlatformClientRow = {
   trialEndsAt: string | null;
 };
 
-type OwnerMembershipRow = {
-  organization_id: string;
-  user_id: string;
-  profiles:
-    | { full_name: string | null; phone: string | null }
-    | { full_name: string | null; phone: string | null }[]
-    | null;
+export type PlatformClientsResult = {
+  clients: PlatformClientRow[];
+  error: string | null;
 };
-
-function readSingle<T>(value: T | T[] | null | undefined): T | null {
-  if (!value) return null;
-  return Array.isArray(value) ? (value[0] ?? null) : value;
-}
 
 async function fetchOwnerEmails(userIds: string[]): Promise<Map<string, string>> {
   const emails = new Map<string, string>();
@@ -38,169 +29,151 @@ async function fetchOwnerEmails(userIds: string[]): Promise<Map<string, string>>
     return emails;
   }
 
-  const admin = createAdminClient();
-  await Promise.all(
-    userIds.map(async (userId) => {
-      const { data } = await admin.auth.admin.getUserById(userId);
-      if (data.user?.email) {
-        emails.set(userId, data.user.email.toLowerCase());
-      }
-    }),
-  );
+  try {
+    const admin = createAdminClient();
+    await Promise.all(
+      userIds.map(async (userId) => {
+        try {
+          const { data } = await admin.auth.admin.getUserById(userId);
+          if (data.user?.email) {
+            emails.set(userId, data.user.email.toLowerCase());
+          }
+        } catch (error) {
+          console.error("[platform] email fetch failed for", userId, error);
+        }
+      }),
+    );
+  } catch (error) {
+    console.error("[platform] admin client unavailable for emails:", error);
+  }
 
   return emails;
 }
 
-export async function listPlatformClients(): Promise<PlatformClientRow[]> {
-  const supabase = await createClient();
+/**
+ * Liste des clients = OWNER principal par organisation.
+ * Requêtes plates (pas de joins PostgREST fragiles) pour éviter les 500 RSC.
+ */
+export async function listPlatformClients(): Promise<PlatformClientsResult> {
+  try {
+    const supabase = await createClient();
 
-  const [statesResult, ownersResult, trialsResult, establishmentsResult, membershipsResult] =
-    await Promise.all([
+    const [
+      statesResult,
+      orgsResult,
+      ownersResult,
+      profilesResult,
+      trialsResult,
+      establishmentsResult,
+      establishmentMembershipsResult,
+    ] = await Promise.all([
       supabase
         .from("organization_platform_states")
-        .select(
-          `
-          organization_id,
-          status,
-          created_at,
-          organizations!inner (
-            id,
-            name,
-            created_at
-          )
-        `,
-        )
+        .select("organization_id, status, created_at")
         .order("created_at", { ascending: false }),
+      supabase.from("organizations").select("id, name, created_at"),
       supabase
         .from("organization_memberships")
-        .select(
-          `
-          organization_id,
-          user_id,
-          profiles!inner (
-            full_name,
-            phone
-          )
-        `,
-        )
+        .select("organization_id, user_id")
         .eq("role", "OWNER")
         .eq("status", "ACTIVE"),
-      supabase
-        .from("organization_trials")
-        .select("organization_id, status, ends_at")
-        .order("ends_at", { ascending: false }),
+      supabase.from("profiles").select("id, full_name, phone"),
+      supabase.from("organization_trials").select("organization_id, status, ends_at"),
       supabase.from("establishments").select("id, organization_id"),
       supabase
         .from("establishment_memberships")
-        .select(
-          `
-          user_id,
-          status,
-          establishments!inner (
-            id,
-            organization_id
-          )
-        `,
-        )
+        .select("establishment_id, user_id")
         .eq("status", "ACTIVE"),
     ]);
 
-  if (statesResult.error) {
-    throw new Error(`Clients états: ${statesResult.error.message}`);
-  }
-  if (ownersResult.error) {
-    throw new Error(`Clients owners: ${ownersResult.error.message}`);
-  }
-  if (trialsResult.error) {
-    throw new Error(`Clients essais: ${trialsResult.error.message}`);
-  }
-  if (establishmentsResult.error) {
-    throw new Error(`Clients établissements: ${establishmentsResult.error.message}`);
-  }
-  if (membershipsResult.error) {
-    throw new Error(`Clients memberships établissement: ${membershipsResult.error.message}`);
-  }
+    const firstError =
+      statesResult.error?.message ||
+      orgsResult.error?.message ||
+      ownersResult.error?.message ||
+      profilesResult.error?.message ||
+      trialsResult.error?.message ||
+      establishmentsResult.error?.message ||
+      establishmentMembershipsResult.error?.message ||
+      null;
 
-  const ownersByOrg = new Map<
-    string,
-    { userId: string; full_name: string | null; phone: string | null }
-  >();
+    if (firstError) {
+      console.error("[platform] listPlatformClients query error:", firstError);
+      return { clients: [], error: firstError };
+    }
 
-  for (const row of (ownersResult.data ?? []) as OwnerMembershipRow[]) {
-    const profile = readSingle(row.profiles);
-    ownersByOrg.set(row.organization_id, {
-      userId: row.user_id,
-      full_name: profile?.full_name ?? null,
-      phone: profile?.phone ?? null,
+    const orgById = new Map(
+      (orgsResult.data ?? []).map((org) => [org.id, org] as const),
+    );
+    const profileById = new Map(
+      (profilesResult.data ?? []).map((profile) => [profile.id, profile] as const),
+    );
+
+    const ownersByOrg = new Map<string, string>();
+    for (const row of ownersResult.data ?? []) {
+      ownersByOrg.set(row.organization_id, row.user_id);
+    }
+
+    const emailsByUserId = await fetchOwnerEmails([...ownersByOrg.values()]);
+
+    const trialEndsByOrg = new Map<string, string>();
+    for (const trial of trialsResult.data ?? []) {
+      if (trial.status === "ACTIVE") {
+        trialEndsByOrg.set(trial.organization_id, trial.ends_at);
+      }
+    }
+    for (const trial of trialsResult.data ?? []) {
+      if (!trialEndsByOrg.has(trial.organization_id) && trial.ends_at) {
+        trialEndsByOrg.set(trial.organization_id, trial.ends_at);
+      }
+    }
+
+    const establishmentsCountByOrg = new Map<string, number>();
+    const establishmentOrgById = new Map<string, string>();
+    for (const est of establishmentsResult.data ?? []) {
+      establishmentOrgById.set(est.id, est.organization_id);
+      establishmentsCountByOrg.set(
+        est.organization_id,
+        (establishmentsCountByOrg.get(est.organization_id) ?? 0) + 1,
+      );
+    }
+
+    const employeesByOrg = new Map<string, Set<string>>();
+    for (const membership of establishmentMembershipsResult.data ?? []) {
+      const organizationId = establishmentOrgById.get(membership.establishment_id);
+      if (!organizationId) continue;
+
+      const ownerUserId = ownersByOrg.get(organizationId);
+      if (ownerUserId && membership.user_id === ownerUserId) continue;
+
+      const set = employeesByOrg.get(organizationId) ?? new Set<string>();
+      set.add(membership.user_id);
+      employeesByOrg.set(organizationId, set);
+    }
+
+    const clients: PlatformClientRow[] = (statesResult.data ?? []).map((row) => {
+      const org = orgById.get(row.organization_id);
+      const ownerUserId = ownersByOrg.get(row.organization_id) ?? null;
+      const profile = ownerUserId ? profileById.get(ownerUserId) : null;
+
+      return {
+        organizationId: row.organization_id,
+        organizationName: org?.name ?? "Organisation",
+        organizationCreatedAt: org?.created_at ?? row.created_at,
+        accessStatus: row.status as PlatformAccessStatus,
+        ownerUserId,
+        ownerName: profile?.full_name ?? null,
+        ownerEmail: ownerUserId ? (emailsByUserId.get(ownerUserId) ?? null) : null,
+        ownerPhone: profile?.phone ?? null,
+        establishmentsCount: establishmentsCountByOrg.get(row.organization_id) ?? 0,
+        employeesCount: employeesByOrg.get(row.organization_id)?.size ?? 0,
+        trialEndsAt: trialEndsByOrg.get(row.organization_id) ?? null,
+      };
     });
+
+    return { clients, error: null };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur inattendue.";
+    console.error("[platform] listPlatformClients failed:", error);
+    return { clients: [], error: message };
   }
-
-  const ownerIds = [...ownersByOrg.values()].map((o) => o.userId);
-  const emailsByUserId = await fetchOwnerEmails(ownerIds);
-
-  /** Fin d'essai la plus pertinente : essai ACTIVE en cours, sinon dernière date connue */
-  const trialEndsByOrg = new Map<string, string>();
-  for (const trial of trialsResult.data ?? []) {
-    if (trialEndsByOrg.has(trial.organization_id)) continue;
-    if (trial.status === "ACTIVE" || trial.status === "EXPIRED" || trial.status === "CONVERTED") {
-      trialEndsByOrg.set(trial.organization_id, trial.ends_at);
-    }
-  }
-  // Second pass: prefer ACTIVE over others
-  for (const trial of trialsResult.data ?? []) {
-    if (trial.status === "ACTIVE") {
-      trialEndsByOrg.set(trial.organization_id, trial.ends_at);
-    }
-  }
-
-  const establishmentsCountByOrg = new Map<string, number>();
-  for (const est of establishmentsResult.data ?? []) {
-    establishmentsCountByOrg.set(
-      est.organization_id,
-      (establishmentsCountByOrg.get(est.organization_id) ?? 0) + 1,
-    );
-  }
-
-  /** Employés = memberships établissement ACTIVE, hors OWNER principal */
-  const employeesByOrg = new Map<string, Set<string>>();
-  for (const membership of membershipsResult.data ?? []) {
-    const establishment = readSingle(
-      membership.establishments as
-        | { id: string; organization_id: string }
-        | { id: string; organization_id: string }[]
-        | null,
-    );
-    if (!establishment) continue;
-
-    const owner = ownersByOrg.get(establishment.organization_id);
-    if (owner && membership.user_id === owner.userId) continue;
-
-    const set = employeesByOrg.get(establishment.organization_id) ?? new Set<string>();
-    set.add(membership.user_id);
-    employeesByOrg.set(establishment.organization_id, set);
-  }
-
-  return (statesResult.data ?? []).map((row) => {
-    const org = readSingle(
-      row.organizations as
-        | { id: string; name: string; created_at: string }
-        | { id: string; name: string; created_at: string }[]
-        | null,
-    );
-    const owner = ownersByOrg.get(row.organization_id);
-
-    return {
-      organizationId: row.organization_id,
-      organizationName: org?.name ?? "Organisation",
-      organizationCreatedAt: org?.created_at ?? row.created_at,
-      accessStatus: row.status as PlatformAccessStatus,
-      ownerUserId: owner?.userId ?? null,
-      ownerName: owner?.full_name ?? null,
-      ownerEmail: owner ? (emailsByUserId.get(owner.userId) ?? null) : null,
-      ownerPhone: owner?.phone ?? null,
-      establishmentsCount: establishmentsCountByOrg.get(row.organization_id) ?? 0,
-      employeesCount: employeesByOrg.get(row.organization_id)?.size ?? 0,
-      trialEndsAt: trialEndsByOrg.get(row.organization_id) ?? null,
-    };
-  });
 }

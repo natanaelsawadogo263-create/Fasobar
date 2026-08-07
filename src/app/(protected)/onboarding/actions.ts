@@ -7,6 +7,7 @@ import { onboardingSchema } from "@/lib/auth/schemas";
 import type { AuthActionState } from "@/lib/auth/types";
 import { requireAuthenticatedUser, userHasActiveOrganization } from "@/lib/auth/session";
 import { getBootstrapBlockedMessage } from "@/lib/auth/routes";
+import { withUniqueSlugSuffix } from "@/lib/auth/slugs";
 import { createClient } from "@/lib/supabase/server";
 
 export async function bootstrapOrganizationAction(
@@ -37,13 +38,23 @@ export async function bootstrapOrganizationAction(
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
+  const salt = user.id.replace(/-/g, "");
+  const organizationSlug = withUniqueSlugSuffix(
+    parsed.data.organizationSlug,
+    salt,
+  );
+  const establishmentSlug = withUniqueSlugSuffix(
+    parsed.data.establishmentSlug,
+    `${salt}e`,
+  );
+
   const supabase = await createClient();
 
   const { error } = await supabase.rpc("bootstrap_organization", {
     organization_name: parsed.data.organizationName,
-    organization_slug: parsed.data.organizationSlug,
+    organization_slug: organizationSlug,
     establishment_name: parsed.data.establishmentName,
-    establishment_slug: parsed.data.establishmentSlug,
+    establishment_slug: establishmentSlug,
     establishment_type: parsed.data.establishmentType,
     phone: parsed.data.phone ?? null,
     address: parsed.data.address ?? null,
@@ -54,8 +65,15 @@ export async function bootstrapOrganizationAction(
   });
 
   if (error) {
+    console.error(
+      "[bootstrap_organization]",
+      error.code,
+      error.message,
+      error.details,
+      error.hint,
+    );
     return { error: mapGenericError(error) };
   }
 
-  redirect("/onboarding/employes");
+  redirect("/abonnement");
 }

@@ -8,7 +8,7 @@ import {
   shouldRedirectUnauthenticated,
 } from "@/lib/auth/routes";
 import { onboardingSchema, signUpSchema } from "@/lib/auth/schemas";
-import { isValidSlug, normalizeSlug, slugifyFromName } from "@/lib/auth/slugs";
+import { isValidSlug, normalizeSlug, slugifyFromName, withUniqueSlugSuffix } from "@/lib/auth/slugs";
 
 describe("signUpSchema", () => {
   it("accepte un formulaire valide", () => {
@@ -45,12 +45,27 @@ describe("onboardingSchema", () => {
       establishmentSlug: "le-palmier-ouaga",
       establishmentType: "RESTAURANT_MAQUIS",
       city: "Ouagadougou",
+      address: "Ouaga 2000",
       country: "Burkina Faso",
       currency: "XOF",
       timezone: "Africa/Ouagadougou",
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("refuse sans ville ou quartier", () => {
+    const result = onboardingSchema.safeParse({
+      organizationName: "Maquis Le Palmier",
+      organizationSlug: "maquis-le-palmier",
+      establishmentName: "Le Palmier Ouaga",
+      establishmentSlug: "le-palmier-ouaga",
+      establishmentType: "RESTAURANT_MAQUIS",
+      city: "",
+      address: "",
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it("refuse un slug invalide", () => {
@@ -61,6 +76,7 @@ describe("onboardingSchema", () => {
       establishmentSlug: "bar-test",
       establishmentType: "BAR",
       city: "Ouagadougou",
+      address: "Zone 1",
     });
 
     expect(result.success).toBe(false);
@@ -80,6 +96,13 @@ describe("slugs", () => {
     expect(isValidSlug("fasobar-dev")).toBe(true);
     expect(isValidSlug("Slug Invalide")).toBe(false);
   });
+
+  it("ajoute un suffixe unique à un slug", () => {
+    const result = withUniqueSlugSuffix("maquis", "abc123def");
+    expect(result.startsWith("maquis-")).toBe(true);
+    expect(isValidSlug(result)).toBe(true);
+    expect(result).not.toBe("maquis");
+  });
 });
 
 describe("routes et redirections", () => {
@@ -87,6 +110,8 @@ describe("routes et redirections", () => {
     expect(isProtectedPath("/application")).toBe(true);
     expect(isProtectedPath("/onboarding")).toBe(true);
     expect(isProtectedPath("/platform")).toBe(true);
+    expect(isProtectedPath("/abonnement")).toBe(true);
+    expect(isProtectedPath("/acces-saas-bloque")).toBe(true);
     expect(isProtectedPath("/acces-refuse")).toBe(true);
     expect(isProtectedPath("/acces-suspendu")).toBe(true);
     expect(isProtectedPath("/connexion")).toBe(false);

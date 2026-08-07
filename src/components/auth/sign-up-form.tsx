@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { signUpAction } from "@/lib/auth/actions";
 import type { AuthActionState } from "@/lib/auth/types";
@@ -14,6 +14,9 @@ const initialState: AuthActionState = {};
 
 export function SignUpForm() {
   const [state, formAction] = useActionState(signUpAction, initialState);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   return (
     <div className="w-full max-w-[420px]">
@@ -45,6 +48,8 @@ export function SignUpForm() {
             name="fullName"
             label="Nom complet"
             autoComplete="name"
+            value={fullName}
+            onChange={(event) => setFullName(event.target.value)}
             required
           />
 
@@ -54,6 +59,8 @@ export function SignUpForm() {
             label="E-mail"
             type="email"
             autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             required
           />
 
@@ -81,6 +88,8 @@ export function SignUpForm() {
               id="acceptTerms"
               name="acceptTerms"
               type="checkbox"
+              checked={acceptTerms}
+              onChange={(event) => setAcceptTerms(event.target.checked)}
               required
               className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
             />

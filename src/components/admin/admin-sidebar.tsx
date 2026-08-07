@@ -6,6 +6,7 @@ import type { ComponentType } from "react";
 import {
   Boxes,
   ClipboardList,
+  CreditCard,
   LayoutDashboard,
   Package,
   Settings,
@@ -32,6 +33,7 @@ const NAV_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   "/application/caisses": Landmark,
   "/application/utilisateurs": Users,
   "/application/rapports": BarChart3,
+  "/application/mon-abonnement": CreditCard,
   "/application/parametres": Settings,
 };
 

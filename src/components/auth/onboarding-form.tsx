@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { bootstrapOrganizationAction } from "@/app/(protected)/onboarding/actions";
 import { ESTABLISHMENT_TYPE_LABELS, ESTABLISHMENT_TYPES } from "@/lib/auth/constants";
 import type { AuthActionState } from "@/lib/auth/types";
+import type { EstablishmentType } from "@/lib/auth/schemas";
 import { slugifyFromName } from "@/lib/auth/slugs";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { FormField, FormSelect } from "@/components/auth/form-field";
@@ -18,6 +19,11 @@ export function OnboardingForm() {
   const [organizationName, setOrganizationName] = useState("");
   const [establishmentName, setEstablishmentName] = useState("");
   const [establishmentTouched, setEstablishmentTouched] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [establishmentType, setEstablishmentType] =
+    useState<EstablishmentType>("RESTAURANT_MAQUIS");
+  const [city, setCity] = useState("");
+  const [quartier, setQuartier] = useState("");
 
   const organizationSlug = slugifyFromName(organizationName);
   const resolvedEstablishmentName = establishmentTouched
@@ -41,7 +47,7 @@ export function OnboardingForm() {
                 Informations de l&apos;établissement
               </h1>
               <p className="mx-auto mt-2 max-w-[22rem] text-sm leading-relaxed text-slate-500">
-                Dernière étape : présentez votre activité et votre premier site.
+                Indiquez le nom, la ville et le quartier de votre établissement.
               </p>
             </header>
 
@@ -59,7 +65,9 @@ export function OnboardingForm() {
 
             <div className="mt-8 space-y-6">
               <section className="space-y-3.5">
-                <h2 className="text-sm font-semibold text-slate-900">Votre activité</h2>
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Votre établissement
+                </h2>
 
                 <FormField
                   id="organizationName"
@@ -72,25 +80,10 @@ export function OnboardingForm() {
                 />
 
                 <FormField
-                  id="phone"
-                  name="phone"
-                  label="Téléphone"
-                  type="tel"
-                  autoComplete="tel"
-                  placeholder="+226 70 00 00 00"
-                />
-              </section>
-
-              <div className="h-px bg-slate-100" aria-hidden />
-
-              <section className="space-y-3.5">
-                <h2 className="text-sm font-semibold text-slate-900">Votre premier site</h2>
-
-                <FormField
                   id="establishmentName"
                   name="establishmentName"
-                  label="Nom du site"
-                  placeholder="Identique au nom commercial, ou un nom de site"
+                  label="Nom de l'établissement"
+                  placeholder="Ex. Maquis Le Palmier — Ouaga 2000"
                   value={resolvedEstablishmentName}
                   onChange={(event) => {
                     setEstablishmentTouched(true);
@@ -102,9 +95,12 @@ export function OnboardingForm() {
                 <FormSelect
                   id="establishmentType"
                   name="establishmentType"
-                  label="Type de site"
+                  label="Type d'établissement"
                   required
-                  defaultValue="RESTAURANT_MAQUIS"
+                  value={establishmentType}
+                  onChange={(event) =>
+                    setEstablishmentType(event.target.value as EstablishmentType)
+                  }
                 >
                   {ESTABLISHMENT_TYPES.map((type) => (
                     <option key={type} value={type}>
@@ -113,24 +109,44 @@ export function OnboardingForm() {
                   ))}
                 </FormSelect>
 
-                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                  <FormField
-                    id="city"
-                    name="city"
-                    label="Ville"
-                    required
-                    defaultValue=""
-                    placeholder="Ouagadougou"
-                  />
+                <FormField
+                  id="phone"
+                  name="phone"
+                  label="Téléphone"
+                  type="tel"
+                  autoComplete="tel"
+                  placeholder="+226 70 00 00 00"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
+                />
+              </section>
 
-                  <FormField
-                    id="address"
-                    name="address"
-                    label="Adresse"
-                    autoComplete="street-address"
-                    placeholder="Optionnel"
-                  />
-                </div>
+              <div className="h-px bg-slate-100" aria-hidden />
+
+              <section className="space-y-3.5">
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Localisation
+                </h2>
+
+                <FormField
+                  id="city"
+                  name="city"
+                  label="Ville"
+                  required
+                  placeholder="Ex. Ouagadougou"
+                  value={city}
+                  onChange={(event) => setCity(event.target.value)}
+                />
+
+                <FormField
+                  id="address"
+                  name="address"
+                  label="Quartier"
+                  required
+                  placeholder="Ex. Ouaga 2000, Zone 1, Dassasgho…"
+                  value={quartier}
+                  onChange={(event) => setQuartier(event.target.value)}
+                />
               </section>
             </div>
           </div>

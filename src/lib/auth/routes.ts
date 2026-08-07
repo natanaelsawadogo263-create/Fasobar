@@ -5,6 +5,8 @@ export const PROTECTED_PREFIXES = [
   "/onboarding",
   "/premiere-connexion",
   "/platform",
+  "/abonnement",
+  "/acces-saas-bloque",
   "/acces-refuse",
   "/acces-suspendu",
 ];

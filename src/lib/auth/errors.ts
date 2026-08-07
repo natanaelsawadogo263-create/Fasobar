@@ -8,8 +8,13 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   weak_password: "Le mot de passe ne respecte pas les critères de sécurité.",
   over_request_rate_limit:
     "Trop de tentatives. Veuillez réessayer dans quelques minutes.",
+  over_email_send_rate_limit:
+    "Trop d'e-mails envoyés par Supabase. Réessayez dans quelques minutes.",
+  email_address_invalid:
+    "Adresse e-mail refusée. Utilisez une adresse réelle (évitez example.com et les domaines de test).",
   same_password:
     "Le nouveau mot de passe doit être différent de l'ancien.",
+  signup_disabled: "Les inscriptions sont temporairement désactivées.",
 };
 
 export function mapAuthError(error: AuthError | null): string {
@@ -35,9 +40,23 @@ export function mapAuthError(error: AuthError | null): string {
     return AUTH_ERROR_MESSAGES.user_already_exists;
   }
 
+  if (message.includes("email rate limit") || message.includes("over_email")) {
+    return AUTH_ERROR_MESSAGES.over_email_send_rate_limit;
+  }
+
+  if (message.includes("email address") && message.includes("invalid")) {
+    return AUTH_ERROR_MESSAGES.email_address_invalid;
+  }
+
+  if (message.includes("database error saving new user")) {
+    return "Création du profil impossible. Vérifiez les triggers profiles / RLS côté base.";
+  }
+
   if (message.includes("password")) {
     return AUTH_ERROR_MESSAGES.weak_password;
   }
+
+  console.error("[auth]", error.code ?? "unknown", error.message);
 
   return "Impossible de traiter votre demande. Veuillez réessayer.";
 }
@@ -68,8 +87,15 @@ export function mapGenericError(error: unknown): string {
     return "Le slug indiqué n'est pas valide.";
   }
 
+  if (
+    message.includes("organizations_slug_key") ||
+    (message.includes("slug") && message.includes("already exists"))
+  ) {
+    return "Ce nom commercial est déjà utilisé. Choisissez un nom plus précis (ex. Maquis Le Palmier Ouaga).";
+  }
+
   if (message.includes("duplicate key") || message.includes("unique")) {
-    return "Un enregistrement similaire existe déjà.";
+    return "Un enregistrement similaire existe déjà. Vérifiez le nom de l'établissement.";
   }
 
   if (
@@ -78,7 +104,14 @@ export function mapGenericError(error: unknown): string {
     "code" in error &&
     error.code === "23505"
   ) {
-    return "Un enregistrement similaire existe déjà.";
+    const details =
+      "details" in error && typeof error.details === "string"
+        ? error.details
+        : "";
+    if (details.includes("organizations_slug_key") || message.includes("slug")) {
+      return "Ce nom commercial est déjà utilisé. Choisissez un nom plus précis.";
+    }
+    return "Un enregistrement similaire existe déjà. Vérifiez le nom de l'établissement.";
   }
 
   const cleaned = message

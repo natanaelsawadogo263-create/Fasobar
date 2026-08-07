@@ -1,0 +1,225 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Search } from "lucide-react";
+
+import {
+  PlatformAlert,
+  PlatformBody,
+  PlatformButton,
+  PlatformPage,
+  formatPlatformDate,
+} from "@/components/platform/platform-ui";
+import {
+  addPlatformAdminAction,
+  removePlatformAdminAction,
+  setPlatformAdminStatusAction,
+} from "@/lib/platform/actions";
+import type { PlatformAdminRow } from "@/lib/platform/admins-queries";
+
+type Props = {
+  admins: PlatformAdminRow[];
+  error?: string | null;
+  currentUserId?: string | null;
+};
+
+export function PlatformAdminsWorkspace({
+  admins,
+  error = null,
+  currentUserId = null,
+}: Props) {
+  const [userId, setUserId] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [query, setQuery] = useState("");
+
+  const isSuccessMessage =
+    message != null &&
+    (message.includes("ajouté") ||
+      message.includes("mis à jour") ||
+      message.includes("retiré"));
+
+  const filtered = admins.filter((admin) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return [admin.fullName, admin.email, admin.userId]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(q);
+  });
+
+  return (
+    <PlatformPage>
+      <PlatformBody className="!py-3 lg:!px-4 lg:!py-3">
+        <div className="flex h-full min-h-0 flex-col gap-2.5 overflow-hidden">
+          {error ? (
+            <PlatformAlert tone="error">
+              Impossible de charger les Super Admins : {error}
+            </PlatformAlert>
+          ) : null}
+          {message ? (
+            <PlatformAlert tone={isSuccessMessage ? "success" : "error"}>
+              {message}
+            </PlatformAlert>
+          ) : null}
+
+          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+            <div className="shrink-0 border-b border-slate-100 px-3 py-2.5 sm:px-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="mr-auto text-[13px] font-semibold text-slate-900">
+                  Super Admins
+                  <span className="ml-1.5 font-medium text-slate-400">
+                    {filtered.length}
+                  </span>
+                </h2>
+                <label className="relative block w-full max-w-[200px] flex-1 sm:w-auto">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Rechercher…"
+                    className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-2.5 text-[12px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  />
+                </label>
+              </div>
+
+              <form
+                className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setMessage(null);
+                  startTransition(async () => {
+                    const result = await addPlatformAdminAction({ userId });
+                    if (result.ok) {
+                      setMessage("Super Admin ajouté.");
+                      setUserId("");
+                    } else {
+                      setMessage(result.error ?? "Action impossible.");
+                    }
+                  });
+                }}
+              >
+                <input
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  placeholder="UUID utilisateur (profiles.id)"
+                  className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  required
+                />
+                <PlatformButton
+                  type="submit"
+                  tone="primary"
+                  disabled={pending}
+                  className="!py-1.5 !text-[12px]"
+                >
+                  Ajouter
+                </PlatformButton>
+              </form>
+            </div>
+
+            <div className="app-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+              {filtered.length === 0 ? (
+                <p className="px-4 py-10 text-center text-[12px] text-slate-500">
+                  Aucun Super Admin.
+                </p>
+              ) : (
+                filtered.map((admin) => {
+                  const isSelf = currentUserId === admin.userId;
+                  return (
+                    <div
+                      key={admin.id}
+                      className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-3 py-2.5 last:border-0 sm:px-4"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-medium text-slate-900">
+                          {admin.fullName ?? "Sans nom"}
+                          {isSelf ? (
+                            <span className="ml-2 text-[10px] font-semibold uppercase text-emerald-700">
+                              Vous
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="truncate text-[12px] text-slate-500">
+                          {admin.email ?? "—"}
+                        </p>
+                      </div>
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${
+                          admin.status === "ACTIVE"
+                            ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
+                            : "bg-slate-100 text-slate-700 ring-slate-200"
+                        }`}
+                      >
+                        {admin.status === "ACTIVE" ? "Actif" : "Inactif"}
+                      </span>
+                      <span className="tabular-nums text-[11px] text-slate-400">
+                        {formatPlatformDate(admin.createdAt)}
+                      </span>
+                      <div className="flex gap-1">
+                        <PlatformButton
+                          disabled={pending || isSelf}
+                          className="!px-2 !py-1 !text-[10px]"
+                          onClick={() => {
+                            setMessage(null);
+                            startTransition(async () => {
+                              const next =
+                                admin.status === "ACTIVE"
+                                  ? "INACTIVE"
+                                  : "ACTIVE";
+                              const result = await setPlatformAdminStatusAction({
+                                userId: admin.userId,
+                                status: next,
+                              });
+                              setMessage(
+                                result.ok
+                                  ? `Statut mis à jour (${next === "ACTIVE" ? "actif" : "inactif"}).`
+                                  : result.error ?? "Action impossible.",
+                              );
+                            });
+                          }}
+                        >
+                          {admin.status === "ACTIVE"
+                            ? "Désactiver"
+                            : "Activer"}
+                        </PlatformButton>
+                        <PlatformButton
+                          tone="danger"
+                          disabled={pending || isSelf}
+                          className="!px-2 !py-1 !text-[10px]"
+                          onClick={() => {
+                            if (
+                              !window.confirm(
+                                `Retirer définitivement ${admin.fullName ?? admin.email ?? "ce Super Admin"} ?`,
+                              )
+                            ) {
+                              return;
+                            }
+                            setMessage(null);
+                            startTransition(async () => {
+                              const result = await removePlatformAdminAction({
+                                userId: admin.userId,
+                              });
+                              setMessage(
+                                result.ok
+                                  ? "Super Admin retiré."
+                                  : result.error ?? "Action impossible.",
+                              );
+                            });
+                          }}
+                        >
+                          Retirer
+                        </PlatformButton>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </section>
+        </div>
+      </PlatformBody>
+    </PlatformPage>
+  );
+}

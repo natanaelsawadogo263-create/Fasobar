@@ -98,6 +98,49 @@ html {
   background: transparent;
 }
 
+/* Liste clients Super Admin : snap vertical ligne par ligne */
+.platform-clients-snap {
+  scroll-snap-type: y proximity;
+  scroll-padding-top: 0.25rem;
+}
+
+.platform-clients-snap > a,
+.platform-clients-snap > .snap-start {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
+.platform-requests-snap {
+  scroll-snap-type: y proximity;
+  scroll-padding-top: 0.25rem;
+}
+
+.platform-requests-snap > button,
+.platform-requests-snap > .snap-start {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
+.platform-subscriptions-snap {
+  scroll-snap-type: y proximity;
+  scroll-padding-top: 0.25rem;
+}
+
+.platform-subscriptions-snap > .snap-start {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
+.platform-machines-snap {
+  scroll-snap-type: y proximity;
+  scroll-padding-top: 0.25rem;
+}
+
+.platform-machines-snap > .snap-start {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
 @media print {
   body {
     background: #fff;

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { getWorkspaceContext } from "@/lib/auth/workspace-context";
 import { isActivePlatformAdmin } from "@/lib/platform/auth";
+import { getSaasRedirectForUser } from "@/lib/platform/saas-gate";
 import { profileRequiresPasswordChange } from "@/lib/users/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -32,6 +33,16 @@ export async function resolvePostLoginRedirect(userId: string): Promise<string> 
 
   if (!context) {
     return "/onboarding";
+  }
+
+  const saasRedirect = await getSaasRedirectForUser(
+    userId,
+    context.organizationId,
+    context.organizationRole === "OWNER",
+  );
+
+  if (saasRedirect) {
+    return saasRedirect;
   }
 
   return context.homePath;

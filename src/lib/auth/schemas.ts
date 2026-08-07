@@ -77,8 +77,11 @@ export const onboardingSchema = z.object({
     .min(1, "Le slug de l'établissement est obligatoire.")
     .refine(isValidSlug, "Le slug de l'établissement est invalide."),
   establishmentType: establishmentTypeSchema,
-  address: z.string().trim().optional(),
-  city: z.string().trim().min(1, "La ville est obligatoire."),
+  address: z
+    .string()
+    .trim()
+    .min(2, "Le quartier est obligatoire."),
+  city: z.string().trim().min(2, "La ville est obligatoire."),
   country: z.string().trim().default("Burkina Faso"),
   currency: z.string().trim().default("XOF"),
   timezone: z.string().trim().default("Africa/Ouagadougou"),

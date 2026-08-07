@@ -288,7 +288,8 @@ export function AdminSettingsWorkspace({
                       <TextField
                         id="address"
                         name="address"
-                        label="Adresse"
+                        label="Quartier"
+                        placeholder="Ex. Ouaga 2000, Zone 1…"
                         defaultValue={settings?.address ?? ""}
                         placeholder="Ex. Secteur 15, Ouagadougou"
                       />

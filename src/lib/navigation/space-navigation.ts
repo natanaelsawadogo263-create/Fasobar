@@ -18,6 +18,7 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/application/sessions-bar", label: "Sessions Bar", enabled: true },
   { href: "/application/utilisateurs", label: "Utilisateurs", enabled: true },
   { href: "/application/rapports", label: "Rapports", enabled: true },
+  { href: "/application/mon-abonnement", label: "Mon abonnement", enabled: true },
   { href: "/application/parametres", label: "Paramètres", enabled: true },
 ];
 
@@ -53,6 +54,7 @@ const ADMIN_ONLY_PREFIXES = [
   "/application/utilisateurs",
   "/application/tableau-de-bord",
   "/application/parametres",
+  "/application/mon-abonnement",
   "/application/rapports",
   "/application/ventes",
   "/application/depenses",

@@ -15,6 +15,11 @@ import { MANAGEMENT_ROLES } from "@/lib/products/constants";
 import { resolveOrderPermissions } from "@/lib/orders/constants";
 import { resolveStockPermissions } from "@/lib/stock/constants";
 import { membershipRoleIsCashierKitchen } from "@/lib/auth/roles";
+import { isActivePlatformAdmin } from "@/lib/platform/auth";
+import {
+  getSaasRedirectForUser,
+  requireOrganizationBusinessAccess,
+} from "@/lib/platform/saas-gate";
 import { profileRequiresPasswordChange } from "@/lib/users/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -260,7 +265,48 @@ export async function requireAuthenticatedWorkspace(): Promise<WorkspaceContext>
     redirect("/acces-suspendu");
   }
 
+  if (!(await isActivePlatformAdmin())) {
+    const saasRedirect = await getSaasRedirectForUser(
+      context.userId,
+      context.organizationId,
+      context.organizationRole === "OWNER",
+    );
+    if (saasRedirect) {
+      redirect(saasRedirect);
+    }
+  }
+
   return context;
+}
+
+/** Contexte workspace + assertion d'accès métier (mutations). */
+export async function requireBusinessMutationContext(): Promise<WorkspaceContext> {
+  const context = await requireWorkspaceContext();
+  const denied = await requireOrganizationBusinessAccess(context.organizationId);
+  if (denied) {
+    const saasRedirect = await getSaasRedirectForUser(
+      context.userId,
+      context.organizationId,
+      context.organizationRole === "OWNER",
+    );
+    redirect(saasRedirect ?? "/acces-saas-bloque");
+  }
+  return context;
+}
+
+async function assertBusinessMutationAccess(
+  context: WorkspaceContext,
+): Promise<void> {
+  if (await isActivePlatformAdmin()) return;
+  const denied = await requireOrganizationBusinessAccess(context.organizationId);
+  if (denied) {
+    const saasRedirect = await getSaasRedirectForUser(
+      context.userId,
+      context.organizationId,
+      context.organizationRole === "OWNER",
+    );
+    redirect(saasRedirect ?? "/acces-saas-bloque");
+  }
 }
 
 function isAdminWorkspace(context: WorkspaceContext): boolean {
@@ -290,6 +336,7 @@ export async function requireAdminContext(): Promise<WorkspaceContext> {
     redirectDenied(context);
   }
 
+  await assertBusinessMutationAccess(context);
   return context;
 }
 
@@ -310,6 +357,7 @@ export async function requireProductManagementContext(): Promise<WorkspaceContex
     redirectDenied(context);
   }
 
+  await assertBusinessMutationAccess(context);
   return context;
 }
 
@@ -330,6 +378,7 @@ export async function requireStockManagementContext(): Promise<WorkspaceContext>
     redirectDenied(context);
   }
 
+  await assertBusinessMutationAccess(context);
   return context;
 }
 
@@ -350,6 +399,7 @@ export async function requireOrderManagementContext(): Promise<WorkspaceContext>
     redirectDenied(context);
   }
 
+  await assertBusinessMutationAccess(context);
   return context;
 }
 
@@ -361,6 +411,7 @@ export async function requireCashRegisterOperatorContext(): Promise<WorkspaceCon
     redirectDenied(context);
   }
 
+  await assertBusinessMutationAccess(context);
   return context;
 }
 
@@ -383,6 +434,7 @@ export async function requireKitchenContext(): Promise<WorkspaceContext> {
     redirectDenied(context);
   }
 
+  await assertBusinessMutationAccess(context);
   return context;
 }
 
@@ -401,6 +453,7 @@ export async function requireBarManagerContext(): Promise<WorkspaceContext> {
     redirectDenied(context);
   }
 
+  await assertBusinessMutationAccess(context);
   return context;
 }
 

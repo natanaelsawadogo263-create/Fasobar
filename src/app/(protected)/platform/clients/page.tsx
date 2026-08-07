@@ -4,7 +4,7 @@ import { listPlatformClients } from "@/lib/platform/clients-queries";
 
 export default async function PlatformClientsPage() {
   await requirePlatformAdmin();
-  const clients = await listPlatformClients();
+  const { clients, error } = await listPlatformClients();
 
-  return <PlatformClientsWorkspace clients={clients} />;
+  return <PlatformClientsWorkspace clients={clients} error={error} />;
 }

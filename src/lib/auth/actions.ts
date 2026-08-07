@@ -12,6 +12,10 @@ import {
 } from "@/lib/auth/schemas";
 import { redirectAfterLogin } from "@/lib/auth/post-login";
 import type { AuthActionState } from "@/lib/auth/types";
+import {
+  createAdminClient,
+  isAdminClientConfigured,
+} from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function getOriginFromHeaders(headerStore: Headers): string {
@@ -27,6 +31,55 @@ function getOriginFromHeaders(headerStore: Headers): string {
 
 function formDataToObject(formData: FormData): Record<string, FormDataEntryValue> {
   return Object.fromEntries(formData.entries());
+}
+
+function shouldSkipEmailConfirmation(): boolean {
+  if (process.env.AUTH_SIGNUP_SKIP_EMAIL_CONFIRM === "true") {
+    return true;
+  }
+
+  return process.env.NODE_ENV !== "production" && isAdminClientConfigured();
+}
+
+async function signUpWithoutConfirmationEmail(input: {
+  email: string;
+  password: string;
+  fullName: string;
+}): Promise<AuthActionState> {
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.createUser({
+    email: input.email,
+    password: input.password,
+    email_confirm: true,
+    user_metadata: {
+      full_name: input.fullName,
+    },
+  });
+
+  if (error) {
+    console.error("[signUp:admin]", error.code, error.message);
+    return { error: mapAuthError(error) };
+  }
+
+  if (!data.user) {
+    return { error: "Création du compte impossible. Veuillez réessayer." };
+  }
+
+  const supabase = await createClient();
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: input.email,
+    password: input.password,
+  });
+
+  if (signInError) {
+    console.error("[signUp:signIn]", signInError.code, signInError.message);
+    return {
+      success:
+        "Compte créé. Connectez-vous avec votre e-mail et votre mot de passe.",
+    };
+  }
+
+  redirect("/onboarding");
 }
 
 export async function signUpAction(
@@ -45,6 +98,15 @@ export async function signUpAction(
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
+  // En développement : création confirmée via Admin API (aucun e-mail envoyé).
+  if (shouldSkipEmailConfirmation()) {
+    return signUpWithoutConfirmationEmail({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      fullName: parsed.data.fullName,
+    });
+  }
+
   const headerStore = await headers();
   const origin = getOriginFromHeaders(headerStore);
   const supabase = await createClient();
@@ -61,6 +123,21 @@ export async function signUpAction(
   });
 
   if (error) {
+    console.error("[signUp]", error.code, error.message);
+
+    // Contournement si le quota e-mail Supabase est saturé et que la clé admin est dispo.
+    const isEmailRateLimited =
+      error.code === "over_email_send_rate_limit" ||
+      error.message.toLowerCase().includes("email rate limit");
+
+    if (isEmailRateLimited && isAdminClientConfigured()) {
+      return signUpWithoutConfirmationEmail({
+        email: parsed.data.email,
+        password: parsed.data.password,
+        fullName: parsed.data.fullName,
+      });
+    }
+
     return { error: mapAuthError(error) };
   }
 

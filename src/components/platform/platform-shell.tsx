@@ -12,7 +12,11 @@ type PlatformShellProps = {
   children: ReactNode;
 };
 
-export function PlatformShell({ adminEmail, adminName, children }: PlatformShellProps) {
+export function PlatformShell({
+  adminEmail,
+  adminName,
+  children,
+}: PlatformShellProps) {
   return (
     <div className="platform-shell app-shell flex h-dvh w-full max-w-full overflow-hidden bg-[#f4f6f9]">
       <div className="hidden h-full shrink-0 md:flex">
