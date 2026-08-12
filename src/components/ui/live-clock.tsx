@@ -48,9 +48,9 @@ export function LiveClock({
   if (inline) {
     return (
       <div
-        className={`inline-flex items-center gap-1.5 text-[11px] tabular-nums ${
+        className={`items-center gap-1.5 text-[11px] tabular-nums ${
           isDark ? "text-slate-300" : "text-slate-600"
-        } ${className}`}
+        } ${className.includes("inline-flex") || className.includes("flex") || className.includes("hidden") ? "" : "inline-flex"} ${className}`}
         title="Heure locale"
         aria-live="polite"
         aria-atomic="true"
@@ -74,11 +74,11 @@ export function LiveClock({
 
   return (
     <div
-      className={`inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${
+      className={`items-center gap-2 rounded-lg border px-2.5 py-1.5 ${
         isDark
           ? "border-white/10 bg-white/[0.04] text-slate-200"
           : "border-slate-200 bg-white text-slate-700"
-      } ${className}`}
+      } ${className.includes("inline-flex") || className.includes("flex") || className.includes("hidden") ? "" : "inline-flex"} ${className}`}
       title="Heure locale"
       aria-live="polite"
       aria-atomic="true"

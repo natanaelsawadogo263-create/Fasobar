@@ -320,7 +320,7 @@ export function ExpensesWorkspace({
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <div className="relative min-w-[200px] flex-1">
+        <div className="relative min-w-0 flex-1 basis-full sm:min-w-[200px] sm:basis-auto">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
@@ -328,7 +328,7 @@ export function ExpensesWorkspace({
             placeholder={
               lockedArea ? "Rechercher un titre…" : "Rechercher libellé, fournisseur…"
             }
-            className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-[12px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-[13px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:h-9 sm:text-[12px]"
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 applyFilters({ search: (event.target as HTMLInputElement).value });
@@ -342,7 +342,7 @@ export function ExpensesWorkspace({
             onChange={(event) =>
               applyFilters({ area: event.target.value as ExpenseArea | "" })
             }
-            className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px]"
+            className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] sm:h-9 sm:flex-none sm:text-[12px]"
           >
             <option value="">Caisse & Bar</option>
             {AREA_OPTIONS.filter(([value]) => showBarArea || value !== "BAR").map(
@@ -360,7 +360,7 @@ export function ExpensesWorkspace({
             onChange={(event) =>
               applyFilters({ category: event.target.value as ExpenseCategory | "" })
             }
-            className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px]"
+            className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] sm:h-9 sm:flex-none sm:text-[12px]"
           >
             <option value="">Toutes catégories</option>
             {CATEGORY_OPTIONS.map(([value, label]) => (
@@ -375,7 +375,7 @@ export function ExpensesWorkspace({
           onChange={(event) =>
             applyFilters({ status: event.target.value as ExpenseFiltersInput["status"] })
           }
-          className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px]"
+          className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] sm:h-9 sm:flex-none sm:text-[12px]"
         >
           <option value="all">Tous statuts</option>
           <option value="RECORDED">Enregistrées</option>
@@ -397,7 +397,69 @@ export function ExpensesWorkspace({
           </div>
         ) : (
           <div className="h-full overflow-auto">
-            <table className="min-w-full text-left text-[12px]">
+            <div className="space-y-2 p-3 md:hidden">
+              {expenses.map((item) => (
+                <article
+                  key={item.id}
+                  className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-semibold text-slate-900">
+                        {item.label}
+                      </p>
+                      <p className="mt-0.5 text-[12px] text-slate-500">
+                        {new Intl.DateTimeFormat("fr-FR").format(
+                          new Date(item.expenseDate),
+                        )}
+                        {!lockedArea
+                          ? ` · ${EXPENSE_CATEGORY_LABELS[item.category]}`
+                          : ""}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-[14px] font-bold tabular-nums text-slate-900">
+                      {formatPriceXof(item.amount)}
+                    </p>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {!lockedArea ? (
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${EXPENSE_AREA_STYLES[item.area]}`}
+                      >
+                        {EXPENSE_AREA_LABELS[item.area]}
+                      </span>
+                    ) : null}
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${EXPENSE_STATUS_STYLES[item.status]}`}
+                    >
+                      {EXPENSE_STATUS_LABELS[item.status]}
+                    </span>
+                  </div>
+                  {item.status === "RECORDED" ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 text-[12px] font-semibold text-emerald-700 active:bg-emerald-50"
+                        onClick={() => openEdit(item)}
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 text-[12px] font-semibold text-red-600 active:bg-red-50"
+                        onClick={() => openCancel(item)}
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[11px] text-slate-400">Verrouillée</p>
+                  )}
+                </article>
+              ))}
+            </div>
+
+            <table className="hidden min-w-full text-left text-[12px] md:table">
               <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-3 py-2.5 font-semibold">Date</th>
@@ -481,10 +543,10 @@ export function ExpensesWorkspace({
       </div>
 
       {modal === "create" || modal === "edit" ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/45 p-4">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/45 p-0 sm:items-center sm:p-4">
           <form
             action={handleFormAction}
-            className="flex max-h-[min(90dvh,720px)] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="flex max-h-[min(92dvh,720px)] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
           >
             <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
               <div>

@@ -148,7 +148,7 @@ export function AdminDashboardWorkspace({
           <p className="mt-1 text-[11px] capitalize text-slate-500">{todayLabel()}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white p-0.5">
+          <div className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white p-1 sm:h-8 sm:rounded-lg sm:p-0.5">
             {PERIOD_OPTIONS.map((option) => {
               const isActive = analysisPeriod === option.id;
               return (
@@ -156,10 +156,10 @@ export function AdminDashboardWorkspace({
                   key={option.id}
                   type="button"
                   onClick={() => setPeriod(option.id)}
-                  className={`h-7 rounded-md px-2.5 text-[11px] font-semibold transition ${
+                  className={`h-9 rounded-lg px-3 text-[12px] font-semibold transition sm:h-7 sm:rounded-md sm:px-2.5 sm:text-[11px] ${
                     isActive
                       ? "bg-emerald-600 text-white"
-                      : "text-slate-600 hover:bg-slate-50"
+                      : "text-slate-600 active:bg-slate-50 sm:hover:bg-slate-50"
                   }`}
                 >
                   {option.label}
