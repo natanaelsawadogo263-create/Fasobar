@@ -264,13 +264,13 @@ export function ProductsWorkspace({
         : categories;
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden px-4 py-3 lg:gap-3.5 lg:px-5 lg:py-4">
-      <header className="flex shrink-0 items-end justify-between gap-3">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-hidden px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:gap-3.5 lg:px-5 lg:py-4">
+      <header className="flex shrink-0 items-center justify-between gap-2">
         <div className="min-w-0">
-          <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
+          <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[20px] lg:text-[22px]">
             Produits
           </h1>
-          <p className="mt-0.5 text-[12px] text-slate-500">
+          <p className="mt-0.5 hidden text-[12px] text-slate-500 sm:block">
             Établissement actif :{" "}
             <span className="font-medium text-slate-700">{establishmentName}</span>
           </p>
@@ -281,17 +281,24 @@ export function ProductsWorkspace({
             type="button"
             onClick={openCreateForm}
             disabled={isPending}
-            className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[13px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:h-9 sm:text-[12px] sm:hover:bg-emerald-500"
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:h-9 sm:px-3.5 sm:text-[12px] sm:hover:bg-emerald-500"
           >
             <PackagePlus className="h-3.5 w-3.5" />
-            Ajouter un produit
+            <span className="sm:hidden">Ajouter</span>
+            <span className="hidden sm:inline">Ajouter un produit</span>
           </button>
         ) : null}
       </header>
 
       {error ? <AlertMessage message={error} /> : null}
 
-      <div className={`grid shrink-0 gap-2.5 lg:gap-3 ${hasBarService(serviceScope) && hasKitchenService(serviceScope) ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}>
+      <div
+        className={`hidden shrink-0 gap-2.5 md:grid lg:gap-3 ${
+          hasBarService(serviceScope) && hasKitchenService(serviceScope)
+            ? "grid-cols-2 sm:grid-cols-4"
+            : "grid-cols-2 sm:grid-cols-3"
+        }`}
+      >
         <StatCard
           title="Catalogue"
           value={String(stats.total)}
@@ -300,22 +307,22 @@ export function ProductsWorkspace({
           tone="emerald"
         />
         {hasBarService(serviceScope) ? (
-        <StatCard
-          title="Boissons"
-          value={String(stats.barCount)}
-          subtitle="actifs · bar"
-          icon={Wine}
-          tone="sky"
-        />
+          <StatCard
+            title="Boissons"
+            value={String(stats.barCount)}
+            subtitle="actifs · bar"
+            icon={Wine}
+            tone="sky"
+          />
         ) : null}
         {hasKitchenService(serviceScope) ? (
-        <StatCard
-          title="Nourriture"
-          value={String(stats.kitchenCount)}
-          subtitle="actifs · cuisine"
-          icon={UtensilsCrossed}
-          tone="violet"
-        />
+          <StatCard
+            title="Nourriture"
+            value={String(stats.kitchenCount)}
+            subtitle="actifs · cuisine"
+            icon={UtensilsCrossed}
+            tone="violet"
+          />
         ) : null}
         <StatCard
           title="Indisponibles"
@@ -327,8 +334,8 @@ export function ProductsWorkspace({
       </div>
 
       <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
-        <div className="flex shrink-0 flex-col gap-2.5 border-b border-slate-100 px-3.5 py-2.5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <div className="flex shrink-0 flex-col gap-2 border-b border-slate-100 px-3 py-2 sm:gap-2.5 sm:px-3.5 sm:py-2.5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="-mx-1 flex min-w-0 items-center gap-1.5 overflow-x-auto px-1 pb-0.5">
             {visibleTabs.map((item) => (
               <button
                 key={item.id}
@@ -338,7 +345,7 @@ export function ProductsWorkspace({
                   setCategoryId("");
                   applyFilters(item.id, search, "");
                 }}
-                className={`inline-flex h-10 min-h-10 items-center rounded-lg px-3 text-[12px] font-semibold transition sm:h-8 sm:min-h-0 sm:rounded-md sm:px-2.5 sm:text-[11px] ${
+                className={`inline-flex h-9 shrink-0 items-center rounded-lg px-2.5 text-[12px] font-semibold transition sm:h-8 sm:rounded-md sm:text-[11px] ${
                   tab === item.id
                     ? "bg-emerald-600 text-white"
                     : "bg-slate-100 text-slate-600 active:bg-slate-200 sm:hover:bg-slate-200"
@@ -347,13 +354,13 @@ export function ProductsWorkspace({
                 {item.label}
               </button>
             ))}
-            <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-              {rows.length} affiché{rows.length > 1 ? "s" : ""}
+            <span className="ml-0.5 shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+              {rows.length}
             </span>
           </div>
 
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <label className="relative min-w-[160px] flex-1 lg:max-w-[220px]">
+          <div className="flex min-w-0 items-center gap-2">
+            <label className="relative min-w-0 flex-1 lg:max-w-[220px]">
               <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
               <input
                 type="search"
@@ -365,7 +372,7 @@ export function ProductsWorkspace({
                   }
                 }}
                 placeholder="Rechercher…"
-                className="h-11 w-full rounded-lg border border-slate-200 bg-white pr-2.5 pl-8 text-[13px] text-slate-800 outline-none placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 sm:h-8 sm:text-[12px]"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white pr-2.5 pl-8 text-[13px] text-slate-800 outline-none placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 sm:h-8 sm:text-[12px]"
               />
             </label>
 
@@ -375,10 +382,10 @@ export function ProductsWorkspace({
                 setCategoryId(event.target.value);
                 applyFilters(tab, search, event.target.value);
               }}
-              className="h-11 min-w-[140px] rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] text-slate-700 outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 sm:h-8 sm:text-[12px]"
+              className="h-10 max-w-[42%] shrink-0 rounded-lg border border-slate-200 bg-white px-2 text-[12px] text-slate-700 outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 sm:h-8 sm:max-w-none sm:min-w-[140px] sm:px-2.5"
               aria-label="Filtrer par catégorie"
             >
-              <option value="">Toutes les catégories</option>
+              <option value="">Catégories</option>
               {filteredCategories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -390,7 +397,7 @@ export function ProductsWorkspace({
 
         <div className="app-scroll min-h-0 flex-1 overflow-auto">
           {/* Mobile : cartes tactiles */}
-          <div className="space-y-2 p-3 md:hidden">
+          <div className="space-y-1.5 p-2 md:hidden">
             {rows.length === 0 ? (
               <p className="px-1 py-10 text-center text-[13px] text-slate-500">
                 Aucun produit trouvé pour ces filtres.
@@ -401,36 +408,26 @@ export function ProductsWorkspace({
                 return (
                   <article
                     key={product.id}
-                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                    className="rounded-xl border border-slate-200 bg-white p-2.5"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+                    <div className="flex items-center gap-2.5">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
                         <Image
                           src={imageUrl}
                           alt={product.name}
                           fill
-                          className="object-contain p-1"
-                          sizes="56px"
+                          className="object-contain p-0.5"
+                          sizes="48px"
                           unoptimized
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[14px] font-semibold text-slate-900">
-                          {product.name}
-                        </p>
-                        <p className="mt-0.5 text-[12px] text-slate-500">
-                          {product.categoryName}
-                          <span className="text-slate-300"> · </span>
-                          {PRODUCT_UNIT_LABELS[
-                            product.unit as keyof typeof PRODUCT_UNIT_LABELS
-                          ] ?? product.unit}
-                        </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <span className="text-[14px] font-bold tabular-nums text-slate-900">
-                            {formatPriceXof(product.sellingPrice)}
-                          </span>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="truncate text-[13px] font-semibold text-slate-900">
+                            {product.name}
+                          </p>
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                               product.active
                                 ? "bg-emerald-50 text-emerald-700"
                                 : "bg-slate-100 text-slate-500"
@@ -439,14 +436,19 @@ export function ProductsWorkspace({
                             {product.active ? "Actif" : "Inactif"}
                           </span>
                         </div>
+                        <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                          {product.categoryName}
+                          <span className="text-slate-300"> · </span>
+                          {formatPriceXof(product.sellingPrice)}
+                        </p>
                       </div>
                     </div>
                     {canManage ? (
-                      <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="mt-2 grid grid-cols-2 gap-1.5">
                         <button
                           type="button"
                           onClick={() => openEditForm(product)}
-                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                          className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold text-slate-700 active:bg-slate-50"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                           Modifier
@@ -454,7 +456,7 @@ export function ProductsWorkspace({
                         <button
                           type="button"
                           onClick={() => handleToggleStatus(product)}
-                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                          className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold text-slate-700 active:bg-slate-50"
                         >
                           <Power className="h-3.5 w-3.5" />
                           {product.active ? "Désactiver" : "Activer"}
