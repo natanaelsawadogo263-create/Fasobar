@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { AuthEmailLinkHandler } from "@/components/auth/auth-email-link-handler";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +16,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FasoBar",
-  description: "Gestion simplifiée pour restaurants, maquis et bars.",
+  title: {
+    default: "FasoBar — Gestion des stocks et des ventes",
+    template: "%s",
+  },
+  description:
+    "FasoBar, logiciel de gestion des stocks et des ventes pour toute activité commerciale.",
+  icons: {
+    icon: "/brand/fasobar-logo.png",
+    apple: "/brand/fasobar-logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -28,7 +38,10 @@ export default function RootLayout({
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <AuthEmailLinkHandler />
+        {children}
+      </body>
     </html>
   );
 }

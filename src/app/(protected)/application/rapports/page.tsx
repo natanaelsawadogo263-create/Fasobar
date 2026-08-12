@@ -1,6 +1,7 @@
 import { requireAdminContext } from "@/lib/auth/workspace-context";
 import { getReportData } from "@/lib/reports/queries";
 import { reportFiltersSchema } from "@/lib/reports/schemas";
+import { getEstablishmentSettings } from "@/lib/settings/queries";
 import { AdminReportsWorkspace } from "@/components/admin/admin-reports-workspace";
 
 type RapportsPageProps = {
@@ -35,13 +36,21 @@ export default async function RapportsPage({ searchParams }: RapportsPageProps) 
       : {}
     : defaultPeriod();
 
-  const initialReport = await getReportData(workspace, "ventes", filters);
+  const [initialReport, { settings }] = await Promise.all([
+    getReportData(workspace, "ventes", filters),
+    getEstablishmentSettings(workspace),
+  ]);
 
   return (
     <AdminReportsWorkspace
       initialReport={initialReport}
       initialFilters={filters}
-      establishmentName={workspace.establishmentName}
+      establishment={{
+        name: settings?.name ?? workspace.establishmentName,
+        address: settings?.address ?? null,
+        phone: settings?.phone ?? null,
+        logoUrl: settings?.logoUrl ?? null,
+      }}
     />
   );
 }

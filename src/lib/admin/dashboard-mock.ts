@@ -139,11 +139,18 @@ export function getMockAdminDashboardData(): AdminDashboardData {
       },
     ],
     salesByHour: MOCK_HOURLY.map((v) => Math.round(v)),
+    salesSeries: {
+      values: MOCK_HOURLY.map((v) => Math.round(v)),
+      labels: Array.from({ length: 24 }, (_, hour) => `${hour}h`),
+      granularity: "hour" as const,
+    },
     salesByDept: {
       bar: Math.round(salesToday * 0.58),
       kitchen: Math.round(salesToday * 0.32),
       other: Math.round(salesToday * 0.1),
     },
+    analysisPeriod: "day" as const,
+    analysisPeriodLabel: "Aujourd'hui",
     usedMockSalesSeries: true,
     usedMockTopProducts: true,
   };

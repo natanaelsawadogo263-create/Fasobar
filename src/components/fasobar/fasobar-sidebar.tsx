@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, UtensilsCrossed, Wine } from "lucide-react";
 
-import { ProductSearch } from "@/components/pos/product-search";
 import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";
 import type { DepartmentFilter } from "@/components/pos/constants";
@@ -50,17 +49,6 @@ export function FasoBarSidebar() {
 
   return (
     <aside className="fasobar-sidebar flex h-full w-[200px] shrink-0 flex-col bg-[#0b1220] text-slate-300">
-      <div className="border-b border-white/[0.06] px-3 py-3">
-        <ProductSearch
-          ref={filters?.searchInputRef}
-          value={filters?.search ?? ""}
-          onChange={filters?.onSearchChange ?? (() => undefined)}
-          variant="dark"
-          compact
-          disabled={!filters}
-        />
-      </div>
-
       <nav className="pos-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-3">
         <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
           Départements

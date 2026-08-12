@@ -2,7 +2,9 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { GlassWater, LockKeyhole, Wine } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
+
+import { FasoBarLogo } from "@/components/brand/fasobar-logo";
 
 import {
   completeFirstLoginAction,
@@ -53,18 +55,7 @@ export function FirstLoginForm({ context }: FirstLoginFormProps) {
     <div className="flex h-full max-h-full w-full flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm md:flex-row">
       <aside className="flex shrink-0 flex-col justify-between bg-[#0b1220] px-5 py-4 text-white md:w-[42%] md:px-6 md:py-6">
         <div>
-          <div className="flex items-center gap-2.5">
-            <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30">
-              <Wine className="h-4 w-4" strokeWidth={2.25} />
-              <GlassWater
-                className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 text-emerald-300"
-                strokeWidth={2.25}
-              />
-            </span>
-            <span className="text-[20px] font-bold tracking-tight">
-              Faso<span className="text-emerald-400">Bar</span>
-            </span>
-          </div>
+          <FasoBarLogo size="sm" tone="dark" />
 
           <span className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
             <LockKeyhole className="h-3 w-3" />
@@ -89,7 +80,7 @@ export function FirstLoginForm({ context }: FirstLoginFormProps) {
                 {context.fullName}
               </p>
               <p className="mt-1 break-all text-[12px] leading-snug text-slate-300">
-                {context.email}
+                {context.loginIdentifier}
               </p>
               <p className="mt-2 text-[12px] leading-snug text-slate-200">
                 <span className="font-medium">{context.establishmentName}</span>

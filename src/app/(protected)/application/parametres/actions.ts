@@ -3,16 +3,23 @@
 import { revalidatePath } from "next/cache";
 
 import { mapGenericError } from "@/lib/auth/errors";
-import { requireAdminContext } from "@/lib/auth/workspace-context";
+import { requireAdminMutationContext } from "@/lib/auth/workspace-context";
+import { getCloudOfflineActionError } from "@/lib/desktop/require-cloud-online";
 import { updateEstablishmentSettingsSchema } from "@/lib/settings/schemas";
 import type { EstablishmentSettingsActionState } from "@/lib/settings/types";
+import { uploadEstablishmentLogoFile } from "@/lib/settings/upload-establishment-logo";
 import { createClient } from "@/lib/supabase/server";
 
 export async function updateEstablishmentSettingsAction(
   _prev: EstablishmentSettingsActionState,
   formData: FormData,
 ): Promise<EstablishmentSettingsActionState> {
-  const workspace = await requireAdminContext();
+  const offlineError = await getCloudOfflineActionError();
+  if (offlineError) {
+    return { error: offlineError };
+  }
+
+  const workspace = await requireAdminMutationContext();
 
   const parsed = updateEstablishmentSettingsSchema.safeParse({
     name: formData.get("name"),
@@ -30,6 +37,22 @@ export async function updateEstablishmentSettingsAction(
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
+  const removeLogo = formData.get("removeLogo") === "1";
+  const currentLogoUrl = String(formData.get("currentLogoUrl") || "").trim() || null;
+  const logoFile = formData.get("logo");
+
+  let logoUrl: string | null = currentLogoUrl;
+
+  if (removeLogo) {
+    logoUrl = null;
+  } else if (logoFile instanceof File && logoFile.size > 0) {
+    const uploaded = await uploadEstablishmentLogoFile(workspace, logoFile);
+    if ("error" in uploaded) {
+      return { error: uploaded.error };
+    }
+    logoUrl = uploaded.url;
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_establishment_settings", {
     p_establishment_id: workspace.establishmentId,
@@ -42,16 +65,22 @@ export async function updateEstablishmentSettingsAction(
     p_receipt_footer: parsed.data.receiptFooter ?? null,
     p_thank_you_message: parsed.data.thankYouMessage ?? null,
     p_default_minimum_stock: parsed.data.defaultMinimumStock,
+    p_logo_url: logoUrl,
   });
 
   if (error) {
-    if (error.message?.toLowerCase().includes("does not exist")) {
-      return { error: "Migration paramètres non appliquée. Contactez un administrateur technique." };
+    const msg = (error.message ?? "").toLowerCase();
+    if (msg.includes("does not exist") || msg.includes("p_logo_url") || msg.includes("could not find")) {
+      return {
+        error:
+          "Migration logo non appliquée. Exécutez 20260811130000_establishment_logo.sql sur Supabase.",
+      };
     }
     return { error: error.message || mapGenericError(error) };
   }
 
   revalidatePath("/application/parametres");
   revalidatePath("/application/tableau-de-bord");
+  revalidatePath("/application/caisse");
   return { success: "Paramètres enregistrés." };
 }

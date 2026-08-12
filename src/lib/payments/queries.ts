@@ -1,13 +1,17 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { getOrderById } from "@/lib/orders/queries";
 import type {
   CashSessionDetail,
+  OrderAddition,
   OrderPaymentSummary,
   ReceiptDetail,
 } from "@/lib/payments/types";
 import type { PaymentMethod } from "@/lib/payments/schemas";
+import { ORDER_TYPE_LABELS } from "@/lib/orders/constants";
 import { createClient } from "@/lib/supabase/server";
 
 function readSingle<T>(value: T | T[] | null): T | null {
@@ -18,9 +22,54 @@ function readSingle<T>(value: T | T[] | null): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
-export async function getActiveCashSession(
+/** Métadonnées session pour le shell (sans agrégation des encaissements). */
+export async function getOwnOpenCashSessionMeta(
+  workspace: WorkspaceContext,
+): Promise<{ openedAt: string } | null> {
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    const { getLocalDatabase } = await import("@/lib/local-db/database");
+    const { getLocalActiveCashSession } = await import(
+      "@/lib/local-domain/cash-sessions"
+    );
+    const session = getLocalActiveCashSession(
+      getLocalDatabase({ skipBackup: true }),
+      workspace,
+    );
+    return session ? { openedAt: session.openedAt } : null;
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("cash_register_sessions")
+    .select("opened_at")
+    .eq("establishment_id", workspace.establishmentId)
+    .eq("opened_by", workspace.userId)
+    .eq("status", "OPEN")
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return { openedAt: data.opened_at };
+}
+
+export const getActiveCashSession = cache(async function getActiveCashSession(
   workspace: WorkspaceContext,
 ): Promise<CashSessionDetail | null> {
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    const { getLocalDatabase } = await import("@/lib/local-db/database");
+    const { getLocalActiveCashSession } = await import(
+      "@/lib/local-domain/cash-sessions"
+    );
+    return getLocalActiveCashSession(
+      getLocalDatabase({ skipBackup: true }),
+      workspace,
+    );
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -65,7 +114,7 @@ export async function getActiveCashSession(
     openedByName: profile?.full_name ?? workspace.ownerName,
     cashCollected,
   };
-}
+});
 
 export async function getCashSessionById(
   workspace: WorkspaceContext,
@@ -120,6 +169,57 @@ export async function getOrderPaymentSummary(
   workspace: WorkspaceContext,
   orderId: string,
 ): Promise<OrderPaymentSummary | null> {
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    const { getLocalDatabase } = await import("@/lib/local-db/database");
+    const { getLocalOrderById } = await import("@/lib/local-domain/orders-local");
+    const db = getLocalDatabase({ skipBackup: true });
+    const order = getLocalOrderById(db, workspace, orderId);
+    if (!order) {
+      return null;
+    }
+    const payments = db
+      .prepare(
+        `SELECT * FROM local_payments WHERE order_id = ? ORDER BY created_at`,
+      )
+      .all(orderId);
+    const confirmed = payments.filter((p) => String(p.status) === "CONFIRMED");
+    const paidAmount = confirmed.reduce(
+      (sum, p) => sum + Number(p.amount_applied ?? p.amount ?? 0),
+      0,
+    );
+    return {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      tableReference: order.tableReference,
+      customerReference: order.customerReference,
+      subtotal: order.subtotal,
+      discountAmount: order.discountAmount,
+      totalAmount: order.totalAmount,
+      paidAmount: Math.trunc(paidAmount),
+      remainingAmount: Math.max(order.totalAmount - Math.trunc(paidAmount), 0),
+      paymentStatus: order.paymentStatus,
+      status: order.status,
+      items: order.items.map((item) => ({
+        id: item.id,
+        productName: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        lineTotal: item.lineTotal,
+      })),
+      payments: payments.map((p) => ({
+        id: String(p.id),
+        method: String(p.method) as PaymentMethod,
+        amountApplied: Number(p.amount_applied ?? p.amount ?? 0),
+        amountReceived:
+          p.amount_received == null ? null : Number(p.amount_received),
+        changeGiven: Number(p.change_given ?? 0),
+        status: String(p.status ?? "CONFIRMED"),
+        receivedAt: String(p.created_at),
+      })),
+    };
+  }
+
   const order = await getOrderById(workspace, orderId);
 
   if (!order) {
@@ -176,6 +276,30 @@ export async function getReceiptById(
   workspace: WorkspaceContext,
   receiptId: string,
 ): Promise<ReceiptDetail | null> {
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    const { getLocalDatabase } = await import("@/lib/local-db/database");
+    const { getLocalReceiptById } = await import(
+      "@/lib/local-domain/checkout-local"
+    );
+    const local = getLocalReceiptById(
+      getLocalDatabase({ skipBackup: true }),
+      workspace,
+      receiptId,
+    );
+    if (!local) return null;
+
+    let logoUrl = local.logoUrl ?? null;
+    try {
+      const { getEstablishmentSettings } = await import("@/lib/settings/queries");
+      const { settings } = await getEstablishmentSettings(workspace);
+      logoUrl = settings?.logoUrl ?? logoUrl;
+    } catch {
+      // offline
+    }
+    return { ...local, logoUrl };
+  }
+
   const supabase = await createClient();
 
   const { data: receipt, error } = await supabase
@@ -207,6 +331,15 @@ export async function getReceiptById(
     .eq("order_id", receipt.order_id)
     .eq("status", "CONFIRMED");
 
+  let logoUrl: string | null = null;
+  try {
+    const { getEstablishmentSettings } = await import("@/lib/settings/queries");
+    const { settings } = await getEstablishmentSettings(workspace);
+    logoUrl = settings?.logoUrl ?? null;
+  } catch {
+    // Settings optional for print
+  }
+
   return {
     id: receipt.id,
     receiptNumber: receipt.receipt_number,
@@ -221,6 +354,7 @@ export async function getReceiptById(
     establishmentName: receipt.establishment_name_snapshot,
     establishmentAddress: receipt.establishment_address_snapshot,
     establishmentPhone: receipt.establishment_phone_snapshot,
+    logoUrl,
     currency: receipt.establishment_currency_snapshot,
     cashierName: receipt.cashier_name_snapshot,
     tableReference: order?.table_reference ?? null,
@@ -243,6 +377,19 @@ export async function getReceiptByOrderId(
   workspace: WorkspaceContext,
   orderId: string,
 ): Promise<ReceiptDetail | null> {
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    const { getLocalDatabase } = await import("@/lib/local-db/database");
+    const { getLocalReceiptByOrderId } = await import(
+      "@/lib/local-domain/checkout-local"
+    );
+    return getLocalReceiptByOrderId(
+      getLocalDatabase({ skipBackup: true }),
+      workspace,
+      orderId,
+    );
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -257,4 +404,59 @@ export async function getReceiptByOrderId(
   }
 
   return getReceiptById(workspace, data.id);
+}
+
+/**
+ * Addition client imprimable sans paiement.
+ * Affiche tous les articles + prix pour montrer la note au client.
+ */
+export async function getOrderAddition(
+  workspace: WorkspaceContext,
+  orderId: string,
+): Promise<OrderAddition | null> {
+  const order = await getOrderById(workspace, orderId);
+  if (!order || order.status === "CANCELLED") {
+    return null;
+  }
+
+  let establishmentName = workspace.establishmentName;
+  let establishmentAddress: string | null = null;
+  let establishmentPhone: string | null = null;
+  let logoUrl: string | null = null;
+
+  try {
+    const { getEstablishmentSettings } = await import("@/lib/settings/queries");
+    const { settings } = await getEstablishmentSettings(workspace);
+    if (settings) {
+      establishmentName = settings.name || establishmentName;
+      establishmentAddress = settings.address;
+      establishmentPhone = settings.phone;
+      logoUrl = settings.logoUrl;
+    }
+  } catch {
+    // Settings may be unavailable offline — workspace name is enough.
+  }
+
+  return {
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    issuedAt: new Date().toISOString(),
+    subtotal: order.subtotal,
+    discount: order.discountAmount,
+    total: order.totalAmount,
+    paymentStatus: order.paymentStatus,
+    establishmentName,
+    establishmentAddress,
+    establishmentPhone,
+    logoUrl,
+    tableReference: order.tableReference,
+    customerReference: order.customerReference,
+    orderTypeLabel: ORDER_TYPE_LABELS[order.orderType] ?? order.orderType,
+    items: order.items.map((item) => ({
+      productName: item.productName,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      lineTotal: item.lineTotal,
+    })),
+  };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { updateBarStatusAction } from "@/app/(protected)/application/bar/actions";
+import { createClient } from "@/lib/supabase/client";
 import {
   BAR_BOARD_COLUMNS,
   BAR_NEXT_ACTION,
@@ -32,6 +33,7 @@ import { ModalShell } from "@/components/ui/modal-shell";
 
 type BarOrdersWorkspaceProps = {
   orders: BarOrderTicket[];
+  establishmentId?: string;
 };
 
 const COLUMN_META: Record<
@@ -73,25 +75,78 @@ function paymentLabel(status: string) {
   );
 }
 
-export function BarOrdersWorkspace({ orders }: BarOrdersWorkspaceProps) {
+export function BarOrdersWorkspace({
+  orders,
+  establishmentId,
+}: BarOrdersWorkspaceProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [tickets, setTickets] = useState(orders);
   const [error, setError] = useState<string | null>(null);
   const [detailOrder, setDetailOrder] = useState<BarOrderTicket | null>(null);
   const [tableFilter, setTableFilter] = useState("");
   const [showFilter, setShowFilter] = useState(false);
 
+  useEffect(() => {
+    setTickets(orders);
+  }, [orders]);
+
+  useEffect(() => {
+    if (!establishmentId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`bar-orders-live:${establishmentId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `establishment_id=eq.${establishmentId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            id?: string;
+            bar_status?: BarPrepStatus | null;
+            bar_status_updated_at?: string | null;
+            status?: string;
+            payment_status?: string;
+          };
+          if (!row.id) return;
+          if (row.status === "CANCELLED" || row.payment_status === "PAID") {
+            setTickets((prev) => prev.filter((ticket) => ticket.id !== row.id));
+            return;
+          }
+          if (!row.bar_status) return;
+          setTickets((prev) =>
+            prev.map((ticket) =>
+              ticket.id === row.id
+                ? {
+                    ...ticket,
+                    barStatus: row.bar_status!,
+                    barStatusUpdatedAt:
+                      row.bar_status_updated_at ?? ticket.barStatusUpdatedAt,
+                  }
+                : ticket,
+            ),
+          );
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [establishmentId]);
+
   const filtered = useMemo(() => {
     const needle = tableFilter.trim().toLowerCase();
-    if (!needle) return orders;
-    return orders.filter((order) => {
+    if (!needle) return tickets;
+    return tickets.filter((order) => {
       const itemsText = order.items.map((item) => item.productName).join(" ");
       const haystack =
         `${formatBarOrderNumber(order.orderNumber)} ${order.tableReference ?? ""} ${order.customerReference ?? ""} ${itemsText}`.toLowerCase();
       return haystack.includes(needle);
     });
-  }, [orders, tableFilter]);
+  }, [tickets, tableFilter]);
 
   const columns = BAR_BOARD_COLUMNS.map((status) => ({
     status,
@@ -107,19 +162,34 @@ export function BarOrdersWorkspace({ orders }: BarOrdersWorkspaceProps) {
       return;
     }
 
+    const previousStatus = order.barStatus;
+    const nextStatus = action.nextStatus;
     setError(null);
-    setPendingOrderId(order.id);
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("orderId", order.id);
-      formData.set("status", action.nextStatus!);
-      const result = await updateBarStatusAction({}, formData);
-      setPendingOrderId(null);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
+    setTickets((prev) =>
+      prev.map((ticket) =>
+        ticket.id === order.id
+          ? {
+              ...ticket,
+              barStatus: nextStatus,
+              barStatusUpdatedAt: new Date().toISOString(),
+            }
+          : ticket,
+      ),
+    );
+
+    const formData = new FormData();
+    formData.set("orderId", order.id);
+    formData.set("status", nextStatus);
+    void updateBarStatusAction({}, formData).then((result) => {
+      if (!result.error) return;
+      setTickets((prev) =>
+        prev.map((ticket) =>
+          ticket.id === order.id
+            ? { ...ticket, barStatus: previousStatus }
+            : ticket,
+        ),
+      );
+      setError(result.error);
     });
   }
 
@@ -298,9 +368,8 @@ export function BarOrdersWorkspace({ orders }: BarOrdersWorkspaceProps) {
                           ) : (
                             <button
                               type="button"
-                              disabled={isPending && pendingOrderId === order.id}
                               onClick={() => handleAdvance(order)}
-                              className="inline-flex h-8 items-center rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+                              className="inline-flex h-8 items-center rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white hover:bg-emerald-500"
                             >
                               {BAR_NEXT_ACTION[order.barStatus].label}
                             </button>

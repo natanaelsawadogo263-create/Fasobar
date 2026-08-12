@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { setMemberStatusAction } from "@/app/(protected)/application/utilisateurs/actions";
+import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { CreateEmployeeModal } from "@/components/users/create-employee-modal";
 import { DeleteEmployeeModal } from "@/components/users/delete-employee-modal";
@@ -85,16 +86,21 @@ export function UsersWorkspace({
   const [resetMember, setResetMember] = useState<TeamMemberRow | null>(null);
   const [deleteMember, setDeleteMember] = useState<TeamMemberRow | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [memberRows, setMemberRows] = useState(members);
+
+  useEffect(() => {
+    setMemberRows(members);
+  }, [members]);
 
   const filteredRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    if (!needle) return members;
-    return members.filter((row) => {
+    if (!needle) return memberRows;
+    return memberRows.filter((row) => {
       const haystack =
-        `${row.fullName} ${row.email} ${row.phone ?? ""} ${row.spaceLabel} ${row.establishmentName}`.toLowerCase();
+        `${row.fullName} ${row.loginIdentifier} ${row.phone ?? ""} ${row.spaceLabel} ${row.establishmentName}`.toLowerCase();
       return haystack.includes(needle);
     });
-  }, [members, search]);
+  }, [memberRows, search]);
 
   const sortedRows = useMemo(() => {
     return [...filteredRows].sort((a, b) => {
@@ -110,32 +116,45 @@ export function UsersWorkspace({
 
   const adminCount = useMemo(
     () =>
-      members.filter(
+      memberRows.filter(
         (row) => row.status === "active" && row.spaceLabel === SPACE_LABELS.admin,
       ).length,
-    [members],
+    [memberRows],
   );
 
   function refresh() {
-    router.refresh();
+    refreshSoon(() => router.refresh());
   }
 
   function handleToggleMember(userId: string, active: boolean) {
+    const previous = memberRows.find((row) => row.userId === userId)?.status;
+    setMemberRows((current) =>
+      current.map((row) =>
+        row.userId === userId
+          ? { ...row, status: active ? "active" : "inactive" }
+          : row,
+      ),
+    );
+    setError(null);
+    setMessage(active ? "Compte activé." : "Compte désactivé.");
+
     const formData = new FormData();
     formData.set("userId", userId);
     formData.set("active", active ? "true" : "false");
     formData.set("confirmed", "true");
 
-    setError(null);
-    setMessage(null);
     startTransition(async () => {
       const result = await setMemberStatusAction({}, formData);
-      if (result.error) {
-        setError(result.error);
-        return;
+      if (!result.error) return;
+      if (previous) {
+        setMemberRows((current) =>
+          current.map((row) =>
+            row.userId === userId ? { ...row, status: previous } : row,
+          ),
+        );
       }
-      setMessage(result.success ?? "Statut mis à jour.");
-      refresh();
+      setError(result.error);
+      setMessage(null);
     });
   }
 
@@ -176,7 +195,7 @@ export function UsersWorkspace({
             {
               label: "Actifs",
               value: stats.activeUsers,
-              hint: `${members.length} au total`,
+              hint: `${memberRows.length} au total`,
               icon: Users,
               tone: "bg-emerald-50 text-emerald-700",
             },
@@ -350,7 +369,7 @@ export function UsersWorkspace({
                           <div className="flex flex-col gap-1 text-[12px] text-slate-600 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
                             <span className="inline-flex min-w-0 items-center gap-1.5">
                               <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                              <span className="truncate">{row.email}</span>
+                              <span className="truncate">{row.loginIdentifier}</span>
                             </span>
                             {row.phone ? (
                               <span className="inline-flex items-center gap-1.5 tabular-nums">

@@ -8,30 +8,24 @@ import { FasoBarShell } from "@/components/fasobar/fasobar-shell";
 type FasoBarCashierShellProps = {
   establishmentName: string;
   cashierName: string;
-  hasSession: boolean;
-  sessionOpenedAt?: string;
-  openOrdersCount: number;
-  readyToPayCount: number;
+  establishmentId?: string;
+  userId?: string;
   children: ReactNode;
 };
 
 export function FasoBarCashierShell({
   establishmentName,
   cashierName,
-  hasSession,
-  sessionOpenedAt,
-  openOrdersCount,
-  readyToPayCount,
+  establishmentId,
+  userId,
   children,
 }: FasoBarCashierShellProps) {
   return (
     <FasoBarCashierProvider
       establishmentName={establishmentName}
       cashierName={cashierName}
-      hasSession={hasSession}
-      sessionOpenedAt={sessionOpenedAt}
-      openOrdersCount={openOrdersCount}
-      readyToPayCount={readyToPayCount}
+      establishmentId={establishmentId}
+      userId={userId}
     >
       <FasoBarShell>{children}</FasoBarShell>
     </FasoBarCashierProvider>

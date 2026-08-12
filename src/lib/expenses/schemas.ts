@@ -13,9 +13,12 @@ export const expenseCategorySchema = z.enum([
   "OTHER",
 ]);
 
+export const expenseAreaSchema = z.enum(["CAISSE", "BAR"]);
+
 export const expenseStatusSchema = z.enum(["RECORDED", "CANCELLED"]);
 
 export const expenseFormSchema = z.object({
+  area: expenseAreaSchema.default("CAISSE"),
   category: expenseCategorySchema,
   label: z.string().trim().min(2, "Le libellé est obligatoire."),
   amount: z.coerce
@@ -40,6 +43,7 @@ export const cancelExpenseSchema = z.object({
 });
 
 export const expenseFiltersSchema = z.object({
+  area: expenseAreaSchema.optional().or(z.literal("")),
   category: expenseCategorySchema.optional().or(z.literal("")),
   status: z.enum(["all", "RECORDED", "CANCELLED"]).default("all"),
   search: z.string().trim().optional(),
@@ -48,6 +52,7 @@ export const expenseFiltersSchema = z.object({
 });
 
 export type ExpenseCategory = z.infer<typeof expenseCategorySchema>;
+export type ExpenseArea = z.infer<typeof expenseAreaSchema>;
 export type ExpenseStatus = z.infer<typeof expenseStatusSchema>;
 export type ExpenseFormInput = z.infer<typeof expenseFormSchema>;
 export type ExpenseFiltersInput = z.infer<typeof expenseFiltersSchema>;

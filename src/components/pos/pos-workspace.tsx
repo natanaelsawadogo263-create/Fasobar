@@ -14,7 +14,6 @@ import { ActiveOrderPanel } from "@/components/pos/active-order-panel";
 import { OpenOrdersDrawer } from "@/components/pos/open-orders-drawer";
 import { PosToast } from "@/components/pos/pos-toast";
 import { ProductGrid } from "@/components/pos/product-grid";
-import { ProductSearch } from "@/components/pos/product-search";
 import type { DepartmentFilter } from "@/components/pos/constants";
 import { usePosKeyboard } from "@/components/pos/use-pos-keyboard";
 import {
@@ -24,6 +23,7 @@ import {
 import { CloseSessionModal } from "@/components/payments/close-session-modal";
 import { OpenSessionModal } from "@/components/payments/open-session-modal";
 import { formatPriceXof } from "@/lib/orders/constants";
+import { refreshSoon } from "@/lib/ops/client-refresh";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";
 import {
   buildDemoCart,
@@ -302,7 +302,7 @@ export function PosWorkspace({
       router.replace(`/application/caisse?fresh=1&t=${Date.now()}`);
       return;
     }
-    router.refresh();
+    refreshSoon(() => router.refresh());
   }
 
   function submitOrder(
@@ -314,16 +314,32 @@ export function PosWorkspace({
       return;
     }
 
+    const snapshot = cart;
+    const snapshotType = orderType;
+    const formData = buildFormData(targetStatus);
+    if (!onSuccess) {
+      clearCart();
+      showToast("Commande envoyée.", "success");
+    }
+
     startTransition(async () => {
       try {
-        const result = await saveOrderAction({}, buildFormData(targetStatus));
+        const result = await saveOrderAction({}, formData);
 
         if (result.error) {
+          if (!onSuccess) {
+            setCart(snapshot);
+            setOrderType(snapshotType);
+          }
           showToast(result.error, "error");
           return;
         }
 
         if (!result.orderId) {
+          if (!onSuccess) {
+            setCart(snapshot);
+            setOrderType(snapshotType);
+          }
           showToast("La commande n'a pas pu être créée. Réessayez.", "error");
           return;
         }
@@ -339,6 +355,10 @@ export function PosWorkspace({
           toast: result.success ?? "Commande enregistrée.",
         });
       } catch (error) {
+        if (!onSuccess) {
+          setCart(snapshot);
+          setOrderType(snapshotType);
+        }
         showToast(
           error instanceof Error
             ? error.message
@@ -346,6 +366,16 @@ export function PosWorkspace({
           "error",
         );
       }
+    });
+  }
+
+  /** Enregistre la commande à jour, imprime l'addition, puis revient sur la même commande. */
+  function handlePrintAddition() {
+    submitOrder("READY_TO_PAY", async (savedOrderId) => {
+      const next = encodeURIComponent(`/application/caisse?order=${savedOrderId}`);
+      router.push(
+        `/application/commandes/${savedOrderId}/addition?print=1&next=${next}`,
+      );
     });
   }
 
@@ -467,7 +497,7 @@ export function PosWorkspace({
           totalPaid: checkoutDraft.totalToPay,
           orderNumber: checkoutDraft.orderNumber,
         });
-        router.refresh();
+        refreshSoon(() => router.refresh());
       } catch (error) {
         setCheckoutError(
           error instanceof Error
@@ -486,7 +516,7 @@ export function PosWorkspace({
         return;
       }
       setOpenError(undefined);
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 
@@ -519,6 +549,7 @@ export function PosWorkspace({
     onNotesChange: updateNotes,
     onRemove: removeLine,
     onHold: handleHold,
+    onPrintAddition: handlePrintAddition,
     onCheckout: handleCheckout,
     onClear: clearCart,
     onNewOrder: handleNewOrder,
@@ -544,10 +575,6 @@ export function PosWorkspace({
               mobileTab === "products" ? "flex" : "hidden lg:flex"
             }`}
           >
-            <div className="border-b border-slate-200 bg-white px-3 py-2 lg:hidden">
-              <ProductSearch value={search} onChange={setSearch} />
-            </div>
-
             <ProductGrid
             title={categoryTitle}
             products={filteredProducts}
@@ -556,17 +583,20 @@ export function PosWorkspace({
             flashProductId={flashProductId}
             onAddProduct={addProduct}
             hasSearch={search.length > 0}
+            search={search}
+            onSearchChange={handleSearchChange}
+            searchInputRef={searchInputRef}
           />
         </div>
 
         <div
           className={`min-h-0 self-stretch overflow-hidden ${
             mobileTab === "order"
-              ? "flex w-full flex-1 flex-col"
+              ? "flex h-full w-full flex-1 flex-col"
               : "hidden lg:flex lg:h-full lg:w-[420px] lg:flex-col xl:w-[420px]"
           }`}
         >
-          <ActiveOrderPanel {...orderPanelProps} className="min-h-0 flex-1" />
+          <ActiveOrderPanel {...orderPanelProps} className="h-full min-h-0 flex-1" />
         </div>
       </div>
 
@@ -677,7 +707,7 @@ export function PosWorkspace({
           onClose={() => setShowCloseModal(false)}
           onClosed={() => {
             setShowCloseModal(false);
-            router.refresh();
+            refreshSoon(() => router.refresh());
           }}
         />
       ) : null}

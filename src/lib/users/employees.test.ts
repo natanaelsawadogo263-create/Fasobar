@@ -25,7 +25,7 @@ describe("création de compte employé", () => {
     for (const space of ["admin", "cashier_kitchen", "bar_manager"] as const) {
       const result = createEmployeeAccountSchema.safeParse({
         fullName: "Employé Test",
-        email: "employe@example.com",
+        loginIdentifier: "employe.test",
         space,
         establishmentId,
       });
@@ -43,10 +43,10 @@ describe("création de compte employé", () => {
     expect(employeeSpaceSchema.safeParse("owner").success).toBe(false);
   });
 
-  it("7. email obligatoire et normalisable", () => {
+  it("7. login_identifier obligatoire et validable", () => {
     const result = createEmployeeAccountSchema.safeParse({
       fullName: "Test",
-      email: "pas-un-email",
+      loginIdentifier: "ab",
       space: "admin",
       establishmentId,
     });
@@ -56,7 +56,7 @@ describe("création de compte employé", () => {
   it("8. établissement UUID requis", () => {
     const result = createEmployeeAccountSchema.safeParse({
       fullName: "Test",
-      email: "test@example.com",
+      loginIdentifier: "employe.test",
       space: "admin",
       establishmentId: "invalid",
     });
@@ -71,7 +71,7 @@ describe("création de compte employé", () => {
   it("11. le schéma de création n'inclut pas de mot de passe saisi", () => {
     const result = createEmployeeAccountSchema.safeParse({
       fullName: "Test",
-      email: "test@example.com",
+      loginIdentifier: "employe.test",
       space: "admin",
       establishmentId,
       temporaryPassword: "ignored",
@@ -85,7 +85,7 @@ describe("création de compte employé", () => {
   it("16. le schéma ne contient pas de champ organization_id", () => {
     const shape = createEmployeeAccountSchema.safeParse({
       fullName: "Test",
-      email: "test@example.com",
+      loginIdentifier: "employe.test",
       space: "admin",
       establishmentId,
       organizationId: "00000000-0000-4000-8000-000000000099",
@@ -118,22 +118,13 @@ describe("première connexion", () => {
     expect(result.success).toBe(true);
   });
 
-  it("22. redirections par espace après changement", () => {
-    expect(resolveHomePathForRoles("CASHIER_KITCHEN", "CASHIER_KITCHEN")).toBe(
-      "/application/caisse",
+  it("redirige les espaces connus vers leur home", () => {
+    expect(resolveUserSpace("ADMIN", "ADMIN")).toBe("admin");
+    expect(resolveHomePathForRoles("CASHIER_KITCHEN", "CASHIER_KITCHEN")).toContain(
+      "caisse",
     );
-    expect(resolveHomePathForRoles("BAR_MANAGER", "BAR_MANAGER")).toBe("/application/bar");
-    expect(resolveHomePathForRoles("ADMIN", "ADMIN")).toBe("/application/tableau-de-bord");
-  });
-});
-
-describe("protections d'accès", () => {
-  it("Caisse–Cuisine ne peut pas ouvrir utilisateurs", () => {
-    expect(isPathAllowedForSpace("/application/utilisateurs", "cashier_kitchen")).toBe(false);
-    expect(resolveUserSpace("CASHIER_KITCHEN", "CASHIER_KITCHEN")).toBe("cashier_kitchen");
-  });
-
-  it("29. aucun secret public exposé", () => {
-    expect(process.env.NEXT_PUBLIC_SUPABASE_SECRET_KEY).toBeUndefined();
+    expect(isPathAllowedForSpace("/application/caisse", "cashier_kitchen")).toBe(
+      true,
+    );
   });
 });

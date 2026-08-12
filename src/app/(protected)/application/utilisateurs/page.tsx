@@ -1,5 +1,6 @@
 import { UsersWorkspace } from "@/components/users/users-workspace";
 import { requireAdminContext } from "@/lib/auth/workspace-context";
+import { requireCloudOnlineForDesktop } from "@/lib/desktop/require-cloud-online";
 import { listUsersPageData } from "@/lib/users/queries";
 
 type UtilisateursPageProps = {
@@ -7,6 +8,7 @@ type UtilisateursPageProps = {
 };
 
 export default async function UtilisateursPage({ searchParams }: UtilisateursPageProps) {
+  await requireCloudOnlineForDesktop("/application/utilisateurs");
   const workspace = await requireAdminContext();
   const params = await searchParams;
   const data = await listUsersPageData(workspace);

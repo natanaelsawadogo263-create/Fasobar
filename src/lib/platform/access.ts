@@ -241,6 +241,81 @@ export function daysUntil(iso: string, now: Date = new Date()): number {
   return Math.ceil(ms / (1000 * 60 * 60 * 24));
 }
 
+/** Seuil (jours) à partir duquel on alerte le client avant expiration. */
+export const SUBSCRIPTION_EXPIRY_WARNING_DAYS = 7;
+export const SUBSCRIPTION_EXPIRY_CRITICAL_DAYS = 3;
+
+export type SubscriptionExpiryAlert = {
+  daysLeft: number;
+  endsAt: string;
+  kind: "trial" | "subscription";
+  urgency: "warning" | "critical";
+};
+
+/**
+ * Alerte côté client quand l'essai / abonnement actif approche de la fin.
+ * Retourne null si hors fenêtre d'alerte ou accès non actif.
+ */
+export function getSubscriptionExpiryAlert(params: {
+  status: PlatformAccessStatus;
+  expiresAt: string | null;
+  now?: Date;
+  warningDays?: number;
+  criticalDays?: number;
+}): SubscriptionExpiryAlert | null {
+  const {
+    status,
+    expiresAt,
+    now = new Date(),
+    warningDays = SUBSCRIPTION_EXPIRY_WARNING_DAYS,
+    criticalDays = SUBSCRIPTION_EXPIRY_CRITICAL_DAYS,
+  } = params;
+
+  if ((status !== "TRIAL" && status !== "ACTIVE") || !expiresAt) {
+    return null;
+  }
+
+  const daysLeft = daysUntil(expiresAt, now);
+  if (daysLeft < 0 || daysLeft > warningDays) {
+    return null;
+  }
+
+  return {
+    daysLeft,
+    endsAt: expiresAt,
+    kind: status === "TRIAL" ? "trial" : "subscription",
+    urgency: daysLeft <= criticalDays ? "critical" : "warning",
+  };
+}
+
+function formatExpiryDateFr(iso: string): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(iso));
+}
+
+function daysLeftPhrase(daysLeft: number): string {
+  if (daysLeft <= 0) return "aujourd’hui";
+  if (daysLeft === 1) return "demain";
+  return `dans ${daysLeft} jours`;
+}
+
+/** Textes d’alerte expiration (titre + corps). */
+export function getSubscriptionExpiryAlertCopy(
+  alert: SubscriptionExpiryAlert,
+): { title: string; body: string } {
+  const subject =
+    alert.kind === "trial" ? "période d’essai" : "abonnement";
+  const endDate = formatExpiryDateFr(alert.endsAt);
+
+  return {
+    title: `Votre ${subject} se termine ${daysLeftPhrase(alert.daysLeft)}`,
+    body: `Renouvelez obligatoirement avant le ${endDate}. Sans renouvellement, vous et vos employés n’aurez plus accès à votre espace FasoBar — cela peut perturber le travail de l’équipe.`,
+  };
+}
+
 /** Un seul essai gratuit par organisation. */
 export function trialEligible(hasExistingTrial: boolean): boolean {
   return !hasExistingTrial;

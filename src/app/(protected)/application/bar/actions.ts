@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { mapGenericError } from "@/lib/auth/errors";
-import { requireBarManagerContext } from "@/lib/auth/workspace-context";
+import { requireBarManagerMutationContext } from "@/lib/auth/workspace-context";
 import type { BarActionState } from "@/lib/bar/constants";
 import {
   closeBarSessionSchema,
@@ -51,7 +51,7 @@ export async function updateBarStatusAction(
   _prevState: BarActionState,
   formData: FormData,
 ): Promise<BarActionState> {
-  await requireBarManagerContext();
+  await requireBarManagerMutationContext();
 
   const parsed = updateBarStatusSchema.safeParse({
     orderId: formData.get("orderId"),
@@ -81,7 +81,7 @@ export async function openBarSessionAction(
   _prevState: BarSessionActionState,
   formData: FormData,
 ): Promise<BarSessionActionState> {
-  await requireBarManagerContext();
+  await requireBarManagerMutationContext();
 
   const parsed = openBarSessionSchema.safeParse({
     openingNote: formData.get("openingNote") || undefined,
@@ -108,7 +108,7 @@ export async function closeBarSessionAction(
   _prevState: BarSessionActionState,
   formData: FormData,
 ): Promise<BarSessionActionState> {
-  const workspace = await requireBarManagerContext();
+  const workspace = await requireBarManagerMutationContext();
 
   const parsed = closeBarSessionSchema.safeParse({
     sessionId: formData.get("sessionId"),

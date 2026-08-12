@@ -43,7 +43,7 @@ export function ResetPasswordModal({ member, onClose, onReset }: ResetPasswordMo
 
       setSuccessSummary({
         fullName: member.fullName,
-        email: member.email,
+        loginIdentifier: member.loginIdentifier,
         spaceLabel: member.spaceLabel,
         establishmentName: member.establishmentName,
         temporaryPassword,

@@ -9,7 +9,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   over_request_rate_limit:
     "Trop de tentatives. Veuillez réessayer dans quelques minutes.",
   over_email_send_rate_limit:
-    "Trop d'e-mails envoyés par Supabase. Réessayez dans quelques minutes.",
+    "Trop d'e-mails envoyés par Supabase (quota gratuit très bas). Attendez environ une heure, ou configurez un SMTP personnalisé dans le projet Supabase.",
   email_address_invalid:
     "Adresse e-mail refusée. Utilisez une adresse réelle (évitez example.com et les domaines de test).",
   same_password:
@@ -46,6 +46,14 @@ export function mapAuthError(error: AuthError | null): string {
 
   if (message.includes("email address") && message.includes("invalid")) {
     return AUTH_ERROR_MESSAGES.email_address_invalid;
+  }
+
+  if (
+    message.includes("redirect") ||
+    message.includes("redirect_uri") ||
+    (error.code === "validation_failed" && message.includes("url"))
+  ) {
+    return "Lien de réinitialisation refusé par Supabase. Ajoutez l'URL de l'app (ex. http://localhost:3000/auth/callback) dans Authentication → URL Configuration → Redirect URLs.";
   }
 
   if (message.includes("database error saving new user")) {

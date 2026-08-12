@@ -117,10 +117,21 @@ export function ThermalReceipt({
 
       <article className="thermal-receipt mx-auto bg-white p-4 text-black shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0">
         <header className="text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-slate-700">
-            FasoBar
-          </p>
-          <h1 className="mt-2 text-base font-bold">{receipt.establishmentName}</h1>
+          {receipt.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- impression thermique
+            <img
+              src={receipt.logoUrl}
+              alt=""
+              className="receipt-logo mx-auto"
+            />
+          ) : (
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-slate-700">
+              FasoBar
+            </p>
+          )}
+          <h1 className={`${receipt.logoUrl ? "mt-1.5" : "mt-2"} text-base font-bold`}>
+            {receipt.establishmentName}
+          </h1>
           {receipt.establishmentAddress ? (
             <p className="mt-1 text-xs">{receipt.establishmentAddress}</p>
           ) : null}

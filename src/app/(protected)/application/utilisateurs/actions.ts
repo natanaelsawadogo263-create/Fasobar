@@ -5,7 +5,8 @@ import { randomUUID } from "crypto";
 
 import { mapGenericError } from "@/lib/auth/errors";
 import { inviteSpaceToRole } from "@/lib/auth/roles";
-import { requireAdminContext } from "@/lib/auth/workspace-context";
+import { requireAdminMutationContext } from "@/lib/auth/workspace-context";
+import { getCloudOfflineActionError } from "@/lib/desktop/require-cloud-online";
 import {
   createEmployeeAccountSchema,
   deleteEmployeeAccountSchema,
@@ -23,24 +24,20 @@ function parseCheckbox(value: FormDataEntryValue | null): boolean {
   return value === "on" || value === "true";
 }
 
-async function findExistingAuthUserId(email: string): Promise<string | null> {
-  const admin = createAdminClient();
-  const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  const match = data.users.find(
-    (user) => user.email?.trim().toLowerCase() === email.trim().toLowerCase(),
-  );
-  return match?.id ?? null;
-}
-
 export async function createEmployeeAccountAction(
   _prev: UsersActionState,
   formData: FormData,
 ): Promise<UsersActionState> {
-  const workspace = await requireAdminContext();
+  const offlineError = await getCloudOfflineActionError();
+  if (offlineError) {
+    return { error: offlineError };
+  }
+
+  const workspace = await requireAdminMutationContext();
 
   const parsed = createEmployeeAccountSchema.safeParse({
     fullName: formData.get("fullName"),
-    email: formData.get("email"),
+    loginIdentifier: formData.get("loginIdentifier"),
     phone: formData.get("phone") || undefined,
     space: formData.get("space"),
     establishmentId: formData.get("establishmentId"),
@@ -59,7 +56,13 @@ export async function createEmployeeAccountAction(
   }
 
   const supabase = await createClient();
-  const normalizedEmail = parsed.data.email.trim().toLowerCase();
+  const {
+    loginIdentifierToAuthEmail,
+    normalizeLoginIdentifier,
+    withLoginIdentifierSuffix,
+  } = await import("@/lib/auth/login-identifier");
+
+  let loginNormalized = normalizeLoginIdentifier(parsed.data.loginIdentifier);
   const role = inviteSpaceToRole(parsed.data.space);
 
   const { data: establishment } = await supabase
@@ -73,37 +76,44 @@ export async function createEmployeeAccountAction(
     return { error: "Établissement introuvable ou non autorisé." };
   }
 
+  // Ensure unique login_identifier (retry with suffix if taken).
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const candidate =
+      attempt === 0
+        ? loginNormalized
+        : withLoginIdentifierSuffix(loginNormalized, randomUUID().slice(0, 4));
+    const { data: existingLogin } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("login_identifier_normalized", candidate)
+      .maybeSingle();
+    if (!existingLogin) {
+      loginNormalized = candidate;
+      break;
+    }
+    if (attempt === 5) {
+      return { error: "Impossible de générer un identifiant FasoBar unique." };
+    }
+  }
+
+  const authEmail = loginIdentifierToAuthEmail(loginNormalized);
   let createdUserId: string | null = null;
 
   try {
     const admin = createAdminClient();
     const { data: created, error: createError } = await admin.auth.admin.createUser({
-      email: normalizedEmail,
+      email: authEmail,
       password: DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD,
       email_confirm: true,
       user_metadata: {
         full_name: parsed.data.fullName,
+        login_identifier: loginNormalized,
       },
     });
 
     if (createError || !created.user) {
       if (createError?.message.toLowerCase().includes("already")) {
-        const existingUserId = await findExistingAuthUserId(normalizedEmail);
-
-        if (existingUserId) {
-          const { data: membership } = await supabase
-            .from("organization_memberships")
-            .select("id")
-            .eq("user_id", existingUserId)
-            .eq("organization_id", workspace.organizationId)
-            .maybeSingle();
-
-          if (membership) {
-            return { error: "Un compte avec cet e-mail appartient déjà à votre organisation." };
-          }
-        }
-
-        return { error: "Cet e-mail est déjà utilisé par un compte FasoBar." };
+        return { error: "Cet identifiant FasoBar est déjà utilisé." };
       }
 
       return { error: mapGenericError(createError) };
@@ -119,6 +129,7 @@ export async function createEmployeeAccountAction(
       p_full_name: parsed.data.fullName,
       p_phone: parsed.data.phone ?? null,
       p_created_by: workspace.userId,
+      p_login_identifier: loginNormalized,
     });
 
     if (provisionError) {
@@ -168,7 +179,12 @@ export async function resetTemporaryPasswordAction(
   _prev: UsersActionState,
   formData: FormData,
 ): Promise<UsersActionState> {
-  const workspace = await requireAdminContext();
+  const offlineError = await getCloudOfflineActionError();
+  if (offlineError) {
+    return { error: offlineError };
+  }
+
+  const workspace = await requireAdminMutationContext();
 
   const parsed = resetTemporaryPasswordSchema.safeParse({
     userId: formData.get("userId"),
@@ -238,7 +254,12 @@ export async function setMemberStatusAction(
   _prev: UsersActionState,
   formData: FormData,
 ): Promise<UsersActionState> {
-  await requireAdminContext();
+  const offlineError = await getCloudOfflineActionError();
+  if (offlineError) {
+    return { error: offlineError };
+  }
+
+  await requireAdminMutationContext();
 
   const parsed = setMemberStatusSchema.safeParse({
     userId: formData.get("userId"),
@@ -288,7 +309,12 @@ export async function deleteEmployeeAccountAction(
   _prev: UsersActionState,
   formData: FormData,
 ): Promise<UsersActionState> {
-  const workspace = await requireAdminContext();
+  const offlineError = await getCloudOfflineActionError();
+  if (offlineError) {
+    return { error: offlineError };
+  }
+
+  const workspace = await requireAdminMutationContext();
 
   const parsed = deleteEmployeeAccountSchema.safeParse({
     userId: formData.get("userId"),

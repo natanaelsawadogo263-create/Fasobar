@@ -14,6 +14,7 @@ export type EstablishmentSettings = {
   receiptFooter: string | null;
   thankYouMessage: string | null;
   defaultMinimumStock: number;
+  logoUrl: string | null;
 };
 
 export type EstablishmentSettingsResult = {

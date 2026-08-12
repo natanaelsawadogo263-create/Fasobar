@@ -5,6 +5,7 @@ import {
   isAuthRoute,
   isProtectedPath,
 } from "@/lib/auth/routes";
+import { LOCAL_SESSION_COOKIE } from "@/lib/local-auth/constants";
 
 function copyCookies(source: NextResponse, target: NextResponse) {
   source.cookies.getAll().forEach((cookie) => {
@@ -53,8 +54,19 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (isProtectedPath(pathname) && !user) {
+    // Desktop offline: opaque local session cookie — full validation in page/server.
+    const hasLocalSession = Boolean(
+      request.cookies.get(LOCAL_SESSION_COOKIE)?.value?.trim(),
+    );
+    if (
+      process.env.FASOBAR_RUNTIME === "desktop-server" &&
+      hasLocalSession
+    ) {
+      return supabaseResponse;
+    }
+
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/";
+    redirectUrl.pathname = "/connexion";
     redirectUrl.searchParams.set("redirect", pathname);
 
     const redirectResponse = NextResponse.redirect(redirectUrl);

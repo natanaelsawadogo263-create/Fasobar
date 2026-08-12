@@ -163,6 +163,47 @@ export async function listStockItems(
   });
 }
 
+/**
+ * Alertes stock légères pour le tableau de bord :
+ * pas d’enrichissement coûts, lecture ciblée.
+ */
+export async function listDashboardStockAlerts(
+  workspace: WorkspaceContext,
+  limit = 5,
+): Promise<{ alerts: StockListItem[]; alertCount: number }> {
+  const supabase =
+    workspace.canManageStock && isAdminClientConfigured()
+      ? createAdminClient()
+      : await createClient();
+
+  const { data, error } = await supabase
+    .from("stock_items")
+    .select(
+      "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, categories(name))",
+    )
+    .eq("establishment_id", workspace.establishmentId)
+    .eq("active", true)
+    .order("current_quantity", { ascending: true })
+    .limit(200);
+
+  if (error || !data) {
+    if (error) {
+      console.error("[listDashboardStockAlerts]", error.message);
+    }
+    return { alerts: [], alertCount: 0 };
+  }
+
+  const alerts = data
+    .map((row) => mapStockItem(row as StockItemRow))
+    .filter((item): item is StockListItem => item !== null)
+    .filter((item) => item.status === "low" || item.status === "out");
+
+  return {
+    alerts: alerts.slice(0, limit),
+    alertCount: alerts.length,
+  };
+}
+
 async function attachEstimatedCosts(
   workspace: WorkspaceContext,
   items: StockListItem[],
@@ -229,17 +270,37 @@ export async function getStockStats(
   };
 }
 
-export async function listSuppliers(workspace: WorkspaceContext): Promise<SupplierOption[]> {
+export async function listSuppliers(
+  workspace: WorkspaceContext,
+  options: { departmentCode?: "BAR" | "KITCHEN" } = {},
+): Promise<SupplierOption[]> {
   const supabase =
     workspace.canManageStock && isAdminClientConfigured()
       ? createAdminClient()
       : await createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("suppliers")
-    .select("id, name, phone, address, active")
+    .select("id, name, phone, address, active, department_code")
     .eq("establishment_id", workspace.establishmentId)
     .order("name");
+
+  if (options.departmentCode) {
+    query = query.eq("department_code", options.departmentCode);
+  }
+
+  let { data, error } = await query;
+
+  // Compat: migration department_code non appliquée
+  if (error && (error.message ?? "").toLowerCase().includes("department_code")) {
+    const fallback = await supabase
+      .from("suppliers")
+      .select("id, name, phone, address, active")
+      .eq("establishment_id", workspace.establishmentId)
+      .order("name");
+    data = fallback.data?.map((row) => ({ ...row, department_code: "BAR" })) ?? null;
+    error = fallback.error;
+  }
 
   if (error || !data) {
     if (error) {
@@ -248,7 +309,22 @@ export async function listSuppliers(workspace: WorkspaceContext): Promise<Suppli
     return [];
   }
 
-  return data;
+  const mapped = data.map((row) => ({
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    address: row.address,
+    active: row.active,
+    departmentCode: (row.department_code === "KITCHEN" ? "KITCHEN" : "BAR") as
+      | "BAR"
+      | "KITCHEN",
+  }));
+
+  if (options.departmentCode) {
+    return mapped.filter((row) => row.departmentCode === options.departmentCode);
+  }
+
+  return mapped;
 }
 
 export async function listStockMovements(
@@ -378,6 +454,7 @@ export async function listRecentSupplyEntries(
           id: row.id,
           stockItemName: stockItem.name,
           departmentName: department.name,
+          departmentCode: department.code,
           quantity: Number(row.quantity),
           unit: stockItem.unit,
           totalCost: row.total_cost,
@@ -667,16 +744,36 @@ export async function getSupplierById(
 ): Promise<SupplierOption | null> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("suppliers")
-    .select("id, name, phone, address, active")
+    .select("id, name, phone, address, active, department_code")
     .eq("id", supplierId)
     .eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
+
+  if (error && (error.message ?? "").toLowerCase().includes("department_code")) {
+    const fallback = await supabase
+      .from("suppliers")
+      .select("id, name, phone, address, active")
+      .eq("id", supplierId)
+      .eq("establishment_id", workspace.establishmentId)
+      .maybeSingle();
+    data = fallback.data
+      ? { ...fallback.data, department_code: "BAR" }
+      : null;
+    error = fallback.error;
+  }
 
   if (error || !data) {
     return null;
   }
 
-  return data;
+  return {
+    id: data.id,
+    name: data.name,
+    phone: data.phone,
+    address: data.address,
+    active: data.active,
+    departmentCode: data.department_code === "KITCHEN" ? "KITCHEN" : "BAR",
+  };
 }

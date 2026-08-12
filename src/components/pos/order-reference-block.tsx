@@ -23,25 +23,23 @@ export function OrderReferenceBlock({
 }: OrderReferenceBlockProps) {
   if (compact) {
     return (
-      <div className="shrink-0 space-y-2.5 border-b border-[#eeeeee] px-4 py-3">
-        <div>
+      <div className="shrink-0 space-y-2 border-b border-[#eeeeee] px-3.5 py-2.5">
+        <div className="relative">
           <label htmlFor="pos-table-ref" className="sr-only">
             Table / Référence
           </label>
-          <div className="relative">
-            <Store
-              className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#059669]"
-              strokeWidth={2}
-            />
-            <input
-              id="pos-table-ref"
-              type="text"
-              value={tableReference}
-              onChange={(event) => onTableChange(event.target.value)}
-              placeholder="Table / référence (ex. T12)"
-              className="h-10 w-full rounded-lg border border-[#e5e7eb] bg-white py-2 pl-9 pr-3 text-[13px] font-medium text-[#111827] outline-none placeholder:font-normal placeholder:text-[#9ca3af] focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/15"
-            />
-          </div>
+          <Store
+            className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#059669]"
+            strokeWidth={2}
+          />
+          <input
+            id="pos-table-ref"
+            type="text"
+            value={tableReference}
+            onChange={(event) => onTableChange(event.target.value)}
+            placeholder="Table / réf. (ex. T12)"
+            className="h-9 w-full rounded-lg border border-[#e5e7eb] bg-white py-2 pl-9 pr-3 text-[13px] font-medium text-[#111827] outline-none placeholder:font-normal placeholder:text-[#9ca3af] focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/15"
+          />
         </div>
 
         <div

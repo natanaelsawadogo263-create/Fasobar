@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ClipboardList, LayoutDashboard, LogOut } from "lucide-react";
 
 import { CashSessionIndicator } from "@/components/pos/cash-session-indicator";
+import { DesktopSyncIndicator } from "@/components/pos/desktop-sync-indicator";
 
 type PosHeaderProps = {
   establishmentName: string;
@@ -41,6 +42,7 @@ export function PosHeader({
             />
           </div>
         ) : null}
+        <DesktopSyncIndicator compact />
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">

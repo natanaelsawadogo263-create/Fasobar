@@ -66,7 +66,7 @@ export function CashSessionIndicator({
           className={`h-1.5 w-1.5 fill-current ${online ? "text-emerald-400" : "text-red-400"}`}
           aria-hidden="true"
         />
-        {online ? "En ligne" : "Hors ligne"}
+        {online ? "En ligne" : "Mode hors connexion"}
       </span>
     </div>
   );

@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
   Clock,
   Eye,
   Play,
+  Printer,
 } from "lucide-react";
 
 import { updateKitchenStatusAction } from "@/app/(protected)/application/cuisine/actions";
@@ -21,9 +21,11 @@ import {
 import type { KitchenStatus } from "@/lib/kitchen/schemas";
 import { ORDER_TYPE_LABELS } from "@/lib/orders/constants";
 import { formatOrderNumber } from "@/lib/orders/constants";
+import { createClient } from "@/lib/supabase/client";
 
 type KitchenWorkspaceProps = {
   orders: KitchenOrderTicket[];
+  establishmentId?: string;
 };
 
 const COLUMN_TONE: Record<KitchenStatus, string> = {
@@ -37,64 +39,125 @@ function minutesSince(date: string): number {
   return Math.max(Math.floor((Date.now() - new Date(date).getTime()) / 60000), 0);
 }
 
-export function KitchenWorkspace({ orders }: KitchenWorkspaceProps) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+export function KitchenWorkspace({
+  orders,
+  establishmentId,
+}: KitchenWorkspaceProps) {
+  const [tickets, setTickets] = useState(orders);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTickets(orders);
+  }, [orders]);
+
+  useEffect(() => {
+    if (!establishmentId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`kitchen-live:${establishmentId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `establishment_id=eq.${establishmentId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            id?: string;
+            kitchen_status?: KitchenStatus | null;
+            kitchen_status_updated_at?: string | null;
+            status?: string;
+            payment_status?: string;
+          };
+          if (!row.id) return;
+          if (row.status === "CANCELLED" || row.payment_status === "PAID") {
+            setTickets((prev) => prev.filter((ticket) => ticket.id !== row.id));
+            return;
+          }
+          if (!row.kitchen_status) return;
+          setTickets((prev) =>
+            prev.map((ticket) =>
+              ticket.id === row.id
+                ? {
+                    ...ticket,
+                    kitchenStatus: row.kitchen_status!,
+                    kitchenStatusUpdatedAt:
+                      row.kitchen_status_updated_at ?? ticket.kitchenStatusUpdatedAt,
+                  }
+                : ticket,
+            ),
+          );
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [establishmentId]);
 
   const columns = useMemo(() => {
     return KITCHEN_COLUMNS.map((status) => ({
       status,
       title: KITCHEN_STATUS_LABELS[status],
       tone: COLUMN_TONE[status],
-      orders: orders.filter((order) => order.kitchenStatus === status),
+      orders: tickets.filter((order) => order.kitchenStatus === status),
     }));
-  }, [orders]);
+  }, [tickets]);
 
   const stats = [
-    { label: "Toutes", value: orders.length, tone: "text-slate-900" },
+    { label: "Toutes", value: tickets.length, tone: "text-slate-900" },
     {
       label: "À préparer",
-      value: orders.filter((o) => o.kitchenStatus === "TO_PREPARE").length,
+      value: tickets.filter((o) => o.kitchenStatus === "TO_PREPARE").length,
       tone: "text-orange-600",
     },
     {
       label: "En préparation",
-      value: orders.filter((o) => o.kitchenStatus === "IN_PREPARATION").length,
+      value: tickets.filter((o) => o.kitchenStatus === "IN_PREPARATION").length,
       tone: "text-blue-600",
     },
     {
       label: "Prêtes",
-      value: orders.filter((o) => o.kitchenStatus === "READY").length,
+      value: tickets.filter((o) => o.kitchenStatus === "READY").length,
       tone: "text-emerald-600",
     },
   ];
 
   function handleAdvance(order: KitchenOrderTicket) {
     const action = KITCHEN_NEXT_ACTION[order.kitchenStatus];
-    if (!action.nextStatus) {
-      return;
-    }
+    if (!action.nextStatus) return;
 
+    const previousStatus = order.kitchenStatus;
+    const nextStatus = action.nextStatus;
     setError(null);
-    setPendingOrderId(order.id);
+    setTickets((prev) =>
+      prev.map((ticket) =>
+        ticket.id === order.id
+          ? {
+              ...ticket,
+              kitchenStatus: nextStatus,
+              kitchenStatusUpdatedAt: new Date().toISOString(),
+            }
+          : ticket,
+      ),
+    );
 
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("orderId", order.id);
-      formData.set("status", action.nextStatus!);
-
-      const result = await updateKitchenStatusAction({}, formData);
-
-      setPendingOrderId(null);
-
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-
-      router.refresh();
+    const formData = new FormData();
+    formData.set("orderId", order.id);
+    formData.set("status", nextStatus);
+    void updateKitchenStatusAction({}, formData).then((result) => {
+      if (!result.error) return;
+      setTickets((prev) =>
+        prev.map((ticket) =>
+          ticket.id === order.id
+            ? { ...ticket, kitchenStatus: previousStatus }
+            : ticket,
+        ),
+      );
+      setError(result.error);
     });
   }
 
@@ -127,8 +190,6 @@ export function KitchenWorkspace({ orders }: KitchenWorkspaceProps) {
           <KitchenColumnView
             key={column.status}
             column={column}
-            isPending={isPending}
-            pendingOrderId={pendingOrderId}
             onAdvance={handleAdvance}
           />
         ))}
@@ -139,8 +200,6 @@ export function KitchenWorkspace({ orders }: KitchenWorkspaceProps) {
 
 function KitchenColumnView({
   column,
-  isPending,
-  pendingOrderId,
   onAdvance,
 }: {
   column: {
@@ -149,8 +208,6 @@ function KitchenColumnView({
     tone: string;
     orders: KitchenOrderTicket[];
   };
-  isPending: boolean;
-  pendingOrderId: string | null;
   onAdvance: (order: KitchenOrderTicket) => void;
 }) {
   return (
@@ -169,7 +226,6 @@ function KitchenColumnView({
             <KitchenOrderCard
               key={order.id}
               order={order}
-              isPending={isPending && pendingOrderId === order.id}
               onAdvance={onAdvance}
             />
           ))
@@ -181,11 +237,9 @@ function KitchenColumnView({
 
 function KitchenOrderCard({
   order,
-  isPending,
   onAdvance,
 }: {
   order: KitchenOrderTicket;
-  isPending: boolean;
   onAdvance: (order: KitchenOrderTicket) => void;
 }) {
   const elapsed = minutesSince(order.kitchenStatusUpdatedAt ?? order.createdAt);
@@ -225,22 +279,29 @@ function KitchenOrderCard({
         ))}
       </ul>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         {action.nextStatus ? (
           <button
             type="button"
-            disabled={isPending}
             onClick={() => onAdvance(order)}
-            className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[11px] font-semibold text-emerald-700 disabled:opacity-50"
+            className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[11px] font-semibold text-emerald-700"
           >
             {order.kitchenStatus === "TO_PREPARE" ? (
               <Play className="h-3 w-3" />
             ) : (
               <CheckCircle2 className="h-3 w-3" />
             )}
-            {isPending ? "…" : action.label}
+            {action.label}
           </button>
         ) : null}
+        <Link
+          href={`/application/commandes/${order.id}/addition?print=1`}
+          className="inline-flex items-center justify-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
+          title="Imprimer l'addition client (sans encaisser)"
+        >
+          <Printer className="h-3 w-3" />
+          Addition
+        </Link>
         <Link
           href={`/application/commandes/${order.id}`}
           className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"

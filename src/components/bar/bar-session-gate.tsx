@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { Clock3, Lock, UserRound } from "lucide-react";
 
 import { openBarSessionAction } from "@/app/(protected)/application/bar/actions";
+import { refreshSoon } from "@/lib/ops/client-refresh";
 import { OpenBarSessionModal } from "@/components/bar/open-bar-session-modal";
 import type { BarSessionDetail } from "@/lib/bar/session-types";
 
@@ -42,7 +43,7 @@ export function BarSessionGate({
         return;
       }
       setOpenError(undefined);
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 

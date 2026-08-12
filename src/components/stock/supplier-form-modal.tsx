@@ -3,6 +3,7 @@
 import { AlertMessage } from "@/components/auth/alert-message";
 import {
   FormSection,
+  SelectField,
   TextField,
   ToggleField,
 } from "@/components/ui/form-controls";
@@ -12,10 +13,16 @@ import type { SupplierOption } from "@/lib/stock/types";
 
 const FORM_ID = "supplier-form";
 
+const SPACE_LABELS = {
+  BAR: "Bar",
+  KITCHEN: "Cuisine",
+} as const;
+
 export type SupplierFormState = {
   name: string;
   phone: string;
   address: string;
+  departmentCode: "BAR" | "KITCHEN";
   active: boolean;
 };
 
@@ -24,6 +31,8 @@ type SupplierFormModalProps = {
   formState: SupplierFormState;
   editingSupplier: SupplierOption | null;
   formError: string | null;
+  /** Si défini, le département est figé (ex. espace Bar). */
+  lockedDepartment?: "BAR" | "KITCHEN" | null;
   onClose: () => void;
   onSubmit: (formData: FormData) => void;
   onChange: (updater: (current: SupplierFormState) => SupplierFormState) => void;
@@ -34,11 +43,13 @@ export function SupplierFormModal({
   formState,
   editingSupplier,
   formError,
+  lockedDepartment = null,
   onClose,
   onSubmit,
   onChange,
 }: SupplierFormModalProps) {
   const isCreate = mode === "create";
+  const departmentValue = lockedDepartment ?? formState.departmentCode;
 
   return (
     <ModalShell
@@ -46,7 +57,7 @@ export function SupplierFormModal({
       title={isCreate ? "Ajouter un fournisseur" : "Modifier le fournisseur"}
       subtitle={
         isCreate
-          ? "Enregistrez un contact pour vos approvisionnements."
+          ? "Indiquez s'il livre le Bar ou la Cuisine."
           : "Mettez à jour les informations du fournisseur."
       }
       onClose={onClose}
@@ -74,6 +85,35 @@ export function SupplierFormModal({
 
         <FormSection title="Informations">
           <div className="grid gap-4 md:grid-cols-2">
+            {lockedDepartment ? (
+              <input type="hidden" name="departmentCode" value={lockedDepartment} />
+            ) : (
+              <SelectField
+                id="departmentCode"
+                name="departmentCode"
+                label="Espace"
+                required
+                value={departmentValue}
+                onChange={(event) =>
+                  onChange((current) => ({
+                    ...current,
+                    departmentCode: event.target.value as "BAR" | "KITCHEN",
+                  }))
+                }
+                className="md:col-span-2"
+              >
+                <option value="BAR">{SPACE_LABELS.BAR}</option>
+                <option value="KITCHEN">{SPACE_LABELS.KITCHEN}</option>
+              </SelectField>
+            )}
+            {lockedDepartment ? (
+              <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600 md:col-span-2">
+                Espace :{" "}
+                <span className="font-semibold text-slate-900">
+                  {SPACE_LABELS[lockedDepartment]}
+                </span>
+              </p>
+            ) : null}
             <TextField
               id="name"
               name="name"

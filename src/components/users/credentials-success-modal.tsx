@@ -14,7 +14,7 @@ function buildCopyText(summary: CreatedCredentialsSummary): string {
     "FasoBar — Identifiants de connexion",
     "",
     `Nom : ${summary.fullName}`,
-    `Identifiant : ${summary.email}`,
+    `Identifiant FasoBar : ${summary.loginIdentifier}`,
     `Mot de passe temporaire : ${summary.temporaryPassword}`,
     `Espace : ${summary.spaceLabel}`,
     `Établissement : ${summary.establishmentName}`,
@@ -51,13 +51,13 @@ export function CredentialsSuccessModal({
         <h2 className="mt-2 text-2xl font-semibold text-slate-900">{summary.fullName}</h2>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
           Communiquez ces identifiants à l&apos;employé. Le mot de passe devra être changé
-          à la première connexion.
+          à la première connexion avant toute utilisation hors ligne.
         </p>
 
         <dl className="mt-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
           <div>
-            <dt className="text-slate-500">E-mail</dt>
-            <dd className="font-medium text-slate-900">{summary.email}</dd>
+            <dt className="text-slate-500">Identifiant FasoBar</dt>
+            <dd className="font-medium text-slate-900">{summary.loginIdentifier}</dd>
           </div>
           <div>
             <dt className="text-slate-500">Mot de passe temporaire</dt>

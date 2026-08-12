@@ -1,4 +1,4 @@
-import type { ExpenseCategory, ExpenseStatus } from "@/lib/expenses/schemas";
+import type { ExpenseArea, ExpenseCategory, ExpenseStatus } from "@/lib/expenses/schemas";
 
 export type ExpenseActionState = {
   error?: string;
@@ -7,6 +7,7 @@ export type ExpenseActionState = {
 
 export type ExpenseListItem = {
   id: string;
+  area: ExpenseArea;
   category: ExpenseCategory;
   label: string;
   amount: number;
@@ -27,4 +28,6 @@ export type ExpensesPageData = {
   recordedCount: number;
   cancelledCount: number;
   kitchenTotal: number;
+  caisseTotal: number;
+  barTotal: number;
 };

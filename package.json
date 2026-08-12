@@ -1,17 +1,38 @@
 {
-  "name": "maquis-gestion",
+  "name": "fasobar",
+  "productName": "FasoBar",
   "version": "0.1.0",
   "private": true,
+  "description": "FasoBar — gestion de maquis et restaurants (Windows)",
+  "author": {
+    "name": "FasoBar"
+  },
+  "main": ".vite/build/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "desktop:build-next": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "desktop:prepare": "node scripts/desktop-prepare-standalone.mjs",
+    "desktop:check-secrets": "node scripts/desktop-check-secrets.mjs",
+    "desktop:generate-icons": "node scripts/desktop-generate-icons.mjs",
+    "desktop:embed-icon": "node scripts/desktop-embed-icon.mjs",
+    "desktop:verify-icons": "node scripts/desktop-verify-icons.mjs",
+    "desktop:start-server": "node scripts/desktop-start-server.mjs",
+    "desktop:dev": "npm run desktop:generate-icons && npm run desktop:build-next && npm run desktop:prepare && electron-forge start",
+    "desktop:verify-package": "node scripts/desktop-verify-package.mjs",
+    "desktop:package-app": "electron-forge package",
+    "desktop:build": "npm run desktop:generate-icons && npm run desktop:build-next && npm run desktop:prepare && npm run desktop:check-secrets && npm run desktop:package-app && npm run desktop:embed-icon && npm run desktop:verify-icons -- --packaged && npm run desktop:verify-package",
+    "desktop:package": "npm run desktop:build",
+    "desktop:make": "npm run desktop:build && node scripts/desktop-make-nsis.mjs && npm run desktop:verify-icons -- --setup",
+    "desktop:make:legacy-squirrel": "npm run desktop:build && node scripts/make-setup-manual.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.0",
+    "electron-squirrel-startup": "^1.0.1",
     "lucide-react": "^1.28.0",
     "next": "16.2.12",
     "react": "19.2.4",
@@ -20,15 +41,23 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@electron-forge/cli": "^7.10.2",
+    "@electron-forge/maker-squirrel": "^7.10.2",
+    "@electron-forge/plugin-vite": "^7.10.2",
+    "@electron-forge/shared-types": "^7.10.2",
     "@tailwindcss/postcss": "^4",
+    "@types/electron-squirrel-startup": "^1.0.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^37.10.3",
+    "electron-builder": "^26.15.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "supabase": "^2.111.0",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vite": "^6.3.5",
     "vitest": "^4.1.10"
   },
   "overrides": {

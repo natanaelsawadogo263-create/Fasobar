@@ -2,6 +2,7 @@ import "server-only";
 
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { listAdminCashSessions } from "@/lib/admin/cash-sessions-queries";
+import { EXPENSE_AREA_LABELS, EXPENSE_CATEGORY_LABELS } from "@/lib/expenses/constants";
 import { listExpenses } from "@/lib/expenses/queries";
 import { formatOrderNumber, formatPriceXof } from "@/lib/orders/constants";
 import { listAdminOrders } from "@/lib/orders/queries";
@@ -71,6 +72,8 @@ async function buildVentesReport(
     rows,
     [
       { label: "Chiffre d'affaires", value: formatPriceXof(data.summary.totalRevenue) },
+      { label: "CA Bar", value: formatPriceXof(data.summary.barRevenue) },
+      { label: "CA Cuisine", value: formatPriceXof(data.summary.kitchenRevenue) },
       { label: "Commandes payées", value: String(data.summary.paidOrderCount) },
       { label: "Panier moyen", value: formatPriceXof(data.summary.averageBasket) },
     ],
@@ -84,6 +87,7 @@ async function buildCommandesReport(
   const data = await listAdminOrders(workspace, {
     status: "all",
     department: "all",
+    period: "all",
     from: filters.from,
     to: filters.to,
   });
@@ -182,7 +186,7 @@ async function buildApprovisionnementsReport(
   const entries = await listRecentSupplyEntries(workspace, {
     from: filters.from,
     to: filters.to,
-    limit: 300,
+    limit: 2000,
   });
 
   const rows: ReportRow[] = entries.map((entry) => ({
@@ -196,6 +200,12 @@ async function buildApprovisionnementsReport(
     reference: entry.reference ?? "—",
   }));
 
+  const barCost = entries
+    .filter((entry) => entry.departmentCode === "BAR")
+    .reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
+  const kitchenCost = entries
+    .filter((entry) => entry.departmentCode === "KITCHEN")
+    .reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
   const totalCost = entries.reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
 
   return buildResult(
@@ -213,7 +223,9 @@ async function buildApprovisionnementsReport(
     rows,
     [
       { label: "Entrées", value: String(entries.length) },
-      { label: "Coût total", value: String(totalCost) },
+      { label: "Coût total", value: formatPriceXof(totalCost) },
+      { label: "Appro Bar", value: formatPriceXof(barCost) },
+      { label: "Appro Cuisine", value: formatPriceXof(kitchenCost) },
     ],
   );
 }
@@ -259,40 +271,144 @@ async function buildPertesCasseReport(
   );
 }
 
-async function buildDepensesCuisineReport(
+async function buildDepensesReport(
   workspace: WorkspaceContext,
   filters: ReportFiltersInput,
 ): Promise<ReportResult> {
-  const data = await listExpenses(workspace, {
-    category: "KITCHEN_PURCHASE",
-    status: "all",
-    from: filters.from,
-    to: filters.to,
-  });
+  const data = await listExpenses(
+    workspace,
+    {
+      status: "all",
+      from: filters.from,
+      to: filters.to,
+    },
+    { limit: 2000 },
+  );
 
   const rows: ReportRow[] = data.expenses.map((expense) => ({
     expenseDate: expense.expenseDate,
+    area: EXPENSE_AREA_LABELS[expense.area],
+    category: EXPENSE_CATEGORY_LABELS[expense.category] ?? expense.category,
     label: expense.label,
-    supplierName: expense.supplierName ?? "—",
     amount: expense.amount,
     status: expense.status === "CANCELLED" ? "Annulée" : "Enregistrée",
     createdByName: expense.createdByName ?? "—",
   }));
 
   return buildResult(
-    "depenses_cuisine",
+    "depenses",
     [
       { key: "expenseDate", label: "Date", format: "date" },
-      { key: "label", label: "Libellé" },
-      { key: "supplierName", label: "Fournisseur" },
+      { key: "area", label: "Espace" },
+      { key: "category", label: "Catégorie" },
+      { key: "label", label: "Titre" },
       { key: "amount", label: "Montant", format: "currency" },
       { key: "status", label: "Statut" },
       { key: "createdByName", label: "Auteur" },
     ],
     rows,
     [
-      { label: "Total (actives)", value: String(data.periodTotal) },
+      { label: "Total actives", value: formatPriceXof(data.periodTotal) },
+      { label: "Dépenses Bar", value: formatPriceXof(data.barTotal) },
+      { label: "Dépenses Caisse", value: formatPriceXof(data.caisseTotal) },
       { label: "Lignes", value: String(data.expenses.length) },
+    ],
+  );
+}
+
+/** @deprecated Conservé pour compat — délègue au rapport Dépenses. */
+async function buildDepensesCuisineReport(
+  workspace: WorkspaceContext,
+  filters: ReportFiltersInput,
+): Promise<ReportResult> {
+  return buildDepensesReport(workspace, filters);
+}
+
+async function buildBeneficesReport(
+  workspace: WorkspaceContext,
+  filters: ReportFiltersInput,
+): Promise<ReportResult> {
+  const [sales, expenses, barSupply, kitchenSupply] = await Promise.all([
+    getAdminSalesData(workspace, { from: filters.from, to: filters.to }),
+    listExpenses(
+      workspace,
+      {
+        status: "RECORDED",
+        from: filters.from,
+        to: filters.to,
+      },
+      { limit: 2000 },
+    ),
+    listRecentSupplyEntries(workspace, {
+      departmentCode: "BAR",
+      from: filters.from,
+      to: filters.to,
+      limit: 2000,
+    }),
+    listRecentSupplyEntries(workspace, {
+      departmentCode: "KITCHEN",
+      from: filters.from,
+      to: filters.to,
+      limit: 2000,
+    }),
+  ]);
+
+  const sumSupply = (entries: { totalCost: number | null }[]) =>
+    entries.reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
+
+  const barRevenue = sales.summary.barRevenue;
+  const kitchenRevenue = sales.summary.kitchenRevenue;
+  const barAppro = sumSupply(barSupply);
+  const kitchenAppro = sumSupply(kitchenSupply);
+  const barExpenses = expenses.barTotal;
+  const kitchenExpenses = expenses.caisseTotal;
+
+  const barProfit = barRevenue - barAppro - barExpenses;
+  const kitchenProfit = kitchenRevenue - kitchenAppro - kitchenExpenses;
+  const totalProfit = barProfit + kitchenProfit;
+  const totalRevenue = barRevenue + kitchenRevenue;
+  const totalAppro = barAppro + kitchenAppro;
+  const totalExpenses = barExpenses + kitchenExpenses;
+
+  const rows: ReportRow[] = [
+    {
+      space: "Bar",
+      revenue: barRevenue,
+      supplyCost: barAppro,
+      expenses: barExpenses,
+      profit: barProfit,
+    },
+    {
+      space: "Cuisine",
+      revenue: kitchenRevenue,
+      supplyCost: kitchenAppro,
+      expenses: kitchenExpenses,
+      profit: kitchenProfit,
+    },
+    {
+      space: "Total",
+      revenue: totalRevenue,
+      supplyCost: totalAppro,
+      expenses: totalExpenses,
+      profit: totalProfit,
+    },
+  ];
+
+  return buildResult(
+    "benefices",
+    [
+      { key: "space", label: "Espace" },
+      { key: "revenue", label: "Chiffre d'affaires", format: "currency" },
+      { key: "supplyCost", label: "Approvisionnements", format: "currency" },
+      { key: "expenses", label: "Dépenses", format: "currency" },
+      { key: "profit", label: "Bénéfice net", format: "currency" },
+    ],
+    rows,
+    [
+      { label: "Bénéfice net total", value: formatPriceXof(totalProfit) },
+      { label: "CA total", value: formatPriceXof(sales.summary.totalRevenue) },
+      { label: "Appro total", value: formatPriceXof(totalAppro) },
+      { label: "Dépenses total", value: formatPriceXof(totalExpenses) },
     ],
   );
 }
@@ -459,8 +575,12 @@ export async function getReportData(
       return buildApprovisionnementsReport(workspace, filters);
     case "pertes_casse":
       return buildPertesCasseReport(workspace, filters);
+    case "depenses":
+      return buildDepensesReport(workspace, filters);
     case "depenses_cuisine":
       return buildDepensesCuisineReport(workspace, filters);
+    case "benefices":
+      return buildBeneficesReport(workspace, filters);
     case "sessions_caisse":
       return buildSessionsCaisseReport(workspace, filters, false);
     case "ecarts_caisse":

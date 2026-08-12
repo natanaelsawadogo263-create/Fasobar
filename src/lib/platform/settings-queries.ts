@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 export type PlatformSettingsRow = {
   orangeMoneyNumber: string;
   currency: string;
-  trialDurationMonths: number;
+  trialDurationDays: number;
   trialEnabled: boolean;
   warningDaysBeforeExpiry: number;
   offlineGraceDays: number;
@@ -44,7 +44,7 @@ function isMissingTableError(message: string): boolean {
 const DEFAULT_SETTINGS: PlatformSettingsRow = {
   orangeMoneyNumber: "+22657537299",
   currency: "XOF",
-  trialDurationMonths: 1,
+  trialDurationDays: 7,
   trialEnabled: true,
   warningDaysBeforeExpiry: 7,
   offlineGraceDays: 3,
@@ -63,7 +63,7 @@ export async function getPlatformSettings(): Promise<PlatformSettingsResult> {
       supabase
         .from("platform_settings")
         .select(
-          "orange_money_number, currency, trial_duration_months, trial_enabled, warning_days_before_expiry, offline_grace_days, deletion_recovery_days, subscription_reference_prefix, payment_instructions, license_min_app_version, updated_at",
+          "orange_money_number, currency, trial_duration_days, trial_duration_months, trial_enabled, warning_days_before_expiry, offline_grace_days, deletion_recovery_days, subscription_reference_prefix, payment_instructions, license_min_app_version, updated_at",
         )
         .eq("id", 1)
         .maybeSingle(),
@@ -75,24 +75,48 @@ export async function getPlatformSettings(): Promise<PlatformSettingsResult> {
         .order("sort_order", { ascending: true }),
     ]);
 
-    if (settingsResult.error && !isMissingTableError(settingsResult.error.message)) {
+    let settingsRow = settingsResult.data;
+    let settingsError = settingsResult.error;
+
+    if (
+      settingsError &&
+      /trial_duration_days/i.test(settingsError.message)
+    ) {
+      const fallback = await supabase
+        .from("platform_settings")
+        .select(
+          "orange_money_number, currency, trial_duration_months, trial_enabled, warning_days_before_expiry, offline_grace_days, deletion_recovery_days, subscription_reference_prefix, payment_instructions, license_min_app_version, updated_at",
+        )
+        .eq("id", 1)
+        .maybeSingle();
+      settingsRow = fallback.data
+        ? { ...fallback.data, trial_duration_days: 7 }
+        : null;
+      settingsError = fallback.error;
+    }
+
+    if (settingsError && !isMissingTableError(settingsError.message)) {
       console.error(
         "[platform] getPlatformSettings:",
-        settingsResult.error.message,
+        settingsError.message,
       );
       return {
         settings: null,
         plans: [],
-        error: settingsResult.error.message,
+        error: settingsError.message,
       };
     }
 
-    const row = settingsResult.data;
+    const row = settingsRow;
     const settings: PlatformSettingsRow = row
       ? {
           orangeMoneyNumber: row.orange_money_number,
           currency: row.currency,
-          trialDurationMonths: row.trial_duration_months,
+          trialDurationDays:
+            typeof row.trial_duration_days === "number" &&
+            row.trial_duration_days > 0
+              ? row.trial_duration_days
+              : 7,
           trialEnabled: row.trial_enabled,
           warningDaysBeforeExpiry: row.warning_days_before_expiry,
           offlineGraceDays: row.offline_grace_days,

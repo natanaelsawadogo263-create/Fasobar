@@ -8,6 +8,8 @@ export type TeamMemberRow = {
   id: string;
   userId: string;
   fullName: string;
+  /** Identifiant FasoBar ; e-mail legacy seulement si pas d'identifiant. */
+  loginIdentifier: string;
   email: string;
   phone: string | null;
   role: string;
@@ -16,6 +18,7 @@ export type TeamMemberRow = {
   establishmentName: string;
   status: "active" | "inactive";
   mustChangePassword: boolean;
+  credentialVersion: number;
   createdAt: string;
 };
 
@@ -33,7 +36,8 @@ export type UsersPageData = {
 
 export type CreatedCredentialsSummary = {
   fullName: string;
-  email: string;
+  /** Identifiant FasoBar (pas l'e-mail Auth interne). */
+  loginIdentifier: string;
   spaceLabel: string;
   establishmentName: string;
   temporaryPassword: string;
@@ -41,7 +45,8 @@ export type CreatedCredentialsSummary = {
 
 export type FirstLoginContext = {
   fullName: string;
-  email: string;
+  /** Affiché à l'employé — identifiant FasoBar ou e-mail legacy. */
+  loginIdentifier: string;
   establishmentName: string;
   spaceLabel: string;
 };

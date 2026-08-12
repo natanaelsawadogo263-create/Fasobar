@@ -4,12 +4,14 @@ import { AbonnementWorkspace } from "@/components/abonnement/abonnement-workspac
 import { getOwnerAbonnementData } from "@/lib/abonnement/queries";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getWorkspaceContext } from "@/lib/auth/workspace-context";
+import { requireCloudOnlineForDesktop } from "@/lib/desktop/require-cloud-online";
 
 type Props = {
   searchParams?: Promise<{ renouveler?: string }>;
 };
 
 export default async function AbonnementPage({ searchParams }: Props) {
+  await requireCloudOnlineForDesktop("/abonnement");
   const user = await requireAuthenticatedUser();
   const workspace = await getWorkspaceContext(user.id);
 

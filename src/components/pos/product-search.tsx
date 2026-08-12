@@ -23,7 +23,7 @@ export const ProductSearch = forwardRef<HTMLInputElement, ProductSearchProps>(
         <Search
           className={`pointer-events-none absolute top-1/2 -translate-y-1/2 ${
             compact ? "left-2.5 h-3.5 w-3.5" : "left-3 h-4 w-4"
-          } ${isDark ? "text-slate-500" : "text-slate-400"}`}
+          } ${isDark ? "text-slate-500" : "text-emerald-600"}`}
           aria-hidden="true"
         />
         <input
@@ -42,7 +42,7 @@ export const ProductSearch = forwardRef<HTMLInputElement, ProductSearchProps>(
           } ${
             isDark
               ? "border border-slate-700/80 bg-[#111827] text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20"
-              : "border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20"
+              : "border border-emerald-500 bg-white text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:ring-emerald-500/20"
           }`}
         />
         {compact ? (

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline';"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Connexion FasoBar</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #f8fafc;
+        color: #0f172a;
+        padding: 24px;
+      }
+      .card {
+        width: min(480px, 100%);
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 10px 30px -20px rgba(15, 23, 42, 0.35);
+      }
+      h1 {
+        margin: 0;
+        font-size: 20px;
+      }
+      p {
+        margin: 10px 0 0;
+        color: #475569;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .actions {
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      button {
+        font: inherit;
+        height: 40px;
+        border-radius: 10px;
+        padding: 0 14px;
+        cursor: pointer;
+      }
+      .primary {
+        border: 0;
+        background: #0f172a;
+        color: white;
+        font-weight: 600;
+      }
+      .ghost {
+        border: 1px solid #cbd5e1;
+        background: white;
+      }
+      label {
+        display: block;
+        margin-top: 16px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      input {
+        margin-top: 6px;
+        width: 100%;
+        height: 40px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        padding: 0 12px;
+        box-sizing: border-box;
+      }
+      #edit-box[hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Serveur FasoBar inaccessible</h1>
+      <p id="message">
+        Le serveur FasoBar du PC Caisse est inaccessible. Vérifiez que le PC
+        Caisse et le réseau local sont allumés.
+      </p>
+      <div class="actions">
+        <button type="button" class="primary" id="retry">Réessayer</button>
+        <button type="button" class="ghost" id="edit">
+          Modifier l’adresse du serveur
+        </button>
+        <button type="button" class="ghost" id="reset">
+          Reconfigurer ce PC
+        </button>
+      </div>
+      <div id="edit-box" hidden>
+        <label for="url">Adresse du PC Caisse</label>
+        <input id="url" placeholder="http://192.168.1.10:3180" />
+        <div class="actions">
+          <button type="button" class="primary" id="save">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      const api = window.fasobarDesktop;
+      const params = new URLSearchParams(window.location.search);
+      const rawMessage = params.get("message");
+      const messageEl = document.getElementById("message");
+      if (rawMessage) messageEl.textContent = decodeURIComponent(rawMessage);
+
+      const editBox = document.getElementById("edit-box");
+      const urlInput = document.getElementById("url");
+
+      document.getElementById("retry").addEventListener("click", () => {
+        api.retryConnection();
+      });
+      document.getElementById("edit").addEventListener("click", () => {
+        editBox.hidden = false;
+      });
+      document.getElementById("save").addEventListener("click", async () => {
+        const result = await api.updateServerUrl(urlInput.value);
+        if (!result.ok) {
+          messageEl.textContent = result.error || "Adresse invalide.";
+        }
+      });
+      document.getElementById("reset").addEventListener("click", () => {
+        api.resetConfig();
+      });
+    </script>
+  </body>
+</html>

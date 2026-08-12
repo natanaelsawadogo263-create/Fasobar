@@ -20,7 +20,6 @@ import {
   getSaasRedirectForUser,
   requireOrganizationBusinessAccess,
 } from "@/lib/platform/saas-gate";
-import { profileRequiresPasswordChange } from "@/lib/users/queries";
 import { createClient } from "@/lib/supabase/server";
 
 type NamedEntity = {
@@ -51,6 +50,7 @@ export type WorkspaceContext = {
   canReadOrders: boolean;
   canManageUsers: boolean;
   canOperateCashRegister: boolean;
+  mustChangePassword?: boolean;
 };
 
 /** Priorité stable si plusieurs memberships (évite LIMIT 1 non déterministe). */
@@ -101,30 +101,68 @@ function resolveManagementRole(
 export const getWorkspaceContext = cache(async function getWorkspaceContext(
   userId: string,
 ): Promise<WorkspaceContext | null> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("full_name, phone, status")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (profileError || !profile) {
-    return null;
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    const { probeSupabaseReachable } = await import(
+      "@/lib/desktop/cloud-reachability"
+    );
+    const reachable = await probeSupabaseReachable();
+    if (!reachable) {
+      const { getLocalDatabase } = await import("@/lib/local-db/database");
+      const { findLocalUserById } = await import(
+        "@/lib/local-auth/users-repository"
+      );
+      const { buildWorkspaceContextFromLocalUser } = await import(
+        "@/lib/local-auth/workspace-local"
+      );
+      const local = findLocalUserById(
+        getLocalDatabase({ skipBackup: true }),
+        userId,
+      );
+      if (!local || local.status !== "ACTIVE") {
+        return null;
+      }
+      return buildWorkspaceContextFromLocalUser(local);
+    }
   }
 
-  const { data: organizationMemberships, error: organizationError } =
-    await supabase
+  const supabase = await createClient();
+
+  const [
+    {
+      data: { user },
+    },
+    profileResult,
+    organizationResult,
+    establishmentResult,
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("profiles")
+      .select("full_name, phone, status, must_change_password")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
       .from("organization_memberships")
       .select("role, status, organization_id, organizations(id, name, status)")
       .eq("user_id", userId)
-      .eq("status", "ACTIVE");
+      .eq("status", "ACTIVE"),
+    supabase
+      .from("establishment_memberships")
+      .select(
+        "role, status, establishment_id, establishments(id, name, organization_id, status)",
+      )
+      .eq("user_id", userId)
+      .eq("status", "ACTIVE"),
+  ]);
 
-  if (organizationError || !organizationMemberships?.length) {
+  const profile = profileResult.data;
+  if (profileResult.error || !profile) {
+    return null;
+  }
+
+  const organizationMemberships = organizationResult.data;
+  if (organizationResult.error || !organizationMemberships?.length) {
     return null;
   }
 
@@ -144,16 +182,8 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     return null;
   }
 
-  const { data: establishmentMemberships, error: establishmentError } =
-    await supabase
-      .from("establishment_memberships")
-      .select(
-        "role, status, establishment_id, establishments(id, name, organization_id, status)",
-      )
-      .eq("user_id", userId)
-      .eq("status", "ACTIVE");
-
-  if (establishmentError || !establishmentMemberships?.length) {
+  const establishmentMemberships = establishmentResult.data;
+  if (establishmentResult.error || !establishmentMemberships?.length) {
     return null;
   }
 
@@ -222,6 +252,9 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     userSpace,
     homePath,
     isActive: profile.status === "ACTIVE",
+    mustChangePassword: Boolean(
+      (profile as { must_change_password?: boolean }).must_change_password,
+    ),
     canManageProducts: MANAGEMENT_ROLES.has(role),
     canManageUsers: MANAGEMENT_ROLES.has(organizationRole) || organizationRole === "OWNER",
     ...stockPermissions,
@@ -231,28 +264,28 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
   };
 });
 
-export async function requireAuthenticatedWorkspace(): Promise<WorkspaceContext> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const requireAuthenticatedWorkspace = cache(
+  async (): Promise<WorkspaceContext> => {
+  const { getAuthenticatedUser } = await import("@/lib/auth/session");
+  const user = await getAuthenticatedUser();
 
   if (!user) {
-    redirect("/");
+    redirect("/connexion");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("status")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profile?.status === "INACTIVE") {
-    redirect("/acces-suspendu");
-  }
-
-  if (await profileRequiresPasswordChange(user.id)) {
-    redirect("/premiere-connexion");
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    const { probeSupabaseReachable } = await import(
+      "@/lib/desktop/cloud-reachability"
+    );
+    const reachable = await probeSupabaseReachable();
+    if (!reachable) {
+      const context = await getWorkspaceContext(user.id);
+      if (!context || !context.isActive) {
+        redirect("/acces-suspendu");
+      }
+      return context;
+    }
   }
 
   const context = await getWorkspaceContext(user.id);
@@ -265,19 +298,12 @@ export async function requireAuthenticatedWorkspace(): Promise<WorkspaceContext>
     redirect("/acces-suspendu");
   }
 
-  if (!(await isActivePlatformAdmin())) {
-    const saasRedirect = await getSaasRedirectForUser(
-      context.userId,
-      context.organizationId,
-      context.organizationRole === "OWNER",
-    );
-    if (saasRedirect) {
-      redirect(saasRedirect);
-    }
+  if (context.mustChangePassword) {
+    redirect("/premiere-connexion");
   }
 
   return context;
-}
+});
 
 /** Contexte workspace + assertion d'accès métier (mutations). */
 export async function requireBusinessMutationContext(): Promise<WorkspaceContext> {
@@ -294,12 +320,43 @@ export async function requireBusinessMutationContext(): Promise<WorkspaceContext
   return context;
 }
 
+const SAAS_OK_CACHE_MS = 45_000;
+const saasOkUntil = new Map<string, number>();
+
 async function assertBusinessMutationAccess(
   context: WorkspaceContext,
 ): Promise<void> {
   if (await isActivePlatformAdmin()) return;
+
+  const cachedUntil = saasOkUntil.get(context.organizationId) ?? 0;
+  if (cachedUntil > Date.now()) return;
+
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    const { probeSupabaseReachable } = await import(
+      "@/lib/desktop/cloud-reachability"
+    );
+    const reachable = await probeSupabaseReachable();
+    if (!reachable) {
+      const deniedOffline = await requireOrganizationBusinessAccess(
+        context.organizationId,
+      );
+      if (deniedOffline) {
+        const saasRedirect = await getSaasRedirectForUser(
+          context.userId,
+          context.organizationId,
+          context.organizationRole === "OWNER",
+        );
+        redirect(saasRedirect ?? "/acces-saas-bloque");
+      }
+      saasOkUntil.set(context.organizationId, Date.now() + SAAS_OK_CACHE_MS);
+      return;
+    }
+  }
+
   const denied = await requireOrganizationBusinessAccess(context.organizationId);
   if (denied) {
+    saasOkUntil.delete(context.organizationId);
     const saasRedirect = await getSaasRedirectForUser(
       context.userId,
       context.organizationId,
@@ -307,6 +364,14 @@ async function assertBusinessMutationAccess(
     );
     redirect(saasRedirect ?? "/acces-saas-bloque");
   }
+  saasOkUntil.set(context.organizationId, Date.now() + SAAS_OK_CACHE_MS);
+}
+
+async function withMutationAccess(
+  context: WorkspaceContext,
+): Promise<WorkspaceContext> {
+  await assertBusinessMutationAccess(context);
+  return context;
 }
 
 function isAdminWorkspace(context: WorkspaceContext): boolean {
@@ -336,8 +401,11 @@ export async function requireAdminContext(): Promise<WorkspaceContext> {
     redirectDenied(context);
   }
 
-  await assertBusinessMutationAccess(context);
   return context;
+}
+
+export async function requireAdminMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireAdminContext());
 }
 
 export async function requireSpacePathAccess(pathname: string): Promise<WorkspaceContext> {
@@ -357,8 +425,11 @@ export async function requireProductManagementContext(): Promise<WorkspaceContex
     redirectDenied(context);
   }
 
-  await assertBusinessMutationAccess(context);
   return context;
+}
+
+export async function requireProductManagementMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireProductManagementContext());
 }
 
 export async function requireStockReadContext(): Promise<WorkspaceContext> {
@@ -378,8 +449,11 @@ export async function requireStockManagementContext(): Promise<WorkspaceContext>
     redirectDenied(context);
   }
 
-  await assertBusinessMutationAccess(context);
   return context;
+}
+
+export async function requireStockManagementMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireStockManagementContext());
 }
 
 export async function requireOrderReadContext(): Promise<WorkspaceContext> {
@@ -399,8 +473,11 @@ export async function requireOrderManagementContext(): Promise<WorkspaceContext>
     redirectDenied(context);
   }
 
-  await assertBusinessMutationAccess(context);
   return context;
+}
+
+export async function requireOrderManagementMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireOrderManagementContext());
 }
 
 /** Ouverture / fermeture / utilisation opérationnelle de la caisse (pas Admin). */
@@ -411,8 +488,11 @@ export async function requireCashRegisterOperatorContext(): Promise<WorkspaceCon
     redirectDenied(context);
   }
 
-  await assertBusinessMutationAccess(context);
   return context;
+}
+
+export async function requireCashRegisterOperatorMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireCashRegisterOperatorContext());
 }
 
 export async function requireKitchenContext(): Promise<WorkspaceContext> {
@@ -434,8 +514,11 @@ export async function requireKitchenContext(): Promise<WorkspaceContext> {
     redirectDenied(context);
   }
 
-  await assertBusinessMutationAccess(context);
   return context;
+}
+
+export async function requireKitchenMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireKitchenContext());
 }
 
 export async function requireBarManagerContext(): Promise<WorkspaceContext> {
@@ -453,8 +536,20 @@ export async function requireBarManagerContext(): Promise<WorkspaceContext> {
     redirectDenied(context);
   }
 
-  await assertBusinessMutationAccess(context);
   return context;
+}
+
+export async function requireBarManagerMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireBarManagerContext());
+}
+
+/** Accès page Dépenses (Admin, Bar, Caisse–Cuisine). */
+export async function requireExpenseContext(): Promise<WorkspaceContext> {
+  return requireSpacePathAccess("/application/depenses");
+}
+
+export async function requireExpenseMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireExpenseContext());
 }
 
 export { membershipRoleIsCashierKitchen, isAdminWorkspace };

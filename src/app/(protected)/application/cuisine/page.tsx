@@ -6,5 +6,10 @@ export default async function CuisinePage() {
   const workspace = await requireKitchenContext();
   const orders = await listKitchenOrders(workspace);
 
-  return <KitchenWorkspace orders={orders} />;
+  return (
+    <KitchenWorkspace
+      orders={orders}
+      establishmentId={workspace.establishmentId}
+    />
+  );
 }

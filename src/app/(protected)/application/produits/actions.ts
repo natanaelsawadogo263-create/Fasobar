@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { mapGenericError } from "@/lib/auth/errors";
 import { slugifyFromName } from "@/lib/auth/slugs";
-import { requireProductManagementContext } from "@/lib/auth/workspace-context";
+import { requireProductManagementMutationContext } from "@/lib/auth/workspace-context";
 import { ensureStockItemForBarProduct } from "@/lib/bar/ensure-stock";
 import { getLocalProductImage } from "@/lib/fasobar/product-images";
 import { revalidateCatalogOps } from "@/lib/ops/revalidate";
@@ -72,7 +72,7 @@ type ResolvedProductImages = {
 };
 
 async function resolveProductImagesFromForm(
-  workspace: Awaited<ReturnType<typeof requireProductManagementContext>>,
+  workspace: Awaited<ReturnType<typeof requireProductManagementMutationContext>>,
   formData: FormData,
   productName: string,
   existing?: {
@@ -178,7 +178,7 @@ export async function createProductAction(
   _prevState: ProductActionState,
   formData: FormData,
 ): Promise<ProductActionState> {
-  const workspace = await requireProductManagementContext();
+  const workspace = await requireProductManagementMutationContext();
 
   const parsed = createProductSchema.safeParse({
     name: formData.get("name"),
@@ -244,7 +244,7 @@ export async function createProductAction(
   imageOptimizedUrl = images.imageOptimizedUrl;
 
   const supabase = await createClient();
-  // Droits déjà vérifiés via requireProductManagementContext — service role pour un insert fiable.
+  // Droits déjà vérifiés via requireProductManagementMutationContext — service role pour un insert fiable.
   const writeClient = getProductWriteClient() ?? supabase;
 
   const payload = {
@@ -440,7 +440,7 @@ export async function updateProductAction(
   _prevState: ProductActionState,
   formData: FormData,
 ): Promise<ProductActionState> {
-  const workspace = await requireProductManagementContext();
+  const workspace = await requireProductManagementMutationContext();
 
   const parsed = updateProductSchema.safeParse({
     productId: formData.get("productId"),
@@ -590,7 +590,7 @@ export async function updateProductPriceAction(
   productId: string,
   sellingPrice: number,
 ): Promise<ProductActionState> {
-  const workspace = await requireProductManagementContext();
+  const workspace = await requireProductManagementMutationContext();
 
   const parsed = updateProductPriceSchema.safeParse({ productId, sellingPrice });
 
@@ -621,7 +621,7 @@ export async function toggleProductStatusAction(
   productId: string,
   active: boolean,
 ): Promise<ProductActionState> {
-  const workspace = await requireProductManagementContext();
+  const workspace = await requireProductManagementMutationContext();
 
   const parsed = toggleProductStatusSchema.safeParse({ productId, active });
 
@@ -681,7 +681,7 @@ export async function upsertPackagingAction(
   _prevState: ProductActionState,
   formData: FormData,
 ): Promise<ProductActionState> {
-  await requireProductManagementContext();
+  await requireProductManagementMutationContext();
 
   const { upsertPackagingSchema } = await import("@/lib/products/packaging-schemas");
 
@@ -725,7 +725,7 @@ export async function deactivatePackagingAction(
   _prevState: ProductActionState,
   formData: FormData,
 ): Promise<ProductActionState> {
-  const workspace = await requireProductManagementContext();
+  const workspace = await requireProductManagementMutationContext();
 
   const { deactivatePackagingSchema } = await import("@/lib/products/packaging-schemas");
 

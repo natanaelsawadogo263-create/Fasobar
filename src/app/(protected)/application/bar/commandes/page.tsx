@@ -26,7 +26,10 @@ export default async function BarOrdersPage() {
       requireSession
       showBanner={false}
     >
-      <BarOrdersWorkspace orders={orders} />
+      <BarOrdersWorkspace
+        orders={orders}
+        establishmentId={workspace.establishmentId}
+      />
     </BarSessionGate>
   );
 }

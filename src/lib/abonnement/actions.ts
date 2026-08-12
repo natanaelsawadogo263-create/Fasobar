@@ -12,9 +12,18 @@ import { refreshAndGetOrganizationSaasAccess } from "@/lib/platform/saas-gate";
 import { uploadSubscriptionPaymentProof } from "@/lib/platform/proof-storage";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getWorkspaceContext } from "@/lib/auth/workspace-context";
+import { getCloudOfflineActionError } from "@/lib/desktop/require-cloud-online";
 import { createClient } from "@/lib/supabase/server";
 
 async function requireOwnerSubscriptionContext() {
+  const offlineError = await getCloudOfflineActionError();
+  if (offlineError) {
+    return {
+      ok: false as const,
+      error: offlineError,
+    };
+  }
+
   const user = await requireAuthenticatedUser();
   const workspace = await getWorkspaceContext(user.id);
 
@@ -95,6 +104,36 @@ export async function createSubscriptionRequestAction(input: {
   return okResult();
 }
 
+export async function changeSubscriptionRequestPlanAction(input: {
+  requestId: string;
+  planId: string;
+}): Promise<PlatformActionResult> {
+  if (!input.requestId.trim() || !input.planId.trim()) {
+    return { ok: false, error: "Demande ou formule manquante." };
+  }
+
+  const ctx = await requireOwnerSubscriptionContext();
+  if (!ctx.ok) return { ok: false, error: ctx.error };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("change_open_subscription_request_plan", {
+    p_request_id: input.requestId.trim(),
+    p_plan_id: input.planId.trim(),
+  });
+
+  if (error) {
+    console.error(
+      "[abonnement] change_open_subscription_request_plan failed:",
+      error.message,
+    );
+    return mapRpcFailure(error.message);
+  }
+
+  revalidatePath("/abonnement");
+  revalidatePath("/application/mon-abonnement");
+  return okResult();
+}
+
 export async function uploadSubscriptionProofAction(
   formData: FormData,
 ): Promise<PlatformActionResult> {
@@ -109,9 +148,6 @@ export async function uploadSubscriptionProofAction(
 
   if (!requestId) {
     return { ok: false, error: "Demande introuvable." };
-  }
-  if (!transactionReference) {
-    return { ok: false, error: "Référence de transaction obligatoire." };
   }
   if (!payerPhone) {
     return { ok: false, error: "Numéro payeur obligatoire." };
@@ -139,7 +175,8 @@ export async function uploadSubscriptionProofAction(
   const { error } = await supabase.rpc("submit_subscription_payment_proof", {
     p_request_id: requestId,
     p_storage_path: upload.storagePath,
-    p_tx_ref: transactionReference,
+    // Référence optionnelle côté UI — valeur technique pour l’RPC existant.
+    p_tx_ref: transactionReference || "PREUVE",
     p_payer_phone: payerPhone,
     p_payer_name: payerName || null,
     p_declared_amount:

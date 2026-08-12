@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { ClipboardCheck, Plus } from "lucide-react";
 
 import { startInventorySessionAction } from "@/app/(protected)/application/stock/actions";
+import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { FormSelect } from "@/components/auth/form-field";
 import type { InventorySessionItem } from "@/lib/stock/types";
@@ -52,7 +53,7 @@ export function InventoryWorkspace({
       }
       setMessage(result.success ?? "Inventaire démarré.");
       setShowStart(false);
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 

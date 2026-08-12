@@ -4,7 +4,7 @@ import {
   getAdminCashSessionDetail,
   type AdminCashSessionDetail,
 } from "@/lib/admin/cash-sessions-queries";
-import { requireAdminContext } from "@/lib/auth/workspace-context";
+import { requireAdminMutationContext } from "@/lib/auth/workspace-context";
 
 export type AdminCashSessionDetailResult = {
   data?: AdminCashSessionDetail;
@@ -15,7 +15,7 @@ export type AdminCashSessionDetailResult = {
 export async function getAdminCashSessionDetailAction(
   sessionId: string,
 ): Promise<AdminCashSessionDetailResult> {
-  const workspace = await requireAdminContext();
+  const workspace = await requireAdminMutationContext();
   const detail = await getAdminCashSessionDetail(workspace, sessionId);
 
   if (!detail) {

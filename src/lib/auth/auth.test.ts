@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getBootstrapBlockedMessage,
+  isAuthRoute,
   isProtectedPath,
   resolvePostLoginPath,
   shouldRedirectAuthenticatedFromAuth,
@@ -115,6 +116,12 @@ describe("routes et redirections", () => {
     expect(isProtectedPath("/acces-refuse")).toBe(true);
     expect(isProtectedPath("/acces-suspendu")).toBe(true);
     expect(isProtectedPath("/connexion")).toBe(false);
+    expect(isProtectedPath("/fonctionnalites")).toBe(false);
+    expect(isProtectedPath("/tarifs")).toBe(false);
+    expect(isProtectedPath("/telecharger")).toBe(false);
+    expect(isAuthRoute("/connexion")).toBe(true);
+    expect(isAuthRoute("/inscription")).toBe(true);
+    expect(isAuthRoute("/fonctionnalites")).toBe(false);
   });
 
   it("redirige un visiteur non connecté", () => {

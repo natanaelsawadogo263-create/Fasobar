@@ -1,7 +1,7 @@
 "use server";
 
 import { mapGenericError } from "@/lib/auth/errors";
-import { requireOrderManagementContext } from "@/lib/auth/workspace-context";
+import { requireOrderManagementMutationContext } from "@/lib/auth/workspace-context";
 import { revalidateOrderOps } from "@/lib/ops/revalidate";
 import { getOrderById } from "@/lib/orders/queries";
 import {
@@ -81,7 +81,7 @@ export async function saveOrderAction(
   _prevState: OrderActionState,
   formData: FormData,
 ): Promise<OrderActionState> {
-  const workspace = await requireOrderManagementContext();
+  const workspace = await requireOrderManagementMutationContext();
 
   const targetStatusResult = orderStatusSchema.safeParse(
     formData.get("targetStatus") ?? "OPEN",
@@ -122,6 +122,50 @@ export async function saveOrderAction(
     items.length === 0
   ) {
     return { error: "Ajoutez au moins un article à la commande." };
+  }
+
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    try {
+      const { saveLocalOrder } = await import("@/lib/local-domain/orders-local");
+      const { getLocalActiveCashSession } = await import(
+        "@/lib/local-domain/cash-sessions"
+      );
+      const { getLocalDatabase } = await import("@/lib/local-db/database");
+      const { scheduleOutboxPush } = await import("@/lib/sync/push");
+      const session = getLocalActiveCashSession(
+        getLocalDatabase({ skipBackup: true }),
+        workspace,
+      );
+      const saved = saveLocalOrder(workspace, {
+        orderId: orderId || undefined,
+        targetStatus,
+        orderType: header.orderType,
+        tableReference: header.tableReference,
+        customerReference: header.customerReference,
+        notes: header.notes,
+        items,
+        cashSessionId: session?.id ?? null,
+      });
+      scheduleOutboxPush();
+      revalidateOrderPages(saved.orderId);
+      const successMessages: Record<string, string> = {
+        DRAFT: "Commande enregistrée en brouillon.",
+        OPEN: "Commande enregistrée.",
+        READY_TO_PAY: "Commande mise en attente d'encaissement.",
+      };
+      return {
+        success: successMessages[targetStatus] ?? "Commande enregistrée.",
+        orderId: saved.orderId,
+      };
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Impossible d'enregistrer la commande.",
+      };
+    }
   }
 
   const supabase = await createClient();
@@ -202,7 +246,7 @@ export async function saveOrderAction(
 export async function prepareOrderForPaymentAction(
   orderId: string,
 ): Promise<OrderActionState> {
-  const workspace = await requireOrderManagementContext();
+  const workspace = await requireOrderManagementMutationContext();
 
   const parsed = prepareOrderSchema.safeParse({ orderId });
 
@@ -218,6 +262,43 @@ export async function prepareOrderForPaymentAction(
 
   if (existing.items.length === 0) {
     return { error: "Impossible de préparer une commande sans article." };
+  }
+
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    try {
+      const { saveLocalOrder } = await import("@/lib/local-domain/orders-local");
+      const { scheduleOutboxPush } = await import("@/lib/sync/push");
+      saveLocalOrder(workspace, {
+        orderId: existing.id,
+        targetStatus: "READY_TO_PAY",
+        orderType: existing.orderType,
+        tableReference: existing.tableReference,
+        customerReference: existing.customerReference,
+        notes: existing.notes,
+        items: existing.items.map((item) => ({
+          productId: item.productId,
+          name: item.productName,
+          unitPrice: item.unitPrice,
+          quantity: item.quantity,
+          departmentCode: item.departmentCode,
+          departmentName: item.departmentName,
+          unit: "",
+          notes: item.notes ?? undefined,
+        })),
+      });
+      scheduleOutboxPush();
+      revalidateOrderPages(parsed.data.orderId);
+      return {
+        success: "Commande prête pour l'encaissement.",
+        orderId: parsed.data.orderId,
+      };
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error ? error.message : "Préparation impossible.",
+      };
+    }
   }
 
   const supabase = await createClient();
@@ -249,7 +330,7 @@ export async function cancelOrderAction(
   _prevState: OrderActionState,
   formData: FormData,
 ): Promise<OrderActionState> {
-  await requireOrderManagementContext();
+  await requireOrderManagementMutationContext();
 
   const parsed = cancelOrderSchema.safeParse({
     orderId: formData.get("orderId"),

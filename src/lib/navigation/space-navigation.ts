@@ -6,6 +6,18 @@ export type NavItem = {
   enabled: boolean;
 };
 
+/** Lien d'accueil (maison) — à mettre en avant dans la navigation. */
+export function isHomeNavItem(item: Pick<NavItem, "href" | "label">): boolean {
+  if (item.label === "Tableau de bord") return true;
+  return (
+    item.href === "/application/tableau-de-bord" ||
+    item.href === "/application/bar" ||
+    item.href === "/application/caisse" ||
+    item.href === "/application" ||
+    item.href === "/platform"
+  );
+}
+
 export const ADMIN_NAV: NavItem[] = [
   { href: "/application/tableau-de-bord", label: "Tableau de bord", enabled: true },
   { href: "/application/produits", label: "Produits", enabled: true },
@@ -27,6 +39,8 @@ export const CASHIER_KITCHEN_NAV: NavItem[] = [
   { href: "/application/commandes-ouvertes", label: "Commandes ouvertes", enabled: true },
   { href: "/application/cuisine", label: "Cuisine", enabled: true },
   { href: "/application/stock/cuisine", label: "Stock Cuisine", enabled: true },
+  { href: "/application/approvisionnements", label: "Approvisionnements", enabled: true },
+  { href: "/application/depenses", label: "Dépenses", enabled: true },
   { href: "/application/caisse/session", label: "Ma session", enabled: true },
 ];
 
@@ -35,6 +49,7 @@ export const BAR_MANAGER_NAV: NavItem[] = [
   { href: "/application/bar/commandes", label: "Commandes boissons", enabled: true },
   { href: "/application/bar/stock", label: "Stock boissons", enabled: true },
   { href: "/application/bar/approvisionnements", label: "Approvisionnements", enabled: true },
+  { href: "/application/depenses", label: "Dépenses", enabled: true },
   { href: "/application/bar/historique", label: "Historique", enabled: true },
   { href: "/application/bar/session", label: "Ma session", enabled: true },
 ];
@@ -57,7 +72,6 @@ const ADMIN_ONLY_PREFIXES = [
   "/application/mon-abonnement",
   "/application/rapports",
   "/application/ventes",
-  "/application/depenses",
   "/application/caisses",
   "/application/sessions-bar",
 ];
@@ -73,7 +87,12 @@ const CASHIER_PREFIXES = [
 
 const BAR_PREFIXES = ["/application/bar"];
 
-const SHARED_PREFIXES = ["/application/stock/cuisine", "/application/inventaires"];
+const SHARED_PREFIXES = [
+  "/application/stock/cuisine",
+  "/application/inventaires",
+  "/application/depenses",
+  "/application/approvisionnements",
+];
 
 export function isPathAllowedForSpace(pathname: string, space: UserSpace): boolean {
   if (space === "admin") {
@@ -117,7 +136,8 @@ export function isPathAllowedForSpace(pathname: string, space: UserSpace): boole
     return (
       CASHIER_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
       SHARED_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
-      pathname === "/application"
+      pathname === "/application" ||
+      pathname.startsWith("/application/mode-hors-connexion")
     );
   }
 
@@ -138,6 +158,8 @@ export function isPathAllowedForSpace(pathname: string, space: UserSpace): boole
       return false;
     }
 
+    // Admin /application/approvisionnements : pas pour le Bar (il a /bar/approvisionnements).
+    // Caisse–Cuisine y accède via SHARED_PREFIXES (cuisine uniquement).
     if (pathname.startsWith("/application/approvisionnements")) {
       return false;
     }
@@ -159,7 +181,9 @@ export function isPathAllowedForSpace(pathname: string, space: UserSpace): boole
 
     return (
       BAR_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
-      pathname === "/application"
+      SHARED_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
+      pathname === "/application" ||
+      pathname.startsWith("/application/mode-hors-connexion")
     );
   }
 

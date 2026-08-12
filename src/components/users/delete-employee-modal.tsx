@@ -48,7 +48,7 @@ export function DeleteEmployeeModal({
     <ModalShell
       formId="delete-employee-form"
       title="Supprimer le compte employé"
-      subtitle={`${member.fullName} · ${member.email}`}
+      subtitle={`${member.fullName} · ${member.loginIdentifier}`}
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={

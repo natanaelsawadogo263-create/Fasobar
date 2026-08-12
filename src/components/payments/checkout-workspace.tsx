@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 import { recordPaymentsAction } from "@/app/(protected)/application/caisse/payment-actions";
+import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { CheckoutConfirmPanel } from "@/components/payments/checkout-confirm-panel";
 import { CheckoutOrderDetail } from "@/components/payments/checkout-order-detail";
@@ -238,7 +239,7 @@ export function CheckoutWorkspace({
       }
 
       setMessage(result.success ?? "Paiement enregistré.");
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 

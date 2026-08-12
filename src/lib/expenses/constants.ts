@@ -1,4 +1,4 @@
-import type { ExpenseCategory, ExpenseStatus } from "@/lib/expenses/schemas";
+import type { ExpenseArea, ExpenseCategory, ExpenseStatus } from "@/lib/expenses/schemas";
 
 export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   KITCHEN_PURCHASE: "Achats Cuisine",
@@ -11,6 +11,16 @@ export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   WATER: "Eau",
   ELECTRICITY: "Électricité",
   OTHER: "Autres",
+};
+
+export const EXPENSE_AREA_LABELS: Record<ExpenseArea, string> = {
+  CAISSE: "Caisse",
+  BAR: "Bar",
+};
+
+export const EXPENSE_AREA_STYLES: Record<ExpenseArea, string> = {
+  CAISSE: "bg-sky-50 text-sky-700",
+  BAR: "bg-emerald-50 text-emerald-700",
 };
 
 export const EXPENSE_STATUS_LABELS: Record<ExpenseStatus, string> = {

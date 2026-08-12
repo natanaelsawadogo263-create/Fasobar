@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "desktop", "out", ".vite", "forge.config.ts", "vite.main.config.ts", "vite.preload.config.ts"]
 }

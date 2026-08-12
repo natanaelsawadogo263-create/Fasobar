@@ -28,6 +28,7 @@ export type SupplierOption = {
   phone: string | null;
   address: string | null;
   active: boolean;
+  departmentCode: "BAR" | "KITCHEN";
 };
 
 export type StockMovementItem = {
@@ -75,6 +76,7 @@ export type RecentSupplyEntry = {
   id: string;
   stockItemName: string;
   departmentName: string;
+  departmentCode: "BAR" | "KITCHEN" | string;
   quantity: number;
   unit: string;
   totalCost: number | null;

@@ -1,10 +1,19 @@
 import { z } from "zod";
 
+import {
+  isValidLoginIdentifier,
+  normalizeLoginIdentifier,
+} from "@/lib/auth/login-identifier";
+
 export const employeeSpaceSchema = z.enum(["admin", "cashier_kitchen", "bar_manager"]);
 
 export const createEmployeeAccountSchema = z.object({
   fullName: z.string().trim().min(2, "Le nom complet est obligatoire."),
-  email: z.string().trim().email("Adresse e-mail invalide."),
+  loginIdentifier: z
+    .string()
+    .trim()
+    .min(3, "Identifiant FasoBar obligatoire.")
+    .refine(isValidLoginIdentifier, "Identifiant FasoBar invalide."),
   phone: z.string().trim().optional(),
   space: employeeSpaceSchema,
   establishmentId: z.string().uuid("Établissement invalide."),
@@ -29,3 +38,7 @@ export const deleteEmployeeAccountSchema = z.object({
 
 export type EmployeeSpace = z.infer<typeof employeeSpaceSchema>;
 export type DeleteEmployeeAccountInput = z.infer<typeof deleteEmployeeAccountSchema>;
+
+export function normalizedLoginFromSchema(loginIdentifier: string): string {
+  return normalizeLoginIdentifier(loginIdentifier);
+}

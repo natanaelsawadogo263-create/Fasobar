@@ -69,6 +69,7 @@ export type ReceiptDetail = {
   establishmentName: string;
   establishmentAddress: string | null;
   establishmentPhone: string | null;
+  logoUrl: string | null;
   currency: string;
   cashierName: string | null;
   tableReference: string | null;
@@ -83,5 +84,29 @@ export type ReceiptDetail = {
     method: PaymentMethod;
     amountApplied: number;
     changeGiven: number;
+  }>;
+};
+
+/** Addition client (provisoire) — imprimable sans encaissement. */
+export type OrderAddition = {
+  orderId: string;
+  orderNumber: number;
+  issuedAt: string;
+  subtotal: number;
+  discount: number;
+  total: number;
+  paymentStatus: string;
+  establishmentName: string;
+  establishmentAddress: string | null;
+  establishmentPhone: string | null;
+  logoUrl: string | null;
+  tableReference: string | null;
+  customerReference: string | null;
+  orderTypeLabel: string;
+  items: Array<{
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
   }>;
 };

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
+import { isDesktopServerRuntime } from "@/lib/desktop/runtime";
 import type {
   AdminOrderListItem,
   AdminOrdersPageData,
@@ -22,9 +23,22 @@ function readSingle<T>(value: T | T[] | null): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
+async function loadLocalCatalogService() {
+  return import("@/lib/local-domain/catalog-service");
+}
+
 export async function listCashierCategories(
   workspace: WorkspaceContext,
 ): Promise<CashierCategory[]> {
+  if (isDesktopServerRuntime()) {
+    const { listLocalCashierCategories } = await loadLocalCatalogService();
+    const local = listLocalCashierCategories(workspace.establishmentId);
+    if (local.length > 0) {
+      return local;
+    }
+    // Fallback cloud si SQLite encore vide (premier démarrage sans pull).
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -35,6 +49,10 @@ export async function listCashierCategories(
     .order("name");
 
   if (error || !data) {
+    if (isDesktopServerRuntime()) {
+      const { listLocalCashierCategories } = await loadLocalCatalogService();
+      return listLocalCashierCategories(workspace.establishmentId);
+    }
     return [];
   }
 
@@ -60,6 +78,14 @@ export async function listCashierCategories(
 export async function listCashierProducts(
   workspace: WorkspaceContext,
 ): Promise<CashierProduct[]> {
+  if (isDesktopServerRuntime()) {
+    const { listLocalCashierProducts } = await loadLocalCatalogService();
+    const local = listLocalCashierProducts(workspace.establishmentId);
+    if (local.length > 0) {
+      return local;
+    }
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -91,6 +117,10 @@ export async function listCashierProducts(
   }
 
   if (selectError || !rows) {
+    if (isDesktopServerRuntime()) {
+      const { listLocalCashierProducts } = await loadLocalCatalogService();
+      return listLocalCashierProducts(workspace.establishmentId);
+    }
     return [];
   }
 
@@ -130,6 +160,46 @@ export async function listOpenOrders(
   return listCashierOrders(workspace, { includeFinalized: false });
 }
 
+/** Compteurs shell caisse : pas de jointures ni de lignes. */
+export async function countCashierOpenOrders(
+  workspace: WorkspaceContext,
+): Promise<{ openCount: number; readyToPayCount: number }> {
+  if (isDesktopServerRuntime()) {
+    const { getLocalDatabase } = await import("@/lib/local-db/database");
+    const { listLocalCashierOrders } = await import(
+      "@/lib/local-domain/orders-local"
+    );
+    const orders = listLocalCashierOrders(
+      getLocalDatabase({ skipBackup: true }),
+      workspace,
+      { includeFinalized: false },
+    );
+    return {
+      openCount: orders.length,
+      readyToPayCount: orders.filter((order) => order.status === "READY_TO_PAY")
+        .length,
+    };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select("status")
+    .eq("establishment_id", workspace.establishmentId)
+    .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"])
+    .neq("payment_status", "PAID")
+    .limit(200);
+
+  if (error || !data) {
+    return { openCount: 0, readyToPayCount: 0 };
+  }
+
+  return {
+    openCount: data.length,
+    readyToPayCount: data.filter((row) => row.status === "READY_TO_PAY").length,
+  };
+}
+
 /** Début de la journée de service (fuseau Ouagadougou / UTC+0). */
 export function getCashierServiceDayStartIso(referenceIso?: string): string {
   const reference = referenceIso ? new Date(referenceIso) : new Date();
@@ -151,6 +221,18 @@ export async function listCashierOrders(
     sessionOpenedAt?: string | null;
   } = {},
 ): Promise<OpenOrderListItem[]> {
+  if (isDesktopServerRuntime()) {
+    const { getLocalDatabase } = await import("@/lib/local-db/database");
+    const { listLocalCashierOrders } = await import(
+      "@/lib/local-domain/orders-local"
+    );
+    return listLocalCashierOrders(
+      getLocalDatabase({ skipBackup: true }),
+      workspace,
+      options,
+    );
+  }
+
   const supabase = await createClient();
   const includeFinalized = options.includeFinalized ?? true;
   const dayStartIso = getCashierServiceDayStartIso(
@@ -271,6 +353,16 @@ export async function getOrderById(
   workspace: WorkspaceContext,
   orderId: string,
 ): Promise<OrderDetail | null> {
+  if (isDesktopServerRuntime()) {
+    const { getLocalDatabase } = await import("@/lib/local-db/database");
+    const { getLocalOrderById } = await import("@/lib/local-domain/orders-local");
+    return getLocalOrderById(
+      getLocalDatabase({ skipBackup: true }),
+      workspace,
+      orderId,
+    );
+  }
+
   const supabase = await createClient();
 
   const { data: order, error: orderError } = await supabase
@@ -462,10 +554,32 @@ export async function listAdminOrders(
   }
 
   if (filters.search?.trim()) {
-    const needle = filters.search.trim().toLowerCase();
+    const raw = filters.search.trim().toLowerCase();
+    const bare = raw.replace(/^#/, "").trim();
+    const asOrderNumber =
+      /^\d+$/.test(bare) && Number.isFinite(Number(bare))
+        ? Number(bare)
+        : null;
+
     orders = orders.filter((order) => {
-      const haystack = `${order.orderNumber} ${order.tableReference ?? ""} ${order.customerReference ?? ""} ${order.createdByName ?? ""}`.toLowerCase();
-      return haystack.includes(needle);
+      if (asOrderNumber !== null && order.orderNumber === asOrderNumber) {
+        return true;
+      }
+
+      const padded = String(order.orderNumber).padStart(4, "0");
+      const labeled = `#${padded}`;
+      const haystack = [
+        String(order.orderNumber),
+        padded,
+        labeled,
+        order.tableReference ?? "",
+        order.customerReference ?? "",
+        order.createdByName ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(raw) || (bare.length > 0 && haystack.includes(bare));
     });
   }
 

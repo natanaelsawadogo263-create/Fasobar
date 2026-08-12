@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -20,6 +20,7 @@ import {
   updateProductAction,
   updateProductPriceAction,
 } from "@/app/(protected)/application/produits/actions";
+import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { ProductFormModal, type ProductFormState } from "@/components/products/product-form-modal";
 import type { ProductImageAssets } from "@/components/products/product-image-field";
@@ -94,6 +95,11 @@ export function ProductsWorkspace({
     selection: "optimized",
   });
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
+  const [rows, setRows] = useState(products);
+
+  useEffect(() => {
+    setRows(products);
+  }, [products]);
 
   function resetImageAssets() {
     setImageAssets({
@@ -175,7 +181,7 @@ export function ProductsWorkspace({
       setError(null);
       setFormMode(null);
       resetImageAssets();
-      router.refresh();
+      refreshSoon(() => router.refresh());
     } catch (submitError) {
       console.error("[handleSubmitForm]", submitError);
       setFormError(
@@ -190,34 +196,49 @@ export function ProductsWorkspace({
 
   async function handlePriceUpdate(productId: string) {
     const value = Number(priceDrafts[productId]);
+    const previous = rows.find((row) => row.id === productId)?.sellingPrice;
+    setRows((current) =>
+      current.map((row) =>
+        row.id === productId ? { ...row, sellingPrice: value } : row,
+      ),
+    );
+    setMessage("Prix mis à jour.");
+    setError(null);
 
-    startTransition(async () => {
-      const result = await updateProductPriceAction(productId, value);
-
-      if (result.error) {
-        setError(result.error);
-        return;
+    const result = await updateProductPriceAction(productId, value);
+    if (result.error) {
+      if (previous != null) {
+        setRows((current) =>
+          current.map((row) =>
+            row.id === productId ? { ...row, sellingPrice: previous } : row,
+          ),
+        );
       }
-
-      setMessage(result.success ?? "Prix mis à jour.");
-      setError(null);
-      router.refresh();
-    });
+      setError(result.error);
+      setMessage(null);
+    }
   }
 
   async function handleToggleStatus(product: ProductListItem) {
-    startTransition(async () => {
-      const result = await toggleProductStatusAction(product.id, !product.active);
+    const nextActive = !product.active;
+    setRows((current) =>
+      current.map((row) =>
+        row.id === product.id ? { ...row, active: nextActive } : row,
+      ),
+    );
+    setMessage(nextActive ? "Produit activé." : "Produit désactivé.");
+    setError(null);
 
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-
-      setMessage(result.success ?? "Statut mis à jour.");
-      setError(null);
-      router.refresh();
-    });
+    const result = await toggleProductStatusAction(product.id, nextActive);
+    if (result.error) {
+      setRows((current) =>
+        current.map((row) =>
+          row.id === product.id ? { ...row, active: product.active } : row,
+        ),
+      );
+      setError(result.error);
+      setMessage(null);
+    }
   }
 
   const filteredCategories =
@@ -313,7 +334,7 @@ export function ProductsWorkspace({
               </button>
             ))}
             <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-              {products.length} affiché{products.length > 1 ? "s" : ""}
+              {rows.length} affiché{rows.length > 1 ? "s" : ""}
             </span>
           </div>
 
@@ -370,7 +391,7 @@ export function ProductsWorkspace({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {products.length === 0 ? (
+              {rows.length === 0 ? (
                 <tr>
                   <td
                     colSpan={canManage ? 8 : 7}
@@ -380,7 +401,7 @@ export function ProductsWorkspace({
                   </td>
                 </tr>
               ) : (
-                products.map((product) => {
+                rows.map((product) => {
                   const imageUrl = resolveCatalogImageUrl(product);
 
                   return (
@@ -505,7 +526,7 @@ export function ProductsWorkspace({
           onSubmit={handleSubmitForm}
           onChange={(updater) => setFormState(updater)}
           onImageAssetsChange={setImageAssets}
-          onPackagingsChanged={() => router.refresh()}
+          onPackagingsChanged={() => refreshSoon(() => router.refresh())}
           onClientValidationError={setFormError}
         />
       ) : null}

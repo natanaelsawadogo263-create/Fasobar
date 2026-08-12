@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { CreditCard, RefreshCw, ShieldCheck } from "lucide-react";
+import { CreditCard, RefreshCw } from "lucide-react";
 
+import { SubscriptionExpiryBanner } from "@/components/abonnement/subscription-expiry-banner";
 import type { AbonnementPageData } from "@/lib/abonnement/queries";
 import {
   PLATFORM_REQUEST_STATUS_LABELS,
   PLATFORM_SUBSCRIPTION_STATUS_LABELS,
   daysUntil,
+  getSubscriptionExpiryAlert,
 } from "@/lib/platform/access";
 import {
   PLATFORM_ACCESS_STATUS_LABELS,
@@ -18,13 +20,27 @@ function formatDate(iso: string | null) {
   if (!iso) return "—";
   return new Intl.DateTimeFormat("fr-FR", {
     day: "2-digit",
-    month: "long",
+    month: "short",
     year: "numeric",
   }).format(new Date(iso));
 }
 
 function formatXof(amount: number) {
   return new Intl.NumberFormat("fr-FR").format(amount) + " F CFA";
+}
+
+function formatOrangeMoneyNumber(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  const national =
+    digits.startsWith("226") && digits.length >= 11
+      ? digits.slice(3, 11)
+      : digits.length >= 8
+        ? digits.slice(-8)
+        : digits;
+  if (national.length === 8) {
+    return `+226 ${national.slice(0, 2)} ${national.slice(2, 4)} ${national.slice(4, 6)} ${national.slice(6, 8)}`;
+  }
+  return raw.trim() || "+226 57 53 72 99";
 }
 
 type Props = {
@@ -40,236 +56,290 @@ export function MonAbonnementWorkspace({ data, canRenew }: Props) {
   const endsAt =
     data.currentSubscription?.endsAt ?? data.trialEndsAt ?? null;
   const daysLeft = endsAt ? daysUntil(endsAt) : null;
-  const isActiveOrTrial =
-    data.access.status === "ACTIVE" || data.access.status === "TRIAL";
+  const expiryAlert = getSubscriptionExpiryAlert({
+    status: data.access.status,
+    expiresAt: endsAt ?? data.access.expiresAt,
+  });
+  const openRequest = data.openRequest;
+  const awaitingReview =
+    openRequest != null &&
+    (openRequest.status === "PAYMENT_SUBMITTED" ||
+      openRequest.status === "UNDER_REVIEW");
+  const needsPaymentAction =
+    openRequest != null &&
+    (openRequest.status === "PENDING_PAYMENT" ||
+      openRequest.status === "NEEDS_NEW_PROOF");
+  const showDeposit = canRenew && !awaitingReview;
   const renewHref = "/abonnement?renouveler=1";
   const renewLabel =
     data.access.status === "TRIAL"
       ? "Passer à un abonnement"
       : data.access.status === "ACTIVE"
-        ? "Renouveler avant expiration"
-        : "Réactiver mon abonnement";
+        ? "Renouveler"
+        : "Réactiver";
+  const depositNumber = formatOrangeMoneyNumber(
+    openRequest?.orangeMoneyNumber ||
+      data.orangeMoneyNumber ||
+      "+22657537299",
+  );
+
+  const endLabel = data.currentSubscription
+    ? "Fin d’abonnement"
+    : data.trialEndsAt
+      ? "Fin d’essai"
+      : "Échéance";
+  const endValue = data.currentSubscription
+    ? formatDate(data.currentSubscription.endsAt)
+    : formatDate(data.trialEndsAt);
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="shrink-0 border-b border-slate-200/80 bg-white px-5 py-4 sm:px-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f7f8fa]">
+      <header className="shrink-0 border-b border-slate-200/80 bg-white px-5 py-3.5 sm:px-6">
+        <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-emerald-600" />
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                Abonnement
-              </p>
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                <CreditCard className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <h1 className="text-[15px] font-semibold tracking-tight text-slate-900">
+                  Mon abonnement
+                </h1>
+                <p className="truncate text-[12px] text-slate-500">
+                  {data.organizationName}
+                </p>
+              </div>
             </div>
-            <h1 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">
-              Mon abonnement
-            </h1>
-            <p className="mt-0.5 truncate text-[13px] text-slate-500">
-              {data.organizationName}
-            </p>
           </div>
-          {canRenew && data.canAccessZone ? (
+          {canRenew && data.canAccessZone && !awaitingReview ? (
             <Link
-              href={renewHref}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-slate-900 px-4 text-[13px] font-semibold text-white hover:bg-slate-800"
+              href={needsPaymentAction ? "/abonnement" : renewHref}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 text-[12px] font-semibold text-white hover:bg-slate-800"
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              {renewLabel}
+              {needsPaymentAction ? "Continuer le paiement" : renewLabel}
             </Link>
           ) : null}
         </div>
-      </div>
+      </header>
 
-      <div className="app-scroll min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-        {data.error ? (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[13px] text-red-800">
-            {data.error}
-          </div>
-        ) : null}
+      {expiryAlert ? (
+        <SubscriptionExpiryBanner
+          alert={expiryAlert}
+          canRenew={canRenew && data.canAccessZone}
+        />
+      ) : null}
 
-        <div className="mx-auto grid max-w-4xl gap-4 lg:grid-cols-2">
-          <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5">
-            <h2 className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">
-              Statut actuel
-            </h2>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span
-                className={`inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-semibold ring-1 ring-inset ${statusStyle}`}
-              >
-                {PLATFORM_ACCESS_STATUS_LABELS[data.access.status] ??
-                  data.access.status}
-              </span>
-              {daysLeft != null ? (
+      <div className="flex min-h-0 flex-1 items-stretch overflow-hidden p-4 sm:p-5">
+        <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+          {data.error ? (
+            <div className="shrink-0 border-b border-red-100 bg-red-50 px-5 py-2.5 text-[12px] text-red-800">
+              {data.error}
+            </div>
+          ) : null}
+
+          {/* Indicateurs */}
+          <section className="grid shrink-0 grid-cols-3 divide-x divide-slate-100 border-b border-slate-100">
+            <div className="px-4 py-4 sm:px-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                Accès
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span
-                  className={`text-[12px] font-medium ${
+                  className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${statusStyle}`}
+                >
+                  {PLATFORM_ACCESS_STATUS_LABELS[data.access.status] ??
+                    data.access.status}
+                </span>
+              </div>
+              {daysLeft != null ? (
+                <p
+                  className={`mt-2 text-[13px] font-semibold tabular-nums ${
                     daysLeft <= 0
                       ? "text-red-700"
                       : daysLeft <= 7
                         ? "text-amber-700"
-                        : "text-slate-600"
+                        : "text-slate-900"
                   }`}
                 >
                   {daysLeft > 0
-                    ? `${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}`
+                    ? `${daysLeft} j restants`
                     : "Échéance dépassée"}
-                </span>
+                </p>
+              ) : (
+                <p className="mt-2 text-[13px] font-medium text-slate-500">—</p>
+              )}
+            </div>
+
+            <div className="px-4 py-4 sm:px-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                {endLabel}
+              </p>
+              <p className="mt-2 text-[13px] font-semibold tabular-nums text-slate-900">
+                {endValue}
+              </p>
+              {data.currentSubscription ? (
+                <p className="mt-1.5 text-[11px] text-slate-500">
+                  {
+                    PLATFORM_SUBSCRIPTION_STATUS_LABELS[
+                      data.currentSubscription.status
+                    ]
+                  }
+                  {data.currentSubscription.planName
+                    ? ` · ${data.currentSubscription.planName}`
+                    : ""}
+                </p>
+              ) : data.trialStatus ? (
+                <p className="mt-1.5 text-[11px] text-slate-500">
+                  {data.trialStatus}
+                </p>
               ) : null}
             </div>
 
-            <dl className="mt-4 space-y-3 text-[13px]">
-              {data.trialEndsAt ? (
-                <div className="flex justify-between gap-3 border-b border-slate-100 pb-2.5">
-                  <dt className="text-slate-500">Fin d’essai</dt>
-                  <dd className="font-medium text-slate-900">
-                    {formatDate(data.trialEndsAt)}
-                    {data.trialStatus ? (
-                      <span className="ml-1 text-slate-500">
-                        · {data.trialStatus}
-                      </span>
-                    ) : null}
-                  </dd>
-                </div>
-              ) : null}
-
-              {data.currentSubscription ? (
+            <div className="px-4 py-4 sm:px-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                Demande
+              </p>
+              {openRequest ? (
                 <>
-                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-2.5">
-                    <dt className="text-slate-500">Formule</dt>
-                    <dd className="text-right font-medium text-slate-900">
-                      {data.currentSubscription.planName ?? "—"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-2.5">
-                    <dt className="text-slate-500">État abonnement</dt>
-                    <dd className="font-medium text-slate-900">
-                      {
-                        PLATFORM_SUBSCRIPTION_STATUS_LABELS[
-                          data.currentSubscription.status
-                        ]
-                      }
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-2.5">
-                    <dt className="text-slate-500">Début</dt>
-                    <dd className="font-medium text-slate-900">
-                      {formatDate(data.currentSubscription.startsAt)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-2.5">
-                    <dt className="text-slate-500">Fin</dt>
-                    <dd className="font-medium text-slate-900">
-                      {formatDate(data.currentSubscription.endsAt)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-slate-500">Montant</dt>
-                    <dd className="font-semibold tabular-nums text-slate-900">
-                      {formatXof(data.currentSubscription.amountPaidXof)}
-                    </dd>
-                  </div>
+                  <p className="mt-2 text-[13px] font-semibold text-slate-900">
+                    {PLATFORM_REQUEST_STATUS_LABELS[openRequest.status]}
+                  </p>
+                  <p className="mt-1.5 truncate text-[11px] tabular-nums text-slate-500">
+                    {openRequest.referenceCode}
+                  </p>
                 </>
               ) : (
-                <p className="text-slate-600">
-                  {data.access.status === "TRIAL"
-                    ? "Vous êtes en période d’essai. Souscrivez une formule pour éviter toute interruption après la fin de l’essai."
-                    : "Aucun abonnement actif pour le moment."}
-                </p>
+                <>
+                  <p className="mt-2 text-[13px] font-semibold text-slate-900">
+                    Aucune
+                  </p>
+                  <p className="mt-1.5 text-[11px] text-slate-500">
+                    Pas de dossier ouvert
+                  </p>
+                </>
               )}
-            </dl>
-
-            {isActiveOrTrial && canRenew ? (
-              <div className="mt-4 flex gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50/80 px-3 py-2.5">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-                <p className="text-[12px] leading-relaxed text-emerald-900">
-                  Renouvelez <span className="font-semibold">avant</span> la date
-                  de fin : la nouvelle période commence à la suite de
-                  l’actuelle, sans coupure d’activité.
-                </p>
-              </div>
-            ) : null}
-
-            {canRenew && data.canAccessZone ? (
-              <Link
-                href={renewHref}
-                className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 text-[13px] font-semibold text-emerald-800 hover:bg-emerald-100"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                {renewLabel}
-              </Link>
-            ) : !canRenew ? (
-              <p className="mt-4 text-[12px] text-slate-500">
-                Seul le propriétaire (OWNER) peut renouveler l’abonnement.
-              </p>
-            ) : null}
+            </div>
           </section>
 
-          <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5">
-            <h2 className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">
-              Demandes & paiements
-            </h2>
-            {data.openRequest ? (
-              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-950">
-                Demande ouverte{" "}
-                <span className="font-semibold">
-                  {data.openRequest.referenceCode}
-                </span>
-                {" — "}
-                {PLATFORM_REQUEST_STATUS_LABELS[data.openRequest.status]}
-                <p className="mt-1 text-[12px] text-amber-800">
-                  {data.openRequest.planName} ·{" "}
-                  {formatXof(data.openRequest.expectedAmountXof)}
+          {/* Message principal */}
+          <section className="shrink-0 border-b border-slate-100 px-5 py-4">
+            {awaitingReview ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5">
+                <p className="text-[13px] font-semibold text-slate-900">
+                  Preuve d’abonnement reçue
                 </p>
-                {canRenew ? (
-                  <Link
-                    href="/abonnement"
-                    className="mt-2 inline-flex text-[12px] font-semibold text-amber-900 underline"
-                  >
-                    Continuer le paiement / preuve
-                  </Link>
-                ) : null}
+                <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
+                  L’équipe FasoBar examine votre demande. Aucune action n’est
+                  requise de votre côté pour le moment.
+                </p>
               </div>
-            ) : null}
-
-            {data.requests.length === 0 ? (
-              <p className="mt-3 text-[13px] text-slate-500">
-                Aucune demande d’abonnement.
+            ) : needsPaymentAction ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5">
+                <p className="text-[13px] font-semibold text-slate-900">
+                  Paiement à finaliser
+                </p>
+                <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
+                  Déposez le montant sur Orange Money puis envoyez la capture du
+                  reçu pour validation.
+                </p>
+              </div>
+            ) : expiryAlert ? (
+              <p className="text-[12px] leading-relaxed text-slate-600">
+                Agissez avant la date de fin pour conserver l’accès de toute
+                l’équipe (caisse, bar, cuisine).
+              </p>
+            ) : data.access.status === "TRIAL" ? (
+              <p className="text-[12px] leading-relaxed text-slate-600">
+                Vous êtes en période d’essai. Souscrivez une formule avant la
+                date de fin pour éviter toute interruption.
+              </p>
+            ) : data.access.status === "ACTIVE" ? (
+              <p className="text-[12px] leading-relaxed text-slate-600">
+                Renouvelez avant la date de fin : la nouvelle période s’ajoute
+                sans coupure d’activité.
               </p>
             ) : (
-              <ul className="mt-3 divide-y divide-slate-100">
-                {data.requests.slice(0, 8).map((req) => (
-                  <li
-                    key={req.id}
-                    className="flex flex-wrap items-center gap-2 py-2.5"
-                  >
-                    <span className="text-[13px] font-medium text-slate-900">
-                      {req.referenceCode}
-                    </span>
-                    <span className="text-[12px] text-slate-500">
-                      {req.planName}
-                    </span>
-                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
-                      {PLATFORM_REQUEST_STATUS_LABELS[req.status]}
-                    </span>
-                    <span className="ml-auto text-[11px] tabular-nums text-slate-400">
-                      {formatDate(req.createdAt)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <p className="text-[12px] leading-relaxed text-slate-600">
+                Aucun abonnement actif. Souscrivez une formule pour retrouver
+                l’accès complet.
+              </p>
+            )}
+          </section>
+
+          {/* Détail demande */}
+          <section className="min-h-0 flex-1 overflow-hidden px-5 py-4">
+            <h2 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+              Détail
+            </h2>
+
+            {openRequest ? (
+              <dl className="mt-3 grid grid-cols-3 gap-3">
+                <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-3">
+                  <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                    Référence
+                  </dt>
+                  <dd className="mt-1.5 truncate text-[13px] font-semibold tabular-nums text-slate-900">
+                    {openRequest.referenceCode}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-3">
+                  <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                    Formule
+                  </dt>
+                  <dd className="mt-1.5 truncate text-[13px] font-semibold text-slate-900">
+                    {openRequest.planName}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-3">
+                  <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                    Montant
+                  </dt>
+                  <dd className="mt-1.5 text-[13px] font-semibold tabular-nums text-slate-900">
+                    {formatXof(openRequest.expectedAmountXof)}
+                  </dd>
+                </div>
+              </dl>
+            ) : (
+              <p className="mt-3 text-[12px] text-slate-500">
+                Aucune demande d’abonnement en cours.
+              </p>
             )}
 
-            {canRenew ? (
-              <p className="mt-4 text-[12px] leading-relaxed text-slate-500">
-                Orange Money :{" "}
-                <span className="font-semibold text-slate-700">
-                  {data.orangeMoneyNumber}
-                </span>
-                . Après validation du paiement par FasoBar, la période
-                s’ajoute automatiquement à la suite de votre abonnement en
-                cours.
+            {!canRenew ? (
+              <p className="mt-3 text-[11px] text-slate-500">
+                Seul le propriétaire (OWNER) peut gérer le paiement.
               </p>
             ) : null}
+
+            {canRenew && needsPaymentAction ? (
+              <Link
+                href="/abonnement"
+                className="mt-4 inline-flex h-9 items-center rounded-lg bg-slate-900 px-3.5 text-[12px] font-semibold text-white hover:bg-slate-800"
+              >
+                Continuer le paiement
+              </Link>
+            ) : null}
           </section>
+
+          {/* Orange Money — uniquement si paiement encore requis */}
+          {showDeposit ? (
+            <section className="shrink-0 border-t border-slate-100 bg-slate-50/80 px-5 py-4">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    Dépôt Orange Money
+                  </p>
+                  <p className="mt-1.5 text-[20px] font-semibold tabular-nums tracking-wide text-slate-900">
+                    {depositNumber}
+                  </p>
+                </div>
+                <p className="max-w-[220px] text-right text-[11px] leading-snug text-slate-500">
+                  Numéro officiel FasoBar. Aucun autre dépôt n’est valide.
+                </p>
+              </div>
+            </section>
+          ) : null}
         </div>
       </div>
     </div>

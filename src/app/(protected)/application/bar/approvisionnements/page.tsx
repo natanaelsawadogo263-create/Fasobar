@@ -6,13 +6,31 @@ import { ensureBarStockItemsFromProducts } from "@/lib/bar/ensure-stock";
 import { requireBarManagerContext } from "@/lib/auth/workspace-context";
 import { getBarSessionContext } from "@/lib/bar/session-queries";
 import { isPathAllowedForSpace } from "@/lib/navigation/space-navigation";
+import {
+  formatOrderPeriodLabel,
+  resolveOrderPeriodRange,
+  toLocalIsoDate,
+} from "@/lib/orders/period";
 import { listPackagingsForProducts } from "@/lib/products/packaging-queries";
 import {
   listRecentSupplyEntries,
   listSuppliers,
 } from "@/lib/stock/queries";
 
-export default async function BarApprovisionnementsPage() {
+type ApprovisionnementPeriod = "day" | "week" | "month";
+
+type BarApprovisionnementsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function parsePeriod(value: string | undefined): ApprovisionnementPeriod {
+  if (value === "week" || value === "month" || value === "day") return value;
+  return "day";
+}
+
+export default async function BarApprovisionnementsPage({
+  searchParams,
+}: BarApprovisionnementsPageProps) {
   const workspace = await requireBarManagerContext();
 
   if (
@@ -24,12 +42,26 @@ export default async function BarApprovisionnementsPage() {
     redirect("/application/acces-refuse");
   }
 
+  const raw = await searchParams;
+  const periodFilter = parsePeriod(
+    typeof raw.period === "string" ? raw.period : "day",
+  );
+  const periodRange = resolveOrderPeriodRange(
+    periodFilter,
+    typeof raw.anchor === "string" ? raw.anchor : toLocalIsoDate(new Date()),
+  );
+
   const [{ openSession }, suppliers, stockItems, recentEntries] =
     await Promise.all([
       getBarSessionContext(workspace),
-      listSuppliers(workspace),
+      listSuppliers(workspace, { departmentCode: "BAR" }),
       ensureBarStockItemsFromProducts(workspace),
-      listRecentSupplyEntries(workspace, { departmentCode: "BAR" }),
+      listRecentSupplyEntries(workspace, {
+        departmentCode: "BAR",
+        from: periodRange.from,
+        to: periodRange.to,
+        limit: 500,
+      }),
     ]);
 
   const productIds = stockItems
@@ -55,6 +87,14 @@ export default async function BarApprovisionnementsPage() {
         packagingsByProduct={packagingsByProduct}
         canManageStock={workspace.canManageBarStock}
         compact
+        lockedDepartment="BAR"
+        periodFilter={periodFilter}
+        periodLabel={formatOrderPeriodLabel(
+          periodFilter,
+          periodRange.from,
+          periodRange.to,
+        )}
+        periodBasePath="/application/bar/approvisionnements"
       />
     </BarSessionGate>
   );

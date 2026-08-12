@@ -84,6 +84,7 @@ export const createSupplierSchema = z.object({
   name: z.string().trim().min(2, "Le nom du fournisseur est obligatoire."),
   phone: z.string().trim().optional(),
   address: z.string().trim().optional(),
+  departmentCode: departmentCodeSchema.default("BAR"),
   active: z.coerce.boolean().default(true),
 });
 

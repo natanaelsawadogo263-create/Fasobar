@@ -3,19 +3,29 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import {
+  ArrowLeft,
+  Banknote,
+  Pencil,
+  Printer,
+} from "lucide-react";
 
 import {
   cancelOrderAction,
   prepareOrderForPaymentAction,
 } from "@/app/(protected)/application/caisse/actions";
+import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { OrderPrepBadges } from "@/components/ops/order-prep-badges";
+import { LiveClock } from "@/components/ui/live-clock";
 import { ToggleField } from "@/components/ui/form-controls";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { ModalShell } from "@/components/ui/modal-shell";
 import {
   formatOrderNumber,
   formatPriceXof,
+  ORDER_PAYMENT_STATUS_LABELS,
+  ORDER_PAYMENT_STATUS_STYLES,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_STYLES,
   ORDER_TYPE_LABELS,
@@ -27,6 +37,15 @@ type OrderDetailWorkspaceProps = {
   canManageOrders: boolean;
   canOperateCashRegister?: boolean;
 };
+
+type PaymentStatusKey = keyof typeof ORDER_PAYMENT_STATUS_LABELS;
+
+function resolvePaymentStatus(status: string): PaymentStatusKey {
+  if (status in ORDER_PAYMENT_STATUS_LABELS) {
+    return status as PaymentStatusKey;
+  }
+  return "UNPAID";
+}
 
 export function OrderDetailWorkspace({
   order,
@@ -51,6 +70,35 @@ export function OrderDetailWorkspace({
     canManageOrders &&
     order.paymentStatus !== "PAID" &&
     order.status !== "CANCELLED";
+
+  const canPrintAddition =
+    order.paymentStatus !== "PAID" && order.status !== "CANCELLED";
+
+  const hasActions = isEditable || canCancel || canPrintAddition;
+  const paymentStatus = resolvePaymentStatus(order.paymentStatus);
+  const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+  const reference = order.tableReference ?? order.customerReference ?? "—";
+  const backHref = canOperateCashRegister
+    ? "/application/caisse"
+    : "/application/commandes";
+  const backLabel = canOperateCashRegister
+    ? "Retour à la caisse"
+    : "Retour aux commandes";
+  const additionNext = encodeURIComponent(`/application/commandes/${order.id}`);
+  const createdLabel = new Date(order.createdAt).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  function openCancelModal() {
+    setCancelError(null);
+    setCancelReason("");
+    setCancelConfirmed(false);
+    setShowCancelModal(true);
+  }
 
   function handlePrepare() {
     startTransition(async () => {
@@ -79,183 +127,212 @@ export function OrderDetailWorkspace({
 
       setShowCancelModal(false);
       setMessage(result.success ?? "Commande annulée.");
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-emerald-700">
-            Commande
-          </p>
-          <h1 className="text-3xl font-semibold text-slate-900">
-            {formatOrderNumber(order.orderNumber)}
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            {ORDER_TYPE_LABELS[order.orderType]} · Créée le{" "}
-            {new Date(order.createdAt).toLocaleString("fr-FR")}
-            {order.createdByName ? ` par ${order.createdByName}` : ""}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ${ORDER_STATUS_STYLES[order.status]}`}
+    <div className="flex h-full min-h-0 w-full items-center justify-center overflow-hidden p-2">
+      <div className="flex w-full max-w-[720px] flex-col gap-2">
+        <div className="flex shrink-0 items-center justify-between gap-2">
+          <Link
+            href={backHref}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 text-[12px] font-semibold text-white transition hover:bg-emerald-500"
           >
-            {ORDER_STATUS_LABELS[order.status]}
-          </span>
-          <OrderPrepBadges
-            barStatus={order.barStatus}
-            kitchenStatus={order.kitchenStatus}
-          />
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.25} />
+            {backLabel}
+          </Link>
+          {(error || message) && (
+            <div className="min-w-0 flex-1">
+              {error ? <AlertMessage message={error} /> : null}
+              {message ? <AlertMessage message={message} tone="success" /> : null}
+            </div>
+          )}
+          <LiveClock showDate={false} className="shrink-0" />
         </div>
-      </div>
 
-      {error ? <AlertMessage message={error} /> : null}
-      {message ? <AlertMessage message={message} tone="success" /> : null}
+        <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <header className="border-b border-slate-100 px-3.5 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h1 className="text-[20px] font-bold leading-none tracking-tight text-slate-900">
+                  {formatOrderNumber(order.orderNumber)}
+                </h1>
+                <p className="mt-1 truncate text-[11px] text-slate-500">
+                  {ORDER_TYPE_LABELS[order.orderType]}
+                  <span className="mx-1 text-slate-300">·</span>
+                  Table {reference}
+                  <span className="mx-1 text-slate-300">·</span>
+                  {itemCount} art.
+                  <span className="mx-1 text-slate-300">·</span>
+                  {createdLabel}
+                  {order.createdByName ? ` · ${order.createdByName}` : ""}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1">
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${ORDER_STATUS_STYLES[order.status]}`}
+                >
+                  {ORDER_STATUS_LABELS[order.status]}
+                </span>
+                <span
+                  className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${ORDER_PAYMENT_STATUS_STYLES[paymentStatus]}`}
+                >
+                  {ORDER_PAYMENT_STATUS_LABELS[paymentStatus]}
+                </span>
+                <OrderPrepBadges
+                  barStatus={order.barStatus}
+                  kitchenStatus={order.kitchenStatus}
+                />
+              </div>
+            </div>
+          </header>
 
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <section className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="text-lg font-semibold text-slate-900">Articles</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-100 text-sm">
-              <thead className="bg-slate-50 text-left text-slate-600">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Produit</th>
-                  <th className="px-4 py-3 font-medium">Département</th>
-                  <th className="px-4 py-3 font-medium">Qté</th>
-                  <th className="px-4 py-3 font-medium">P.U.</th>
-                  <th className="px-4 py-3 font-medium">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {order.items.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                      Aucun article.
-                    </td>
-                  </tr>
-                ) : (
-                  order.items.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-4 py-4 font-medium text-slate-900">
-                        {item.productName}
-                      </td>
-                      <td className="px-4 py-4 text-slate-600">
-                        {item.departmentName}
-                      </td>
-                      <td className="px-4 py-4">{item.quantity}</td>
-                      <td className="px-4 py-4">{formatPriceXof(item.unitPrice)}</td>
-                      <td className="px-4 py-4 font-medium">
-                        {formatPriceXof(item.lineTotal)}
-                      </td>
+          <div className="grid sm:grid-cols-[minmax(0,1fr)_200px]">
+            <section className="min-w-0 border-b border-slate-100 sm:border-b-0 sm:border-r">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-1.5">
+                <h2 className="text-[12px] font-semibold text-slate-900">Articles</h2>
+                <p className="text-[10px] text-slate-400">
+                  {order.items.length} ligne{order.items.length > 1 ? "s" : ""}
+                </p>
+              </div>
+
+              <div className="max-h-[220px] overflow-y-auto">
+                <table className="w-full text-[12px]">
+                  <thead className="sticky top-0 bg-white">
+                    <tr className="border-b border-slate-100 text-left text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                      <th className="px-3.5 py-1.5 font-semibold">Produit</th>
+                      <th className="hidden px-2 py-1.5 font-semibold sm:table-cell">
+                        Dépt.
+                      </th>
+                      <th className="px-2 py-1.5 text-right font-semibold">Qté</th>
+                      <th className="px-2 py-1.5 text-right font-semibold">P.U.</th>
+                      <th className="px-3.5 py-1.5 text-right font-semibold">Total</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                  </thead>
+                  <tbody>
+                    {order.items.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-3.5 py-5 text-center text-slate-500">
+                          Aucun article.
+                        </td>
+                      </tr>
+                    ) : (
+                      order.items.map((item) => (
+                        <tr
+                          key={item.id}
+                          className="border-b border-slate-50 last:border-b-0"
+                        >
+                          <td className="px-3.5 py-1.5">
+                            <p className="font-semibold leading-tight text-slate-900">
+                              {item.productName}
+                            </p>
+                            {item.notes?.trim() ? (
+                              <p className="mt-0.5 text-[10px] text-amber-800">
+                                {item.notes}
+                              </p>
+                            ) : null}
+                          </td>
+                          <td className="hidden px-2 py-1.5 text-slate-500 sm:table-cell">
+                            {item.departmentName}
+                          </td>
+                          <td className="pos-tabular px-2 py-1.5 text-right font-medium text-slate-800">
+                            {item.quantity}
+                          </td>
+                          <td className="pos-tabular px-2 py-1.5 text-right text-slate-500">
+                            {formatPriceXof(item.unitPrice)}
+                          </td>
+                          <td className="pos-tabular px-3.5 py-1.5 text-right font-semibold text-slate-900">
+                            {formatPriceXof(item.lineTotal)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-        <aside className="space-y-4">
-          <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Informations</h2>
-            <dl className="mt-4 space-y-3 text-sm">
-              <div>
-                <dt className="text-slate-500">Table / Référence</dt>
-                <dd className="font-medium text-slate-900">
-                  {order.tableReference ?? order.customerReference ?? "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Sous-total</dt>
-                <dd className="font-medium text-slate-900">
-                  {formatPriceXof(order.subtotal)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Total</dt>
-                <dd className="text-xl font-semibold text-emerald-700">
+              <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/80 px-3.5 py-1.5 text-[12px]">
+                <span className="text-slate-500">
+                  Sous-total{" "}
+                  <span className="pos-tabular font-medium text-slate-800">
+                    {formatPriceXof(order.subtotal)}
+                  </span>
+                </span>
+                <span className="pos-tabular font-bold text-emerald-700">
                   {formatPriceXof(order.totalAmount)}
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          {isEditable ? (
-            <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Actions</h2>
-              <div className="mt-4 grid gap-2">
-                <Link
-                  href={`/application/caisse?order=${order.id}`}
-                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
-                >
-                  Modifier la commande
-                </Link>
-                <button
-                  type="button"
-                  disabled={isPending || order.items.length === 0}
-                  onClick={handlePrepare}
-                  className="rounded-xl border border-emerald-200 px-4 py-3 text-sm font-medium text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
-                >
-                  Encaisser la commande
-                </button>
-                <Link
-                  href={`/application/caisse?order=${order.id}`}
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  Ouvrir en caisse
-                </Link>
-                {canCancel ? (
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => {
-                      setCancelError(null);
-                      setCancelReason("");
-                      setCancelConfirmed(false);
-                      setShowCancelModal(true);
-                    }}
-                    className="rounded-xl border border-red-200 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-50"
-                  >
-                    Annuler la commande
-                  </button>
-                ) : null}
+                </span>
               </div>
             </section>
-          ) : canCancel ? (
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-slate-900">Actions</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Consultation seule — l&apos;encaissement est réservé aux caissiers.
-              </p>
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() => {
-                  setCancelError(null);
-                  setCancelReason("");
-                  setCancelConfirmed(false);
-                  setShowCancelModal(true);
-                }}
-                className="mt-4 w-full rounded-xl border border-red-200 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-50"
-              >
-                Annuler la commande
-              </button>
-            </section>
-          ) : null}
 
-          {order.status === "CANCELLED" && order.cancellationReason ? (
-            <section className="rounded-2xl border border-red-100 bg-red-50 p-5 text-sm text-red-800">
-              <p className="font-semibold">Commande annulée</p>
-              <p className="mt-1">{order.cancellationReason}</p>
-            </section>
-          ) : null}
-        </aside>
+            <aside className="flex flex-col gap-1.5 bg-slate-50/60 px-3 py-2.5">
+              <div className="rounded-lg bg-slate-950 px-3 py-2 text-white">
+                <p className="text-[10px] font-medium uppercase tracking-[0.1em] text-slate-400">
+                  Total à payer
+                </p>
+                <p className="pos-tabular mt-1 text-[18px] font-bold leading-none text-emerald-400">
+                  {formatPriceXof(order.totalAmount)}
+                </p>
+              </div>
+
+              {hasActions ? (
+                <div className="grid gap-1">
+                  {isEditable ? (
+                    <button
+                      type="button"
+                      disabled={isPending || order.items.length === 0}
+                      onClick={handlePrepare}
+                      className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-2.5 text-[12px] font-bold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                    >
+                      <Banknote className="h-3.5 w-3.5" strokeWidth={2} />
+                      {isPending ? "…" : "Encaisser"}
+                    </button>
+                  ) : null}
+
+                  {canPrintAddition ? (
+                    <Link
+                      href={`/application/commandes/${order.id}/addition?print=1&next=${additionNext}`}
+                      className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-[12px] font-semibold text-amber-900 transition hover:bg-amber-100"
+                    >
+                      <Printer className="h-3.5 w-3.5" strokeWidth={2} />
+                      Addition
+                    </Link>
+                  ) : null}
+
+                  {isEditable ? (
+                    <Link
+                      href={`/application/caisse?order=${order.id}`}
+                      className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      <Pencil className="h-3 w-3" strokeWidth={2} />
+                      Modifier
+                    </Link>
+                  ) : null}
+
+                  {canCancel ? (
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={openCancelModal}
+                      className="inline-flex h-8 w-full items-center justify-center rounded-md border border-red-200 bg-white px-2.5 text-[12px] font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                    >
+                      Annuler
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {order.status === "CANCELLED" ? (
+                <div className="rounded-md border border-red-200 bg-red-50 p-2 text-[11px] text-red-800">
+                  <p className="font-semibold">Annulée</p>
+                  {order.cancellationReason ? (
+                    <p className="mt-0.5 line-clamp-2">{order.cancellationReason}</p>
+                  ) : null}
+                </div>
+              ) : null}
+            </aside>
+          </div>
+        </article>
       </div>
 
       {showCancelModal ? (

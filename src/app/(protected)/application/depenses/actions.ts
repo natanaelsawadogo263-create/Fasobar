@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { mapGenericError } from "@/lib/auth/errors";
-import { requireAdminContext } from "@/lib/auth/workspace-context";
+import { requireExpenseMutationContext } from "@/lib/auth/workspace-context";
 import {
   cancelExpenseSchema,
   createExpenseSchema,
   updateExpenseSchema,
+  type ExpenseArea,
 } from "@/lib/expenses/schemas";
 import type { ExpenseActionState } from "@/lib/expenses/types";
 import { createClient } from "@/lib/supabase/server";
@@ -16,11 +17,18 @@ function revalidateExpensePages() {
   revalidatePath("/application/depenses");
   revalidatePath("/application/rapports");
   revalidatePath("/application/tableau-de-bord");
+  revalidatePath("/application/bar");
+  revalidatePath("/application/caisse");
 }
 
 function mapExpenseRpcError(message: string): string {
-  if (message.toLowerCase().includes("does not exist")) {
-    return "Migration dépenses non appliquée. Contactez un administrateur technique.";
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("does not exist") ||
+    lower.includes("p_area") ||
+    lower.includes("could not find")
+  ) {
+    return "Migration dépenses (Caisse/Bar) non appliquée. Exécutez 20260811140000_expense_area.sql et 20260811140100_expense_area_role_access.sql.";
   }
   if (message.includes("Permission insuffisante")) {
     return "Permission insuffisante pour cette opération.";
@@ -31,14 +39,34 @@ function mapExpenseRpcError(message: string): string {
   return message || "Une erreur est survenue.";
 }
 
+function resolveAreaForSpace(
+  space: "admin" | "cashier_kitchen" | "bar_manager",
+  requested: ExpenseArea,
+): ExpenseArea {
+  if (space === "bar_manager") return "BAR";
+  if (space === "cashier_kitchen") return "CAISSE";
+  return requested;
+}
+
+/** Bar / Caisse–Cuisine : pas de catégorie côté UI (défaut OTHER à la création). */
+function resolveCategoryForSpace(
+  space: "admin" | "cashier_kitchen" | "bar_manager",
+  requested: unknown,
+) {
+  if (space === "admin") return requested;
+  if (typeof requested === "string" && requested.length > 0) return requested;
+  return "OTHER";
+}
+
 export async function createExpenseAction(
   _prev: ExpenseActionState,
   formData: FormData,
 ): Promise<ExpenseActionState> {
-  const workspace = await requireAdminContext();
+  const workspace = await requireExpenseMutationContext();
 
   const parsed = createExpenseSchema.safeParse({
-    category: formData.get("category"),
+    area: formData.get("area") || "CAISSE",
+    category: resolveCategoryForSpace(workspace.userSpace, formData.get("category")),
     label: formData.get("label"),
     amount: formData.get("amount"),
     supplierName: formData.get("supplierName") || undefined,
@@ -51,6 +79,8 @@ export async function createExpenseAction(
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
+  const area = resolveAreaForSpace(workspace.userSpace, parsed.data.area);
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("record_expense", {
     p_establishment_id: workspace.establishmentId,
@@ -61,6 +91,7 @@ export async function createExpenseAction(
     p_expense_date: parsed.data.expenseDate,
     p_reference: parsed.data.reference ?? null,
     p_note: parsed.data.note ?? null,
+    p_area: area,
   });
 
   if (error) {
@@ -75,11 +106,12 @@ export async function updateExpenseAction(
   _prev: ExpenseActionState,
   formData: FormData,
 ): Promise<ExpenseActionState> {
-  await requireAdminContext();
+  const workspace = await requireExpenseMutationContext();
 
   const parsed = updateExpenseSchema.safeParse({
     expenseId: formData.get("expenseId"),
-    category: formData.get("category"),
+    area: formData.get("area") || "CAISSE",
+    category: resolveCategoryForSpace(workspace.userSpace, formData.get("category")),
     label: formData.get("label"),
     amount: formData.get("amount"),
     supplierName: formData.get("supplierName") || undefined,
@@ -92,6 +124,8 @@ export async function updateExpenseAction(
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
+  const area = resolveAreaForSpace(workspace.userSpace, parsed.data.area);
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_expense", {
     p_expense_id: parsed.data.expenseId,
@@ -102,6 +136,7 @@ export async function updateExpenseAction(
     p_expense_date: parsed.data.expenseDate,
     p_reference: parsed.data.reference ?? null,
     p_note: parsed.data.note ?? null,
+    p_area: area,
   });
 
   if (error) {
@@ -116,7 +151,7 @@ export async function cancelExpenseAction(
   _prev: ExpenseActionState,
   formData: FormData,
 ): Promise<ExpenseActionState> {
-  await requireAdminContext();
+  await requireExpenseMutationContext();
 
   const parsed = cancelExpenseSchema.safeParse({
     expenseId: formData.get("expenseId"),

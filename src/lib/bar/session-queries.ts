@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import type {
   BarSessionClosingSummary,
@@ -316,7 +318,9 @@ export async function getBarSessionById(
   return mapSessionDetail(workspace, data as SessionRow);
 }
 
-export async function getBarSessionContext(workspace: WorkspaceContext): Promise<{
+export const getBarSessionContext = cache(async function getBarSessionContext(
+  workspace: WorkspaceContext,
+): Promise<{
   ownSession: BarSessionDetail | null;
   openSession: BarSessionDetail | null;
 }> {
@@ -329,4 +333,38 @@ export async function getBarSessionContext(workspace: WorkspaceContext): Promise
   } catch {
     return { ownSession: null, openSession: null };
   }
+});
+
+/** Shell bar : session ouverte sans closing_summary. */
+export async function getBarSessionShellContext(
+  workspace: WorkspaceContext,
+): Promise<{
+  hasOwnSession: boolean;
+  sessionOpenedAt?: string;
+  openSessionHolderName: string | null;
+}> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("bar_sessions")
+    .select(
+      "opened_at, opened_by, profiles!bar_sessions_opened_by_fkey(full_name)",
+    )
+    .eq("establishment_id", workspace.establishmentId)
+    .eq("status", "OPEN")
+    .maybeSingle();
+
+  if (error || !data) {
+    return { hasOwnSession: false, openSessionHolderName: null };
+  }
+
+  const isOwn = data.opened_by === workspace.userId;
+  const profile = readSingle(
+    data.profiles as { full_name: string } | { full_name: string }[] | null,
+  );
+
+  return {
+    hasOwnSession: isOwn,
+    sessionOpenedAt: data.opened_at,
+    openSessionHolderName: isOwn ? null : (profile?.full_name ?? null),
+  };
 }

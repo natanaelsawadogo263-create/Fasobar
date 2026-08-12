@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 
 import { mapGenericError } from "@/lib/auth/errors";
 import {
-  requireCashRegisterOperatorContext,
-  requireOrderManagementContext,
+  requireCashRegisterOperatorMutationContext,
+  requireOrderManagementMutationContext,
 } from "@/lib/auth/workspace-context";
 import { revalidateCashSessionOps, revalidatePaymentOps } from "@/lib/ops/revalidate";
 import {
@@ -97,7 +97,7 @@ export async function openCashSessionAction(
   _prevState: PaymentActionState,
   formData: FormData,
 ): Promise<PaymentActionState> {
-  await requireCashRegisterOperatorContext();
+  const workspace = await requireCashRegisterOperatorMutationContext();
 
   const parsed = openCashSessionSchema.safeParse({
     openingCashAmount: formData.get("openingCashAmount"),
@@ -106,6 +106,31 @@ export async function openCashSessionAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    try {
+      const { openLocalCashSession } = await import(
+        "@/lib/local-domain/cash-sessions"
+      );
+      const { scheduleOutboxPush } = await import("@/lib/sync/push");
+      const result = openLocalCashSession(workspace, {
+        openingCashAmount: parsed.data.openingCashAmount,
+        openingNote: parsed.data.openingNote ?? null,
+      });
+      scheduleOutboxPush();
+      revalidateCashSessionOps();
+      revalidatePaymentPages();
+      return { success: "Caisse ouverte.", sessionId: result.sessionId };
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Impossible d'ouvrir la caisse.",
+      };
+    }
   }
 
   const supabase = await createClient();
@@ -128,7 +153,7 @@ export async function closeCashSessionAction(
   _prevState: PaymentActionState,
   formData: FormData,
 ): Promise<PaymentActionState> {
-  const workspace = await requireCashRegisterOperatorContext();
+  const workspace = await requireCashRegisterOperatorMutationContext();
 
   const parsed = closeCashSessionSchema.safeParse({
     sessionId: formData.get("sessionId"),
@@ -148,6 +173,34 @@ export async function closeCashSessionAction(
   const ownSession = await getActiveCashSession(workspace);
   if (!ownSession || ownSession.id !== parsed.data.sessionId) {
     return { error: "Vous ne pouvez fermer que votre propre session de caisse." };
+  }
+
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    try {
+      const { closeLocalCashSession } = await import(
+        "@/lib/local-domain/cash-sessions"
+      );
+      const { scheduleOutboxPush } = await import("@/lib/sync/push");
+      closeLocalCashSession(workspace, {
+        sessionId: parsed.data.sessionId,
+        countedCashAmount: parsed.data.countedCashAmount,
+        closingNote: parsed.data.closingNote ?? null,
+      });
+      scheduleOutboxPush();
+      revalidateCashSessionOps();
+      revalidatePaymentPages();
+      const supabaseLocal = await createClient();
+      await supabaseLocal.auth.signOut();
+      redirect("/");
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Impossible de fermer la caisse.",
+      };
+    }
   }
 
   const supabase = await createClient();
@@ -175,7 +228,7 @@ export async function quickCashCheckoutAction(
   orderId: string,
   amountReceived?: number,
 ): Promise<PaymentActionState> {
-  const workspace = await requireCashRegisterOperatorContext();
+  const workspace = await requireCashRegisterOperatorMutationContext();
 
   const summary = await getOrderPaymentSummary(workspace, orderId);
 
@@ -239,7 +292,7 @@ export async function recordPaymentsAction(
   _prevState: PaymentActionState,
   formData: FormData,
 ): Promise<PaymentActionState> {
-  await requireCashRegisterOperatorContext();
+  const workspace = await requireCashRegisterOperatorMutationContext();
 
   const paymentsRaw = formData.get("payments");
   let payments: unknown[] = [];
@@ -261,6 +314,36 @@ export async function recordPaymentsAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Paiement invalide." };
+  }
+
+  const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+  if (isDesktopServerRuntime()) {
+    try {
+      const { recordLocalPayments } = await import(
+        "@/lib/local-domain/checkout-local"
+      );
+      const { scheduleOutboxPush } = await import("@/lib/sync/push");
+      const result = recordLocalPayments(workspace, {
+        orderId: parsed.data.orderId,
+        payments: parsed.data.payments.map((payment) => ({
+          method: payment.method,
+          amountApplied: payment.amountApplied,
+          amountReceived: payment.amountReceived ?? null,
+          provider: payment.provider ?? payment.method,
+          notes: payment.notes ?? null,
+          transactionReference: payment.transactionReference ?? null,
+        })),
+        idempotencyKey: parsed.data.idempotencyKey ?? idempotencyKey,
+      });
+      scheduleOutboxPush();
+      revalidatePaymentPages(parsed.data.orderId, result.receiptId);
+      return result;
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error ? error.message : "Encaissement impossible.",
+      };
+    }
   }
 
   const supabase = await createClient();
@@ -315,7 +398,7 @@ export async function voidPaymentAction(
   _prevState: PaymentActionState,
   formData: FormData,
 ): Promise<PaymentActionState> {
-  await requireOrderManagementContext();
+  await requireOrderManagementMutationContext();
 
   const parsed = voidPaymentSchema.safeParse({
     paymentId: formData.get("paymentId"),

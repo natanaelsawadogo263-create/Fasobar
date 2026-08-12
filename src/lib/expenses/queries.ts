@@ -22,6 +22,7 @@ function isMissingTableError(error: { message?: string; code?: string }): boolea
 
 type ExpenseRow = {
   id: string;
+  area?: string | null;
   category: string;
   label: string;
   amount: number;
@@ -38,9 +39,11 @@ type ExpenseRow = {
 
 function mapExpenseRow(row: ExpenseRow): ExpenseListItem {
   const profile = readSingle(row.profiles ?? null);
+  const area = row.area === "BAR" ? "BAR" : "CAISSE";
 
   return {
     id: row.id,
+    area,
     category: row.category as ExpenseListItem["category"],
     label: row.label,
     amount: row.amount,
@@ -59,6 +62,7 @@ function mapExpenseRow(row: ExpenseRow): ExpenseListItem {
 export async function listExpenses(
   workspace: WorkspaceContext,
   filters: ExpenseFiltersInput = { status: "all" },
+  options: { limit?: number } = {},
 ): Promise<ExpensesPageData> {
   const empty: ExpensesPageData = {
     expenses: [],
@@ -66,20 +70,27 @@ export async function listExpenses(
     recordedCount: 0,
     cancelledCount: 0,
     kitchenTotal: 0,
+    caisseTotal: 0,
+    barTotal: 0,
   };
 
   const supabase = await createClient();
+  const limit = options.limit ?? 200;
 
   let query = supabase
     .from("expenses")
     .select(
-      "id, category, label, amount, supplier_name, expense_date, reference, note, status, cancel_reason, created_at, updated_at, profiles!expenses_created_by_fkey(full_name)",
+      "id, area, category, label, amount, supplier_name, expense_date, reference, note, status, cancel_reason, created_at, updated_at, profiles!expenses_created_by_fkey(full_name)",
     )
     .eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .order("expense_date", { ascending: false })
     .order("created_at", { ascending: false })
-    .limit(200);
+    .limit(limit);
+
+  if (filters.area) {
+    query = query.eq("area", filters.area);
+  }
 
   if (filters.category) {
     query = query.eq("category", filters.category);
@@ -97,7 +108,24 @@ export async function listExpenses(
     query = query.lte("expense_date", filters.to);
   }
 
-  const { data, error } = await query;
+  let { data, error } = await query;
+
+  // Compat: migration area non appliquée → requêter sans la colonne
+  if (error && (error.message ?? "").toLowerCase().includes("area")) {
+    const fallback = await supabase
+      .from("expenses")
+      .select(
+        "id, category, label, amount, supplier_name, expense_date, reference, note, status, cancel_reason, created_at, updated_at, profiles!expenses_created_by_fkey(full_name)",
+      )
+      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId)
+      .order("expense_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    data = fallback.data as typeof data;
+    error = fallback.error;
+  }
 
   if (error) {
     if (isMissingTableError(error)) {
@@ -121,6 +149,11 @@ export async function listExpenses(
     });
   }
 
+  // Filtre area côté client si la colonne manquait côté DB
+  if (filters.area) {
+    expenses = expenses.filter((item) => item.area === filters.area);
+  }
+
   const recorded = expenses.filter((item) => item.status === "RECORDED");
 
   return {
@@ -130,6 +163,12 @@ export async function listExpenses(
     cancelledCount: expenses.filter((item) => item.status === "CANCELLED").length,
     kitchenTotal: recorded
       .filter((item) => item.category === "KITCHEN_PURCHASE")
+      .reduce((sum, item) => sum + item.amount, 0),
+    caisseTotal: recorded
+      .filter((item) => item.area === "CAISSE")
+      .reduce((sum, item) => sum + item.amount, 0),
+    barTotal: recorded
+      .filter((item) => item.area === "BAR")
       .reduce((sum, item) => sum + item.amount, 0),
   };
 }

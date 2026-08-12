@@ -68,13 +68,29 @@ export async function completeFirstLoginAction(
 
   try {
     const admin = createAdminClient();
-    const { error: completeError } = await admin.rpc(
+    const { data: finalizeData, error: completeError } = await admin.rpc(
       "finalize_employee_password_change",
       { p_user_id: sessionUserId },
     );
 
     if (completeError) {
       return { error: mapGenericError(completeError) };
+    }
+
+    const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
+    if (isDesktopServerRuntime()) {
+      const version = Number(
+        (finalizeData as { credential_version?: number } | null)
+          ?.credential_version ?? 1,
+      );
+      const { activateOfflineCredentialsAfterPasswordChange } = await import(
+        "@/lib/local-auth/login"
+      );
+      await activateOfflineCredentialsAfterPasswordChange(
+        sessionUserId,
+        parsed.data.password,
+        version,
+      );
     }
   } catch (error) {
     if (error instanceof SupabaseAdminConfigError) {

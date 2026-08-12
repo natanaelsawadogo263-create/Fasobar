@@ -93,7 +93,13 @@ export function SignUpForm() {
               required
               className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
             />
-            <span>J&apos;accepte les conditions d&apos;utilisation.</span>
+            <span>
+              J&apos;accepte les{" "}
+              <Link href="/conditions-utilisation" className="font-medium text-emerald-700 hover:underline">
+                conditions d&apos;utilisation
+              </Link>
+              .
+            </span>
           </label>
 
           <SubmitButton label="Continuer" pendingLabel="Création..." />
@@ -101,7 +107,7 @@ export function SignUpForm() {
 
         <p className="mt-6 text-center text-sm text-slate-600">
           Déjà un compte ?{" "}
-          <Link href="/" className="font-medium text-emerald-700 hover:underline">
+          <Link href="/connexion" className="font-medium text-emerald-700 hover:underline">
             Se connecter
           </Link>
         </p>

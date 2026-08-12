@@ -6,3 +6,8 @@
 .env.keys
 .env.local
 .env.*.local
+# electron / build temporary logs
+forge-package.log
+squirrel-make.log
+out-make-log.txt
+prepare-*.txt

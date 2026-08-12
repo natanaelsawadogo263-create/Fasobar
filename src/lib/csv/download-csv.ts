@@ -10,13 +10,22 @@ function escapeCsvCell(value: CsvCell): string {
   return stringValue;
 }
 
+type DownloadCsvOptions = {
+  /** Lignes méta avant le tableau (ex. établissement, période). */
+  preamble?: CsvCell[][];
+};
+
 /** Génère et télécharge un CSV côté client (compatible Excel FR — séparateur `;`). */
 export function downloadCsv(
   filename: string,
   headers: string[],
   rows: CsvCell[][],
+  options: DownloadCsvOptions = {},
 ): void {
-  const lines = [headers, ...rows].map((row) => row.map(escapeCsvCell).join(";"));
+  const preamble = options.preamble ?? [];
+  const lines = [...preamble, headers, ...rows].map((row) =>
+    row.map(escapeCsvCell).join(";"),
+  );
   const csvContent = `\uFEFF${lines.join("\r\n")}`;
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);

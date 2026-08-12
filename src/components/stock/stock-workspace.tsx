@@ -19,6 +19,7 @@ import {
   recordStockEntryAction,
   recordStockLossAction,
 } from "@/app/(protected)/application/stock/actions";
+import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { StockAdjustmentModal } from "@/components/stock/stock-adjustment-modal";
 import { StockEmptyState } from "@/components/stock/stock-empty-state";
@@ -165,7 +166,7 @@ export function StockWorkspace({
       }
       setMessage(result.success ?? "Entrée enregistrée.");
       closeModal();
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 
@@ -178,7 +179,7 @@ export function StockWorkspace({
       }
       setMessage(result.success ?? "Perte enregistrée.");
       closeModal();
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 
@@ -191,7 +192,7 @@ export function StockWorkspace({
       }
       setMessage(result.success ?? "Stock corrigé.");
       closeModal();
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 

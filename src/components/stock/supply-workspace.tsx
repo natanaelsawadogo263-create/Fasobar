@@ -19,6 +19,7 @@ import {
   toggleSupplierStatusAction,
   updateSupplierAction,
 } from "@/app/(protected)/application/stock/actions";
+import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { StockEntryModal } from "@/components/stock/stock-entry-modal";
 import {
@@ -33,6 +34,9 @@ import type {
 } from "@/lib/stock/types";
 import type { ProductPackaging } from "@/lib/products/types";
 
+type SupplyDepartment = "BAR" | "KITCHEN";
+type SupplyPeriodFilter = "day" | "week" | "month";
+
 type SupplyWorkspaceProps = {
   establishmentName: string;
   suppliers: SupplierOption[];
@@ -42,16 +46,33 @@ type SupplyWorkspaceProps = {
   canManageStock: boolean;
   /** Espace responsable bar : layout compact. */
   compact?: boolean;
+  /** Si défini, l'écran est figé sur cet espace (ex. Bar). */
+  lockedDepartment?: SupplyDepartment | null;
+  periodFilter?: SupplyPeriodFilter | null;
+  periodLabel?: string | null;
+  periodBasePath?: string;
 };
 
 type SupplierFormMode = "create" | "edit" | null;
 
-const emptySupplierForm: SupplierFormState = {
+const SPACE_LABELS: Record<SupplyDepartment, string> = {
+  BAR: "Bar",
+  KITCHEN: "Cuisine",
+};
+
+const PERIOD_OPTIONS: Array<{ id: SupplyPeriodFilter; label: string }> = [
+  { id: "day", label: "Jour" },
+  { id: "week", label: "Semaine" },
+  { id: "month", label: "Mois" },
+];
+
+const emptySupplierForm = (departmentCode: SupplyDepartment): SupplierFormState => ({
   name: "",
   phone: "",
   address: "",
+  departmentCode,
   active: true,
-};
+});
 
 export function SupplyWorkspace({
   establishmentName,
@@ -61,6 +82,10 @@ export function SupplyWorkspace({
   packagingsByProduct = {},
   canManageStock,
   compact = false,
+  lockedDepartment = null,
+  periodFilter = null,
+  periodLabel = null,
+  periodBasePath = "/application/approvisionnements",
 }: SupplyWorkspaceProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -69,40 +94,65 @@ export function SupplyWorkspace({
   const [showEntryModal, setShowEntryModal] = useState(false);
   const [supplierFormMode, setSupplierFormMode] = useState<SupplierFormMode>(null);
   const [editingSupplier, setEditingSupplier] = useState<SupplierOption | null>(null);
-  const [supplierForm, setSupplierForm] = useState<SupplierFormState>(emptySupplierForm);
+  const [departmentFilter, setDepartmentFilter] = useState<SupplyDepartment>(
+    lockedDepartment ?? "BAR",
+  );
+  const activeDepartment = lockedDepartment ?? departmentFilter;
+  const [supplierForm, setSupplierForm] = useState<SupplierFormState>(() =>
+    emptySupplierForm(lockedDepartment ?? "BAR"),
+  );
   const [entryError, setEntryError] = useState<string | null>(null);
   const [supplierError, setSupplierError] = useState<string | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<SupplierOption | null>(null);
   const [supplierFilter, setSupplierFilter] = useState<"all" | "active" | "inactive">("all");
 
-  const barItems = useMemo(
-    () => stockItems.filter((item) => item.active && item.departmentCode === "BAR"),
-    [stockItems],
+  function applyPeriod(period: SupplyPeriodFilter) {
+    const params = new URLSearchParams();
+    params.set("period", period);
+    router.push(`${periodBasePath}?${params.toString()}`);
+  }
+
+  const departmentItems = useMemo(
+    () =>
+      stockItems.filter(
+        (item) => item.active && item.departmentCode === activeDepartment,
+      ),
+    [stockItems, activeDepartment],
+  );
+  const departmentSuppliers = useMemo(
+    () => suppliers.filter((supplier) => supplier.departmentCode === activeDepartment),
+    [suppliers, activeDepartment],
   );
   const activeSuppliers = useMemo(
-    () => suppliers.filter((supplier) => supplier.active),
-    [suppliers],
+    () => departmentSuppliers.filter((supplier) => supplier.active),
+    [departmentSuppliers],
   );
   const filteredSuppliers = useMemo(() => {
     if (supplierFilter === "active") return activeSuppliers;
     if (supplierFilter === "inactive") {
-      return suppliers.filter((supplier) => !supplier.active);
+      return departmentSuppliers.filter((supplier) => !supplier.active);
     }
-    return suppliers;
-  }, [activeSuppliers, supplierFilter, suppliers]);
+    return departmentSuppliers;
+  }, [activeSuppliers, departmentSuppliers, supplierFilter]);
+
+  const departmentEntries = useMemo(
+    () =>
+      recentEntries.filter((entry) => entry.departmentCode === activeDepartment),
+    [recentEntries, activeDepartment],
+  );
 
   const totalRecentCost = useMemo(
     () =>
-      recentEntries.reduce(
+      departmentEntries.reduce(
         (sum, entry) => sum + (entry.totalCost !== null ? entry.totalCost : 0),
         0,
       ),
-    [recentEntries],
+    [departmentEntries],
   );
 
   function openCreateSupplier() {
     setEditingSupplier(null);
-    setSupplierForm(emptySupplierForm);
+    setSupplierForm(emptySupplierForm(activeDepartment));
     setSupplierError(null);
     setSupplierFormMode("create");
   }
@@ -113,6 +163,7 @@ export function SupplyWorkspace({
       name: supplier.name,
       phone: supplier.phone ?? "",
       address: supplier.address ?? "",
+      departmentCode: supplier.departmentCode,
       active: supplier.active,
     });
     setSupplierError(null);
@@ -135,7 +186,7 @@ export function SupplyWorkspace({
       }
       setMessage(result.success ?? "Entrée enregistrée.");
       setShowEntryModal(false);
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 
@@ -153,7 +204,7 @@ export function SupplyWorkspace({
 
       setMessage(result.success ?? "Opération réussie.");
       closeSupplierForm();
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 
@@ -168,7 +219,7 @@ export function SupplyWorkspace({
 
       setMessage(result.success ?? "Fournisseur réactivé.");
       setError(null);
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 
@@ -193,21 +244,28 @@ export function SupplyWorkspace({
       setMessage(result.success ?? "Statut mis à jour.");
       setError(null);
       setDeactivateTarget(null);
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 
   const canCreateEntry =
-    canManageStock && barItems.length > 0 && activeSuppliers.length > 0;
+    canManageStock && departmentItems.length > 0 && activeSuppliers.length > 0;
 
   return (
     <div
       className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden ${
-        compact
-          ? "gap-3 px-4 py-4 lg:gap-4 lg:px-6 lg:py-5"
-          : "gap-3 px-4 py-3 lg:gap-3.5 lg:px-5 lg:py-4"
+        lockedDepartment ? "items-center bg-slate-50/80" : ""
       }`}
     >
+      <div
+        className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden ${
+          lockedDepartment ? "max-w-5xl" : ""
+        } ${
+          compact
+            ? "gap-3 px-4 py-4 lg:gap-4 lg:px-6 lg:py-5"
+            : "gap-3 px-4 py-3 lg:gap-3.5 lg:px-5 lg:py-4"
+        }`}
+      >
       <header className="flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
@@ -216,9 +274,9 @@ export function SupplyWorkspace({
           <p className="mt-0.5 text-[12px] text-slate-500">
             {compact ? (
               <>
-                {recentEntries.length} entrée
-                {recentEntries.length > 1 ? "s" : ""} récente
-                {recentEntries.length > 1 ? "s" : ""}
+                {departmentEntries.length} entrée
+                {departmentEntries.length > 1 ? "s" : ""} récente
+                {departmentEntries.length > 1 ? "s" : ""}
                 {activeSuppliers.length > 0 ? (
                   <span>
                     {" "}
@@ -228,50 +286,100 @@ export function SupplyWorkspace({
                 ) : (
                   <span className="text-orange-600"> · aucun fournisseur actif</span>
                 )}
+                {periodLabel ? (
+                  <>
+                    <span className="mx-1.5 text-slate-300">·</span>
+                    <span className="capitalize">{periodLabel}</span>
+                  </>
+                ) : null}
               </>
             ) : (
               <>
-                Achats boissons ·{" "}
+                Achats {SPACE_LABELS[activeDepartment].toLowerCase()} ·{" "}
                 <span className="font-medium text-slate-700">
                   {establishmentName}
                 </span>
+                {periodLabel ? (
+                  <>
+                    <span className="mx-1.5 text-slate-300">·</span>
+                    <span className="capitalize">{periodLabel}</span>
+                  </>
+                ) : null}
               </>
             )}
           </p>
         </div>
 
-        {canManageStock ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={openCreateSupplier}
-              disabled={isPending}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Fournisseur
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEntryError(null);
-                setShowEntryModal(true);
-              }}
-              disabled={isPending || !canCreateEntry}
-              title={
-                barItems.length === 0
-                  ? "Créez d'abord des produits bar"
-                  : activeSuppliers.length === 0
-                    ? "Ajoutez d'abord un fournisseur"
-                    : undefined
-              }
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <ArrowDownToLine className="h-3.5 w-3.5" />
-              Nouvelle entrée
-            </button>
-          </div>
-        ) : null}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {periodFilter ? (
+            <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5">
+              {PERIOD_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => applyPeriod(option.id)}
+                  className={`h-8 rounded-md px-2.5 text-[11px] font-semibold transition ${
+                    periodFilter === option.id
+                      ? "bg-emerald-600 text-white"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {canManageStock ? (
+            <>
+              {!lockedDepartment ? (
+                <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
+                  {(["BAR", "KITCHEN"] as const).map((code) => (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => setDepartmentFilter(code)}
+                      className={`h-9 rounded-md px-3 text-[12px] font-semibold transition ${
+                        activeDepartment === code
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {SPACE_LABELS[code]}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={openCreateSupplier}
+                disabled={isPending}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Fournisseur
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEntryError(null);
+                  setShowEntryModal(true);
+                }}
+                disabled={isPending || !canCreateEntry}
+                title={
+                  departmentItems.length === 0
+                    ? `Créez d'abord des articles ${SPACE_LABELS[activeDepartment].toLowerCase()}`
+                    : activeSuppliers.length === 0
+                      ? "Ajoutez d'abord un fournisseur pour cet espace"
+                      : undefined
+                }
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <ArrowDownToLine className="h-3.5 w-3.5" />
+                Nouvelle entrée
+              </button>
+            </>
+          ) : null}
+        </div>
       </header>
 
       {(error || message) && (
@@ -291,8 +399,8 @@ export function SupplyWorkspace({
           value={String(activeSuppliers.length)}
           subtitle={
             compact
-              ? `${suppliers.length} au total`
-              : `${suppliers.length} au total`
+              ? `${departmentSuppliers.length} au total`
+              : `${departmentSuppliers.length} · ${SPACE_LABELS[activeDepartment]}`
           }
           icon={Building2}
           tone="sky"
@@ -300,8 +408,14 @@ export function SupplyWorkspace({
         />
         <StatCard
           title={compact ? "Entrées" : "Entrées récentes"}
-          value={String(recentEntries.length)}
-          subtitle={compact ? "récentes" : "derniers achats enregistrés"}
+          value={String(departmentEntries.length)}
+          subtitle={
+            periodLabel
+              ? periodLabel
+              : compact
+                ? "récentes"
+                : "derniers achats enregistrés"
+          }
           icon={Truck}
           tone="emerald"
           compact={compact}
@@ -309,15 +423,15 @@ export function SupplyWorkspace({
         <StatCard
           title={compact ? "Montant" : "Montant récent"}
           value={formatPriceXof(totalRecentCost)}
-          subtitle={compact ? "récent" : "coût des entrées listées"}
+          subtitle={periodLabel ?? (compact ? "récent" : "coût des entrées listées")}
           icon={Wallet}
           tone="amber"
           compact={compact}
         />
         {!compact ? (
           <StatCard
-            title="Articles bar"
-            value={String(barItems.length)}
+            title={`Articles ${SPACE_LABELS[activeDepartment].toLowerCase()}`}
+            value={String(departmentItems.length)}
             subtitle="disponibles pour entrée"
             icon={Package}
             tone="slate"
@@ -333,13 +447,13 @@ export function SupplyWorkspace({
                 Entrées récentes
               </h2>
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-slate-500">
-                {recentEntries.length}
+                {departmentEntries.length}
               </span>
             </div>
           </div>
 
           <div className="app-scroll min-h-0 flex-1 overflow-auto">
-            {recentEntries.length === 0 ? (
+            {departmentEntries.length === 0 ? (
               <div className="flex flex-col items-center px-6 py-12 text-center">
                 <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                   <Truck className="h-5 w-5" aria-hidden />
@@ -377,7 +491,7 @@ export function SupplyWorkspace({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {recentEntries.map((entry) => (
+                  {departmentEntries.map((entry) => (
                     <tr
                       key={entry.id}
                       className="text-slate-700 hover:bg-slate-50/70"
@@ -458,16 +572,16 @@ export function SupplyWorkspace({
                   <Building2 className="h-5 w-5" aria-hidden />
                 </div>
                 <h3 className="mt-3 text-[13px] font-semibold text-slate-900">
-                  {suppliers.length === 0
+                  {departmentSuppliers.length === 0
                     ? "Aucun fournisseur"
                     : "Aucun résultat"}
                 </h3>
                 <p className="mt-1 text-[12px] text-slate-500">
-                  {suppliers.length === 0
-                    ? "Ajoutez un fournisseur avant une entrée."
+                  {departmentSuppliers.length === 0
+                    ? `Ajoutez un fournisseur ${SPACE_LABELS[activeDepartment].toLowerCase()} avant une entrée.`
                     : "Changez le filtre pour afficher d'autres."}
                 </p>
-                {canManageStock && suppliers.length === 0 ? (
+                {canManageStock && departmentSuppliers.length === 0 ? (
                   <button
                     type="button"
                     onClick={openCreateSupplier}
@@ -491,6 +605,9 @@ export function SupplyWorkspace({
                           <p className="truncate text-[13px] font-semibold text-slate-900">
                             {supplier.name}
                           </p>
+                          <span className="inline-flex rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+                            {SPACE_LABELS[supplier.departmentCode]}
+                          </span>
                           <span
                             className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
                               supplier.active
@@ -557,12 +674,12 @@ export function SupplyWorkspace({
 
       {showEntryModal && canManageStock ? (
         <StockEntryModal
-          stockItems={barItems}
+          stockItems={departmentItems}
           suppliers={activeSuppliers}
           packagingsByProduct={packagingsByProduct}
           formError={entryError}
           isPending={isPending}
-          drinksOnly
+          drinksOnly={activeDepartment === "BAR"}
           onClose={() => setShowEntryModal(false)}
           onSubmit={handleEntrySubmit}
         />
@@ -574,6 +691,7 @@ export function SupplyWorkspace({
           formState={supplierForm}
           editingSupplier={editingSupplier}
           formError={supplierError}
+          lockedDepartment={lockedDepartment}
           onClose={closeSupplierForm}
           onSubmit={handleSupplierSubmit}
           onChange={setSupplierForm}
@@ -623,6 +741,7 @@ export function SupplyWorkspace({
           </div>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

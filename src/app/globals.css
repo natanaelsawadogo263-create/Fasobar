@@ -45,7 +45,6 @@ html {
 .app-shell,
 .admin-shell,
 .pos-shell,
-.pos-workspace,
 .checkout-shell,
 .fasobar-shell,
 .space-shell,
@@ -57,7 +56,10 @@ html {
 
 .pos-workspace {
   font-feature-settings: "tnum";
+  height: 100%;
   max-width: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .pos-tabular {
@@ -77,6 +79,18 @@ html {
 
 .pos-scroll::-webkit-scrollbar {
   display: none;
+}
+
+/* Zone tableau des rapports : pas de barre de scroll visible */
+.reports-table-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.reports-table-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Liste panier caisse : scroll + snap article par article */
@@ -179,10 +193,102 @@ html {
   .thermal-receipt td {
     padding: 1px 0;
   }
+
+  /* Rapports admin : pagination multi-pages (évite la coupe en bas de page) */
+  html.printing-reports,
+  html.printing-reports body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  html.printing-reports .app-shell,
+  html.printing-reports .space-shell,
+  html.printing-reports main,
+  html.printing-reports .reports-print-root,
+  html.printing-reports .reports-print-body,
+  html.printing-reports .reports-print-body > div,
+  html.printing-reports .app-scroll,
+  html.printing-reports .reports-table-scroll {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    position: static !important;
+    flex: none !important;
+  }
+
+  html.printing-reports .reports-print-root {
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+  }
+
+  html.printing-reports .reports-print-header {
+    display: flex !important;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  html.printing-reports .reports-print-body {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  html.printing-reports .reports-print-body table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  html.printing-reports .reports-print-body thead {
+    display: table-header-group !important;
+  }
+
+  html.printing-reports .reports-print-body tbody {
+    display: table-row-group !important;
+  }
+
+  html.printing-reports .reports-print-body tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  html.printing-reports .reports-print-body th,
+  html.printing-reports .reports-print-body td {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }
 
 .thermal-receipt {
   width: 100%;
   max-width: 320px;
   font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+.thermal-receipt .receipt-logo {
+  display: block;
+  max-height: 52px;
+  max-width: 140px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+@keyframes fb-marketing-fade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fb-marketing-fade {
+  animation: fb-marketing-fade 0.55s ease-out both;
 }

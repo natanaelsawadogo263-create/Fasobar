@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+import { PlatformExpiryAlertCard } from "@/components/platform/platform-expiry-alert-card";
 import { PlatformStatusBadge } from "@/components/platform/platform-status-badge";
 import {
   PLATFORM_TABLE_HEAD,
@@ -125,6 +126,16 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
                 value={formatPlatformXof(data.revenueThisMonthXof)}
               />
             </div>
+            {data.expiringAccess.length > 0 ? (
+              <div className="border-t border-amber-100 bg-amber-50/70 px-4 py-2.5 text-[12px] text-amber-950">
+                <span className="font-semibold">
+                  {data.expiringAccess.length} échéance
+                  {data.expiringAccess.length > 1 ? "s" : ""}
+                </span>{" "}
+                sous {data.warningDaysBeforeExpiry} jours — contactez les
+                clients pour renouveler avant coupure d’accès.
+              </div>
+            ) : null}
           </section>
 
           {/* Portefeuille + raccourcis */}
@@ -282,50 +293,25 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
             <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
               <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-2.5">
                 <h2 className="text-[12px] font-semibold text-slate-900">
-                  Essais à surveiller
-                  <span className="ml-1.5 font-normal text-slate-400">· 7 j</span>
+                  Échéances à surveiller
+                  <span className="ml-1.5 font-normal text-slate-400">
+                    · {data.warningDaysBeforeExpiry} j
+                  </span>
                 </h2>
-                <Link
-                  href="/platform/clients"
-                  className="text-[11px] font-semibold text-emerald-700 hover:underline"
-                >
-                  Clients
-                </Link>
+                <span className="text-[11px] font-semibold tabular-nums text-slate-500">
+                  {data.expiringAccess.length}
+                </span>
               </div>
-              <div className="app-scroll min-h-0 flex-1 overflow-auto">
-                {data.trialsNearExpiry.length === 0 ? (
-                  <p className="px-4 py-8 text-center text-[12px] text-slate-500">
-                    Aucun essai n’expire sous 7 jours.
+              <div className="app-scroll min-h-0 flex-1 space-y-2.5 overflow-auto p-3">
+                {data.expiringAccess.length === 0 ? (
+                  <p className="px-1 py-8 text-center text-[12px] text-slate-500">
+                    Aucun essai ni abonnement n’expire sous{" "}
+                    {data.warningDaysBeforeExpiry} jours.
                   </p>
                 ) : (
-                  <table className="w-full min-w-[360px] text-left text-[12.5px]">
-                    <thead className={PLATFORM_TABLE_HEAD}>
-                      <tr>
-                        <th className={`${PLATFORM_TH} !py-2`}>Client</th>
-                        <th className={`${PLATFORM_TH} !py-2`}>Organisation</th>
-                        <th className={`${PLATFORM_TH} !py-2`}>Jours</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.trialsNearExpiry.map((trial) => (
-                        <tr key={trial.trialId} className={PLATFORM_TR}>
-                          <td
-                            className={`${PLATFORM_TD} !py-2 font-medium text-slate-900`}
-                          >
-                            {trial.ownerName ?? "OWNER non renseigné"}
-                          </td>
-                          <td className={`${PLATFORM_TD} !py-2 text-slate-600`}>
-                            {trial.organizationName}
-                          </td>
-                          <td className={`${PLATFORM_TD} !py-2`}>
-                            <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">
-                              {trial.daysRemaining} j
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  data.expiringAccess.map((alert) => (
+                    <PlatformExpiryAlertCard key={alert.id} alert={alert} />
+                  ))
                 )}
               </div>
             </div>

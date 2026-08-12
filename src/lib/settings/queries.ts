@@ -21,6 +21,7 @@ type EstablishmentSettingsRow = {
   receipt_footer: string | null;
   thank_you_message: string | null;
   default_minimum_stock: number;
+  logo_url: string | null;
 };
 
 /**
@@ -36,14 +37,50 @@ export async function getEstablishmentSettings(
   const { data, error } = await supabase
     .from("establishments")
     .select(
-      "id, name, address, phone, currency, timezone, receipt_header, receipt_footer, thank_you_message, default_minimum_stock",
+      "id, name, address, phone, currency, timezone, receipt_header, receipt_footer, thank_you_message, default_minimum_stock, logo_url",
     )
     .eq("id", workspace.establishmentId)
     .maybeSingle();
 
   if (error) {
     if (isMissingColumnError(error)) {
-      return { settings: null, migrationMissing: true };
+      // Fallback sans logo_url si seule cette colonne manque
+      const fallback = await supabase
+        .from("establishments")
+        .select(
+          "id, name, address, phone, currency, timezone, receipt_header, receipt_footer, thank_you_message, default_minimum_stock",
+        )
+        .eq("id", workspace.establishmentId)
+        .maybeSingle();
+
+      if (fallback.error) {
+        if (isMissingColumnError(fallback.error)) {
+          return { settings: null, migrationMissing: true };
+        }
+        return { settings: null, migrationMissing: false };
+      }
+
+      if (!fallback.data) {
+        return { settings: null, migrationMissing: false };
+      }
+
+      const row = fallback.data as Omit<EstablishmentSettingsRow, "logo_url">;
+      return {
+        settings: {
+          id: row.id,
+          name: row.name,
+          address: row.address,
+          phone: row.phone,
+          currency: row.currency,
+          timezone: row.timezone,
+          receiptHeader: row.receipt_header,
+          receiptFooter: row.receipt_footer,
+          thankYouMessage: row.thank_you_message,
+          defaultMinimumStock: row.default_minimum_stock,
+          logoUrl: null,
+        },
+        migrationMissing: false,
+      };
     }
     return { settings: null, migrationMissing: false };
   }
@@ -66,6 +103,7 @@ export async function getEstablishmentSettings(
       receiptFooter: row.receipt_footer,
       thankYouMessage: row.thank_you_message,
       defaultMinimumStock: row.default_minimum_stock,
+      logoUrl: row.logo_url,
     },
     migrationMissing: false,
   };

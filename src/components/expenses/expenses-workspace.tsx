@@ -9,6 +9,7 @@ import {
   createExpenseAction,
   updateExpenseAction,
 } from "@/app/(protected)/application/depenses/actions";
+import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import {
@@ -18,13 +19,22 @@ import {
   TextField,
 } from "@/components/ui/form-controls";
 import {
+  EXPENSE_AREA_LABELS,
+  EXPENSE_AREA_STYLES,
   EXPENSE_CATEGORY_LABELS,
   EXPENSE_STATUS_LABELS,
   EXPENSE_STATUS_STYLES,
   formatPriceXof,
 } from "@/lib/expenses/constants";
-import type { ExpenseCategory, ExpenseFiltersInput } from "@/lib/expenses/schemas";
+import type {
+  ExpenseArea,
+  ExpenseCategory,
+  ExpenseFiltersInput,
+} from "@/lib/expenses/schemas";
 import type { ExpenseListItem } from "@/lib/expenses/types";
+import { resolveOrderPeriodRange, toLocalIsoDate } from "@/lib/orders/period";
+
+type ExpensePeriodFilter = "day" | "week" | "month";
 
 type ExpensesWorkspaceProps = {
   expenses: ExpenseListItem[];
@@ -32,11 +42,24 @@ type ExpensesWorkspaceProps = {
   recordedCount: number;
   cancelledCount: number;
   kitchenTotal: number;
+  caisseTotal: number;
+  barTotal: number;
   filters: ExpenseFiltersInput;
   establishmentName: string;
+  /** Si défini, l'espace ne voit / crée que cette zone (CAISSE ou BAR). */
+  lockedArea?: ExpenseArea | null;
+  periodFilter?: ExpensePeriodFilter | null;
+  periodLabel?: string | null;
+  canManage?: boolean;
 };
 
 const CATEGORY_OPTIONS = Object.entries(EXPENSE_CATEGORY_LABELS);
+const AREA_OPTIONS = Object.entries(EXPENSE_AREA_LABELS);
+const PERIOD_OPTIONS: Array<{ id: ExpensePeriodFilter; label: string }> = [
+  { id: "day", label: "Jour" },
+  { id: "week", label: "Semaine" },
+  { id: "month", label: "Mois" },
+];
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -47,9 +70,15 @@ export function ExpensesWorkspace({
   periodTotal,
   recordedCount,
   cancelledCount,
-  kitchenTotal,
+  kitchenTotal: _kitchenTotal,
+  caisseTotal,
+  barTotal,
   filters,
   establishmentName,
+  lockedArea = null,
+  periodFilter = null,
+  periodLabel = null,
+  canManage = true,
 }: ExpensesWorkspaceProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -76,14 +105,28 @@ export function ExpensesWorkspace({
     setModal("cancel");
   }
 
-  function applyFilters(next: Partial<ExpenseFiltersInput>) {
+  function applyFilters(
+    next: Partial<ExpenseFiltersInput> & { period?: ExpensePeriodFilter },
+  ) {
     const params = new URLSearchParams();
     const merged = { ...filters, ...next };
+    const nextPeriod = next.period ?? periodFilter;
+
+    if (merged.area) params.set("area", merged.area);
     if (merged.category) params.set("category", merged.category);
     if (merged.status && merged.status !== "all") params.set("status", merged.status);
     if (merged.search) params.set("search", merged.search);
-    if (merged.from) params.set("from", merged.from);
-    if (merged.to) params.set("to", merged.to);
+
+    if (lockedArea && nextPeriod) {
+      const range = resolveOrderPeriodRange(nextPeriod, toLocalIsoDate(new Date()));
+      params.set("period", nextPeriod);
+      if (range.from) params.set("from", range.from);
+      if (range.to) params.set("to", range.to);
+    } else {
+      if (merged.from) params.set("from", merged.from);
+      if (merged.to) params.set("to", merged.to);
+    }
+
     router.push(`/application/depenses?${params.toString()}`);
   }
 
@@ -102,7 +145,7 @@ export function ExpensesWorkspace({
       }
       setMessage(result.success ?? "Enregistré.");
       setModal(null);
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 
@@ -117,44 +160,131 @@ export function ExpensesWorkspace({
       }
       setMessage(result.success ?? "Annulée.");
       setModal(null);
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 
-  const stats = useMemo(
-    () => [
-      { title: "Total période", value: formatPriceXof(periodTotal), subtitle: "dépenses actives" },
+  const stats = useMemo(() => {
+    if (lockedArea === "CAISSE") {
+      return [
+        {
+          title: "Total période",
+          value: formatPriceXof(caisseTotal),
+          subtitle: periodLabel ?? "dépenses actives",
+        },
+        {
+          title: "Enregistrées",
+          value: String(recordedCount),
+          subtitle: `${cancelledCount} annulée${cancelledCount > 1 ? "s" : ""}`,
+        },
+      ];
+    }
+    if (lockedArea === "BAR") {
+      return [
+        {
+          title: "Total période",
+          value: formatPriceXof(barTotal),
+          subtitle: periodLabel ?? "dépenses actives",
+        },
+        {
+          title: "Enregistrées",
+          value: String(recordedCount),
+          subtitle: `${cancelledCount} annulée${cancelledCount > 1 ? "s" : ""}`,
+        },
+      ];
+    }
+    return [
       {
-        title: "Achats Cuisine",
-        value: formatPriceXof(kitchenTotal),
-        subtitle: "sans stock boissons",
+        title: "Total période",
+        value: formatPriceXof(periodTotal),
+        subtitle: "dépenses actives",
       },
-      { title: "Enregistrées", value: String(recordedCount), subtitle: "lignes actives" },
-      { title: "Annulées", value: String(cancelledCount), subtitle: "historique conservé" },
-    ],
-    [periodTotal, kitchenTotal, recordedCount, cancelledCount],
-  );
+      {
+        title: "Liées à la caisse",
+        value: formatPriceXof(caisseTotal),
+        subtitle: "service caisse",
+      },
+      {
+        title: "Liées au bar",
+        value: formatPriceXof(barTotal),
+        subtitle: "service bar",
+      },
+      {
+        title: "Enregistrées",
+        value: String(recordedCount),
+        subtitle: `${cancelledCount} annulée${cancelledCount > 1 ? "s" : ""}`,
+      },
+    ];
+  }, [
+    lockedArea,
+    periodLabel,
+    periodTotal,
+    caisseTotal,
+    barTotal,
+    recordedCount,
+    cancelledCount,
+  ]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3 lg:gap-3.5 lg:p-4">
+    <div
+      className={`flex h-full min-h-0 flex-col overflow-hidden ${
+        lockedArea ? "items-center bg-slate-50/80" : ""
+      }`}
+    >
+      <div
+        className={`flex min-h-0 w-full flex-1 flex-col gap-3 overflow-hidden p-3 lg:gap-3.5 lg:p-4 ${
+          lockedArea ? "max-w-3xl" : ""
+        }`}
+      >
       <header className="flex shrink-0 flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
             Dépenses
           </h1>
           <p className="mt-0.5 text-[12px] text-slate-500">
-            {establishmentName} · charges réelles, sans modification du stock boissons
+            {establishmentName}
+            {lockedArea
+              ? ` · dépenses ${EXPENSE_AREA_LABELS[lockedArea].toLowerCase()}`
+              : " · charges réelles, sans modification du stock boissons"}
+            {periodLabel ? (
+              <>
+                <span className="mx-1.5 text-slate-300">·</span>
+                <span className="capitalize">{periodLabel}</span>
+              </>
+            ) : null}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          disabled={isPending}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-60"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Nouvelle dépense
-        </button>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {lockedArea && periodFilter ? (
+            <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5">
+              {PERIOD_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => applyFilters({ period: option.id })}
+                  className={`h-8 rounded-md px-2.5 text-[11px] font-semibold transition ${
+                    periodFilter === option.id
+                      ? "bg-emerald-600 text-white"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {canManage ? (
+            <button
+              type="button"
+              onClick={openCreate}
+              disabled={isPending}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-60"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nouvelle dépense
+            </button>
+          ) : null}
+        </div>
       </header>
 
       {message ? (
@@ -163,7 +293,7 @@ export function ExpensesWorkspace({
         </div>
       ) : null}
 
-      <div className="grid shrink-0 grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-3">
+      <div className={`grid shrink-0 gap-2.5 ${stats.length === 2 ? "grid-cols-2 lg:grid-cols-2" : "grid-cols-2 lg:grid-cols-4"} lg:gap-3`}>
         {stats.map((stat) => (
           <div
             key={stat.title}
@@ -184,7 +314,9 @@ export function ExpensesWorkspace({
           <input
             type="search"
             defaultValue={filters.search ?? ""}
-            placeholder="Rechercher libellé, fournisseur…"
+            placeholder={
+              lockedArea ? "Rechercher un titre…" : "Rechercher libellé, fournisseur…"
+            }
             className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-[12px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             onKeyDown={(event) => {
               if (event.key === "Enter") {
@@ -193,20 +325,38 @@ export function ExpensesWorkspace({
             }}
           />
         </div>
-        <select
-          value={filters.category || ""}
-          onChange={(event) =>
-            applyFilters({ category: event.target.value as ExpenseCategory | "" })
-          }
-          className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px]"
-        >
-          <option value="">Toutes catégories</option>
-          {CATEGORY_OPTIONS.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        {!lockedArea ? (
+          <select
+            value={filters.area || ""}
+            onChange={(event) =>
+              applyFilters({ area: event.target.value as ExpenseArea | "" })
+            }
+            className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px]"
+          >
+            <option value="">Caisse & Bar</option>
+            {AREA_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        {!lockedArea ? (
+          <select
+            value={filters.category || ""}
+            onChange={(event) =>
+              applyFilters({ category: event.target.value as ExpenseCategory | "" })
+            }
+            className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px]"
+          >
+            <option value="">Toutes catégories</option>
+            {CATEGORY_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <select
           value={filters.status || "all"}
           onChange={(event) =>
@@ -238,9 +388,15 @@ export function ExpensesWorkspace({
               <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-3 py-2.5 font-semibold">Date</th>
-                  <th className="px-3 py-2.5 font-semibold">Catégorie</th>
-                  <th className="px-3 py-2.5 font-semibold">Libellé</th>
-                  <th className="px-3 py-2.5 font-semibold">Fournisseur</th>
+                  {!lockedArea ? (
+                    <th className="px-3 py-2.5 font-semibold">Rattachée à</th>
+                  ) : null}
+                  {!lockedArea ? (
+                    <th className="px-3 py-2.5 font-semibold">Catégorie</th>
+                  ) : null}
+                  <th className="px-3 py-2.5 font-semibold">
+                    {lockedArea ? "Titre" : "Libellé"}
+                  </th>
                   <th className="px-3 py-2.5 font-semibold">Montant</th>
                   <th className="px-3 py-2.5 font-semibold">Statut</th>
                   <th className="px-3 py-2.5 font-semibold">Auteur</th>
@@ -253,11 +409,21 @@ export function ExpensesWorkspace({
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-700">
                       {new Intl.DateTimeFormat("fr-FR").format(new Date(item.expenseDate))}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-700">
-                      {EXPENSE_CATEGORY_LABELS[item.category]}
-                    </td>
+                    {!lockedArea ? (
+                      <td className="px-3 py-2.5">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${EXPENSE_AREA_STYLES[item.area]}`}
+                        >
+                          {EXPENSE_AREA_LABELS[item.area]}
+                        </span>
+                      </td>
+                    ) : null}
+                    {!lockedArea ? (
+                      <td className="px-3 py-2.5 text-slate-700">
+                        {EXPENSE_CATEGORY_LABELS[item.category]}
+                      </td>
+                    ) : null}
                     <td className="px-3 py-2.5 font-medium text-slate-900">{item.label}</td>
-                    <td className="px-3 py-2.5 text-slate-600">{item.supplierName ?? "—"}</td>
                     <td className="px-3 py-2.5 font-semibold text-slate-900">
                       {formatPriceXof(item.amount)}
                     </td>
@@ -328,25 +494,62 @@ export function ExpensesWorkspace({
               {formError ? <AlertMessage message={formError} /> : null}
               {selected ? <input type="hidden" name="expenseId" value={selected.id} /> : null}
               <FormSection title="Informations">
-                <SelectField
-                  id="category"
-                  name="category"
-                  label="Catégorie"
-                  defaultValue={selected?.category ?? "KITCHEN_PURCHASE"}
-                  required
-                >
-                  {CATEGORY_OPTIONS.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </SelectField>
+                {lockedArea ? (
+                  <input type="hidden" name="area" value={lockedArea} />
+                ) : (
+                  <SelectField
+                    id="area"
+                    name="area"
+                    label="Rattachée à"
+                    defaultValue={selected?.area ?? "CAISSE"}
+                    required
+                  >
+                    {AREA_OPTIONS.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label === "Caisse"
+                          ? "Caisse — dépenses liées à la caisse"
+                          : "Bar — dépenses liées au bar"}
+                      </option>
+                    ))}
+                  </SelectField>
+                )}
+                {lockedArea ? (
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
+                    Zone :{" "}
+                    <span className="font-semibold text-slate-900">
+                      {EXPENSE_AREA_LABELS[lockedArea]}
+                    </span>
+                  </p>
+                ) : null}
+                {!lockedArea ? (
+                  <SelectField
+                    id="category"
+                    name="category"
+                    label="Catégorie"
+                    defaultValue={selected?.category ?? "KITCHEN_PURCHASE"}
+                    required
+                  >
+                    {CATEGORY_OPTIONS.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </SelectField>
+                ) : (
+                  <input
+                    type="hidden"
+                    name="category"
+                    value={selected?.category ?? "OTHER"}
+                  />
+                )}
                 <TextField
                   id="label"
                   name="label"
-                  label="Libellé"
+                  label={lockedArea ? "Titre" : "Libellé"}
                   defaultValue={selected?.label ?? ""}
-                  placeholder="Ex. Sac de riz 50 kg"
+                  placeholder={
+                    lockedArea ? "Ex. Achat gaz" : "Ex. Sac de riz 50 kg"
+                  }
                   required
                 />
                 <div className="grid grid-cols-2 gap-3">
@@ -366,24 +569,6 @@ export function ExpensesWorkspace({
                     required
                   />
                 </div>
-                <TextField
-                  id="supplierName"
-                  name="supplierName"
-                  label="Fournisseur"
-                  defaultValue={selected?.supplierName ?? ""}
-                />
-                <TextField
-                  id="reference"
-                  name="reference"
-                  label="Référence"
-                  defaultValue={selected?.reference ?? ""}
-                />
-                <TextField
-                  id="note"
-                  name="note"
-                  label="Note"
-                  defaultValue={selected?.note ?? ""}
-                />
               </FormSection>
             </div>
             <div className="border-t border-slate-100 px-5 py-3">
@@ -426,6 +611,7 @@ export function ExpensesWorkspace({
           </form>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

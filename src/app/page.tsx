@@ -1,18 +1,34 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { ConnexionScreen } from "@/components/auth/connexion-screen";
+import { MarketingHomePage } from "@/components/marketing/home-page";
+import { MarketingShell } from "@/components/marketing/marketing-shell";
 import { resolvePostLoginRedirect } from "@/lib/auth/post-login";
 import { getAuthenticatedUser } from "@/lib/auth/session";
-import { SignInForm } from "@/components/auth/sign-in-form";
+import { isDesktopServerRuntime } from "@/lib/desktop/runtime";
 import { createClient } from "@/lib/supabase/server";
 
-/**
- * Porte d'entrée FasoBar = toujours l'écran de connexion,
- * sauf session active autorisée → redirection vers l'espace.
- */
-export default async function HomePage() {
+type HomePageProps = {
+  searchParams?: Promise<{ error?: string; redirect?: string }>;
+};
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const params = searchParams ? await searchParams : undefined;
+  const desktopMode = isDesktopServerRuntime();
+  const cookieStore = await cookies();
+
+  if (cookieStore.get("fb_pw_recovery")?.value === "1") {
+    redirect("/nouveau-mot-de-passe");
+  }
+
   const user = await getAuthenticatedUser();
 
   if (user) {
+    if (desktopMode) {
+      redirect(await resolvePostLoginRedirect(user.id));
+    }
+
     const supabase = await createClient();
     const { data: profile } = await supabase
       .from("profiles")
@@ -20,7 +36,6 @@ export default async function HomePage() {
       .eq("id", user.id)
       .maybeSingle();
 
-    // Session fantôme / compte désactivé : revenir à la connexion
     if (!profile || profile.status === "INACTIVE") {
       await supabase.auth.signOut();
     } else {
@@ -28,11 +43,18 @@ export default async function HomePage() {
     }
   }
 
+  const authError =
+    params?.error === "auth"
+      ? "Le lien de réinitialisation est invalide ou a expiré. Demandez un nouveau lien."
+      : null;
+
+  if (desktopMode) {
+    return <ConnexionScreen authError={authError} />;
+  }
+
   return (
-    <div className="h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain bg-slate-50">
-      <div className="mx-auto flex min-h-full w-full items-center justify-center px-4 py-8 sm:py-12">
-        <SignInForm />
-      </div>
-    </div>
+    <MarketingShell>
+      <MarketingHomePage />
+    </MarketingShell>
   );
 }

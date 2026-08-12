@@ -6,6 +6,7 @@ import { createEmployeeAccountAction } from "@/app/(protected)/application/utili
 import { AlertMessage } from "@/components/auth/alert-message";
 import { FormField, FormSelect } from "@/components/auth/form-field";
 import { CredentialsSuccessModal } from "@/components/users/credentials-success-modal";
+import { suggestLoginIdentifierFromName } from "@/lib/auth/login-identifier";
 import { INVITABLE_SPACES } from "@/lib/auth/roles";
 import { DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD } from "@/lib/users/constants";
 import type { CreatedCredentialsSummary } from "@/lib/users/types";
@@ -20,7 +21,7 @@ type CreateEmployeeModalProps = {
 
 const emptyForm = {
   fullName: "",
-  email: "",
+  loginIdentifier: "",
   phone: "",
   space: "cashier_kitchen",
   establishmentId: "",
@@ -36,6 +37,7 @@ export function CreateEmployeeModal({
     ...emptyForm,
     establishmentId: defaultEstablishmentId,
   });
+  const [loginTouched, setLoginTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successSummary, setSuccessSummary] = useState<CreatedCredentialsSummary | null>(
     null,
@@ -52,7 +54,13 @@ export function CreateEmployeeModal({
   }, []);
 
   function updateField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "fullName" && !loginTouched) {
+        next.loginIdentifier = suggestLoginIdentifierFromName(String(value));
+      }
+      return next;
+    });
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -72,7 +80,7 @@ export function CreateEmployeeModal({
 
     const formData = new FormData();
     formData.set("fullName", form.fullName);
-    formData.set("email", form.email);
+    formData.set("loginIdentifier", form.loginIdentifier);
     formData.set("phone", form.phone);
     formData.set("space", form.space);
     formData.set("establishmentId", form.establishmentId);
@@ -89,13 +97,14 @@ export function CreateEmployeeModal({
 
       setSuccessSummary({
         fullName: form.fullName,
-        email: form.email.trim().toLowerCase(),
+        loginIdentifier: form.loginIdentifier.trim().toLowerCase(),
         spaceLabel: selectedSpace?.label ?? "—",
         establishmentName: selectedEstablishment?.name ?? "—",
         temporaryPassword: DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD,
       });
 
       setForm({ ...emptyForm, establishmentId: defaultEstablishmentId });
+      setLoginTouched(false);
       onCreated();
     });
   }
@@ -116,7 +125,7 @@ export function CreateEmployeeModal({
     <ModalShell
       formId="create-employee-form"
       title="Créer un compte employé"
-      subtitle="FasoBar attribue automatiquement un mot de passe temporaire. Communiquez les identifiants à l'employé."
+      subtitle="FasoBar attribue un identifiant personnel et un mot de passe temporaire. Communiquez-les à l'employé."
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={
@@ -162,14 +171,17 @@ export function CreateEmployeeModal({
         />
 
         <FormField
-          id="email"
-          name="email"
-          label="E-mail"
-          type="email"
-          autoComplete="email"
+          id="loginIdentifier"
+          name="loginIdentifier"
+          label="Identifiant FasoBar"
+          type="text"
+          autoComplete="username"
           required
-          value={form.email}
-          onChange={(event) => updateField("email", event.target.value)}
+          value={form.loginIdentifier}
+          onChange={(event) => {
+            setLoginTouched(true);
+            updateField("loginIdentifier", event.target.value);
+          }}
         />
 
         <FormField
@@ -212,11 +224,10 @@ export function CreateEmployeeModal({
               checked={form.space === space.id}
               onChange={() => updateField("space", space.id)}
               className="mt-1 h-4 w-4 accent-emerald-700"
-              required
             />
             <span>
               <span className="block text-sm font-medium text-slate-900">{space.label}</span>
-              <span className="mt-1 block text-sm text-slate-600">{space.description}</span>
+              <span className="mt-0.5 block text-xs text-slate-500">{space.description}</span>
             </span>
           </label>
         ))}

@@ -13,6 +13,7 @@ import {
   canApproveRequest,
   canOwnerAccessSubscriptionZone,
   daysUntil,
+  getSubscriptionExpiryAlert,
   isBusinessAccessStatus,
   isEmployeeBlockedBySaas,
   isOpenRequestStatus,
@@ -319,5 +320,54 @@ describe("daysUntil et labels UI", () => {
       "Tolérance hors ligne",
     );
     expect(PLATFORM_MACHINE_STATUS_LABELS.BLOCKED).toBe("Bloquée");
+  });
+});
+
+describe("getSubscriptionExpiryAlert", () => {
+  const now = new Date("2026-08-11T10:00:00.000Z");
+
+  it("alerte dans la fenêtre des 7 jours", () => {
+    const alert = getSubscriptionExpiryAlert({
+      status: "ACTIVE",
+      expiresAt: "2026-08-16T10:00:00.000Z",
+      now,
+    });
+    expect(alert).toEqual({
+      daysLeft: 5,
+      endsAt: "2026-08-16T10:00:00.000Z",
+      kind: "subscription",
+      urgency: "warning",
+    });
+  });
+
+  it("passe en critique à 3 jours ou moins", () => {
+    const alert = getSubscriptionExpiryAlert({
+      status: "TRIAL",
+      expiresAt: "2026-08-13T10:00:00.000Z",
+      now,
+    });
+    expect(alert?.urgency).toBe("critical");
+    expect(alert?.kind).toBe("trial");
+    expect(alert?.daysLeft).toBe(2);
+  });
+
+  it("ne alerte pas hors fenêtre", () => {
+    expect(
+      getSubscriptionExpiryAlert({
+        status: "ACTIVE",
+        expiresAt: "2026-09-01T10:00:00.000Z",
+        now,
+      }),
+    ).toBeNull();
+  });
+
+  it("ignore les statuts non actifs", () => {
+    expect(
+      getSubscriptionExpiryAlert({
+        status: "EXPIRED",
+        expiresAt: "2026-08-12T10:00:00.000Z",
+        now,
+      }),
+    ).toBeNull();
   });
 });

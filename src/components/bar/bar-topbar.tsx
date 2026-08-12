@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, ChevronDown, Circle, Home, UserRound } from "lucide-react";
+import { ChevronDown, Circle, Home, UserRound } from "lucide-react";
 
 import { signOutAction } from "@/lib/auth/actions";
+import { LiveClock } from "@/components/ui/live-clock";
 
 type BarTopbarProps = {
   establishmentName: string;
@@ -20,18 +21,6 @@ export function BarTopbar({
   sessionOpenedAt,
   openSessionHolderName,
 }: BarTopbarProps) {
-  const now = new Date();
-  const dateLabel = new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(now);
-  const weekdayLabel = new Intl.DateTimeFormat("fr-FR", {
-    weekday: "long",
-  }).format(now);
-  const weekday =
-    weekdayLabel.charAt(0).toUpperCase() + weekdayLabel.slice(1);
-
   const openedLabel = sessionOpenedAt
     ? new Date(sessionOpenedAt).toLocaleTimeString("fr-FR", {
         hour: "2-digit",
@@ -86,14 +75,7 @@ export function BarTopbar({
         </p>
       </Link>
 
-      <div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-1.5 lg:flex">
-        <CalendarDays className="h-4 w-4 shrink-0 text-slate-400" />
-        <p className="whitespace-nowrap text-[13px] text-slate-700">
-          <span className="font-semibold text-slate-900">{dateLabel}</span>
-          <span className="text-slate-400"> · </span>
-          <span className="text-slate-500">{weekday}</span>
-        </p>
-      </div>
+      <LiveClock className="hidden lg:inline-flex" />
 
       <div className="flex flex-1 items-center justify-end">
         <form action={signOutAction}>

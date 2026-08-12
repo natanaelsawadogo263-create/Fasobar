@@ -14,8 +14,12 @@ import {
 
 import { updateEstablishmentSettingsAction } from "@/app/(protected)/application/parametres/actions";
 import { AlertMessage } from "@/components/auth/alert-message";
+import { EstablishmentLogoField } from "@/components/admin/establishment-logo-field";
 import { NumberField, SelectField, TextField } from "@/components/ui/form-controls";
+import { generatePasswordRecoveryLinkAction } from "@/lib/auth/actions";
+import { isInternalFasoBarAuthEmail } from "@/lib/auth/login-identifier";
 import type { EstablishmentSettings } from "@/lib/settings/types";
+import { createClient } from "@/lib/supabase/client";
 
 type AdminSettingsWorkspaceProps = {
   settings: EstablishmentSettings | null;
@@ -57,7 +61,7 @@ const SECTIONS: Array<{
   {
     id: "receipt",
     label: "Reçu de caisse",
-    description: "Textes d'impression",
+    description: "Logo et textes d'impression",
     icon: Receipt,
   },
   {
@@ -102,6 +106,64 @@ export function AdminSettingsWorkspace({
         return;
       }
       setSuccess(result.success ?? "Paramètres enregistrés.");
+    });
+  }
+
+  function handleOwnerPasswordReset() {
+    const email = ownerEmail.trim().toLowerCase();
+    if (!email) {
+      setError("Adresse e-mail administrateur introuvable.");
+      return;
+    }
+
+    if (isInternalFasoBarAuthEmail(email)) {
+      setError("Utilisez Utilisateurs pour les comptes employés.");
+      return;
+    }
+
+    setError(null);
+    setSuccess(null);
+    startTransition(async () => {
+      const host = window.location.hostname;
+      const isLocal = host === "localhost" || host === "127.0.0.1";
+
+      if (isLocal) {
+        const direct = await generatePasswordRecoveryLinkAction(email);
+        if (direct.recoveryLink) {
+          window.location.assign(direct.recoveryLink);
+          return;
+        }
+      }
+
+      const origin = window.location.origin;
+      const supabase = createClient();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email,
+        {
+          redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/nouveau-mot-de-passe")}`,
+        },
+      );
+
+      if (!resetError) {
+        setSuccess("E-mail de réinitialisation envoyé.");
+        return;
+      }
+
+      const rateLimited =
+        resetError.code === "over_email_send_rate_limit" ||
+        resetError.message.toLowerCase().includes("email rate limit");
+
+      if (rateLimited) {
+        const fallback = await generatePasswordRecoveryLinkAction(email);
+        if (fallback.recoveryLink) {
+          window.location.assign(fallback.recoveryLink);
+          return;
+        }
+        setError("Trop d'e-mails envoyés. Réessayez dans une heure.");
+        return;
+      }
+
+      setError("Impossible d'envoyer l'e-mail de réinitialisation.");
     });
   }
 
@@ -195,12 +257,16 @@ export function AdminSettingsWorkspace({
                         </span>
                         .
                       </p>
-                      <Link
-                        href="/mot-de-passe-oublie"
-                        className="mt-3 inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
+                      <button
+                        type="button"
+                        disabled={isPending || !ownerEmail.trim()}
+                        onClick={handleOwnerPasswordReset}
+                        className="mt-3 inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        Réinitialiser mon mot de passe
-                      </Link>
+                        {isPending
+                          ? "Envoi du lien..."
+                          : "Réinitialiser mon mot de passe"}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -291,7 +357,6 @@ export function AdminSettingsWorkspace({
                         label="Quartier"
                         placeholder="Ex. Ouaga 2000, Zone 1…"
                         defaultValue={settings?.address ?? ""}
-                        placeholder="Ex. Secteur 15, Ouagadougou"
                       />
                       <TextField
                         id="phone"
@@ -331,8 +396,9 @@ export function AdminSettingsWorkspace({
                 <div className={section === "receipt" ? "space-y-6" : "hidden"}>
                   <SectionHeader
                     title="Reçu de caisse"
-                    description="Textes imprimés en tête, pied et remerciement du ticket."
+                    description="Logo et textes imprimés sur les reçus et additions."
                   />
+                  <EstablishmentLogoField existingUrl={settings?.logoUrl} />
                   <TextField
                     id="receiptHeader"
                     name="receiptHeader"

@@ -64,9 +64,12 @@ export const adminOrderStatusFilterSchema = z.enum([
 
 export const adminOrderDepartmentFilterSchema = z.enum(["all", "BAR", "KITCHEN"]);
 
+export const adminOrderPeriodFilterSchema = z.enum(["all", "day", "week", "month"]);
+
 export const adminOrderFiltersSchema = z.object({
   status: adminOrderStatusFilterSchema.default("all"),
   department: adminOrderDepartmentFilterSchema.default("all"),
+  period: adminOrderPeriodFilterSchema.default("all"),
   cashierId: z.string().uuid().optional().or(z.literal("")),
   from: z.string().trim().optional(),
   to: z.string().trim().optional(),
@@ -81,4 +84,5 @@ export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type SaveOrderInput = z.infer<typeof saveOrderSchema>;
 export type AdminOrderStatusFilter = z.infer<typeof adminOrderStatusFilterSchema>;
 export type AdminOrderDepartmentFilter = z.infer<typeof adminOrderDepartmentFilterSchema>;
+export type AdminOrderPeriodFilter = z.infer<typeof adminOrderPeriodFilterSchema>;
 export type AdminOrderFiltersInput = z.infer<typeof adminOrderFiltersSchema>;

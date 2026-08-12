@@ -56,7 +56,7 @@ describe("trois espaces utilisateurs", () => {
   it("11. formulaire valide pour compte Caisse–Cuisine", () => {
     const result = createEmployeeAccountSchema.safeParse({
       fullName: "Marie Konaté",
-      email: "marie@example.com",
+      loginIdentifier: "marie.konate",
       space: "cashier_kitchen",
       establishmentId: "00000000-0000-4000-8000-000000000001",
     });
@@ -67,7 +67,7 @@ describe("trois espaces utilisateurs", () => {
   it("12. formulaire valide pour compte Responsable Bar", () => {
     const result = createEmployeeAccountSchema.safeParse({
       fullName: "Moussa Traoré",
-      email: "moussa@example.com",
+      loginIdentifier: "moussa.traore",
       space: "bar_manager",
       establishmentId: "00000000-0000-4000-8000-000000000001",
     });
@@ -117,7 +117,8 @@ describe("protections de routes par espace", () => {
     expect(isPathAllowedForSpace("/application/commandes/order-1", "cashier_kitchen")).toBe(true);
     expect(isPathAllowedForSpace("/application/commandes", "cashier_kitchen")).toBe(false);
     expect(isPathAllowedForSpace("/application/caisses", "cashier_kitchen")).toBe(false);
-    expect(isPathAllowedForSpace("/application/depenses", "cashier_kitchen")).toBe(false);
+    expect(isPathAllowedForSpace("/application/depenses", "cashier_kitchen")).toBe(true);
+    expect(isPathAllowedForSpace("/application/approvisionnements", "cashier_kitchen")).toBe(true);
     expect(isPathAllowedForSpace("/application/cuisine", "cashier_kitchen")).toBe(true);
     expect(isPathAllowedForSpace("/application/encaissement/order-1", "cashier_kitchen")).toBe(true);
   });
@@ -130,6 +131,7 @@ describe("protections de routes par espace", () => {
     expect(isPathAllowedForSpace("/application/bar/operations", "bar_manager")).toBe(false);
     expect(isPathAllowedForSpace("/application/bar/historique", "bar_manager")).toBe(true);
     expect(isPathAllowedForSpace("/application/bar/session", "bar_manager")).toBe(true);
+    expect(isPathAllowedForSpace("/application/depenses", "bar_manager")).toBe(true);
     expect(isPathAllowedForSpace("/application/approvisionnements", "bar_manager")).toBe(false);
     expect(isPathAllowedForSpace("/application/produits", "bar_manager")).toBe(false);
     expect(isPathAllowedForSpace("/application/stock/boissons", "bar_manager")).toBe(false);

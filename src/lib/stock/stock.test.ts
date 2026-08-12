@@ -103,6 +103,7 @@ describe("stock schemas", () => {
       supplierId: "00000000-0000-4000-8000-000000000099",
       name: "Grossiste Central",
       phone: "+226 70 00 00 00",
+      departmentCode: "BAR",
       active: true,
     });
 
@@ -113,10 +114,14 @@ describe("stock schemas", () => {
     const result = createSupplierSchema.safeParse({
       name: "Société ABC",
       phone: "+226 70 00 00 00",
+      departmentCode: "KITCHEN",
       active: true,
     });
 
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.departmentCode).toBe("KITCHEN");
+    }
   });
 });
 

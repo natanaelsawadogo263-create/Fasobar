@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdminContext } from "@/lib/auth/workspace-context";
+import { requireAdminMutationContext } from "@/lib/auth/workspace-context";
 import {
   getAdminBarSessionDetail,
   type AdminBarSessionDetail,
@@ -9,7 +9,7 @@ import {
 export async function getAdminBarSessionDetailAction(
   sessionId: string,
 ): Promise<{ data?: AdminBarSessionDetail; error?: string }> {
-  const workspace = await requireAdminContext();
+  const workspace = await requireAdminMutationContext();
 
   if (!sessionId) {
     return { error: "Session invalide." };

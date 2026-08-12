@@ -14,22 +14,29 @@ import {
   ShoppingBag,
   TrendingUp,
   Truck,
-  UtensilsCrossed,
   Wallet,
   Wine,
 } from "lucide-react";
 
 import { getReportDataAction } from "@/app/(protected)/application/rapports/actions";
 import { AlertMessage } from "@/components/auth/alert-message";
+import { BeneficesReportPanel } from "@/components/admin/benefices-report-panel";
 import { downloadCsv } from "@/lib/csv/download-csv";
 import { formatReportCell, REPORT_TYPE_OPTIONS } from "@/lib/reports/constants";
 import type { ReportFiltersInput, ReportType } from "@/lib/reports/schemas";
 import type { ReportResult } from "@/lib/reports/types";
 
+type ReportEstablishmentInfo = {
+  name: string;
+  address: string | null;
+  phone: string | null;
+  logoUrl: string | null;
+};
+
 type AdminReportsWorkspaceProps = {
   initialReport: ReportResult;
   initialFilters: ReportFiltersInput;
-  establishmentName: string;
+  establishment: ReportEstablishmentInfo;
 };
 
 const REPORT_ICONS: Partial<
@@ -37,17 +44,18 @@ const REPORT_ICONS: Partial<
 > = {
   ventes: ShoppingBag,
   produits_vendus: Package,
+  benefices: TrendingUp,
   stock_boissons: Wine,
   approvisionnements: Truck,
   pertes_casse: AlertTriangle,
-  depenses_cuisine: UtensilsCrossed,
+  depenses: Wallet,
   sessions_caisse: Landmark,
   ecarts_caisse: Wallet,
   activite_utilisateurs: Activity,
 };
 
 const REPORT_GROUPS: Array<{ label: string; types: ReportType[] }> = [
-  { label: "Commercial", types: ["ventes", "produits_vendus"] },
+  { label: "Commercial", types: ["ventes", "produits_vendus", "benefices"] },
   {
     label: "Stock & achats",
     types: ["stock_boissons", "approvisionnements", "pertes_casse"],
@@ -55,7 +63,7 @@ const REPORT_GROUPS: Array<{ label: string; types: ReportType[] }> = [
   { label: "Caisse", types: ["sessions_caisse", "ecarts_caisse"] },
   {
     label: "Administration",
-    types: ["depenses_cuisine", "activite_utilisateurs"],
+    types: ["depenses", "activite_utilisateurs"],
   },
 ];
 
@@ -108,12 +116,27 @@ function summaryTone(
     normalized.includes("chiffre") ||
     normalized.includes("montant") ||
     normalized.includes("valeur") ||
-    normalized.includes("total")
+    normalized.includes("total") ||
+    normalized.includes("bénéfice") ||
+    normalized.includes("benefice") ||
+    normalized.includes("ca ")
   ) {
     return {
       card: "border-emerald-100 bg-emerald-50/50",
       icon: "bg-emerald-100 text-emerald-700",
       iconKey: "trend",
+    };
+  }
+
+  if (
+    normalized.includes("dépense") ||
+    normalized.includes("depense") ||
+    normalized.includes("appro")
+  ) {
+    return {
+      card: "border-amber-100 bg-amber-50/40",
+      icon: "bg-amber-100 text-amber-700",
+      iconKey: "basket",
     };
   }
 
@@ -173,13 +196,15 @@ const SUMMARY_ICONS = {
 export function AdminReportsWorkspace({
   initialReport,
   initialFilters,
-  establishmentName,
+  establishment,
 }: AdminReportsWorkspaceProps) {
   const [report, setReport] = useState<ReportResult>(initialReport);
   const [filters, setFilters] = useState<ReportFiltersInput>(initialFilters);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const presets = useMemo(() => periodPresets(), []);
+
+  const [printStamp, setPrintStamp] = useState<string | null>(null);
 
   const optionsById = useMemo(
     () => new Map(REPORT_TYPE_OPTIONS.map((option) => [option.id, option])),
@@ -237,22 +262,105 @@ export function AdminReportsWorkspace({
 
   function exportCsv() {
     const filenameSuffix = new Date().toISOString().slice(0, 10);
+    const exportedAt = new Date().toLocaleString("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const preamble = [
+      ["Établissement", establishment.name],
+      ...(establishment.address ? [["Adresse", establishment.address]] : []),
+      ...(establishment.phone ? [["Téléphone", establishment.phone]] : []),
+      ["Rapport", report.title],
+      ["Période", periodLabel],
+      ["Exporté le", exportedAt],
+      [],
+    ];
+
+    // Si le rapport n'a que des indicateurs (pas de lignes), exporter le résumé.
+    if (report.rows.length === 0) {
+      downloadCsv(
+        `rapport-${report.type}-${filenameSuffix}.csv`,
+        ["Indicateur", "Valeur"],
+        report.summary.map((item) => [item.label, item.value]),
+        { preamble },
+      );
+      return;
+    }
+
+    // Ventes : résumé + détail des commandes dans le CSV.
+    const ventesSummaryBlock =
+      report.type === "ventes" && report.summary.length > 0
+        ? [
+            ...report.summary.map((item) => [item.label, item.value]),
+            [],
+          ]
+        : [];
+
     downloadCsv(
       `rapport-${report.type}-${filenameSuffix}.csv`,
       report.columns.map((column) => column.label),
-      report.rows.map((row) => report.columns.map((column) => row[column.key])),
+      report.rows.map((row) =>
+        report.columns.map((column) => {
+          const value = row[column.key];
+          if (
+            column.format === "currency" ||
+            column.format === "number" ||
+            column.format === "date" ||
+            column.format === "datetime"
+          ) {
+            return formatReportCell(value, column.format);
+          }
+          return value;
+        }),
+      ),
+      {
+        preamble: [...preamble, ...ventesSummaryBlock],
+      },
     );
   }
 
   return (
-    <div className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden px-4 py-3 lg:gap-3.5 lg:px-5 lg:py-4">
-      <header className="flex shrink-0 flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+    <div className="reports-print-root grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden px-4 py-3 lg:gap-3.5 lg:px-5 lg:py-4">
+      <div className="reports-print-header mb-4 hidden border-b border-slate-300 pb-4 print:flex print:items-start print:gap-4">
+        {establishment.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={establishment.logoUrl}
+            alt={`Logo ${establishment.name}`}
+            className="h-16 w-auto max-w-[140px] object-contain"
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <p className="text-lg font-bold text-slate-900">{establishment.name}</p>
+          {establishment.address ? (
+            <p className="mt-0.5 text-xs text-slate-600">{establishment.address}</p>
+          ) : null}
+          {establishment.phone ? (
+            <p className="text-xs text-slate-600">Tél. {establishment.phone}</p>
+          ) : null}
+          <p className="mt-2 text-sm font-semibold text-slate-900">{report.title}</p>
+          <p className="text-xs text-slate-600">
+            Période : {periodLabel}
+            {printStamp ? (
+              <>
+                <span className="mx-1.5 text-slate-300">·</span>
+                Imprimé le {printStamp}
+              </>
+            ) : null}
+          </p>
+        </div>
+      </div>
+
+      <header className="flex shrink-0 flex-col gap-3 print:hidden xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0">
           <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
             Rapports
           </h1>
           <p className="mt-0.5 text-[12px] text-slate-500">
-            <span className="font-medium text-slate-700">{establishmentName}</span>
+            <span className="font-medium text-slate-700">{establishment.name}</span>
             <span className="mx-1.5 text-slate-300">·</span>
             <span className="inline-flex items-center gap-1">
               <CalendarRange className="h-3.5 w-3.5" />
@@ -307,7 +415,9 @@ export function AdminReportsWorkspace({
           <button
             type="button"
             onClick={exportCsv}
-            disabled={report.rows.length === 0 || isPending}
+            disabled={
+              (report.rows.length === 0 && report.summary.length === 0) || isPending
+            }
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" />
@@ -315,7 +425,25 @@ export function AdminReportsWorkspace({
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => {
+              setPrintStamp(
+                new Date().toLocaleString("fr-FR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              );
+              const root = document.documentElement;
+              const clearPrintMode = () => {
+                root.classList.remove("printing-reports");
+                window.removeEventListener("afterprint", clearPrintMode);
+              };
+              root.classList.add("printing-reports");
+              window.addEventListener("afterprint", clearPrintMode);
+              window.setTimeout(() => window.print(), 80);
+            }}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm hover:bg-emerald-500"
           >
             <Printer className="h-3.5 w-3.5" />
@@ -330,7 +458,7 @@ export function AdminReportsWorkspace({
         </div>
       ) : null}
 
-      <div className="grid min-h-0 gap-3 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-3.5 print:grid-cols-1">
+      <div className="grid min-h-0 gap-3 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-3.5 print:block print:h-auto print:overflow-visible">
         <aside className="hidden min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm print:hidden lg:flex">
           <div className="border-b border-slate-100 px-3.5 py-2.5">
             <p className="text-[12px] font-semibold text-slate-900">Catalogue</p>
@@ -385,7 +513,7 @@ export function AdminReportsWorkspace({
           </div>
         </aside>
 
-        <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+        <div className="reports-print-body flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm print:overflow-visible print:border-0 print:shadow-none">
           <div className="shrink-0 border-b border-slate-100 px-3.5 py-2.5 print:hidden lg:hidden">
             <select
               value={report.type}
@@ -424,12 +552,14 @@ export function AdminReportsWorkspace({
                   </div>
                 </div>
               </div>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
-                {report.rows.length} résultat{report.rows.length > 1 ? "s" : ""}
-              </span>
+              {report.type !== "benefices" && report.type !== "ventes" ? (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
+                  {report.rows.length} résultat{report.rows.length > 1 ? "s" : ""}
+                </span>
+              ) : null}
             </div>
 
-            {report.summary.length > 0 ? (
+            {report.type !== "benefices" && report.summary.length > 0 ? (
               <div
                 className={`mt-2.5 grid gap-2 ${
                   report.summary.length === 1
@@ -438,7 +568,9 @@ export function AdminReportsWorkspace({
                       ? "grid-cols-2"
                       : report.summary.length === 3
                         ? "grid-cols-3"
-                        : "grid-cols-2 xl:grid-cols-4"
+                        : report.summary.length === 6
+                          ? "grid-cols-2 xl:grid-cols-3"
+                          : "grid-cols-2 xl:grid-cols-4"
                 }`}
               >
                 {report.summary.map((item, index) => {
@@ -471,9 +603,9 @@ export function AdminReportsWorkspace({
             ) : null}
           </div>
 
-          <div className="relative min-h-0 flex-1">
+          <div className="relative min-h-0 flex-1 print:h-auto print:overflow-visible">
             {isPending ? (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 print:hidden">
                 <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[12px] font-medium text-slate-600 shadow-sm">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
                   Chargement…
@@ -481,7 +613,70 @@ export function AdminReportsWorkspace({
               </div>
             ) : null}
 
-            {report.rows.length === 0 && !isPending ? (
+            {report.type === "benefices" ? (
+              <BeneficesReportPanel report={report} />
+            ) : report.type === "ventes" ? (
+              <>
+                <div className="flex h-full flex-col items-center justify-center px-6 text-center print:hidden">
+                  <p className="max-w-md text-[12px] text-slate-500">
+                    La synthèse est affichée ci-dessus. Le détail des commandes
+                    est inclus à l&apos;impression et à l&apos;export CSV.
+                  </p>
+                </div>
+                {report.rows.length > 0 ? (
+                  <div className="reports-table-scroll reports-print-scroll hidden h-full overflow-y-auto overflow-x-hidden print:block print:h-auto print:overflow-visible">
+                    <table className="min-w-full text-left text-[12px] print:w-full">
+                      <thead className="bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-400 print:bg-white">
+                        <tr>
+                          {report.columns.map((column) => (
+                            <th
+                              key={column.key}
+                              className={`px-3.5 py-2.5 font-medium ${
+                                column.format === "currency" ||
+                                column.format === "number"
+                                  ? "text-right"
+                                  : ""
+                              }`}
+                            >
+                              {column.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {report.rows.map((row, index) => (
+                          <tr
+                            key={index}
+                            className="text-slate-700 print:break-inside-avoid"
+                          >
+                            {report.columns.map((column, columnIndex) => {
+                              const isNumeric =
+                                column.format === "currency" ||
+                                column.format === "number";
+                              const isMoney = column.format === "currency";
+                              return (
+                                <td
+                                  key={column.key}
+                                  className={`px-3.5 py-2.5 ${
+                                    isNumeric ? "text-right tabular-nums" : ""
+                                  } ${
+                                    columnIndex === 0 || isMoney
+                                      ? "font-semibold text-slate-900"
+                                      : ""
+                                  }`}
+                                >
+                                  {formatReportCell(row[column.key], column.format)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+              </>
+            ) : report.rows.length === 0 && !isPending ? (
               <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 text-slate-400 ring-1 ring-slate-200">
                   <BarChart3 className="h-6 w-6" />
@@ -495,9 +690,9 @@ export function AdminReportsWorkspace({
                 </p>
               </div>
             ) : (
-              <div className="app-scroll h-full overflow-auto">
-                <table className="min-w-full text-left text-[12px]">
-                  <thead className="sticky top-0 z-10 bg-slate-50/95 text-[10px] font-semibold uppercase tracking-wide text-slate-400 backdrop-blur">
+              <div className="reports-table-scroll reports-print-scroll h-full overflow-y-auto overflow-x-hidden print:h-auto print:overflow-visible">
+                <table className="min-w-full text-left text-[12px] print:w-full">
+                  <thead className="sticky top-0 z-10 bg-slate-50/95 text-[10px] font-semibold uppercase tracking-wide text-slate-400 backdrop-blur print:static print:bg-white">
                     <tr>
                       {report.columns.map((column) => (
                         <th
@@ -517,7 +712,7 @@ export function AdminReportsWorkspace({
                     {report.rows.map((row, index) => (
                       <tr
                         key={index}
-                        className="text-slate-700 hover:bg-slate-50/70"
+                        className="text-slate-700 hover:bg-slate-50/70 print:break-inside-avoid"
                       >
                         {report.columns.map((column, columnIndex) => {
                           const isNumeric =

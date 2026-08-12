@@ -5,10 +5,15 @@ import { LogOut } from "lucide-react";
 
 import { signOutAction } from "@/lib/auth/actions";
 import { PLATFORM_NAV_ITEMS } from "@/lib/platform/navigation";
+import { LiveClock } from "@/components/ui/live-clock";
+import { PlatformExpiryAlertsBell } from "@/components/platform/platform-expiry-alerts-bell";
+import type { PlatformExpiryAlert } from "@/lib/platform/expiry-alerts-types";
 
 type PlatformTopbarProps = {
   adminEmail: string;
   adminName?: string | null;
+  expiryAlerts?: PlatformExpiryAlert[];
+  warningDaysBeforeExpiry?: number;
 };
 
 function resolvePageTitle(pathname: string): string {
@@ -31,7 +36,12 @@ function resolveDisplayName(adminName: string | null | undefined, adminEmail: st
   return trimmed;
 }
 
-export function PlatformTopbar({ adminEmail, adminName }: PlatformTopbarProps) {
+export function PlatformTopbar({
+  adminEmail,
+  adminName,
+  expiryAlerts = [],
+  warningDaysBeforeExpiry = 7,
+}: PlatformTopbarProps) {
   const pathname = usePathname();
   const pageTitle = resolvePageTitle(pathname);
   const displayName = resolveDisplayName(adminName, adminEmail);
@@ -56,7 +66,12 @@ export function PlatformTopbar({ adminEmail, adminName }: PlatformTopbarProps) {
       </div>
 
       <div className="flex min-w-0 items-center gap-3">
-        <div className="hidden min-w-0 text-right leading-tight sm:block">
+        <PlatformExpiryAlertsBell
+          alerts={expiryAlerts}
+          warningDays={warningDaysBeforeExpiry}
+        />
+        <LiveClock className="hidden sm:inline-flex" />
+        <div className="hidden min-w-0 text-right leading-tight md:block">
           <p className="truncate text-[12px] font-semibold text-slate-900">
             {displayName}
           </p>

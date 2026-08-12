@@ -2,7 +2,7 @@
 
 import { mapGenericError } from "@/lib/auth/errors";
 import {
-  requireStockManagementContext,
+  requireStockManagementMutationContext,
   requireStockReadContext,
   type WorkspaceContext,
 } from "@/lib/auth/workspace-context";
@@ -59,7 +59,7 @@ export async function recordStockEntryAction(
   _prevState: StockActionState,
   formData: FormData,
 ): Promise<StockActionState> {
-  const workspace = await requireStockManagementContext();
+  const workspace = await requireStockManagementMutationContext();
 
   const rawUnitCost = formData.get("unitCost");
   const parsed = stockEntrySchema.safeParse({
@@ -153,7 +153,7 @@ export async function recordStockLossAction(
   _prevState: StockActionState,
   formData: FormData,
 ): Promise<StockActionState> {
-  const workspace = await requireStockManagementContext();
+  const workspace = await requireStockManagementMutationContext();
 
   const parsed = stockLossSchema.safeParse({
     stockItemId: formData.get("stockItemId"),
@@ -224,7 +224,7 @@ export async function adjustStockQuantityAction(
   _prevState: StockActionState,
   formData: FormData,
 ): Promise<StockActionState> {
-  const workspace = await requireStockManagementContext();
+  const workspace = await requireStockManagementMutationContext();
 
   const parsed = stockAdjustmentSchema.safeParse({
     stockItemId: formData.get("stockItemId"),
@@ -276,12 +276,13 @@ export async function createSupplierAction(
   _prevState: StockActionState,
   formData: FormData,
 ): Promise<StockActionState> {
-  const workspace = await requireStockManagementContext();
+  const workspace = await requireStockManagementMutationContext();
 
   const parsed = createSupplierSchema.safeParse({
     name: formData.get("name"),
     phone: formData.get("phone") || undefined,
     address: formData.get("address") || undefined,
+    departmentCode: formData.get("departmentCode") || "BAR",
     active: parseCheckbox(formData.get("active")),
   });
 
@@ -299,12 +300,20 @@ export async function createSupplierAction(
       name: parsed.data.name,
       phone: parsed.data.phone ?? null,
       address: parsed.data.address ?? null,
+      department_code: parsed.data.departmentCode,
       active: parsed.data.active,
     })
     .select("id")
     .single();
 
   if (error || !supplier) {
+    const message = (error?.message ?? "").toLowerCase();
+    if (message.includes("department_code")) {
+      return {
+        error:
+          "Migration fournisseurs (Bar/Cuisine) non appliquée. Exécutez 20260811150000_supplier_department.sql.",
+      };
+    }
     return { error: mapGenericError(error) };
   }
 
@@ -318,6 +327,7 @@ export async function createSupplierAction(
     metadata: {
       eventType: "SUPPLIER_CREATED",
       name: parsed.data.name,
+      departmentCode: parsed.data.departmentCode,
       active: parsed.data.active,
     },
   });
@@ -330,13 +340,14 @@ export async function updateSupplierAction(
   _prevState: StockActionState,
   formData: FormData,
 ): Promise<StockActionState> {
-  const workspace = await requireStockManagementContext();
+  const workspace = await requireStockManagementMutationContext();
 
   const parsed = updateSupplierSchema.safeParse({
     supplierId: formData.get("supplierId"),
     name: formData.get("name"),
     phone: formData.get("phone") || undefined,
     address: formData.get("address") || undefined,
+    departmentCode: formData.get("departmentCode") || "BAR",
     active: parseCheckbox(formData.get("active")),
   });
 
@@ -358,12 +369,20 @@ export async function updateSupplierAction(
       name: parsed.data.name,
       phone: parsed.data.phone ?? null,
       address: parsed.data.address ?? null,
+      department_code: parsed.data.departmentCode,
       active: parsed.data.active,
     })
     .eq("id", parsed.data.supplierId)
     .eq("establishment_id", workspace.establishmentId);
 
   if (error) {
+    const message = (error.message ?? "").toLowerCase();
+    if (message.includes("department_code")) {
+      return {
+        error:
+          "Migration fournisseurs (Bar/Cuisine) non appliquée. Exécutez 20260811150000_supplier_department.sql.",
+      };
+    }
     return { error: mapGenericError(error) };
   }
 
@@ -391,7 +410,7 @@ export async function toggleSupplierStatusAction(
   active: boolean,
   confirmed: boolean,
 ): Promise<StockActionState> {
-  const workspace = await requireStockManagementContext();
+  const workspace = await requireStockManagementMutationContext();
 
   const parsed = toggleSupplierStatusSchema.safeParse({
     supplierId,
@@ -450,7 +469,7 @@ export async function createStockItemAction(
   _prevState: StockActionState,
   formData: FormData,
 ): Promise<StockActionState> {
-  const workspace = await requireStockManagementContext();
+  const workspace = await requireStockManagementMutationContext();
 
   const parsed = createStockItemSchema.safeParse({
     name: formData.get("name"),
@@ -581,7 +600,7 @@ export async function startInventorySessionAction(
   _prevState: StockActionState,
   formData: FormData,
 ): Promise<StockActionState> {
-  const workspace = await requireStockManagementContext();
+  const workspace = await requireStockManagementMutationContext();
 
   const parsed = startInventorySchema.safeParse({
     departmentCode: formData.get("departmentCode"),

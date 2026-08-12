@@ -31,6 +31,7 @@ export type AbonnementRequest = {
   id: string;
   referenceCode: string;
   status: PlatformRequestStatus;
+  planId: string;
   planCode: string;
   planName: string;
   billingPeriod: string;
@@ -66,7 +67,7 @@ export type AbonnementPageData = {
   orangeMoneyNumber: string;
   paymentInstructions: string | null;
   trialEnabled: boolean;
-  trialDurationMonths: number;
+  trialDurationDays: number;
   plans: AbonnementPlan[];
   openRequest: AbonnementRequest | null;
   requests: AbonnementRequest[];
@@ -96,7 +97,7 @@ export async function getOwnerAbonnementData(
     orangeMoneyNumber: "+22657537299",
     paymentInstructions: null,
     trialEnabled: true,
-    trialDurationMonths: 1,
+    trialDurationDays: 7,
     plans: [],
     openRequest: null,
     requests: [],
@@ -117,7 +118,7 @@ export async function getOwnerAbonnementData(
       supabase
         .from("platform_settings")
         .select(
-          "orange_money_number, payment_instructions, trial_enabled, trial_duration_months",
+          "orange_money_number, payment_instructions, trial_enabled, trial_duration_days, trial_duration_months",
         )
         .eq("id", 1)
         .maybeSingle(),
@@ -136,7 +137,7 @@ export async function getOwnerAbonnementData(
       supabase
         .from("subscription_requests")
         .select(
-          "id, reference_code, status, plan_code, plan_name, billing_period, price_xof, expected_amount_xof, orange_money_number, transaction_reference, review_note, rejection_reason, created_at, submitted_at, approved_at",
+          "id, reference_code, status, plan_id, plan_code, plan_name, billing_period, price_xof, expected_amount_xof, orange_money_number, transaction_reference, review_note, rejection_reason, created_at, submitted_at, approved_at",
         )
         .eq("organization_id", organizationId)
         .order("created_at", { ascending: false }),
@@ -153,6 +154,7 @@ export async function getOwnerAbonnementData(
     const hardError =
       (settingsResult.error &&
         !isMissingTableError(settingsResult.error.message) &&
+        !/trial_duration_days/i.test(settingsResult.error.message) &&
         settingsResult.error.message) ||
       (plansResult.error &&
         !isMissingTableError(plansResult.error.message) &&
@@ -173,7 +175,22 @@ export async function getOwnerAbonnementData(
       return { ...empty, error: hardError };
     }
 
-    const settings = settingsResult.data;
+    let settings = settingsResult.data;
+    if (
+      settingsResult.error &&
+      /trial_duration_days/i.test(settingsResult.error.message)
+    ) {
+      const fallback = await supabase
+        .from("platform_settings")
+        .select(
+          "orange_money_number, payment_instructions, trial_enabled, trial_duration_months",
+        )
+        .eq("id", 1)
+        .maybeSingle();
+      settings = fallback.data
+        ? { ...fallback.data, trial_duration_days: 7 }
+        : null;
+    }
     const plans: AbonnementPlan[] = (plansResult.data ?? []).map((p) => ({
       id: p.id,
       code: p.code,
@@ -191,6 +208,7 @@ export async function getOwnerAbonnementData(
       status: isPlatformRequestStatus(r.status)
         ? r.status
         : ("PENDING_PAYMENT" as PlatformRequestStatus),
+      planId: r.plan_id,
       planCode: r.plan_code,
       planName: r.plan_name,
       billingPeriod: r.billing_period,
@@ -255,7 +273,11 @@ export async function getOwnerAbonnementData(
         settings?.orange_money_number ?? empty.orangeMoneyNumber,
       paymentInstructions: settings?.payment_instructions ?? null,
       trialEnabled: settings?.trial_enabled ?? true,
-      trialDurationMonths: settings?.trial_duration_months ?? 1,
+      trialDurationDays:
+        typeof settings?.trial_duration_days === "number" &&
+        settings.trial_duration_days > 0
+          ? settings.trial_duration_days
+          : 7,
       plans,
       openRequest,
       requests,

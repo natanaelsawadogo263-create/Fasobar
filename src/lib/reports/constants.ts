@@ -2,11 +2,21 @@ import type { ReportType } from "@/lib/reports/schemas";
 import type { ReportColumnFormat } from "@/lib/reports/types";
 
 export const REPORT_TYPE_OPTIONS: Array<{ id: ReportType; label: string; description: string }> = [
-  { id: "ventes", label: "Ventes", description: "Commandes payées de la période." },
+  {
+    id: "ventes",
+    label: "Ventes",
+    description: "Synthèse du chiffre d'affaires. Détail des commandes inclus à l'export / impression.",
+  },
   {
     id: "produits_vendus",
     label: "Produits vendus",
     description: "Quantités et chiffre d'affaires par produit (ventes payées).",
+  },
+  {
+    id: "benefices",
+    label: "Bénéfices",
+    description:
+      "Vue Bar / Cuisine : CA, approvisionnements, dépenses et bénéfice net.",
   },
   {
     id: "stock_boissons",
@@ -16,7 +26,7 @@ export const REPORT_TYPE_OPTIONS: Array<{ id: ReportType; label: string; descrip
   {
     id: "approvisionnements",
     label: "Approvisionnements",
-    description: "Entrées de stock (achats) enregistrées.",
+    description: "Entrées de stock (achats) Bar et Cuisine.",
   },
   {
     id: "pertes_casse",
@@ -24,9 +34,9 @@ export const REPORT_TYPE_OPTIONS: Array<{ id: ReportType; label: string; descrip
     description: "Pertes, casse, consommation personnel et articles offerts.",
   },
   {
-    id: "depenses_cuisine",
-    label: "Dépenses cuisine",
-    description: "Achats et charges enregistrés pour la Cuisine.",
+    id: "depenses",
+    label: "Dépenses",
+    description: "Toutes les dépenses enregistrées (Caisse / Bar).",
   },
   {
     id: "sessions_caisse",

@@ -421,7 +421,7 @@ export function PlatformClientDetailView({
                 tone="secondary"
                 onClick={() => setModal("extend")}
               >
-                Prolonger essai
+                Prolonger l’essai (jours)
               </PlatformButton>
             ) : null}
           </>
@@ -1010,16 +1010,23 @@ export function PlatformClientDetailView({
               {modalTitle[modal]}
             </h3>
             {modal === "extend" ? (
-              <label className="mt-4 block text-[12px] font-medium text-slate-700">
-                Jours supplémentaires
-                <input
-                  type="number"
-                  min={1}
-                  value={extraDays}
-                  onChange={(e) => setExtraDays(e.target.value)}
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-[13px] outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
+              <div className="mt-4 space-y-3">
+                <p className="text-[12px] leading-relaxed text-slate-600">
+                  Prolongation réservée à ce client. La nouvelle date de fin
+                  s’ajoute à l’échéance actuelle (ou à aujourd’hui si déjà
+                  dépassée).
+                </p>
+                <label className="block text-[12px] font-medium text-slate-700">
+                  Jours supplémentaires
+                  <input
+                    type="number"
+                    min={1}
+                    value={extraDays}
+                    onChange={(e) => setExtraDays(e.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-[13px] outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  />
+                </label>
+              </div>
             ) : null}
             {modal === "purge" ? (
               <label className="mt-4 block text-[12px] font-medium text-slate-700">

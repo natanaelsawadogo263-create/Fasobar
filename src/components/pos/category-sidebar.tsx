@@ -2,7 +2,6 @@
 
 import { LayoutGrid, Tag, UtensilsCrossed, Wine } from "lucide-react";
 
-import { ProductSearch } from "@/components/pos/product-search";
 import type { DepartmentFilter } from "@/components/pos/constants";
 import type { CashierCategory } from "@/lib/orders/types";
 
@@ -10,11 +9,8 @@ type CategorySidebarProps = {
   categories: CashierCategory[];
   departmentFilter: DepartmentFilter;
   categoryId: string;
-  search: string;
-  searchInputRef: React.RefObject<HTMLInputElement | null>;
   onDepartmentChange: (filter: DepartmentFilter) => void;
   onCategoryChange: (categoryId: string) => void;
-  onSearchChange: (value: string) => void;
 };
 
 const DEPARTMENTS: {
@@ -31,11 +27,8 @@ export function CategorySidebar({
   categories,
   departmentFilter,
   categoryId,
-  search,
-  searchInputRef,
   onDepartmentChange,
   onCategoryChange,
-  onSearchChange,
 }: CategorySidebarProps) {
   const filteredCategories = categories.filter((category) => {
     if (departmentFilter === "bar") return category.departmentCode === "BAR";
@@ -45,20 +38,6 @@ export function CategorySidebar({
 
   return (
     <aside className="flex h-full w-[188px] shrink-0 flex-col border-r border-slate-800/80 bg-slate-950 xl:w-[196px]">
-      {/* Recherche */}
-      <div className="shrink-0 border-b border-slate-800/80 px-2.5 py-2.5">
-        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-          Recherche
-        </p>
-        <ProductSearch
-          ref={searchInputRef}
-          value={search}
-          onChange={onSearchChange}
-          variant="dark"
-          compact
-        />
-      </div>
-
       {/* Navigation */}
       <nav
         className="pos-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-2 py-2"

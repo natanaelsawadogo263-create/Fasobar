@@ -1,8 +1,15 @@
 import "server-only";
 
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
+import {
+  formatOrderPeriodLabel,
+  parseLocalIsoDate,
+  resolveOrderPeriodRange,
+  startOfWeekMonday,
+  toLocalIsoDate,
+} from "@/lib/orders/period";
 import { getCashierServiceDayStartIso } from "@/lib/orders/queries";
-import { listStockItems } from "@/lib/stock/queries";
+import { listDashboardStockAlerts } from "@/lib/stock/queries";
 import type { StockListItem } from "@/lib/stock/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -52,6 +59,14 @@ export type AdminLiveOps = {
   openBarSession: { openedByName: string; openedAt: string } | null;
 };
 
+export type AdminDashboardPeriod = "day" | "week" | "month";
+
+export type AdminSalesSeries = {
+  values: number[];
+  labels: string[];
+  granularity: "hour" | "day";
+};
+
 export type AdminDashboardData = {
   kpis: AdminDashboardKpis;
   liveOps: AdminLiveOps;
@@ -60,9 +75,19 @@ export type AdminDashboardData = {
   activity: AdminActivityItem[];
   cashSessions: AdminCashSessionRow[];
   salesByHour: number[];
+  salesSeries: AdminSalesSeries;
   salesByDept: { bar: number; kitchen: number; other: number };
+  analysisPeriod: AdminDashboardPeriod;
+  analysisPeriodLabel: string;
   usedMockSalesSeries: boolean;
   usedMockTopProducts: boolean;
+};
+
+type PaidOrderRow = {
+  id: string;
+  total_amount: number | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 function startOfDayIso(reference = new Date()): string {
@@ -75,6 +100,94 @@ function addDaysIso(dayStartIso: string, days: number): string {
   return date.toISOString();
 }
 
+function periodBoundsIso(period: AdminDashboardPeriod): {
+  fromIso: string;
+  toExclusiveIso: string;
+  fromDate: string;
+  toDate: string;
+} {
+  const range = resolveOrderPeriodRange(period);
+  const fromDate = range.from ?? toLocalIsoDate(new Date());
+  const toDate = range.to ?? fromDate;
+  const from = parseLocalIsoDate(fromDate);
+  const toExclusive = parseLocalIsoDate(toDate);
+  toExclusive.setDate(toExclusive.getDate() + 1);
+
+  return {
+    fromIso: new Date(
+      Date.UTC(from.getFullYear(), from.getMonth(), from.getDate()),
+    ).toISOString(),
+    toExclusiveIso: new Date(
+      Date.UTC(
+        toExclusive.getFullYear(),
+        toExclusive.getMonth(),
+        toExclusive.getDate(),
+      ),
+    ).toISOString(),
+    fromDate,
+    toDate,
+  };
+}
+
+function buildSalesSeries(
+  period: AdminDashboardPeriod,
+  paidOrders: PaidOrderRow[],
+  fromDate: string,
+  toDate: string,
+): AdminSalesSeries {
+  if (period === "day") {
+    const values = Array.from({ length: 24 }, () => 0);
+    for (const order of paidOrders) {
+      const stamp = order.updated_at ?? order.created_at;
+      if (!stamp) continue;
+      values[new Date(stamp).getUTCHours()] += order.total_amount ?? 0;
+    }
+    return {
+      values,
+      labels: values.map((_, hour) => `${hour}h`),
+      granularity: "hour",
+    };
+  }
+
+  if (period === "week") {
+    const values = Array.from({ length: 7 }, () => 0);
+    const labels = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+    const weekStart = startOfWeekMonday(parseLocalIsoDate(fromDate));
+    for (const order of paidOrders) {
+      const stamp = order.updated_at ?? order.created_at;
+      if (!stamp) continue;
+      const d = new Date(stamp);
+      const local = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      const diff = Math.floor(
+        (local.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000),
+      );
+      if (diff >= 0 && diff < 7) values[diff] += order.total_amount ?? 0;
+    }
+    return { values, labels, granularity: "day" };
+  }
+
+  const start = parseLocalIsoDate(fromDate);
+  const end = parseLocalIsoDate(toDate);
+  const dayCount = end.getDate();
+  const values = Array.from({ length: dayCount }, () => 0);
+  const labels = values.map((_, i) => String(i + 1));
+  for (const order of paidOrders) {
+    const stamp = order.updated_at ?? order.created_at;
+    if (!stamp) continue;
+    const d = new Date(stamp);
+    const day = d.getUTCDate();
+    if (
+      d.getUTCFullYear() === start.getFullYear() &&
+      d.getUTCMonth() === start.getMonth() &&
+      day >= 1 &&
+      day <= dayCount
+    ) {
+      values[day - 1] += order.total_amount ?? 0;
+    }
+  }
+  return { values, labels, granularity: "day" };
+}
+
 function readSingle<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? (value[0] ?? null) : value;
@@ -82,16 +195,25 @@ function readSingle<T>(value: T | T[] | null | undefined): T | null {
 
 export async function getAdminDashboardData(
   workspace: WorkspaceContext,
+  options: { period?: AdminDashboardPeriod } = {},
 ): Promise<AdminDashboardData> {
+  const period: AdminDashboardPeriod = options.period ?? "day";
   const supabase = await createClient();
   const todayStart = startOfDayIso();
   const tomorrowStart = addDaysIso(todayStart, 1);
   const yesterdayStart = addDaysIso(todayStart, -1);
+  const bounds = periodBoundsIso(period);
+  const analysisPeriodLabel = formatOrderPeriodLabel(
+    period,
+    bounds.fromDate,
+    bounds.toDate,
+  );
 
   const [
-    stockItems,
+    stockAlertsResult,
     todayPaidOrders,
     yesterdayPaidOrders,
+    periodPaidOrders,
     openSessions,
     closedSessionsToday,
     recentPayments,
@@ -100,7 +222,7 @@ export async function getAdminDashboardData(
     liveOpenOrders,
     openBarSessionRow,
   ] = await Promise.all([
-    listStockItems(workspace, { tab: "alerts", status: "all" }),
+    listDashboardStockAlerts(workspace, 5),
     supabase
       .from("orders")
       .select("id, total_amount, created_at, updated_at")
@@ -115,6 +237,15 @@ export async function getAdminDashboardData(
       .eq("payment_status", "PAID")
       .gte("updated_at", yesterdayStart)
       .lt("updated_at", todayStart),
+    period === "day"
+      ? Promise.resolve({ data: null as PaidOrderRow[] | null })
+      : supabase
+          .from("orders")
+          .select("id, total_amount, created_at, updated_at")
+          .eq("establishment_id", workspace.establishmentId)
+          .eq("payment_status", "PAID")
+          .gte("updated_at", bounds.fromIso)
+          .lt("updated_at", bounds.toExclusiveIso),
     supabase
       .from("cash_register_sessions")
       .select(
@@ -152,14 +283,16 @@ export async function getAdminDashboardData(
       .select("amount_applied, cash_register_session_id, cash_register_sessions!inner(status)")
       .eq("establishment_id", workspace.establishmentId)
       .eq("status", "CONFIRMED")
-      .eq("cash_register_sessions.status", "OPEN"),
+      .eq("cash_register_sessions.status", "OPEN")
+      .limit(400),
     supabase
       .from("orders")
       .select("id, status, payment_status, bar_status, kitchen_status")
       .eq("establishment_id", workspace.establishmentId)
       .neq("payment_status", "PAID")
       .neq("status", "CANCELLED")
-      .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"]),
+      .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"])
+      .limit(300),
     supabase
       .from("bar_sessions")
       .select(
@@ -172,11 +305,17 @@ export async function getAdminDashboardData(
       .maybeSingle(),
   ]);
 
-  const paidToday = todayPaidOrders.data ?? [];
+  const stockItems = stockAlertsResult.alerts;
+  const paidToday = (todayPaidOrders.data ?? []) as PaidOrderRow[];
   const paidYesterday = yesterdayPaidOrders.data ?? [];
+  const paidForAnalysis =
+    period === "day" ? paidToday : ((periodPaidOrders.data ?? []) as PaidOrderRow[]);
 
   const salesToday = paidToday.reduce((sum, row) => sum + (row.total_amount ?? 0), 0);
-  const salesYesterday = paidYesterday.reduce((sum, row) => sum + (row.total_amount ?? 0), 0);
+  const salesYesterday = paidYesterday.reduce(
+    (sum, row) => sum + (row.total_amount ?? 0),
+    0,
+  );
 
   const openSessionRows = openSessions.data ?? [];
   const firstOpen = openSessionRows[0];
@@ -189,25 +328,23 @@ export async function getAdminDashboardData(
       : null;
   const openCashOpenedAt = firstOpen?.opened_at ?? null;
 
-  const hourly = Array.from({ length: 24 }, () => 0);
-  for (const order of paidToday) {
-    const stamp = order.updated_at ?? order.created_at;
-    if (!stamp) continue;
-    const hour = new Date(stamp).getUTCHours();
-    hourly[hour] += order.total_amount ?? 0;
-  }
+  const salesSeries = buildSalesSeries(
+    period,
+    paidForAnalysis,
+    bounds.fromDate,
+    bounds.toDate,
+  );
 
-  const orderIds = paidToday.map((order) => order.id);
+  const orderIds = paidForAnalysis.map((order) => order.id);
   let topProducts: AdminTopProduct[] = [];
   const salesByDept = { bar: 0, kitchen: 0, other: 0 };
 
   if (orderIds.length > 0) {
+    const sampleOrderIds = orderIds.slice(0, 120);
     const { data: itemRows } = await supabase
       .from("order_items")
-      .select(
-        "product_name_snapshot, quantity, line_total, departments(code)",
-      )
-      .in("order_id", orderIds);
+      .select("product_name_snapshot, quantity, line_total, departments(code)")
+      .in("order_id", sampleOrderIds);
 
     const productMap = new Map<string, { quantity: number; revenue: number }>();
 
@@ -235,7 +372,7 @@ export async function getAdminDashboardData(
         imageHint: name.toLowerCase(),
       }))
       .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5);
+      .slice(0, 12);
   }
 
   function readProfile(
@@ -315,7 +452,8 @@ export async function getAdminDashboardData(
     barInPrepCount: openLive.filter((order) => order.bar_status === "IN_PREPARATION").length,
     barReadyCount: openLive.filter((order) => order.bar_status === "READY").length,
     kitchenToPrepareCount: openLive.filter(
-      (order) => order.kitchen_status === "TO_PREPARE" || order.kitchen_status === "IN_PREPARATION",
+      (order) =>
+        order.kitchen_status === "TO_PREPARE" || order.kitchen_status === "IN_PREPARATION",
     ).length,
     kitchenReadyCount: openLive.filter((order) => order.kitchen_status === "READY").length,
     openCashSessionsCount: openSessionRows.length,
@@ -335,15 +473,18 @@ export async function getAdminDashboardData(
       ordersYesterday: paidYesterday.length,
       openCashBalance,
       openCashOpenedAt,
-      stockAlertCount: stockItems.length,
+      stockAlertCount: stockAlertsResult.alertCount,
     },
     liveOps,
-    stockAlerts: stockItems.slice(0, 5),
+    stockAlerts: stockItems,
     topProducts,
-    activity: activity.slice(0, 6),
+    activity: activity.slice(0, 12),
     cashSessions,
-    salesByHour: hourly,
+    salesByHour: salesSeries.values,
+    salesSeries,
     salesByDept,
+    analysisPeriod: period,
+    analysisPeriodLabel,
     usedMockSalesSeries: false,
     usedMockTopProducts: false,
   };

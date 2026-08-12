@@ -24,14 +24,7 @@ export function OrderItemRow({
   const [showNote, setShowNote] = useState(hasNote);
 
   return (
-    <li
-      className="border-b border-[#eeeeee] px-4 py-3"
-      style={{
-        scrollSnapAlign: "start",
-        scrollSnapStop: "always",
-        minHeight: 64,
-      }}
-    >
+    <li className="border-b border-[#eeeeee] px-3.5 py-2.5">
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-bold leading-tight text-[#111827]">
@@ -102,7 +95,7 @@ export function OrderItemRow({
             type="text"
             value={line.notes ?? ""}
             onChange={(event) => onNotesChange(line.productId, event.target.value)}
-            placeholder="Note (ex. sans glace, bien froid…)"
+            placeholder="Note (ex. sans glace…)"
             className="h-8 w-full rounded-lg border border-[#e5e7eb] bg-white px-2.5 text-[12px] text-[#111827] outline-none placeholder:text-[#9ca3af] focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/15"
           />
         </div>

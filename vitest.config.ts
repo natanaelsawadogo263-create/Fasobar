@@ -4,10 +4,16 @@ import path from "node:path";
 export default defineConfig({
   test: {
     environment: "node",
+    include: [
+      "src/**/*.{test,spec}.ts",
+      "desktop/shared/**/*.{test,spec}.ts",
+      "desktop/main/**/*.{test,spec}.ts",
+    ],
   },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "server-only": path.resolve(__dirname, "./src/test/server-only-stub.ts"),
     },
   },
 });

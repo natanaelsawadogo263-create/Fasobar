@@ -1,10 +1,27 @@
 import { AdminDashboardWorkspace } from "@/components/admin/admin-dashboard-workspace";
-import { getAdminDashboardData } from "@/lib/admin/dashboard-queries";
+import {
+  getAdminDashboardData,
+  type AdminDashboardPeriod,
+} from "@/lib/admin/dashboard-queries";
 import { requireAdminContext } from "@/lib/auth/workspace-context";
 
-export default async function TableauDeBordPage() {
+type TableauDeBordPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function parsePeriod(raw: string | string[] | undefined): AdminDashboardPeriod {
+  const value = typeof raw === "string" ? raw : "day";
+  if (value === "week" || value === "month") return value;
+  return "day";
+}
+
+export default async function TableauDeBordPage({
+  searchParams,
+}: TableauDeBordPageProps) {
   const workspace = await requireAdminContext();
-  const data = await getAdminDashboardData(workspace);
+  const params = await searchParams;
+  const period = parsePeriod(params.period);
+  const data = await getAdminDashboardData(workspace, { period });
 
   return <AdminDashboardWorkspace data={data} />;
 }

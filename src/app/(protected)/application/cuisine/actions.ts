@@ -1,7 +1,7 @@
 "use server";
 
 import { mapGenericError } from "@/lib/auth/errors";
-import { requireKitchenContext } from "@/lib/auth/workspace-context";
+import { requireKitchenMutationContext } from "@/lib/auth/workspace-context";
 import type { KitchenActionState } from "@/lib/kitchen/constants";
 import { updateKitchenStatusSchema } from "@/lib/kitchen/schemas";
 import { revalidateOrderOps } from "@/lib/ops/revalidate";
@@ -33,7 +33,7 @@ export async function updateKitchenStatusAction(
   _prevState: KitchenActionState,
   formData: FormData,
 ): Promise<KitchenActionState> {
-  await requireKitchenContext();
+  await requireKitchenMutationContext();
 
   const parsed = updateKitchenStatusSchema.safeParse({
     orderId: formData.get("orderId"),

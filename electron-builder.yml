@@ -1,0 +1,51 @@
+# FasoBar Windows installer — electron-builder + NSIS
+# Client artifact: FasoBar-Setup.exe
+# Role selection (Caisse / Bar) stays in first-run app UI, not here.
+
+appId: com.fasobar.desktop
+productName: FasoBar
+copyright: Copyright © FasoBar
+artifactName: FasoBar-Setup.${ext}
+executableName: FasoBar
+
+directories:
+  output: dist/desktop
+  buildResources: build
+
+# Prepackaged Electron app from electron-forge (includes next-app runtime).
+# Invoked via: electron-builder --prepackaged out/FasoBar-win32-x64
+
+win:
+  # Real multi-resolution ICO (16–256). Embedded into FasoBar.exe via resedit.
+  icon: build/icon.ico
+  # Keep resource editing (icon + version metadata) even without a code-signing cert.
+  # signAndEditExecutable:false would skip icon embed and leave the Electron default.
+  signAndEditExecutable: true
+  signExecutable: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: FasoBar
+  menuCategory: false
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  uninstallDisplayName: FasoBar
+  installerIcon: build/installerIcon.ico
+  uninstallerIcon: build/uninstallerIcon.ico
+  installerHeaderIcon: build/installerIcon.ico
+  installerLanguages:
+    - fr_FR
+  language: "1036"
+  displayLanguageSelector: false
+  warningsAsErrors: false
+  differentialPackage: false
+  include: build/installer.nsh

@@ -295,7 +295,7 @@ export async function reactivateMachineAction(input: {
 export async function updatePlatformSettingsAction(input: {
   orangeMoneyNumber?: string;
   currency?: string;
-  trialDurationMonths?: number;
+  trialDurationDays?: number;
   trialEnabled?: boolean;
   warningDaysBeforeExpiry?: number;
   offlineGraceDays?: number;
@@ -312,8 +312,17 @@ export async function updatePlatformSettingsAction(input: {
   if (input.currency !== undefined) {
     patch.currency = input.currency.trim();
   }
-  if (input.trialDurationMonths !== undefined) {
-    patch.trial_duration_months = input.trialDurationMonths;
+  if (input.trialDurationDays !== undefined) {
+    const days = Math.floor(Number(input.trialDurationDays));
+    if (!Number.isFinite(days) || days <= 0) {
+      return {
+        ok: false,
+        error: "La durée d’essai doit être d’au moins 1 jour.",
+      };
+    }
+    patch.trial_duration_days = days;
+    // Compatibilité colonnes historiques (mois ≈ ceil jours / 30)
+    patch.trial_duration_months = Math.max(1, Math.ceil(days / 30));
   }
   if (input.trialEnabled !== undefined) {
     patch.trial_enabled = input.trialEnabled;

@@ -7,11 +7,11 @@ import { ADMIN_NAV } from "@/lib/navigation/space-navigation";
 export default function AdminDashboardPreviewPage() {
   return (
     <AdminShell
+      establishmentId="preview"
       establishmentName="Le Faso Bar Ouaga 2000"
       organizationName="FasoBar"
       adminName="Admin Faso"
       navItems={ADMIN_NAV}
-      notificationCount={8}
     >
       <AdminDashboardWorkspace data={getMockAdminDashboardData()} />
     </AdminShell>

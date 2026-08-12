@@ -3,7 +3,7 @@ import Link from "next/link";
 import { signOutAction } from "@/lib/auth/actions";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getWorkspaceContext } from "@/lib/auth/workspace-context";
-import { refreshAndGetOrganizationSaasAccess } from "@/lib/platform/saas-gate";
+import { getOrganizationSaasAccess } from "@/lib/platform/saas-gate";
 import { PLATFORM_ACCESS_STATUS_LABELS } from "@/lib/platform/statuses";
 
 export default async function AccesSaasBloquePage() {
@@ -12,7 +12,7 @@ export default async function AccesSaasBloquePage() {
 
   const isOwner = workspace?.organizationRole === "OWNER";
   const access = workspace
-    ? await refreshAndGetOrganizationSaasAccess(workspace.organizationId)
+    ? await getOrganizationSaasAccess(workspace.organizationId)
     : null;
 
   const statusLabel = access

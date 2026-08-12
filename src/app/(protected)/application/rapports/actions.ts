@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdminContext } from "@/lib/auth/workspace-context";
+import { requireAdminMutationContext } from "@/lib/auth/workspace-context";
 import { getReportData } from "@/lib/reports/queries";
 import { reportFiltersSchema, reportTypeSchema } from "@/lib/reports/schemas";
 import type { ReportResult } from "@/lib/reports/types";
@@ -15,7 +15,7 @@ export async function getReportDataAction(
   rawType: string,
   rawFilters: { from?: string; to?: string },
 ): Promise<ReportActionResult> {
-  const workspace = await requireAdminContext();
+  const workspace = await requireAdminMutationContext();
 
   const typeParsed = reportTypeSchema.safeParse(rawType);
   if (!typeParsed.success) {

@@ -40,7 +40,7 @@ export function PlatformSettingsWorkspace({
 }: Props) {
   const [form, setForm] = useState({
     orangeMoneyNumber: settings?.orangeMoneyNumber ?? "",
-    trialDurationMonths: settings?.trialDurationMonths ?? 1,
+    trialDurationDays: settings?.trialDurationDays ?? 7,
     trialEnabled: settings?.trialEnabled ?? true,
     warningDaysBeforeExpiry: settings?.warningDaysBeforeExpiry ?? 7,
     offlineGraceDays: settings?.offlineGraceDays ?? 3,
@@ -65,7 +65,7 @@ export function PlatformSettingsWorkspace({
     startTransition(async () => {
       const result = await updatePlatformSettingsAction({
         orangeMoneyNumber: form.orangeMoneyNumber,
-        trialDurationMonths: Number(form.trialDurationMonths),
+        trialDurationDays: Number(form.trialDurationDays),
         trialEnabled: form.trialEnabled,
         warningDaysBeforeExpiry: Number(form.warningDaysBeforeExpiry),
         offlineGraceDays: Number(form.offlineGraceDays),
@@ -177,7 +177,7 @@ export function PlatformSettingsWorkspace({
 
             <PlatformPanel
               title="Essai"
-              description="Durée et activation de la période d’essai gratuit."
+              description="Durée par défaut pour tous les nouveaux clients FasoBar. Pour un client précis, prolongez depuis sa fiche."
             >
               <div className="space-y-3 p-4 lg:px-5 lg:pb-5">
                 <label className="inline-flex items-center gap-2 text-[13px] text-slate-700">
@@ -195,19 +195,23 @@ export function PlatformSettingsWorkspace({
                   Essai gratuit activé
                 </label>
                 <label className={labelClass}>
-                  Durée essai (mois)
+                  Durée essai (jours)
                   <input
                     type="number"
                     min={1}
-                    value={form.trialDurationMonths}
+                    value={form.trialDurationDays}
                     onChange={(e) =>
                       setForm((f) => ({
                         ...f,
-                        trialDurationMonths: Number(e.target.value),
+                        trialDurationDays: Number(e.target.value),
                       }))
                     }
                     className={fieldClass}
                   />
+                  <span className="mt-1 block text-[11px] font-normal text-slate-500">
+                    Défaut recommandé : 7 jours. Augmentez ici pour tous les
+                    nouveaux essais.
+                  </span>
                 </label>
                 <label className={labelClass}>
                   Alerte expiration (j)

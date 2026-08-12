@@ -11,16 +11,18 @@ import {
   ShieldCheck,
   Timer,
   Truck,
-  Wine,
+  Wallet,
 } from "lucide-react";
 
-import type { NavItem } from "@/lib/navigation/space-navigation";
+import { FasoBarLogo } from "@/components/brand/fasobar-logo";
+import { isHomeNavItem, type NavItem } from "@/lib/navigation/space-navigation";
 
 const NAV_ICONS: Record<string, LucideIcon> = {
   "/application/bar": LayoutDashboard,
   "/application/bar/commandes": GlassWater,
   "/application/bar/stock": Package,
   "/application/bar/approvisionnements": Truck,
+  "/application/depenses": Wallet,
   "/application/bar/historique": Clock3,
   "/application/bar/session": Timer,
 };
@@ -34,17 +36,8 @@ export function BarSidebar({ navItems }: BarSidebarProps) {
 
   return (
     <aside className="flex h-full w-[220px] shrink-0 flex-col bg-[#051512] lg:w-[236px]">
-      <div className="flex h-14 shrink-0 items-center gap-2.5 px-4 lg:px-5">
-        <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-400/25">
-          <Wine className="h-4 w-4" strokeWidth={2.25} />
-          <GlassWater
-            className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 text-emerald-300"
-            strokeWidth={2.25}
-          />
-        </span>
-        <span className="text-[19px] font-bold tracking-tight text-white">
-          Faso<span className="text-emerald-400">Bar</span>
-        </span>
+      <div className="flex h-14 shrink-0 items-center px-4 lg:px-5">
+        <FasoBarLogo size="sm" tone="dark" />
       </div>
 
       <nav
@@ -53,6 +46,7 @@ export function BarSidebar({ navItems }: BarSidebarProps) {
       >
         {navItems.map((item) => {
           const Icon = NAV_ICONS[item.href] ?? Package;
+          const isHome = isHomeNavItem(item);
           const isDashboard = item.href === "/application/bar";
           const isActive = isDashboard
             ? pathname === "/application/bar"
@@ -74,13 +68,21 @@ export function BarSidebar({ navItems }: BarSidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition ${
-                isActive
-                  ? "bg-emerald-600 font-semibold text-white shadow-sm shadow-emerald-900/40"
-                  : "font-medium text-white/55 hover:bg-white/[0.06] hover:text-white"
+              prefetch
+              className={`flex items-center gap-3 rounded-xl transition ${
+                isHome
+                  ? isActive
+                    ? "mb-1.5 bg-emerald-600 px-3 py-3 text-[14px] font-bold text-white shadow-md shadow-emerald-950/50"
+                    : "mb-1.5 bg-emerald-500/15 px-3 py-3 text-[14px] font-semibold text-emerald-300 ring-1 ring-emerald-400/25 hover:bg-emerald-500/25"
+                  : isActive
+                    ? "bg-emerald-600/80 px-3 py-2.5 text-[13px] font-semibold text-white shadow-sm shadow-emerald-900/40"
+                    : "px-3 py-2.5 text-[13px] font-medium text-white/55 hover:bg-white/[0.06] hover:text-white"
               }`}
             >
-              <Icon className="h-4 w-4 shrink-0" strokeWidth={isActive ? 2.25 : 2} />
+              <Icon
+                className={`shrink-0 ${isHome ? "h-[18px] w-[18px]" : "h-4 w-4"}`}
+                strokeWidth={isHome || isActive ? 2.35 : 2}
+              />
               {item.label}
             </Link>
           );

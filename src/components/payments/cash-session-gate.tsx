@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Clock, Wallet } from "lucide-react";
 
 import { openCashSessionAction } from "@/app/(protected)/application/caisse/payment-actions";
+import { refreshSoon } from "@/lib/ops/client-refresh";
 import { OpenSessionModal } from "@/components/payments/open-session-modal";
 import { CloseSessionModal } from "@/components/payments/close-session-modal";
 import { formatPriceXof } from "@/lib/payments/constants";
@@ -37,7 +38,7 @@ export function CashSessionGate({
       }
 
       setOpenError(undefined);
-      router.refresh();
+      refreshSoon(() => router.refresh());
     });
   }
 
@@ -114,7 +115,7 @@ export function CashSessionGate({
           onClose={() => setShowCloseModal(false)}
           onClosed={() => {
             setShowCloseModal(false);
-            router.refresh();
+            refreshSoon(() => router.refresh());
           }}
         />
       ) : null}
