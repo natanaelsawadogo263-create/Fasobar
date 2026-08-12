@@ -18,29 +18,41 @@ export default async function ProduitsPage({ searchParams }: ProduitsPageProps) 
   const workspace = await requireSpacePathAccess("/application/produits");
   const params = await searchParams;
 
-  await ensureProductImages(workspace);
-
   const filters = productFiltersSchema.parse({
     tab: (params.tab as ProductTab | undefined) ?? "all",
     search: params.search ?? "",
     categoryId: params.category ?? "",
   });
 
-  const [products, categories, allProducts] = await Promise.all([
-    listProducts(workspace, filters),
-    listCategories(workspace),
+  // Images en parallèle du catalogue (TTL interne) — ne bloque plus la liste.
+  const [, allProducts, categories] = await Promise.all([
+    ensureProductImages(workspace),
     listProducts(workspace, { tab: "all", search: "", categoryId: "" }),
+    listCategories(workspace),
   ]);
+
+  const search = (filters.search ?? "").trim().toLowerCase();
+  const products = allProducts.filter((product) => {
+    if (filters.tab === "bar" && product.departmentCode !== "BAR") return false;
+    if (filters.tab === "kitchen" && product.departmentCode !== "KITCHEN") return false;
+    if (filters.tab === "unavailable" && product.active) return false;
+    if (filters.categoryId && product.categoryId !== filters.categoryId) return false;
+    if (search && !product.name.toLowerCase().includes(search)) return false;
+    return true;
+  });
 
   const packagingsByProductId = await listPackagingsForProducts(
     workspace,
-    allProducts.filter((product) => product.departmentCode === "BAR").map((product) => product.id),
+    allProducts
+      .filter((product) => product.departmentCode === "BAR")
+      .map((product) => product.id),
   );
 
   const stats: ProductStats = {
     total: allProducts.length,
     barCount: allProducts.filter((p) => p.departmentCode === "BAR" && p.active).length,
-    kitchenCount: allProducts.filter((p) => p.departmentCode === "KITCHEN" && p.active).length,
+    kitchenCount: allProducts.filter((p) => p.departmentCode === "KITCHEN" && p.active)
+      .length,
     inactiveCount: allProducts.filter((p) => !p.active).length,
   };
 
@@ -55,6 +67,7 @@ export default async function ProduitsPage({ searchParams }: ProduitsPageProps) 
       initialSearch={filters.search ?? ""}
       initialCategoryId={filters.categoryId ?? ""}
       canManage={workspace.canManageProducts}
+      serviceScope={workspace.serviceScope}
     />
   );
 }

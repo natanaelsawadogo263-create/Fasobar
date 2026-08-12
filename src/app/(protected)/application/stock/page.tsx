@@ -1,5 +1,8 @@
+import { redirect } from "next/navigation";
+
 import { StockWorkspace } from "@/components/stock/stock-workspace";
 import { requireStockReadContext } from "@/lib/auth/workspace-context";
+import { hasBarService, hasKitchenService } from "@/lib/settings/service-scope";
 import { loadStockPageData } from "@/lib/stock/page-data";
 
 type StockPageProps = {
@@ -15,8 +18,22 @@ export default async function StockPage({ searchParams }: StockPageProps) {
   const params = await searchParams;
   const workspace = await requireStockReadContext();
 
-  const { filters, stockItems, suppliers, categories, products, stats, packagingsByProduct, basePath, totalStockItemCount } =
-    await loadStockPageData(params);
+  if (!hasBarService(workspace.serviceScope) && hasKitchenService(workspace.serviceScope)) {
+    redirect("/application/stock/cuisine");
+  }
+
+  const {
+    filters,
+    stockItems,
+    suppliers,
+    categories,
+    products,
+    stats,
+    packagingsByProduct,
+    basePath,
+    totalStockItemCount,
+    serviceScope,
+  } = await loadStockPageData(params);
 
   return (
     <StockWorkspace
@@ -38,6 +55,8 @@ export default async function StockPage({ searchParams }: StockPageProps) {
       establishmentRole={workspace.establishmentRole}
       totalStockItemCount={totalStockItemCount}
       basePath={basePath}
+      drinksOnly={serviceScope === "BAR"}
+      serviceScope={serviceScope}
     />
   );
 }

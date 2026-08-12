@@ -153,7 +153,7 @@ export function SignInForm({
             </div>
 
             <Link
-              href="/inscription"
+              href="/inscription/activite"
               className="inline-flex w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50"
             >
               Créer un établissement

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { AuthEmailLinkHandler } from "@/components/auth/auth-email-link-handler";
@@ -26,6 +26,22 @@ export const metadata: Metadata = {
     icon: "/brand/fasobar-logo.png",
     apple: "/brand/fasobar-logo.png",
   },
+  appleWebApp: {
+    capable: true,
+    title: "FasoBar",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0b1220",
 };
 
 export default function RootLayout({

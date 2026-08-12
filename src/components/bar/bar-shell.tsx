@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { BarSidebar } from "@/components/bar/bar-sidebar";
 import { BarTopbar } from "@/components/bar/bar-topbar";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import type { NavItem } from "@/lib/navigation/space-navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -15,6 +16,13 @@ type BarShellProps = {
   establishmentId?: string;
   userId?: string;
 };
+
+const BAR_PRIMARY = [
+  "/application/bar",
+  "/application/bar/commandes",
+  "/application/bar/stock",
+  "/application/bar/approvisionnements",
+];
 
 export function BarShell({
   establishmentName,
@@ -56,7 +64,7 @@ export function BarShell({
       setHasOwnSession(isOwn);
       setSessionOpenedAt(data.opened_at);
       setOpenSessionHolderName(
-        isOwn ? null : (profile?.full_name as string | undefined) ?? null,
+        isOwn ? null : ((profile?.full_name as string | undefined) ?? null),
       );
     }
 
@@ -68,7 +76,7 @@ export function BarShell({
 
   return (
     <div className="bar-shell app-shell flex h-dvh w-full max-w-full overflow-hidden bg-[#f4f6f8]">
-      <div className="flex h-full shrink-0">
+      <div className="hidden h-full shrink-0 md:flex">
         <BarSidebar navItems={navItems} />
       </div>
 
@@ -80,10 +88,12 @@ export function BarShell({
           sessionOpenedAt={sessionOpenedAt}
           openSessionHolderName={openSessionHolderName}
         />
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pb-[calc(3.75rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </main>
       </div>
+
+      <MobileNav items={navItems} primaryHrefs={BAR_PRIMARY} tone="bar" />
     </div>
   );
 }

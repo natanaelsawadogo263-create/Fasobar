@@ -21,12 +21,19 @@ import {
 import type { SalesFiltersInput } from "@/lib/sales/schemas";
 import type { AdminSalesPageData } from "@/lib/sales/types";
 import type { OrderCashierOption } from "@/lib/orders/types";
+import {
+  hasBarService,
+  hasKitchenService,
+  isSingleServiceScope,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 
 type AdminSalesWorkspaceProps = {
   data: AdminSalesPageData;
   filters: SalesFiltersInput;
   cashiers: OrderCashierOption[];
   establishmentName: string;
+  serviceScope?: ServiceScope;
 };
 
 type TabId = "produits" | "caissiers" | "heures" | "jours";
@@ -43,9 +50,13 @@ export function AdminSalesWorkspace({
   filters,
   cashiers,
   establishmentName,
+  serviceScope = "BOTH",
 }: AdminSalesWorkspaceProps) {
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("produits");
+  const showBar = hasBarService(serviceScope);
+  const showKitchen = hasKitchenService(serviceScope);
+  const singleScope = isSingleServiceScope(serviceScope);
 
   function applyFilters(next: Partial<SalesFiltersInput>) {
     const merged = { ...filters, ...next };
@@ -56,8 +67,8 @@ export function AdminSalesWorkspace({
     router.push(`/application/ventes?${params.toString()}`);
   }
 
-  const stats = useMemo(
-    () => [
+  const stats = useMemo(() => {
+    const items = [
       {
         title: "Chiffre d'affaires",
         value: formatPriceXof(data.summary.totalRevenue),
@@ -79,23 +90,27 @@ export function AdminSalesWorkspace({
         icon: <ShoppingBag className="h-4 w-4" />,
         iconClass: "bg-violet-50 text-violet-600",
       },
-      {
-        title: "Ventes Bar",
+    ];
+    if (showBar) {
+      items.push({
+        title: singleScope ? "Ventes" : "Ventes Bar",
         value: formatPriceXof(data.summary.barRevenue),
         subtitle: "articles boissons",
         icon: <Wine className="h-4 w-4" />,
         iconClass: "bg-amber-50 text-amber-700",
-      },
-      {
-        title: "Ventes Cuisine",
+      });
+    }
+    if (showKitchen) {
+      items.push({
+        title: singleScope ? "Ventes" : "Ventes Cuisine",
         value: formatPriceXof(data.summary.kitchenRevenue),
         subtitle: "articles nourriture",
         icon: <Banknote className="h-4 w-4" />,
         iconClass: "bg-orange-50 text-orange-700",
-      },
-    ],
-    [data.summary],
-  );
+      });
+    }
+    return items;
+  }, [data.summary, showBar, showKitchen, singleScope]);
 
   function exportCsv() {
     const filenameSuffix = new Date().toISOString().slice(0, 10);
@@ -272,7 +287,9 @@ export function AdminSalesWorkspace({
                 <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500 print:static">
                   <tr>
                     <th className="px-3 py-2.5 font-semibold">Produit</th>
-                    <th className="px-3 py-2.5 font-semibold">Département</th>
+                    {singleScope ? null : (
+                      <th className="px-3 py-2.5 font-semibold">Département</th>
+                    )}
                     <th className="px-3 py-2.5 font-semibold">Quantité</th>
                     <th className="px-3 py-2.5 font-semibold">Chiffre d&apos;affaires</th>
                   </tr>
@@ -281,7 +298,9 @@ export function AdminSalesWorkspace({
                   {data.topProducts.map((product) => (
                     <tr key={product.productId} className="hover:bg-slate-50/80">
                       <td className="px-3 py-2.5 font-medium text-slate-900">{product.name}</td>
-                      <td className="px-3 py-2.5 text-slate-600">{product.departmentName}</td>
+                      {singleScope ? null : (
+                        <td className="px-3 py-2.5 text-slate-600">{product.departmentName}</td>
+                      )}
                       <td className="px-3 py-2.5 text-slate-700">{product.quantity}</td>
                       <td className="px-3 py-2.5 font-semibold text-slate-900">
                         {formatPriceXof(product.revenue)}

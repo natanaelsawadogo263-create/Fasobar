@@ -11,6 +11,10 @@ import { humanizeActionCode, REPORT_TYPE_OPTIONS } from "@/lib/reports/constants
 import type { ReportFiltersInput, ReportType } from "@/lib/reports/schemas";
 import type { ReportColumn, ReportResult, ReportRow, ReportSummaryItem } from "@/lib/reports/types";
 import { getAdminSalesData } from "@/lib/sales/queries";
+import {
+  hasBarService,
+  hasKitchenService,
+} from "@/lib/settings/service-scope";
 import { listRecentSupplyEntries, listStockLossEntries, listStockItems } from "@/lib/stock/queries";
 import { STOCK_STATUS_LABELS } from "@/lib/stock/constants";
 import { createClient } from "@/lib/supabase/server";
@@ -72,8 +76,12 @@ async function buildVentesReport(
     rows,
     [
       { label: "Chiffre d'affaires", value: formatPriceXof(data.summary.totalRevenue) },
-      { label: "CA Bar", value: formatPriceXof(data.summary.barRevenue) },
-      { label: "CA Cuisine", value: formatPriceXof(data.summary.kitchenRevenue) },
+      ...(hasBarService(workspace.serviceScope)
+        ? [{ label: "CA Bar", value: formatPriceXof(data.summary.barRevenue) }]
+        : []),
+      ...(hasKitchenService(workspace.serviceScope)
+        ? [{ label: "CA Cuisine", value: formatPriceXof(data.summary.kitchenRevenue) }]
+        : []),
       { label: "Commandes payées", value: String(data.summary.paidOrderCount) },
       { label: "Panier moyen", value: formatPriceXof(data.summary.averageBasket) },
     ],
@@ -183,10 +191,17 @@ async function buildApprovisionnementsReport(
   workspace: WorkspaceContext,
   filters: ReportFiltersInput,
 ): Promise<ReportResult> {
-  const entries = await listRecentSupplyEntries(workspace, {
-    from: filters.from,
-    to: filters.to,
-    limit: 2000,
+  const scope = workspace.serviceScope;
+  const entries = (
+    await listRecentSupplyEntries(workspace, {
+      from: filters.from,
+      to: filters.to,
+      limit: 2000,
+    })
+  ).filter((entry) => {
+    if (entry.departmentCode === "BAR") return hasBarService(scope);
+    if (entry.departmentCode === "KITCHEN") return hasKitchenService(scope);
+    return true;
   });
 
   const rows: ReportRow[] = entries.map((entry) => ({
@@ -224,8 +239,12 @@ async function buildApprovisionnementsReport(
     [
       { label: "Entrées", value: String(entries.length) },
       { label: "Coût total", value: formatPriceXof(totalCost) },
-      { label: "Appro Bar", value: formatPriceXof(barCost) },
-      { label: "Appro Cuisine", value: formatPriceXof(kitchenCost) },
+      ...(hasBarService(workspace.serviceScope)
+        ? [{ label: "Appro Bar", value: formatPriceXof(barCost) }]
+        : []),
+      ...(hasKitchenService(workspace.serviceScope)
+        ? [{ label: "Appro Cuisine", value: formatPriceXof(kitchenCost) }]
+        : []),
     ],
   );
 }
@@ -328,6 +347,10 @@ async function buildBeneficesReport(
   workspace: WorkspaceContext,
   filters: ReportFiltersInput,
 ): Promise<ReportResult> {
+  const scope = workspace.serviceScope;
+  const includeBar = hasBarService(scope);
+  const includeKitchen = hasKitchenService(scope);
+
   const [sales, expenses, barSupply, kitchenSupply] = await Promise.all([
     getAdminSalesData(workspace, { from: filters.from, to: filters.to }),
     listExpenses(
@@ -339,60 +362,69 @@ async function buildBeneficesReport(
       },
       { limit: 2000 },
     ),
-    listRecentSupplyEntries(workspace, {
-      departmentCode: "BAR",
-      from: filters.from,
-      to: filters.to,
-      limit: 2000,
-    }),
-    listRecentSupplyEntries(workspace, {
-      departmentCode: "KITCHEN",
-      from: filters.from,
-      to: filters.to,
-      limit: 2000,
-    }),
+    includeBar
+      ? listRecentSupplyEntries(workspace, {
+          departmentCode: "BAR",
+          from: filters.from,
+          to: filters.to,
+          limit: 2000,
+        })
+      : Promise.resolve([]),
+    includeKitchen
+      ? listRecentSupplyEntries(workspace, {
+          departmentCode: "KITCHEN",
+          from: filters.from,
+          to: filters.to,
+          limit: 2000,
+        })
+      : Promise.resolve([]),
   ]);
 
   const sumSupply = (entries: { totalCost: number | null }[]) =>
     entries.reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
 
-  const barRevenue = sales.summary.barRevenue;
-  const kitchenRevenue = sales.summary.kitchenRevenue;
-  const barAppro = sumSupply(barSupply);
-  const kitchenAppro = sumSupply(kitchenSupply);
-  const barExpenses = expenses.barTotal;
-  const kitchenExpenses = expenses.caisseTotal;
+  const barRevenue = includeBar ? sales.summary.barRevenue : 0;
+  const kitchenRevenue = includeKitchen ? sales.summary.kitchenRevenue : 0;
+  const barAppro = includeBar ? sumSupply(barSupply) : 0;
+  const kitchenAppro = includeKitchen ? sumSupply(kitchenSupply) : 0;
+  const barExpenses = includeBar ? expenses.barTotal : 0;
+  // Cuisine : dépenses rattachées à la caisse (espace restauration).
+  const kitchenExpenses = includeKitchen ? expenses.caisseTotal : 0;
 
   const barProfit = barRevenue - barAppro - barExpenses;
   const kitchenProfit = kitchenRevenue - kitchenAppro - kitchenExpenses;
-  const totalProfit = barProfit + kitchenProfit;
+  const totalProfit =
+    (includeBar ? barProfit : 0) + (includeKitchen ? kitchenProfit : 0);
   const totalRevenue = barRevenue + kitchenRevenue;
   const totalAppro = barAppro + kitchenAppro;
   const totalExpenses = barExpenses + kitchenExpenses;
 
-  const rows: ReportRow[] = [
-    {
+  const rows: ReportRow[] = [];
+  if (includeBar) {
+    rows.push({
       space: "Bar",
       revenue: barRevenue,
       supplyCost: barAppro,
       expenses: barExpenses,
       profit: barProfit,
-    },
-    {
+    });
+  }
+  if (includeKitchen) {
+    rows.push({
       space: "Cuisine",
       revenue: kitchenRevenue,
       supplyCost: kitchenAppro,
       expenses: kitchenExpenses,
       profit: kitchenProfit,
-    },
-    {
-      space: "Total",
-      revenue: totalRevenue,
-      supplyCost: totalAppro,
-      expenses: totalExpenses,
-      profit: totalProfit,
-    },
-  ];
+    });
+  }
+  rows.push({
+    space: "Total",
+    revenue: totalRevenue,
+    supplyCost: totalAppro,
+    expenses: totalExpenses,
+    profit: totalProfit,
+  });
 
   return buildResult(
     "benefices",
@@ -406,7 +438,7 @@ async function buildBeneficesReport(
     rows,
     [
       { label: "Bénéfice net total", value: formatPriceXof(totalProfit) },
-      { label: "CA total", value: formatPriceXof(sales.summary.totalRevenue) },
+      { label: "CA total", value: formatPriceXof(totalRevenue) },
       { label: "Appro total", value: formatPriceXof(totalAppro) },
       { label: "Dépenses total", value: formatPriceXof(totalExpenses) },
     ],
@@ -562,6 +594,10 @@ export async function getReportData(
   type: ReportType,
   filters: ReportFiltersInput = {},
 ): Promise<ReportResult> {
+  if (type === "stock_boissons" && !hasBarService(workspace.serviceScope)) {
+    return buildVentesReport(workspace, filters);
+  }
+
   switch (type) {
     case "ventes":
       return buildVentesReport(workspace, filters);

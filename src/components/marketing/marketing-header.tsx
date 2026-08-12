@@ -52,7 +52,7 @@ export function MarketingHeader() {
             Se connecter
           </Link>
           <Link
-            href="/inscription"
+            href="/inscription/activite"
             className="inline-flex h-9 items-center rounded-lg bg-emerald-500 px-3.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-emerald-400"
           >
             Créer mon établissement
@@ -93,7 +93,7 @@ export function MarketingHeader() {
               Se connecter
             </Link>
             <Link
-              href="/inscription"
+              href="/inscription/activite"
               onClick={() => setOpen(false)}
               className="rounded-lg bg-emerald-500 px-3 py-2.5 text-center text-[13px] font-semibold text-white"
             >

@@ -38,6 +38,12 @@ import type {
   ProductStats,
 } from "@/lib/products/types";
 import type { ProductTab } from "@/lib/products/schemas";
+import {
+  defaultDepartmentCode,
+  hasBarService,
+  hasKitchenService,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 
 type ProductsWorkspaceProps = {
   establishmentName: string;
@@ -49,6 +55,7 @@ type ProductsWorkspaceProps = {
   initialSearch: string;
   initialCategoryId: string;
   canManage: boolean;
+  serviceScope?: ServiceScope;
 };
 
 type FormMode = "create" | "edit" | null;
@@ -76,8 +83,18 @@ export function ProductsWorkspace({
   initialSearch,
   initialCategoryId,
   canManage,
+  serviceScope = "BOTH",
 }: ProductsWorkspaceProps) {
   const router = useRouter();
+  const allowedDepartments = [
+    ...(hasBarService(serviceScope) ? (["BAR"] as const) : []),
+    ...(hasKitchenService(serviceScope) ? (["KITCHEN"] as const) : []),
+  ];
+  const visibleTabs = PRODUCT_TABS.filter((item) => {
+    if (item.id === "bar") return hasBarService(serviceScope);
+    if (item.id === "kitchen") return hasKitchenService(serviceScope);
+    return true;
+  });
   const [isPending, startTransition] = useTransition();
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [tab, setTab] = useState<ProductTab>(initialTab);
@@ -118,10 +135,15 @@ export function ProductsWorkspace({
   }
 
   function openCreateForm() {
+    const departmentCode = defaultDepartmentCode(serviceScope);
     setEditingProduct(null);
     setFormState({
       ...emptyForm,
-      categoryId: categories.find((category) => category.departmentCode === "BAR")?.id ?? "",
+      departmentCode,
+      unit: departmentCode === "BAR" ? "BOTTLE" : "PORTION",
+      categoryId:
+        categories.find((category) => category.departmentCode === departmentCode)?.id ??
+        "",
     });
     resetImageAssets();
     setFormMode("create");
@@ -281,7 +303,7 @@ export function ProductsWorkspace({
         </div>
       )}
 
-      <div className="grid shrink-0 grid-cols-2 gap-2.5 sm:grid-cols-4 lg:gap-3">
+      <div className={`grid shrink-0 gap-2.5 lg:gap-3 ${hasBarService(serviceScope) && hasKitchenService(serviceScope) ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}>
         <StatCard
           title="Catalogue"
           value={String(stats.total)}
@@ -289,6 +311,7 @@ export function ProductsWorkspace({
           icon={Package}
           tone="emerald"
         />
+        {hasBarService(serviceScope) ? (
         <StatCard
           title="Boissons"
           value={String(stats.barCount)}
@@ -296,6 +319,8 @@ export function ProductsWorkspace({
           icon={Wine}
           tone="sky"
         />
+        ) : null}
+        {hasKitchenService(serviceScope) ? (
         <StatCard
           title="Nourriture"
           value={String(stats.kitchenCount)}
@@ -303,6 +328,7 @@ export function ProductsWorkspace({
           icon={UtensilsCrossed}
           tone="violet"
         />
+        ) : null}
         <StatCard
           title="Indisponibles"
           value={String(stats.inactiveCount)}
@@ -315,7 +341,7 @@ export function ProductsWorkspace({
       <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
         <div className="flex shrink-0 flex-col gap-2.5 border-b border-slate-100 px-3.5 py-2.5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            {PRODUCT_TABS.map((item) => (
+            {visibleTabs.map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -528,6 +554,7 @@ export function ProductsWorkspace({
           onImageAssetsChange={setImageAssets}
           onPackagingsChanged={() => refreshSoon(() => router.refresh())}
           onClientValidationError={setFormError}
+          allowedDepartments={allowedDepartments}
         />
       ) : null}
     </div>

@@ -2,8 +2,10 @@
 
 import { LayoutGrid, Tag, UtensilsCrossed, Wine } from "lucide-react";
 
-import type { DepartmentFilter } from "@/components/pos/constants";
 import type { CashierCategory } from "@/lib/orders/types";
+import type { DepartmentFilter } from "@/components/pos/constants";
+import type { ServiceScope } from "@/lib/settings/service-scope";
+import { hasBarService, hasKitchenService } from "@/lib/settings/service-scope";
 
 type CategorySidebarProps = {
   categories: CashierCategory[];
@@ -11,6 +13,7 @@ type CategorySidebarProps = {
   categoryId: string;
   onDepartmentChange: (filter: DepartmentFilter) => void;
   onCategoryChange: (categoryId: string) => void;
+  serviceScope?: ServiceScope;
 };
 
 const DEPARTMENTS: {
@@ -29,7 +32,13 @@ export function CategorySidebar({
   categoryId,
   onDepartmentChange,
   onCategoryChange,
+  serviceScope = "BOTH",
 }: CategorySidebarProps) {
+  const departments = DEPARTMENTS.filter((dept) => {
+    if (dept.id === "bar") return hasBarService(serviceScope);
+    if (dept.id === "kitchen") return hasKitchenService(serviceScope);
+    return hasBarService(serviceScope) && hasKitchenService(serviceScope);
+  });
   const filteredCategories = categories.filter((category) => {
     if (departmentFilter === "bar") return category.departmentCode === "BAR";
     if (departmentFilter === "kitchen") return category.departmentCode === "KITCHEN";
@@ -49,7 +58,7 @@ export function CategorySidebar({
             Départements
           </p>
           <div className="space-y-0.5">
-            {DEPARTMENTS.map((dept) => {
+            {departments.map((dept) => {
               const active =
                 dept.id === "all"
                   ? departmentFilter === "all" && categoryId === "all"

@@ -7,6 +7,7 @@ import { mapGenericError } from "@/lib/auth/errors";
 import { inviteSpaceToRole } from "@/lib/auth/roles";
 import { requireAdminMutationContext } from "@/lib/auth/workspace-context";
 import { getCloudOfflineActionError } from "@/lib/desktop/require-cloud-online";
+import { isInvitableSpaceAllowed } from "@/lib/settings/service-scope";
 import {
   createEmployeeAccountSchema,
   deleteEmployeeAccountSchema,
@@ -46,6 +47,13 @@ export async function createEmployeeAccountAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  if (!isInvitableSpaceAllowed(parsed.data.space, workspace.serviceScope)) {
+    return {
+      error:
+        "Cet espace employé n’est pas ouvert pour cet établissement. Modifiez les espaces dans Paramètres.",
+    };
   }
 
   if (!isAdminClientConfigured()) {

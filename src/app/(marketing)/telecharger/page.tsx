@@ -64,7 +64,7 @@ export default function TelechargerPage() {
 
         <p className="mt-8 text-[14px] text-slate-600">
           Pas encore d’espace ?{" "}
-          <Link href="/inscription" className="font-semibold text-emerald-800 hover:underline">
+          <Link href="/inscription/activite" className="font-semibold text-emerald-800 hover:underline">
             Créer mon établissement
           </Link>
         </p>

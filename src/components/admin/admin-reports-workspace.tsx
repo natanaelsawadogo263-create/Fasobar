@@ -22,9 +22,10 @@ import { getReportDataAction } from "@/app/(protected)/application/rapports/acti
 import { AlertMessage } from "@/components/auth/alert-message";
 import { BeneficesReportPanel } from "@/components/admin/benefices-report-panel";
 import { downloadCsv } from "@/lib/csv/download-csv";
-import { formatReportCell, REPORT_TYPE_OPTIONS } from "@/lib/reports/constants";
+import { formatReportCell, reportOptionsForScope } from "@/lib/reports/constants";
 import type { ReportFiltersInput, ReportType } from "@/lib/reports/schemas";
 import type { ReportResult } from "@/lib/reports/types";
+import type { ServiceScope } from "@/lib/settings/service-scope";
 
 type ReportEstablishmentInfo = {
   name: string;
@@ -37,6 +38,7 @@ type AdminReportsWorkspaceProps = {
   initialReport: ReportResult;
   initialFilters: ReportFiltersInput;
   establishment: ReportEstablishmentInfo;
+  serviceScope?: ServiceScope;
 };
 
 const REPORT_ICONS: Partial<
@@ -197,6 +199,7 @@ export function AdminReportsWorkspace({
   initialReport,
   initialFilters,
   establishment,
+  serviceScope = "BOTH",
 }: AdminReportsWorkspaceProps) {
   const [report, setReport] = useState<ReportResult>(initialReport);
   const [filters, setFilters] = useState<ReportFiltersInput>(initialFilters);
@@ -206,9 +209,14 @@ export function AdminReportsWorkspace({
 
   const [printStamp, setPrintStamp] = useState<string | null>(null);
 
+  const reportOptions = useMemo(
+    () => reportOptionsForScope(serviceScope),
+    [serviceScope],
+  );
+
   const optionsById = useMemo(
-    () => new Map(REPORT_TYPE_OPTIONS.map((option) => [option.id, option])),
-    [],
+    () => new Map(reportOptions.map((option) => [option.id, option])),
+    [reportOptions],
   );
 
   const activeOption = optionsById.get(report.type);
@@ -522,7 +530,7 @@ export function AdminReportsWorkspace({
               }
               className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-800"
             >
-              {REPORT_TYPE_OPTIONS.map((option) => (
+              {reportOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
                 </option>
@@ -614,7 +622,7 @@ export function AdminReportsWorkspace({
             ) : null}
 
             {report.type === "benefices" ? (
-              <BeneficesReportPanel report={report} />
+              <BeneficesReportPanel report={report} serviceScope={serviceScope} />
             ) : report.type === "ventes" ? (
               <>
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center print:hidden">

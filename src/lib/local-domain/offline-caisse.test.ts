@@ -52,6 +52,7 @@ function workspace(): WorkspaceContext {
     canManageOrders: true,
     canReadOrders: true,
     canOperateCashRegister: true,
+    serviceScope: "BOTH",
   };
 }
 

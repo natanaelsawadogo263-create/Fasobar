@@ -1,4 +1,7 @@
+import { redirect } from "next/navigation";
+
 import { StockWorkspace } from "@/components/stock/stock-workspace";
+import { hasBarService } from "@/lib/settings/service-scope";
 import { loadStockPageData } from "@/lib/stock/page-data";
 
 type StockBoissonsPageProps = {
@@ -11,31 +14,37 @@ type StockBoissonsPageProps = {
 
 export default async function StockBoissonsPage({ searchParams }: StockBoissonsPageProps) {
   const params = await searchParams;
-  const { workspace, filters, stockItems, suppliers, categories, products, stats, totalStockItemCount } =
-    await loadStockPageData(
-      { ...params, tab: "bar" },
-      { defaultTab: "bar", basePath: "/application/stock/boissons" },
-    );
+  const data = await loadStockPageData(
+    { ...params, tab: "bar" },
+    { defaultTab: "bar", basePath: "/application/stock/boissons" },
+  );
+
+  if (!hasBarService(data.serviceScope)) {
+    redirect("/application/stock");
+  }
 
   return (
     <StockWorkspace
-      establishmentName={workspace.establishmentName}
-      stockItems={stockItems}
-      suppliers={suppliers}
-      categories={categories}
-      products={products}
-      stats={stats}
+      establishmentName={data.workspace.establishmentName}
+      stockItems={data.stockItems}
+      suppliers={data.suppliers}
+      categories={data.categories}
+      products={data.products}
+      stats={data.stats}
+      packagingsByProduct={data.packagingsByProduct}
       initialTab="bar"
-      initialSearch={filters.search ?? ""}
-      initialCategoryId={filters.categoryId ?? ""}
-      initialStatus={filters.status}
-      canManageStock={workspace.canManageStock}
-      canManageBarStock={workspace.canManageBarStock}
-      canManageKitchenStock={workspace.canManageKitchenStock}
-      organizationRole={workspace.organizationRole}
-      establishmentRole={workspace.establishmentRole}
-      totalStockItemCount={totalStockItemCount}
+      initialSearch={data.filters.search ?? ""}
+      initialCategoryId={data.filters.categoryId ?? ""}
+      initialStatus={data.filters.status}
+      canManageStock={data.workspace.canManageStock}
+      canManageBarStock={data.workspace.canManageBarStock}
+      canManageKitchenStock={data.workspace.canManageKitchenStock}
+      organizationRole={data.workspace.organizationRole}
+      establishmentRole={data.workspace.establishmentRole}
+      totalStockItemCount={data.totalStockItemCount}
       basePath="/application/stock/boissons"
+      drinksOnly
+      serviceScope={data.serviceScope}
     />
   );
 }

@@ -9,7 +9,7 @@ type EstablishmentLiveSyncProps = {
   establishmentId: string;
 };
 
-const REFRESH_DEBOUNCE_MS = 500;
+const REFRESH_DEBOUNCE_MS = 900;
 
 /** Pages admin “statiques” : pas de refresh ops (évite de recharger tout le SSR). */
 function shouldSkipOpsRefresh(pathname: string | null): boolean {

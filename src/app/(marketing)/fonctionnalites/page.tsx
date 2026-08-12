@@ -35,7 +35,7 @@ export default function FonctionnalitesPage() {
         </div>
         <div className="mt-10 flex flex-wrap gap-3">
           <Link
-            href="/inscription"
+            href="/inscription/activite"
             className="inline-flex h-11 items-center rounded-xl bg-emerald-700 px-5 text-[14px] font-semibold text-white hover:bg-emerald-600"
           >
             Créer mon établissement

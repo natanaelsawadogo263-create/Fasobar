@@ -1,4 +1,8 @@
-export const AUTH_ROUTES = new Set(["/connexion", "/inscription"]);
+export const AUTH_ROUTES = new Set([
+  "/connexion",
+  "/inscription",
+  "/inscription/activite",
+]);
 
 export const PROTECTED_PREFIXES = [
   "/application",

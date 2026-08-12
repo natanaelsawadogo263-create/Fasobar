@@ -70,5 +70,6 @@ export function buildWorkspaceContextFromLocalUser(
       organizationRole,
       establishmentRole,
     ),
+    serviceScope: "BOTH",
   };
 }

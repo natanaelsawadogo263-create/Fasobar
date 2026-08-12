@@ -46,6 +46,7 @@ export default async function CaissePage({ searchParams }: CaissePageProps) {
       session={session}
       initialOrder={initialOrder}
       freshCart={freshCart}
+      serviceScope={workspace.serviceScope}
     />
   );
 }

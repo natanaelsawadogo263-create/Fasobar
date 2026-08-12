@@ -3,25 +3,33 @@
 import { useActionState, useState } from "react";
 
 import { bootstrapOrganizationAction } from "@/app/(protected)/onboarding/actions";
-import { ESTABLISHMENT_TYPE_LABELS, ESTABLISHMENT_TYPES } from "@/lib/auth/constants";
-import type { AuthActionState } from "@/lib/auth/types";
-import type { EstablishmentType } from "@/lib/auth/schemas";
-import { slugifyFromName } from "@/lib/auth/slugs";
+import { ActivityPicker } from "@/components/auth/activity-picker";
 import { AlertMessage } from "@/components/auth/alert-message";
-import { FormField, FormSelect } from "@/components/auth/form-field";
+import { FormField } from "@/components/auth/form-field";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
+import {
+  getBusinessActivity,
+  type BusinessActivityId,
+} from "@/lib/auth/activities";
+import type { AuthActionState } from "@/lib/auth/types";
+import { slugifyFromName } from "@/lib/auth/slugs";
 
 const initialState: AuthActionState = {};
 
-export function OnboardingForm() {
+type OnboardingFormProps = {
+  initialActivity?: BusinessActivityId | "";
+};
+
+export function OnboardingForm({ initialActivity = "" }: OnboardingFormProps) {
   const [state, formAction] = useActionState(bootstrapOrganizationAction, initialState);
+  const [activityCode, setActivityCode] = useState<BusinessActivityId | "">(
+    initialActivity,
+  );
   const [organizationName, setOrganizationName] = useState("");
   const [establishmentName, setEstablishmentName] = useState("");
   const [establishmentTouched, setEstablishmentTouched] = useState(false);
   const [phone, setPhone] = useState("");
-  const [establishmentType, setEstablishmentType] =
-    useState<EstablishmentType>("RESTAURANT_MAQUIS");
   const [city, setCity] = useState("");
   const [quartier, setQuartier] = useState("");
 
@@ -30,6 +38,32 @@ export function OnboardingForm() {
     ? establishmentName
     : organizationName;
   const establishmentSlug = slugifyFromName(resolvedEstablishmentName);
+  const selectedActivity = getBusinessActivity(activityCode);
+
+  if (!activityCode) {
+    return (
+      <div className="w-full max-w-3xl">
+        <div className="text-center">
+          <div className="flex justify-center">
+            <FasoBarLogo size="md" />
+          </div>
+          <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
+            Étape 3 sur 3
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+            Quel type de commerce gérez-vous ?
+          </h1>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-slate-500">
+            Choisissez votre activité principale pour que FasoBar adapte votre
+            espace.
+          </p>
+        </div>
+        <div className="mt-8">
+          <ActivityPicker value="" onChange={setActivityCode} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-[480px]">
@@ -41,7 +75,7 @@ export function OnboardingForm() {
                 <FasoBarLogo size="md" />
               </div>
               <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                Étape 2 sur 2
+                Étape 3 sur 3
               </p>
               <h1 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
                 Informations de l&apos;établissement
@@ -59,6 +93,7 @@ export function OnboardingForm() {
 
             <input type="hidden" name="organizationSlug" value={organizationSlug} />
             <input type="hidden" name="establishmentSlug" value={establishmentSlug} />
+            <input type="hidden" name="activityCode" value={activityCode} />
             <input type="hidden" name="country" value="Burkina Faso" />
             <input type="hidden" name="currency" value="XOF" />
             <input type="hidden" name="timezone" value="Africa/Ouagadougou" />
@@ -69,11 +104,29 @@ export function OnboardingForm() {
                   Votre établissement
                 </h2>
 
+                <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50/70 px-3.5 py-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                      Activité
+                    </p>
+                    <p className="mt-0.5 text-[13px] font-medium text-slate-900">
+                      {selectedActivity?.label}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActivityCode("")}
+                    className="text-[12px] font-semibold text-emerald-800 hover:underline"
+                  >
+                    Modifier
+                  </button>
+                </div>
+
                 <FormField
                   id="organizationName"
                   name="organizationName"
                   label="Nom commercial"
-                  placeholder="Ex. Maquis Le Palmier"
+                  placeholder="Ex. Boutique du Centre"
                   value={organizationName}
                   onChange={(event) => setOrganizationName(event.target.value)}
                   required
@@ -83,7 +136,7 @@ export function OnboardingForm() {
                   id="establishmentName"
                   name="establishmentName"
                   label="Nom de l'établissement"
-                  placeholder="Ex. Maquis Le Palmier — Ouaga 2000"
+                  placeholder="Ex. Boutique du Centre — Ouaga 2000"
                   value={resolvedEstablishmentName}
                   onChange={(event) => {
                     setEstablishmentTouched(true);
@@ -91,23 +144,6 @@ export function OnboardingForm() {
                   }}
                   required
                 />
-
-                <FormSelect
-                  id="establishmentType"
-                  name="establishmentType"
-                  label="Type d'établissement"
-                  required
-                  value={establishmentType}
-                  onChange={(event) =>
-                    setEstablishmentType(event.target.value as EstablishmentType)
-                  }
-                >
-                  {ESTABLISHMENT_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {ESTABLISHMENT_TYPE_LABELS[type]}
-                    </option>
-                  ))}
-                </FormSelect>
 
                 <FormField
                   id="phone"

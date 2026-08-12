@@ -33,6 +33,11 @@ import type {
   AdminOrderStatusFilter,
 } from "@/lib/orders/schemas";
 import type { AdminOrderListItem, OrderCashierOption } from "@/lib/orders/types";
+import {
+  allowedDepartments,
+  isSingleServiceScope,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 
 type AdminOrdersWorkspaceProps = {
   orders: AdminOrderListItem[];
@@ -46,6 +51,7 @@ type AdminOrdersWorkspaceProps = {
   cashiers: OrderCashierOption[];
   establishmentName: string;
   canManageOrders: boolean;
+  serviceScope?: ServiceScope;
 };
 
 const DEPARTMENT_LABELS: Record<string, string> = {
@@ -76,8 +82,11 @@ export function AdminOrdersWorkspace({
   cashiers,
   establishmentName,
   canManageOrders,
+  serviceScope = "BOTH",
 }: AdminOrdersWorkspaceProps) {
   const router = useRouter();
+  const departments = allowedDepartments(serviceScope);
+  const singleScope = isSingleServiceScope(serviceScope);
   const [, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<AdminOrderListItem | null>(null);
@@ -238,6 +247,9 @@ export function AdminOrdersWorkspace({
           <option value="paid">Terminées</option>
           <option value="cancelled">Annulées</option>
         </select>
+        {singleScope ? (
+          <input type="hidden" name="department" value={departments[0]} />
+        ) : (
         <select
           value={filters.department || "all"}
           onChange={(event) =>
@@ -246,9 +258,14 @@ export function AdminOrdersWorkspace({
           className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[12px]"
         >
           <option value="all">Tous départements</option>
-          <option value="BAR">Boissons</option>
-          <option value="KITCHEN">Cuisine</option>
+          {departments.includes("BAR") ? (
+            <option value="BAR">Boissons</option>
+          ) : null}
+          {departments.includes("KITCHEN") ? (
+            <option value="KITCHEN">Cuisine</option>
+          ) : null}
         </select>
+        )}
         <select
           value={filters.cashierId || ""}
           onChange={(event) => applyFilters({ cashierId: event.target.value })}
@@ -341,7 +358,9 @@ export function AdminOrdersWorkspace({
                 <tr>
                   <th className="px-2.5 py-2 font-semibold">N°</th>
                   <th className="px-2.5 py-2 font-semibold">Table / Réf.</th>
-                  <th className="px-2.5 py-2 font-semibold">Département</th>
+                  {singleScope ? null : (
+                    <th className="px-2.5 py-2 font-semibold">Département</th>
+                  )}
                   <th className="px-2.5 py-2 font-semibold">Caissier·ère</th>
                   <th className="px-2.5 py-2 font-semibold">Date</th>
                   <th className="px-2.5 py-2 font-semibold">Articles</th>
@@ -360,22 +379,24 @@ export function AdminOrdersWorkspace({
                     <td className="px-2.5 py-1.5 text-slate-700">
                       {order.tableReference ?? order.customerReference ?? "—"}
                     </td>
-                    <td className="px-2.5 py-1.5">
-                      <div className="flex flex-wrap gap-1">
-                        {order.departmentCodes.length === 0 ? (
-                          <span className="text-slate-400">—</span>
-                        ) : (
-                          order.departmentCodes.map((code) => (
-                            <span
-                              key={code}
-                              className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${DEPARTMENT_BADGE_STYLES[code]}`}
-                            >
-                              {DEPARTMENT_LABELS[code] ?? code}
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </td>
+                    {singleScope ? null : (
+                      <td className="px-2.5 py-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          {order.departmentCodes.length === 0 ? (
+                            <span className="text-slate-400">—</span>
+                          ) : (
+                            order.departmentCodes.map((code) => (
+                              <span
+                                key={code}
+                                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${DEPARTMENT_BADGE_STYLES[code]}`}
+                              >
+                                {DEPARTMENT_LABELS[code] ?? code}
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </td>
+                    )}
                     <td className="px-2.5 py-1.5 text-slate-600">
                       {order.createdByName ?? "—"}
                     </td>

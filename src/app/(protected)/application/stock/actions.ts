@@ -9,6 +9,7 @@ import {
 import { revalidateStockOps } from "@/lib/ops/revalidate";
 import { getDepartmentIdByCode } from "@/lib/products/queries";
 import { canManageDepartmentStock } from "@/lib/stock/constants";
+import { isDepartmentAllowed } from "@/lib/settings/service-scope";
 import { writeAuditLogEntry } from "@/lib/stock/audit";
 import {
   findExistingStockItemForProduct,
@@ -42,6 +43,13 @@ function assertDepartmentPermission(
   workspace: WorkspaceContext,
   departmentCode: string,
 ): string | null {
+  if (
+    (departmentCode === "BAR" || departmentCode === "KITCHEN") &&
+    !isDepartmentAllowed(workspace.serviceScope, departmentCode)
+  ) {
+    return "Ce département n’est pas ouvert pour cet établissement.";
+  }
+
   if (
     !canManageDepartmentStock(
       workspace.organizationRole,

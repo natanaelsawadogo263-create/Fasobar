@@ -40,6 +40,10 @@ import type {
 } from "@/lib/orders/types";
 import type { OrderType } from "@/lib/orders/schemas";
 import type { CashSessionDetail } from "@/lib/payments/types";
+import {
+  defaultPosDepartmentFilter,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 
 type PosWorkspaceProps = {
   cashierName: string;
@@ -50,6 +54,7 @@ type PosWorkspaceProps = {
   initialOrder?: OrderDetail | null;
   /** Panier vide (pas de panier démo). */
   freshCart?: boolean;
+  serviceScope?: ServiceScope;
 };
 
 type MobileTab = "products" | "order";
@@ -124,10 +129,20 @@ export function PosWorkspace({
   session,
   initialOrder,
   freshCart = false,
+  serviceScope = "BOTH",
 }: PosWorkspaceProps) {
   const router = useRouter();
   // Tous les produits actifs de l'établissement (créés par l'admin) — pas le catalogue démo.
-  const catalogProducts = useMemo(() => sortCaisseProducts(products), [products]);
+  const catalogProducts = useMemo(() => {
+    const sorted = sortCaisseProducts(products);
+    if (serviceScope === "BAR") {
+      return sorted.filter((product) => product.departmentCode === "BAR");
+    }
+    if (serviceScope === "KITCHEN") {
+      return sorted.filter((product) => product.departmentCode === "KITCHEN");
+    }
+    return sorted;
+  }, [products, serviceScope]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
   const [isOpening, startOpenTransition] = useTransition();
@@ -155,7 +170,9 @@ export function PosWorkspace({
   const [orderType, setOrderType] = useState<OrderType>(
     initialOrder?.orderType ?? "ON_SITE",
   );
-  const [departmentFilter, setDepartmentFilter] = useState<DepartmentFilter>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<DepartmentFilter>(
+    defaultPosDepartmentFilter(serviceScope),
+  );
   const [categoryId, setCategoryId] = useState("all");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>(() => {
@@ -562,6 +579,7 @@ export function PosWorkspace({
       categoryId={categoryId}
       search={search}
       searchInputRef={searchInputRef}
+      serviceScope={serviceScope}
       onDepartmentChange={handleDepartmentChange}
       onCategoryChange={handleCategoryChange}
       onSearchChange={handleSearchChange}
@@ -600,39 +618,6 @@ export function PosWorkspace({
         </div>
       </div>
 
-      {/* Mobile bottom navigation */}
-      <nav
-        className="flex shrink-0 border-t border-slate-200 bg-white lg:hidden"
-        aria-label="Navigation caisse mobile"
-      >
-        <button
-          type="button"
-          onClick={() => setMobileTab("products")}
-          className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-medium ${
-            mobileTab === "products" ? "text-emerald-700" : "text-slate-500"
-          }`}
-        >
-          <LayoutGrid className="h-5 w-5" />
-          Produits
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileTab("order")}
-          className={`relative flex flex-1 flex-col items-center gap-1 py-2.5 text-xs font-medium ${
-            mobileTab === "order" ? "text-emerald-700" : "text-slate-500"
-          }`}
-        >
-          <ShoppingBag className="h-5 w-5" />
-          Commande
-          {cart.length > 0 ? (
-            <span className="absolute right-[calc(50%-24px)] top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold text-white">
-              {cart.reduce((s, l) => s + l.quantity, 0)}
-            </span>
-          ) : null}
-        </button>
-      </nav>
-
-      {/* Mobile fixed checkout bar when on products tab */}
       {mobileTab === "products" && cart.length > 0 ? (
         <div className="flex shrink-0 items-center gap-2 border-t border-slate-200 bg-white px-3 py-3 lg:hidden">
           <div className="min-w-0 flex-1">
@@ -653,12 +638,43 @@ export function PosWorkspace({
             type="button"
             disabled={isPending}
             onClick={handleCheckout}
-            className="shrink-0 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+            className="min-h-12 shrink-0 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
             Encaisser
           </button>
         </div>
       ) : null}
+
+      <nav
+        className="flex shrink-0 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+        aria-label="Navigation caisse mobile"
+      >
+        <button
+          type="button"
+          onClick={() => setMobileTab("products")}
+          className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold ${
+            mobileTab === "products" ? "text-emerald-700" : "text-slate-500"
+          }`}
+        >
+          <LayoutGrid className="h-5 w-5" />
+          Produits
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("order")}
+          className={`relative flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold ${
+            mobileTab === "order" ? "text-emerald-700" : "text-slate-500"
+          }`}
+        >
+          <ShoppingBag className="h-5 w-5" />
+          Commande
+          {cart.length > 0 ? (
+            <span className="absolute right-[calc(50%-28px)] top-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold text-white">
+              {cart.reduce((s, l) => s + l.quantity, 0)}
+            </span>
+          ) : null}
+        </button>
+      </nav>
 
       <OpenOrdersDrawer
         open={showOpenOrders}

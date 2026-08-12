@@ -17,7 +17,7 @@ export const MARKETING_FAQ = [
   {
     question: "Comment créer mon établissement ?",
     answer:
-      "Cliquez sur « Créer mon établissement », créez votre compte, puis configurez vos produits et vos employés.",
+      "Cliquez sur « Créer mon établissement », choisissez votre type d’activité, créez votre compte, puis configurez vos produits et vos employés.",
   },
   {
     question: "Comment télécharger FasoBar ?",
@@ -37,7 +37,7 @@ export const MARKETING_FAQ = [
   {
     question: "Comment fonctionne l’abonnement ?",
     answer:
-      "Après la création de l’établissement, choisissez une offre mensuelle ou annuelle depuis votre espace.",
+      "Après la création de l’établissement, un essai gratuit de 7 jours peut être proposé. Ensuite, choisissez une offre mensuelle ou annuelle depuis votre espace.",
   },
   {
     question: "Comment contacter FasoBar ?",

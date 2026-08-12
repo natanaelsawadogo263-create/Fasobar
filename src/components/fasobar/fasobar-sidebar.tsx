@@ -7,6 +7,7 @@ import { LayoutGrid, UtensilsCrossed, Wine } from "lucide-react";
 import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";
 import type { DepartmentFilter } from "@/components/pos/constants";
+import { hasBarService, hasKitchenService } from "@/lib/settings/service-scope";
 
 const DEPARTMENTS: {
   id: DepartmentFilter;
@@ -22,6 +23,12 @@ export function FasoBarSidebar() {
   const pathname = usePathname();
   const ctx = useFasoBarCashier();
   const filters = ctx?.caisseFilters;
+  const serviceScope = filters?.serviceScope ?? "BOTH";
+  const departments = DEPARTMENTS.filter((dept) => {
+    if (dept.id === "bar") return hasBarService(serviceScope);
+    if (dept.id === "kitchen") return hasKitchenService(serviceScope);
+    return hasBarService(serviceScope) && hasKitchenService(serviceScope);
+  });
   const isCaisse = pathname === "/application/caisse" || pathname.startsWith("/application/caisse?");
 
   const categoryOptions = isCaisse
@@ -54,7 +61,7 @@ export function FasoBarSidebar() {
           Départements
         </p>
         <div className="space-y-0.5">
-          {DEPARTMENTS.map((dept) => {
+          {departments.map((dept) => {
             const active =
               isCaisse &&
               filters &&

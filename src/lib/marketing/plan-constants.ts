@@ -7,6 +7,9 @@ export type PublicPlan = {
   priceXof: number;
 };
 
+/** Durée essai gratuit (migration platform_settings, défaut 7 jours). */
+export const PUBLIC_TRIAL_DURATION_DAYS = 7;
+
 /** Offres seed FasoBar (migration plateforme) — fallback si lecture cloud indisponible. */
 export const FALLBACK_PUBLIC_PLANS: PublicPlan[] = [
   {
@@ -26,3 +29,13 @@ export const FALLBACK_PUBLIC_PLANS: PublicPlan[] = [
     priceXof: 100_000,
   },
 ];
+
+export function formatPriceAmountXof(amount: number): string {
+  return new Intl.NumberFormat("fr-FR", {
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+export function yearlySavingsXof(monthlyPrice: number, yearlyPrice: number): number {
+  return Math.max(0, monthlyPrice * 12 - yearlyPrice);
+}

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { mapGenericError } from "@/lib/auth/errors";
 import { onboardingSchema } from "@/lib/auth/schemas";
+import { mapActivityToEstablishmentType } from "@/lib/auth/activities";
 import type { AuthActionState } from "@/lib/auth/types";
 import { requireAuthenticatedUser, userHasActiveOrganization } from "@/lib/auth/session";
 import { getBootstrapBlockedMessage } from "@/lib/auth/routes";
@@ -26,7 +27,7 @@ export async function bootstrapOrganizationAction(
     phone: formData.get("phone") || undefined,
     establishmentName: formData.get("establishmentName"),
     establishmentSlug: formData.get("establishmentSlug"),
-    establishmentType: formData.get("establishmentType"),
+    activityCode: formData.get("activityCode"),
     address: formData.get("address") || undefined,
     city: formData.get("city"),
     country: formData.get("country") || "Burkina Faso",
@@ -48,14 +49,16 @@ export async function bootstrapOrganizationAction(
     `${salt}e`,
   );
 
+  const establishmentType = mapActivityToEstablishmentType(parsed.data.activityCode);
+
   const supabase = await createClient();
 
-  const { error } = await supabase.rpc("bootstrap_organization", {
+  let { data, error } = await supabase.rpc("bootstrap_organization", {
     organization_name: parsed.data.organizationName,
     organization_slug: organizationSlug,
     establishment_name: parsed.data.establishmentName,
     establishment_slug: establishmentSlug,
-    establishment_type: parsed.data.establishmentType,
+    establishment_type: establishmentType,
     phone: parsed.data.phone ?? null,
     address: parsed.data.address ?? null,
     city: parsed.data.city,
@@ -63,6 +66,24 @@ export async function bootstrapOrganizationAction(
     currency: parsed.data.currency,
     timezone: parsed.data.timezone,
   });
+
+  if (error && establishmentType === "COMMERCE") {
+    const retry = await supabase.rpc("bootstrap_organization", {
+      organization_name: parsed.data.organizationName,
+      organization_slug: organizationSlug,
+      establishment_name: parsed.data.establishmentName,
+      establishment_slug: establishmentSlug,
+      establishment_type: "RESTAURANT_MAQUIS",
+      phone: parsed.data.phone ?? null,
+      address: parsed.data.address ?? null,
+      city: parsed.data.city,
+      country: parsed.data.country,
+      currency: parsed.data.currency,
+      timezone: parsed.data.timezone,
+    });
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     console.error(
@@ -73,6 +94,17 @@ export async function bootstrapOrganizationAction(
       error.hint,
     );
     return { error: mapGenericError(error) };
+  }
+
+  const establishmentId = Array.isArray(data)
+    ? data[0]?.establishment_id
+    : (data as { establishment_id?: string } | null)?.establishment_id;
+
+  if (establishmentId) {
+    await supabase
+      .from("establishments")
+      .update({ activity_code: parsed.data.activityCode })
+      .eq("id", establishmentId);
   }
 
   redirect("/abonnement");

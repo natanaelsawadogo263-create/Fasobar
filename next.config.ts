@@ -25,11 +25,11 @@ const nextConfig: NextConfig = {
   // Keep default `next build` on Turbopack when a webpack() hook is present
   // (Next 16 otherwise errors). Desktop uses `next build --webpack` instead.
   turbopack: {},
-  // Navigations client : réutilise brièvement le payload RSC (app plus réactive).
+  // Navigations client : réutilise le payload RSC plus longtemps (app plus fluide).
   experimental: {
     staleTimes: {
-      dynamic: 120,
-      static: 300,
+      dynamic: 180,
+      static: 600,
     },
   },
   images: {

@@ -41,6 +41,10 @@ import type {
   StockStats,
   SupplierOption,
 } from "@/lib/stock/types";
+import {
+  isSingleServiceScope,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 
 type StockWorkspaceProps = {
   establishmentName: string;
@@ -63,6 +67,7 @@ type StockWorkspaceProps = {
   basePath?: string;
   /** Espace responsable bar : boissons uniquement (même UI que l'admin stock). */
   drinksOnly?: boolean;
+  serviceScope?: ServiceScope;
 };
 
 type ModalMode = "entry" | "loss" | "adjust" | "history" | null;
@@ -99,6 +104,7 @@ export function StockWorkspace({
   totalStockItemCount,
   basePath = "/application/stock",
   drinksOnly = false,
+  serviceScope = "BOTH",
 }: StockWorkspaceProps) {
   void categories;
   void products;
@@ -106,6 +112,24 @@ export function StockWorkspace({
   void canManageBarStock;
   void canManageKitchenStock;
   const router = useRouter();
+  const singleScope = drinksOnly || isSingleServiceScope(serviceScope);
+  const stockTitle = drinksOnly
+    ? "Stock boissons"
+    : serviceScope === "KITCHEN"
+      ? "Stock nourriture"
+      : "Stock";
+  const articlesKpiTitle =
+    drinksOnly || serviceScope === "BAR"
+      ? "Articles"
+      : serviceScope === "KITCHEN"
+        ? "Articles"
+        : "Stock boissons";
+  const articlesKpiValue =
+    drinksOnly || serviceScope === "BAR"
+      ? String(stats.barItemCount)
+      : serviceScope === "KITCHEN"
+        ? String(stats.kitchenItemCount)
+        : String(stats.barItemCount);
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -125,10 +149,10 @@ export function StockWorkspace({
   );
 
   const tableColSpan = canManageStock
-    ? drinksOnly
+    ? singleScope
       ? 5
       : 7
-    : drinksOnly
+    : singleScope
       ? 4
       : 6;
 
@@ -214,7 +238,7 @@ export function StockWorkspace({
       <header className="flex shrink-0 flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
-            {drinksOnly ? "Stock boissons" : "Stock"}
+            {stockTitle}
           </h1>
           <p className="mt-0.5 text-[12px] text-slate-500">
             {drinksOnly ? (
@@ -281,9 +305,9 @@ export function StockWorkspace({
         }`}
       >
         <StatCard
-          title={drinksOnly ? "Articles" : "Stock boissons"}
-          value={String(stats.barItemCount)}
-          subtitle={drinksOnly ? "suivis" : "articles suivis"}
+          title={articlesKpiTitle}
+          value={articlesKpiValue}
+          subtitle={singleScope ? "suivis" : "articles suivis"}
           icon={Wine}
           tone="sky"
           compact={drinksOnly}
@@ -367,12 +391,12 @@ export function StockWorkspace({
             <thead className="sticky top-0 z-10 bg-slate-50/95 text-[10px] font-semibold uppercase tracking-wide text-slate-400 backdrop-blur">
               <tr>
                 <th className="px-3.5 py-2.5 font-medium">Produit</th>
-                {drinksOnly ? null : (
+                {singleScope ? null : (
                   <th className="px-3.5 py-2.5 font-medium">Département</th>
                 )}
                 <th className="px-3.5 py-2.5 font-medium">Stock</th>
                 <th className="px-3.5 py-2.5 font-medium">Min.</th>
-                {!drinksOnly ? (
+                {!singleScope ? (
                   <th className="px-3.5 py-2.5 font-medium">Unité</th>
                 ) : null}
                 <th className="px-3.5 py-2.5 font-medium">Statut</th>
@@ -416,7 +440,7 @@ export function StockWorkspace({
                           {unitLabel}
                         </p>
                       </td>
-                      {drinksOnly ? null : (
+                      {singleScope ? null : (
                         <td className="px-3.5 py-2.5 text-slate-600">
                           {item.departmentName}
                         </td>
@@ -427,7 +451,7 @@ export function StockWorkspace({
                       <td className="px-3.5 py-2.5 tabular-nums text-slate-600">
                         {formatQuantity(item.minimumQuantity, item.unit)}
                       </td>
-                      {!drinksOnly ? (
+                      {!singleScope ? (
                         <td className="px-3.5 py-2.5 text-slate-600">
                           {unitLabel}
                         </td>

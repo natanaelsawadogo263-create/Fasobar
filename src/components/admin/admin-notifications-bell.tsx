@@ -249,7 +249,7 @@ export function AdminNotificationsBell({
       <button
         type="button"
         onClick={toggleOpen}
-        className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition active:bg-slate-50 md:h-8 md:w-8 md:rounded-full md:hover:bg-slate-50 md:hover:text-slate-700"
         aria-label={
           unreadCount > 0
             ? `Notifications : ${unreadCount} non lues`

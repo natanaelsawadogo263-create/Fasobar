@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { SubscriptionExpiryBannerLoader } from "@/components/abonnement/subscription-expiry-banner-loader";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import type { NavItem } from "@/lib/navigation/space-navigation";
 
 type AdminShellProps = {
@@ -17,6 +18,13 @@ type AdminShellProps = {
   canRenewSubscription?: boolean;
   children: ReactNode;
 };
+
+const ADMIN_PRIMARY = [
+  "/application/tableau-de-bord",
+  "/application/produits",
+  "/application/stock",
+  "/application/ventes",
+];
 
 export function AdminShell({
   establishmentName,
@@ -45,10 +53,12 @@ export function AdminShell({
             canRenew={canRenewSubscription}
           />
         ) : null}
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pb-[calc(3.75rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </main>
       </div>
+
+      <MobileNav items={navItems} primaryHrefs={ADMIN_PRIMARY} tone="admin" />
     </div>
   );
 }

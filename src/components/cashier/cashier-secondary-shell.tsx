@@ -12,16 +12,16 @@ type CashierSecondaryShellProps = {
 export function CashierSecondaryShell({ children }: CashierSecondaryShellProps) {
   return (
     <div className="app-shell flex h-dvh w-full max-w-full flex-col overflow-hidden bg-slate-50">
-      <div className="shrink-0 border-b border-slate-200/80 bg-white px-4 py-2.5">
+      <div className="shrink-0 border-b border-slate-200/80 bg-white px-3 pb-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] md:px-4">
         <Link
           href="/application/caisse"
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-emerald-500"
+          className="inline-flex h-11 min-w-[44px] items-center gap-2 rounded-xl bg-emerald-600 px-4 text-[13px] font-semibold text-white shadow-sm active:bg-emerald-500"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
+          <ArrowLeft className="h-4 w-4" />
           Retour à la caisse
         </Link>
       </div>
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden pb-[env(safe-area-inset-bottom)]">
         {children}
       </main>
     </div>

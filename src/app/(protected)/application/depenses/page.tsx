@@ -90,6 +90,7 @@ export default async function DepensesPage({ searchParams }: DepensesPageProps) 
           : null
       }
       canManage
+      serviceScope={workspace.serviceScope}
     />
   );
 }

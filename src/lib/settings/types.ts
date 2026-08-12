@@ -1,3 +1,5 @@
+import type { ServiceScope } from "@/lib/settings/service-scope";
+
 export type EstablishmentSettingsActionState = {
   error?: string;
   success?: string;
@@ -15,6 +17,7 @@ export type EstablishmentSettings = {
   thankYouMessage: string | null;
   defaultMinimumStock: number;
   logoUrl: string | null;
+  serviceScope: ServiceScope;
 };
 
 export type EstablishmentSettingsResult = {

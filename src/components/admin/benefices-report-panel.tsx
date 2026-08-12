@@ -4,6 +4,12 @@ import { TrendingDown, TrendingUp, Wine, UtensilsCrossed } from "lucide-react";
 
 import { formatReportCell } from "@/lib/reports/constants";
 import type { ReportResult } from "@/lib/reports/types";
+import {
+  hasBarService,
+  hasKitchenService,
+  isSingleServiceScope,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 
 type SpaceBreakdown = {
   space: string;
@@ -27,14 +33,10 @@ function readSpace(rows: ReportResult["rows"], space: string): SpaceBreakdown | 
 
 function moneyClass(amount: number, emphasize = false): string {
   if (amount < 0) {
-    return emphasize
-      ? "text-red-700"
-      : "text-red-600";
+    return emphasize ? "text-red-700" : "text-red-600";
   }
   if (amount > 0) {
-    return emphasize
-      ? "text-emerald-700"
-      : "text-emerald-700";
+    return emphasize ? "text-emerald-700" : "text-emerald-700";
   }
   return emphasize ? "text-slate-900" : "text-slate-700";
 }
@@ -66,9 +68,7 @@ function SpaceCard({
           </span>
           <div>
             <h3 className="text-[14px] font-bold text-slate-900">{data.space}</h3>
-            <p className="text-[11px] text-slate-500">
-              CA − Appro − Dépenses
-            </p>
+            <p className="text-[11px] text-slate-500">CA − Appro − Dépenses</p>
           </div>
         </div>
       </div>
@@ -107,16 +107,26 @@ function SpaceCard({
 
 type BeneficesReportPanelProps = {
   report: ReportResult;
+  serviceScope?: ServiceScope;
 };
 
-export function BeneficesReportPanel({ report }: BeneficesReportPanelProps) {
-  const bar = readSpace(report.rows, "Bar");
-  const kitchen = readSpace(report.rows, "Cuisine");
+export function BeneficesReportPanel({
+  report,
+  serviceScope = "BOTH",
+}: BeneficesReportPanelProps) {
+  const showBar = hasBarService(serviceScope);
+  const showKitchen = hasKitchenService(serviceScope);
+  const singleScope = isSingleServiceScope(serviceScope);
+
+  const bar = showBar ? readSpace(report.rows, "Bar") : null;
+  const kitchen = showKitchen ? readSpace(report.rows, "Cuisine") : null;
   const total = readSpace(report.rows, "Total");
 
-  if (!bar || !kitchen || !total) {
+  if (!total) {
     return null;
   }
+  if (showBar && !bar) return null;
+  if (showKitchen && !kitchen) return null;
 
   const ProfitIcon = total.profit >= 0 ? TrendingUp : TrendingDown;
   const heroTone =
@@ -127,6 +137,10 @@ export function BeneficesReportPanel({ report }: BeneficesReportPanelProps) {
     total.profit >= 0
       ? "bg-emerald-100 text-emerald-700"
       : "bg-red-100 text-red-700";
+
+  const spaceRows = singleScope
+    ? [total]
+    : [bar, kitchen, total].filter((row): row is SpaceBreakdown => Boolean(row));
 
   return (
     <div className="app-scroll h-full space-y-4 overflow-auto p-4 sm:p-5 print:h-auto print:overflow-visible">
@@ -147,11 +161,23 @@ export function BeneficesReportPanel({ report }: BeneficesReportPanelProps) {
               >
                 {formatReportCell(total.profit, "currency")}
               </p>
-              <p className="mt-1 text-[12px] text-slate-500">
-                Bar {formatReportCell(bar.profit, "currency")}
-                <span className="mx-1.5 text-slate-300">·</span>
-                Cuisine {formatReportCell(kitchen.profit, "currency")}
-              </p>
+              {singleScope ? null : (
+                <p className="mt-1 text-[12px] text-slate-500">
+                  {bar ? (
+                    <>
+                      Bar {formatReportCell(bar.profit, "currency")}
+                    </>
+                  ) : null}
+                  {bar && kitchen ? (
+                    <span className="mx-1.5 text-slate-300">·</span>
+                  ) : null}
+                  {kitchen ? (
+                    <>
+                      Cuisine {formatReportCell(kitchen.profit, "currency")}
+                    </>
+                  ) : null}
+                </p>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3 text-right">
@@ -183,15 +209,19 @@ export function BeneficesReportPanel({ report }: BeneficesReportPanelProps) {
         </div>
       </section>
 
-      <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
-        <SpaceCard data={bar} icon={Wine} accent="bar" />
-        <SpaceCard data={kitchen} icon={UtensilsCrossed} accent="kitchen" />
-      </div>
+      {singleScope ? null : (
+        <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
+          {bar ? <SpaceCard data={bar} icon={Wine} accent="bar" /> : null}
+          {kitchen ? (
+            <SpaceCard data={kitchen} icon={UtensilsCrossed} accent="kitchen" />
+          ) : null}
+        </div>
+      )}
 
       <section className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
         <div className="border-b border-slate-100 px-4 py-2.5">
           <h3 className="text-[13px] font-semibold text-slate-900">
-            Synthèse comparative
+            {singleScope ? "Synthèse" : "Synthèse comparative"}
           </h3>
           <p className="text-[11px] text-slate-500">
             Tous les postes visibles : CA, approvisionnements, dépenses, bénéfice.
@@ -209,7 +239,7 @@ export function BeneficesReportPanel({ report }: BeneficesReportPanelProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {[bar, kitchen, total].map((row) => {
+              {spaceRows.map((row) => {
                 const isTotal = row.space === "Total";
                 return (
                   <tr
@@ -220,7 +250,13 @@ export function BeneficesReportPanel({ report }: BeneficesReportPanelProps) {
                         : "hover:bg-slate-50/60 print:break-inside-avoid"
                     }
                   >
-                    <td className="px-4 py-3 text-slate-900">{row.space}</td>
+                    <td className="px-4 py-3 text-slate-900">
+                      {singleScope && isTotal
+                        ? serviceScope === "BAR"
+                          ? "Boissons"
+                          : "Nourriture"
+                        : row.space}
+                    </td>
                     <td className="px-4 py-3 text-right tabular-nums text-slate-800">
                       {formatReportCell(row.revenue, "currency")}
                     </td>
@@ -245,7 +281,9 @@ export function BeneficesReportPanel({ report }: BeneficesReportPanelProps) {
 
       <p className="text-[11px] leading-relaxed text-slate-500">
         Formule : bénéfice = ventes payées − approvisionnements stock − dépenses
-        de l&apos;espace (Bar ou Caisse/Cuisine).
+        {singleScope
+          ? "."
+          : " de l'espace (Bar ou Caisse/Cuisine)."}
       </p>
     </div>
   );

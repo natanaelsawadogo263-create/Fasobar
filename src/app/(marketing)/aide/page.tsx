@@ -23,7 +23,7 @@ export default function AidePage() {
           <h2 className="text-lg font-semibold text-slate-900">Démarrer</h2>
           <ul className="mt-3 space-y-2 text-[14px] text-slate-600">
             <li>
-              <Link href="/inscription" className="font-medium text-emerald-800 hover:underline">
+              <Link href="/inscription/activite" className="font-medium text-emerald-800 hover:underline">
                 Créer mon établissement
               </Link>
             </li>

@@ -1,17 +1,18 @@
 "use client";
 
+import { PrefetchRoutes } from "@/components/layout/prefetch-routes";
+import { NavigationProgress } from "@/components/layout/navigation-progress";
+import { EstablishmentLiveSync } from "@/components/ops/establishment-live-sync";
+import type { UserSpace } from "@/lib/auth/roles";
+import type { NavItem } from "@/lib/navigation/space-navigation";
+import { Suspense, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin/admin-shell";
 import { BarShell } from "@/components/bar/bar-shell";
 import { CashierSecondaryShell } from "@/components/cashier/cashier-secondary-shell";
 import { FasoBarCashierShell } from "@/components/fasobar/fasobar-cashier-shell";
 import { SpaceShell } from "@/components/layout/space-shell";
-import { PrefetchRoutes } from "@/components/layout/prefetch-routes";
-import { EstablishmentLiveSync } from "@/components/ops/establishment-live-sync";
-import type { UserSpace } from "@/lib/auth/roles";
-import type { NavItem } from "@/lib/navigation/space-navigation";
 
 type ApplicationShellProps = {
   space: UserSpace;
@@ -68,10 +69,16 @@ export function ApplicationShell({
     <PrefetchRoutes hrefs={navItems.filter((item) => item.enabled).map((item) => item.href)} />
   );
   const liveSync = <EstablishmentLiveSync establishmentId={establishmentId} />;
+  const progress = (
+    <Suspense fallback={null}>
+      <NavigationProgress />
+    </Suspense>
+  );
 
   if (space === "admin") {
     return (
       <>
+        {progress}
         {prefetch}
         {liveSync}
         <AdminShell
@@ -92,6 +99,7 @@ export function ApplicationShell({
   if (space === "cashier_kitchen" && isOrderFocusRoute(pathname)) {
     return (
       <>
+        {progress}
         {prefetch}
         {liveSync}
         <div className="app-shell flex h-dvh w-full max-w-full flex-col overflow-hidden bg-slate-50">
@@ -106,6 +114,7 @@ export function ApplicationShell({
   if (space === "cashier_kitchen" && isCashierSecondaryRoute(pathname)) {
     return (
       <>
+        {progress}
         {prefetch}
         {liveSync}
         <CashierSecondaryShell>{children}</CashierSecondaryShell>
@@ -116,6 +125,7 @@ export function ApplicationShell({
   if (space === "cashier_kitchen" && isFasoBarCashierRoute(pathname)) {
     return (
       <>
+        {progress}
         {prefetch}
         {liveSync}
         <FasoBarCashierShell
@@ -133,6 +143,7 @@ export function ApplicationShell({
   if (space === "bar_manager") {
     return (
       <>
+        {progress}
         {prefetch}
         {liveSync}
         <BarShell
@@ -150,6 +161,7 @@ export function ApplicationShell({
 
   return (
     <>
+      {progress}
       {prefetch}
       {liveSync}
       <SpaceShell

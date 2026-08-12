@@ -8,7 +8,7 @@ import {
   resolveUserSpace,
   roleToSpaceLabel,
 } from "@/lib/auth/roles";
-import { isPathAllowedForSpace } from "@/lib/navigation/space-navigation";
+import { isPathAllowedForSpace, getNavigationForSpace } from "@/lib/navigation/space-navigation";
 import { createEmployeeAccountSchema } from "@/lib/users/schemas";
 
 describe("trois espaces utilisateurs", () => {
@@ -145,6 +145,32 @@ describe("compatibilité anciens rôles", () => {
     expect(membershipRoleIsCashierKitchen("CASHIER_KITCHEN")).toBe(true);
     expect(roleToSpaceLabel("CASHIER")).toBe("Caisse–Cuisine");
     expect(roleToSpaceLabel("KITCHEN_MANAGER")).toBe("Caisse–Cuisine");
+  });
+});
+
+describe("profil d’exploitation", () => {
+  it("masque Sessions Bar si nourriture uniquement", () => {
+    const items = getNavigationForSpace("admin", "KITCHEN");
+    expect(items.some((item) => item.href === "/application/sessions-bar")).toBe(false);
+    expect(items.some((item) => item.href === "/application/parametres")).toBe(true);
+  });
+
+  it("masque Cuisine si boissons uniquement", () => {
+    const items = getNavigationForSpace("cashier_kitchen", "BAR");
+    expect(items.some((item) => item.href === "/application/cuisine")).toBe(false);
+    expect(items.some((item) => item.href === "/application/caisse")).toBe(true);
+  });
+
+  it("refuse les chemins hors périmètre pour l’admin", () => {
+    expect(
+      isPathAllowedForSpace("/application/sessions-bar", "admin", "KITCHEN"),
+    ).toBe(false);
+    expect(
+      isPathAllowedForSpace("/application/stock/cuisine", "admin", "BAR"),
+    ).toBe(false);
+    expect(
+      isPathAllowedForSpace("/application/stock/boissons", "admin", "BAR"),
+    ).toBe(true);
   });
 });
 

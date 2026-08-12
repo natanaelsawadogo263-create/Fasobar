@@ -1,0 +1,16 @@
+---
+description: Toujours prioriser la rapidité et la fluidité de FasoBar (chargement, navigation, requêtes).
+alwaysApply: true
+---
+
+# Performance FasoBar (toujours)
+
+La rapidité est un critère produit permanent. À chaque changement :
+
+- **Zéro requête en trop** : pas de round-trip DB séquentiel si on peut `Promise.all` ou inclure le champ dans un select existant.
+- **Pas de sync bloquante à chaque page** : `ensure*` (stock, images…) doit avoir TTL / cache requête ; ne jamais faire des updates en boucle séquentielle sur tout le catalogue.
+- **Pages préchargées** : navigation admin/caisse avec `prefetch` (Link + PrefetchRoutes idle) ; routes chaudes en premier.
+- **Feedback immédiat** : clic → UI optimiste ou barre de progression ; éviter les skeletons plein écran qui donnent une impression de lenteur.
+- **Realtime ciblé** : ne pas `router.refresh()` sur paramètres / abonnement / écrans hors ops.
+- **Layout léger** : le layout application ne doit pas refaire de contrôles SaaS lourds à chaque lecture.
+- En doute, préférer **moins de données + navigation instantanée** à une page “complète” mais lente.

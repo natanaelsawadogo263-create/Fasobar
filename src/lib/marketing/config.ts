@@ -1,3 +1,5 @@
+import { BUSINESS_ACTIVITIES } from "@/lib/auth/activities";
+
 function isPublicHttpUrl(value: string): boolean {
   if (/^[a-zA-Z]:[\\/]/.test(value) || value.startsWith("\\\\") || value.startsWith("file:")) {
     return false;
@@ -45,15 +47,8 @@ export const MARKETING_NAV = [
   { href: "/contact", label: "Contact" },
 ] as const;
 
-/** Exemples d’activités — FasoBar n’est pas limité à un métier. */
-export const MARKETING_ACTIVITIES = [
-  { id: "boutique", label: "Boutique" },
-  { id: "quincaillerie", label: "Quincaillerie" },
-  { id: "pharmacie", label: "Pharmacie" },
-  { id: "pieces-detachees", label: "Pièces détachées" },
-  { id: "restaurant", label: "Restaurant" },
-  { id: "maquis", label: "Maquis" },
-  { id: "bar", label: "Bar" },
-  { id: "buvette", label: "Buvette" },
-  { id: "autres", label: "Autres commerces" },
-] as const;
+export const MARKETING_ACTIVITIES = BUSINESS_ACTIVITIES.map((item) => ({
+  id: item.id,
+  label: item.label,
+  description: item.description,
+}));

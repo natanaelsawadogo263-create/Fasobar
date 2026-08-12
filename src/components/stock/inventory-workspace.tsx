@@ -9,12 +9,19 @@ import { startInventorySessionAction } from "@/app/(protected)/application/stock
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { FormSelect } from "@/components/auth/form-field";
+import {
+  allowedDepartments,
+  defaultDepartmentCode,
+  isSingleServiceScope,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 import type { InventorySessionItem } from "@/lib/stock/types";
 
 type InventoryWorkspaceProps = {
   establishmentName: string;
   sessions: InventorySessionItem[];
   canManageStock: boolean;
+  serviceScope?: ServiceScope;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -33,13 +40,18 @@ export function InventoryWorkspace({
   establishmentName,
   sessions,
   canManageStock,
+  serviceScope = "BOTH",
 }: InventoryWorkspaceProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showStart, setShowStart] = useState(false);
-  const [department, setDepartment] = useState<"BAR" | "KITCHEN">("BAR");
+  const departments = allowedDepartments(serviceScope);
+  const singleScope = isSingleServiceScope(serviceScope);
+  const [department, setDepartment] = useState<"BAR" | "KITCHEN">(
+    defaultDepartmentCode(serviceScope),
+  );
 
   async function handleStart() {
     const formData = new FormData();
@@ -88,7 +100,9 @@ export function InventoryWorkspace({
           <table className="min-w-full divide-y divide-slate-100 text-sm">
             <thead className="bg-slate-50 text-left text-slate-600">
               <tr>
-                <th className="px-4 py-3 font-medium">Département</th>
+                {singleScope ? null : (
+                  <th className="px-4 py-3 font-medium">Département</th>
+                )}
                 <th className="px-4 py-3 font-medium">Statut</th>
                 <th className="px-4 py-3 font-medium">Démarré le</th>
                 <th className="px-4 py-3 font-medium">Par</th>
@@ -98,7 +112,10 @@ export function InventoryWorkspace({
             <tbody className="divide-y divide-slate-100">
               {sessions.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
+                  <td
+                    colSpan={singleScope ? 4 : 5}
+                    className="px-4 py-10 text-center text-slate-500"
+                  >
                     Aucun inventaire enregistré.{" "}
                     <Link href="/application/stock" className="text-emerald-700 hover:underline">
                       Accéder au stock
@@ -109,9 +126,11 @@ export function InventoryWorkspace({
               ) : (
                 sessions.map((session) => (
                   <tr key={session.id}>
-                    <td className="px-4 py-4 font-medium text-slate-900">
-                      {session.departmentName}
-                    </td>
+                    {singleScope ? null : (
+                      <td className="px-4 py-4 font-medium text-slate-900">
+                        {session.departmentName}
+                      </td>
+                    )}
                     <td className="px-4 py-4">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLES[session.status] ?? "bg-slate-100 text-slate-600"}`}
@@ -163,17 +182,29 @@ export function InventoryWorkspace({
             </div>
 
             <div className="mt-4">
-              <FormSelect
-                id="departmentCode"
-                label="Département"
-                value={department}
-                onChange={(event) =>
-                  setDepartment(event.target.value as "BAR" | "KITCHEN")
-                }
-              >
-                <option value="BAR">Boissons</option>
-                <option value="KITCHEN">Cuisine</option>
-              </FormSelect>
+              {departments.length === 1 ? (
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                  Département :{" "}
+                  <span className="font-semibold text-slate-900">
+                    {departments[0] === "BAR" ? "Boissons" : "Cuisine"}
+                  </span>
+                </p>
+              ) : (
+                <FormSelect
+                  id="departmentCode"
+                  label="Département"
+                  value={department}
+                  onChange={(event) =>
+                    setDepartment(event.target.value as "BAR" | "KITCHEN")
+                  }
+                >
+                  {departments.map((code) => (
+                    <option key={code} value={code}>
+                      {code === "BAR" ? "Boissons" : "Cuisine"}
+                    </option>
+                  ))}
+                </FormSelect>
+              )}
             </div>
 
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

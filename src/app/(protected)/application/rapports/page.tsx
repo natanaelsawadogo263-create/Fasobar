@@ -51,6 +51,7 @@ export default async function RapportsPage({ searchParams }: RapportsPageProps) 
         phone: settings?.phone ?? null,
         logoUrl: settings?.logoUrl ?? null,
       }}
+      serviceScope={workspace.serviceScope}
     />
   );
 }

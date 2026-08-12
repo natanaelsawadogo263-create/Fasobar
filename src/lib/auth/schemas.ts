@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { BUSINESS_ACTIVITIES, isSelectableActivityId } from "@/lib/auth/activities";
 import { isValidSlug } from "@/lib/auth/slugs";
 
 const emailSchema = z
@@ -54,7 +55,17 @@ export const establishmentTypeSchema = z.enum([
   "RESTAURANT",
   "MAQUIS",
   "BAR",
+  "COMMERCE",
 ]);
+
+export const activityCodeSchema = z
+  .enum(
+    BUSINESS_ACTIVITIES.map((item) => item.id) as [
+      (typeof BUSINESS_ACTIVITIES)[number]["id"],
+      ...(typeof BUSINESS_ACTIVITIES)[number]["id"][],
+    ],
+  )
+  .refine(isSelectableActivityId, "Cette activité n’est pas encore disponible.");
 
 export const onboardingSchema = z.object({
   organizationName: z
@@ -76,7 +87,8 @@ export const onboardingSchema = z.object({
     .trim()
     .min(1, "Le slug de l'établissement est obligatoire.")
     .refine(isValidSlug, "Le slug de l'établissement est invalide."),
-  establishmentType: establishmentTypeSchema,
+  activityCode: activityCodeSchema,
+  establishmentType: establishmentTypeSchema.optional(),
   address: z
     .string()
     .trim()

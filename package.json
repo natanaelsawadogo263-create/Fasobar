@@ -18,6 +18,7 @@
     "desktop:prepare": "node scripts/desktop-prepare-standalone.mjs",
     "desktop:check-secrets": "node scripts/desktop-check-secrets.mjs",
     "desktop:generate-icons": "node scripts/desktop-generate-icons.mjs",
+    "brand:logo": "node scripts/prepare-brand-logo.mjs",
     "desktop:embed-icon": "node scripts/desktop-embed-icon.mjs",
     "desktop:verify-icons": "node scripts/desktop-verify-icons.mjs",
     "desktop:start-server": "node scripts/desktop-start-server.mjs",

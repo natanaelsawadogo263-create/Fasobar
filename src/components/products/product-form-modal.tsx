@@ -58,6 +58,7 @@ type ProductFormModalProps = {
   onPackagingsChanged?: () => void;
   isPending?: boolean;
   onClientValidationError?: (message: string) => void;
+  allowedDepartments?: DepartmentCode[];
 };
 
 export function ProductFormModal({
@@ -74,10 +75,17 @@ export function ProductFormModal({
   onImageAssetsChange,
   onPackagingsChanged,
   isPending = false,
-  onClientValidationError,
+  onClientValidationError = undefined,
+  allowedDepartments,
 }: ProductFormModalProps) {
   const isCreate = mode === "create";
   const isBar = formState.departmentCode === "BAR";
+  const departmentChoices = allowedDepartments?.length
+    ? Object.entries(DEPARTMENT_LABELS).filter(([code]) =>
+        allowedDepartments.includes(code as DepartmentCode),
+      )
+    : Object.entries(DEPARTMENT_LABELS);
+  const lockDepartment = departmentChoices.length === 1;
   const errorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -248,6 +256,17 @@ export function ProductFormModal({
               className="md:col-span-2"
             />
 
+            {lockDepartment ? (
+              <>
+                <input type="hidden" name="departmentCode" value={formState.departmentCode} />
+                <div>
+                  <p className="mb-1.5 text-[12px] font-medium text-slate-700">Département</p>
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-800">
+                    {DEPARTMENT_LABELS[formState.departmentCode]}
+                  </p>
+                </div>
+              </>
+            ) : (
             <SelectField
               id="departmentCode"
               name="departmentCode"
@@ -266,12 +285,13 @@ export function ProductFormModal({
                 }));
               }}
             >
-              {Object.entries(DEPARTMENT_LABELS).map(([code, label]) => (
+              {departmentChoices.map(([code, label]) => (
                 <option key={code} value={code}>
                   {label}
                 </option>
               ))}
             </SelectField>
+            )}
 
             <SelectField
               id="categoryId"

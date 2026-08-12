@@ -33,6 +33,11 @@ import type {
   SupplierOption,
 } from "@/lib/stock/types";
 import type { ProductPackaging } from "@/lib/products/types";
+import {
+  allowedDepartments,
+  defaultDepartmentCode,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 
 type SupplyDepartment = "BAR" | "KITCHEN";
 type SupplyPeriodFilter = "day" | "week" | "month";
@@ -48,6 +53,7 @@ type SupplyWorkspaceProps = {
   compact?: boolean;
   /** Si défini, l'écran est figé sur cet espace (ex. Bar). */
   lockedDepartment?: SupplyDepartment | null;
+  serviceScope?: ServiceScope;
   periodFilter?: SupplyPeriodFilter | null;
   periodLabel?: string | null;
   periodBasePath?: string;
@@ -83,23 +89,28 @@ export function SupplyWorkspace({
   canManageStock,
   compact = false,
   lockedDepartment = null,
+  serviceScope = "BOTH",
   periodFilter = null,
   periodLabel = null,
   periodBasePath = "/application/approvisionnements",
 }: SupplyWorkspaceProps) {
   const router = useRouter();
+  const availableDepartments = lockedDepartment
+    ? [lockedDepartment]
+    : allowedDepartments(serviceScope);
+  const initialDepartment =
+    lockedDepartment ?? defaultDepartmentCode(serviceScope);
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showEntryModal, setShowEntryModal] = useState(false);
   const [supplierFormMode, setSupplierFormMode] = useState<SupplierFormMode>(null);
   const [editingSupplier, setEditingSupplier] = useState<SupplierOption | null>(null);
-  const [departmentFilter, setDepartmentFilter] = useState<SupplyDepartment>(
-    lockedDepartment ?? "BAR",
-  );
+  const [departmentFilter, setDepartmentFilter] =
+    useState<SupplyDepartment>(initialDepartment);
   const activeDepartment = lockedDepartment ?? departmentFilter;
   const [supplierForm, setSupplierForm] = useState<SupplierFormState>(() =>
-    emptySupplierForm(lockedDepartment ?? "BAR"),
+    emptySupplierForm(initialDepartment),
   );
   const [entryError, setEntryError] = useState<string | null>(null);
   const [supplierError, setSupplierError] = useState<string | null>(null);
@@ -331,9 +342,9 @@ export function SupplyWorkspace({
           ) : null}
           {canManageStock ? (
             <>
-              {!lockedDepartment ? (
+              {!lockedDepartment && availableDepartments.length > 1 ? (
                 <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
-                  {(["BAR", "KITCHEN"] as const).map((code) => (
+                  {availableDepartments.map((code) => (
                     <button
                       key={code}
                       type="button"
@@ -691,7 +702,10 @@ export function SupplyWorkspace({
           formState={supplierForm}
           editingSupplier={editingSupplier}
           formError={supplierError}
-          lockedDepartment={lockedDepartment}
+          lockedDepartment={
+            lockedDepartment ??
+            (availableDepartments.length === 1 ? availableDepartments[0] : null)
+          }
           onClose={closeSupplierForm}
           onSubmit={handleSupplierSubmit}
           onChange={setSupplierForm}

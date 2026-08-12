@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { SERVICE_SCOPES } from "@/lib/settings/service-scope";
+
 export const updateEstablishmentSettingsSchema = z.object({
   name: z.string().trim().min(2, "Le nom de l'établissement est obligatoire."),
   address: z.string().trim().optional(),
@@ -14,6 +16,7 @@ export const updateEstablishmentSettingsSchema = z.object({
     .int("Le seuil de stock doit être un nombre entier.")
     .min(0, "Le seuil de stock doit être positif ou nul.")
     .default(5),
+  serviceScope: z.enum(SERVICE_SCOPES).default("BOTH"),
 });
 
 export type UpdateEstablishmentSettingsInput = z.infer<typeof updateEstablishmentSettingsSchema>;

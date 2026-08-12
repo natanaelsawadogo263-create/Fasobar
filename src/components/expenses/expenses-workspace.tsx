@@ -33,6 +33,7 @@ import type {
 } from "@/lib/expenses/schemas";
 import type { ExpenseListItem } from "@/lib/expenses/types";
 import { resolveOrderPeriodRange, toLocalIsoDate } from "@/lib/orders/period";
+import { hasBarService, type ServiceScope } from "@/lib/settings/service-scope";
 
 type ExpensePeriodFilter = "day" | "week" | "month";
 
@@ -51,6 +52,7 @@ type ExpensesWorkspaceProps = {
   periodFilter?: ExpensePeriodFilter | null;
   periodLabel?: string | null;
   canManage?: boolean;
+  serviceScope?: ServiceScope;
 };
 
 const CATEGORY_OPTIONS = Object.entries(EXPENSE_CATEGORY_LABELS);
@@ -79,6 +81,7 @@ export function ExpensesWorkspace({
   periodFilter = null,
   periodLabel = null,
   canManage = true,
+  serviceScope = "BOTH",
 }: ExpensesWorkspaceProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -86,6 +89,7 @@ export function ExpensesWorkspace({
   const [modal, setModal] = useState<"create" | "edit" | "cancel" | null>(null);
   const [selected, setSelected] = useState<ExpenseListItem | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const showBarArea = hasBarService(serviceScope);
 
   function openCreate() {
     setSelected(null);
@@ -204,11 +208,15 @@ export function ExpensesWorkspace({
         value: formatPriceXof(caisseTotal),
         subtitle: "service caisse",
       },
-      {
-        title: "Liées au bar",
-        value: formatPriceXof(barTotal),
-        subtitle: "service bar",
-      },
+      ...(showBarArea
+        ? [
+            {
+              title: "Liées au bar",
+              value: formatPriceXof(barTotal),
+              subtitle: "service bar",
+            },
+          ]
+        : []),
       {
         title: "Enregistrées",
         value: String(recordedCount),
@@ -223,6 +231,7 @@ export function ExpensesWorkspace({
     barTotal,
     recordedCount,
     cancelledCount,
+    showBarArea,
   ]);
 
   return (
@@ -334,11 +343,13 @@ export function ExpensesWorkspace({
             className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px]"
           >
             <option value="">Caisse & Bar</option>
-            {AREA_OPTIONS.map(([value, label]) => (
+            {AREA_OPTIONS.filter(([value]) => showBarArea || value !== "BAR").map(
+              ([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
-            ))}
+            ),
+            )}
           </select>
         ) : null}
         {!lockedArea ? (
@@ -504,13 +515,15 @@ export function ExpensesWorkspace({
                     defaultValue={selected?.area ?? "CAISSE"}
                     required
                   >
-                    {AREA_OPTIONS.map(([value, label]) => (
+                    {AREA_OPTIONS.filter(([value]) => showBarArea || value !== "BAR").map(
+                      ([value, label]) => (
                       <option key={value} value={value}>
                         {label === "Caisse"
                           ? "Caisse — dépenses liées à la caisse"
                           : "Bar — dépenses liées au bar"}
                       </option>
-                    ))}
+                    ),
+                    )}
                   </SelectField>
                 )}
                 {lockedArea ? (

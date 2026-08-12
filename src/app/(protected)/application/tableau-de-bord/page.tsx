@@ -23,5 +23,5 @@ export default async function TableauDeBordPage({
   const period = parsePeriod(params.period);
   const data = await getAdminDashboardData(workspace, { period });
 
-  return <AdminDashboardWorkspace data={data} />;
+  return <AdminDashboardWorkspace data={data} serviceScope={workspace.serviceScope} />;
 }

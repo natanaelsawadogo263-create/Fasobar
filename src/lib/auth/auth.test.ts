@@ -44,7 +44,7 @@ describe("onboardingSchema", () => {
       organizationSlug: "maquis-le-palmier",
       establishmentName: "Le Palmier Ouaga",
       establishmentSlug: "le-palmier-ouaga",
-      establishmentType: "RESTAURANT_MAQUIS",
+      activityCode: "restaurant",
       city: "Ouagadougou",
       address: "Ouaga 2000",
       country: "Burkina Faso",
@@ -55,13 +55,30 @@ describe("onboardingSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("refuse une activité pas encore disponible", () => {
+    const result = onboardingSchema.safeParse({
+      organizationName: "Pharmacie du Centre",
+      organizationSlug: "pharmacie-du-centre",
+      establishmentName: "Pharmacie du Centre",
+      establishmentSlug: "pharmacie-du-centre",
+      activityCode: "pharmacy",
+      city: "Ouagadougou",
+      address: "Zone 1",
+      country: "Burkina Faso",
+      currency: "XOF",
+      timezone: "Africa/Ouagadougou",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("refuse sans ville ou quartier", () => {
     const result = onboardingSchema.safeParse({
       organizationName: "Maquis Le Palmier",
       organizationSlug: "maquis-le-palmier",
       establishmentName: "Le Palmier Ouaga",
       establishmentSlug: "le-palmier-ouaga",
-      establishmentType: "RESTAURANT_MAQUIS",
+      activityCode: "restaurant",
       city: "",
       address: "",
     });
@@ -75,7 +92,7 @@ describe("onboardingSchema", () => {
       organizationSlug: "Slug Invalide",
       establishmentName: "Bar Test",
       establishmentSlug: "bar-test",
-      establishmentType: "BAR",
+      activityCode: "restaurant",
       city: "Ouagadougou",
       address: "Zone 1",
     });
@@ -121,6 +138,7 @@ describe("routes et redirections", () => {
     expect(isProtectedPath("/telecharger")).toBe(false);
     expect(isAuthRoute("/connexion")).toBe(true);
     expect(isAuthRoute("/inscription")).toBe(true);
+    expect(isAuthRoute("/inscription/activite")).toBe(true);
     expect(isAuthRoute("/fonctionnalites")).toBe(false);
   });
 

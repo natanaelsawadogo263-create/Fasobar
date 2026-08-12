@@ -292,3 +292,23 @@ html {
 .fb-marketing-fade {
   animation: fb-marketing-fade 0.55s ease-out both;
 }
+
+/* ——— Mobile-first : tactile & safe areas ——— */
+@media (max-width: 767px) {
+  button,
+  a,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Tables admin : scroll horizontal fluide au pouce */
+  .app-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+

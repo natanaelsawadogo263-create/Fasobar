@@ -31,6 +31,7 @@ export async function updateEstablishmentSettingsAction(
     receiptFooter: formData.get("receiptFooter") || undefined,
     thankYouMessage: formData.get("thankYouMessage") || undefined,
     defaultMinimumStock: formData.get("defaultMinimumStock") || 5,
+    serviceScope: formData.get("serviceScope") || "BOTH",
   });
 
   if (!parsed.success) {
@@ -79,8 +80,27 @@ export async function updateEstablishmentSettingsAction(
     return { error: error.message || mapGenericError(error) };
   }
 
+  const { error: scopeError } = await supabase
+    .from("establishments")
+    .update({ service_scope: parsed.data.serviceScope })
+    .eq("id", workspace.establishmentId);
+
+  if (scopeError) {
+    const msg = (scopeError.message ?? "").toLowerCase();
+    if (
+      !msg.includes("does not exist") &&
+      scopeError.code !== "42703" &&
+      !msg.includes("schema cache")
+    ) {
+      return { error: scopeError.message || mapGenericError(scopeError) };
+    }
+  }
+
   revalidatePath("/application/parametres");
   revalidatePath("/application/tableau-de-bord");
   revalidatePath("/application/caisse");
+  revalidatePath("/application/produits");
+  revalidatePath("/application/utilisateurs");
+  revalidatePath("/application");
   return { success: "Paramètres enregistrés." };
 }

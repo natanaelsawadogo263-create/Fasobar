@@ -29,9 +29,9 @@ export function BarTopbar({
     : null;
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-slate-200/80 bg-white px-4 lg:px-6">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white px-3 pt-[env(safe-area-inset-top)] md:gap-4 md:px-4 lg:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 md:h-8 md:w-8 md:rounded-lg">
           <Home className="h-4 w-4" strokeWidth={2.25} />
         </span>
         <div className="min-w-0">

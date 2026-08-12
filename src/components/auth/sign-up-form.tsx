@@ -12,7 +12,11 @@ import { FasoBarLogo } from "@/components/brand/fasobar-logo";
 
 const initialState: AuthActionState = {};
 
-export function SignUpForm() {
+type SignUpFormProps = {
+  activityLabel?: string;
+};
+
+export function SignUpForm({ activityLabel }: SignUpFormProps) {
   const [state, formAction] = useActionState(signUpAction, initialState);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -26,7 +30,7 @@ export function SignUpForm() {
             <FasoBarLogo size="md" />
           </div>
           <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">
-            Étape 1 sur 2
+            Étape 2 sur 3
           </p>
           <h1 className="mt-2 text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">
             Créer un établissement
@@ -36,6 +40,25 @@ export function SignUpForm() {
             l&apos;établissement seront demandées juste après.
           </p>
         </header>
+
+        {activityLabel ? (
+          <div className="mt-5 flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50/70 px-3.5 py-3">
+            <div className="min-w-0 text-left">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                Activité
+              </p>
+              <p className="mt-0.5 truncate text-[13px] font-medium text-slate-900">
+                {activityLabel}
+              </p>
+            </div>
+            <Link
+              href="/inscription/activite"
+              className="shrink-0 text-[12px] font-semibold text-emerald-800 hover:underline"
+            >
+              Modifier
+            </Link>
+          </div>
+        ) : null}
 
         <form action={formAction} className="mt-8 space-y-4">
           {state.error ? <AlertMessage message={state.error} /> : null}

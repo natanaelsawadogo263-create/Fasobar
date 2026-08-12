@@ -31,6 +31,7 @@ export default async function VentesPage({ searchParams }: VentesPageProps) {
       filters={filters}
       cashiers={cashiers}
       establishmentName={workspace.establishmentName}
+      serviceScope={workspace.serviceScope}
     />
   );
 }

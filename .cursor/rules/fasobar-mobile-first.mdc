@@ -1,0 +1,23 @@
+---
+description: FasoBar est mobile-first — chaque UI doit être utilisable au pouce sur téléphone.
+alwaysApply: true
+---
+
+# Mobile-first FasoBar (toujours)
+
+FasoBar doit être **parfaitement utilisable sur téléphone**, pas seulement “responsive”.
+
+## Règles UI/UX
+- Concevoir d’abord pour **~360–430px** de large, puis enrichir desktop.
+- **Zones tactiles ≥ 44px** ; pas de liens/boutons minuscules.
+- Navigation admin/bar : **barre du bas** (onglets chauds) + **menu Plus** pour le reste — jamais une sidebar seule cachée sans alternative.
+- Caisse : filtres en **chips horizontales** sur mobile ; panier via onglet dédié.
+- Respecter **safe-area** (encoche / home indicator) : `env(safe-area-inset-*)`.
+- Modales en **bottom sheet** sur mobile (`items-end`, coins hauts arrondis).
+- Tableaux : scroll horizontal fluide ; masquer les colonnes secondaires si besoin.
+- Texte lisible (≥ 12px utiles) ; actions primaires toujours accessibles au pouce.
+
+## À éviter
+- Sidebar desktop `hidden` sans menu mobile.
+- Hover-only pour une action critique.
+- Contenu coincé derrière la barre du bas (prévoir `padding-bottom`).

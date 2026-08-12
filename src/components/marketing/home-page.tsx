@@ -32,7 +32,7 @@ export function MarketingHomePage() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
-                href="/inscription"
+                href="/inscription/activite"
                 className="inline-flex h-11 items-center rounded-xl bg-emerald-500 px-5 text-[14px] font-semibold text-white transition hover:bg-emerald-400"
               >
                 Créer mon établissement
@@ -214,7 +214,7 @@ export function MarketingHomePage() {
             Commencez avec FasoBar.
           </h2>
           <Link
-            href="/inscription"
+            href="/inscription/activite"
             className="inline-flex h-11 items-center rounded-xl bg-white px-5 text-[14px] font-semibold text-emerald-900 transition hover:bg-emerald-50"
           >
             Créer mon établissement

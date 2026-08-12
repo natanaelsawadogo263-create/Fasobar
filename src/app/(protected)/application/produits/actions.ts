@@ -13,6 +13,7 @@ import {
   validateCategoryForDepartment,
 } from "@/lib/products/queries";
 import { packagingDisplayName } from "@/lib/products/constants";
+import { isDepartmentAllowed } from "@/lib/settings/service-scope";
 import {
   createProductSchema,
   toggleProductStatusSchema,
@@ -195,6 +196,13 @@ export async function createProductAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  if (!isDepartmentAllowed(workspace.serviceScope, parsed.data.departmentCode)) {
+    return {
+      error:
+        "Ce département n’est pas ouvert pour cet établissement. Modifiez les espaces dans Paramètres.",
+    };
   }
 
   const departmentId = await getDepartmentIdByCode(
@@ -456,6 +464,13 @@ export async function updateProductAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  if (!isDepartmentAllowed(workspace.serviceScope, parsed.data.departmentCode)) {
+    return {
+      error:
+        "Ce département n’est pas ouvert pour cet établissement. Modifiez les espaces dans Paramètres.",
+    };
   }
 
   const departmentId = await getDepartmentIdByCode(

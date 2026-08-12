@@ -23,9 +23,15 @@ import type {
   AdminDashboardPeriod,
 } from "@/lib/admin/dashboard-queries";
 import { formatPriceXof } from "@/lib/orders/constants";
+import {
+  hasBarService,
+  hasKitchenService,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 
 type AdminDashboardWorkspaceProps = {
   data: AdminDashboardData;
+  serviceScope?: ServiceScope;
 };
 
 const PERIOD_OPTIONS: Array<{ id: AdminDashboardPeriod; label: string }> = [
@@ -97,7 +103,10 @@ function emptySalesMessage(period: AdminDashboardPeriod): string {
   return "Aucune vente aujourd'hui.";
 }
 
-export function AdminDashboardWorkspace({ data }: AdminDashboardWorkspaceProps) {
+export function AdminDashboardWorkspace({
+  data,
+  serviceScope = "BOTH",
+}: AdminDashboardWorkspaceProps) {
   const router = useRouter();
   const { kpis, salesByDept, salesSeries, analysisPeriod, analysisPeriodLabel } =
     data;
@@ -220,7 +229,7 @@ export function AdminDashboardWorkspace({ data }: AdminDashboardWorkspaceProps) 
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-2.5 overflow-hidden lg:grid-cols-12 lg:gap-3">
+      <div className="grid min-h-0 flex-1 gap-2.5 overflow-y-auto lg:grid-cols-12 lg:gap-3 lg:overflow-hidden">
         <Panel
           className="min-h-0 lg:col-span-5"
           title="Produits les plus vendus"
@@ -290,6 +299,7 @@ export function AdminDashboardWorkspace({ data }: AdminDashboardWorkspaceProps) 
           <div className="app-scroll min-h-0 flex-1 overflow-y-auto p-3">
             <div className="flex min-h-full flex-col justify-between gap-3">
               <div className="space-y-2">
+                {hasBarService(serviceScope) ? (
                 <DeptBar
                   icon={<Wine className="h-3.5 w-3.5" />}
                   label="Bar"
@@ -297,6 +307,8 @@ export function AdminDashboardWorkspace({ data }: AdminDashboardWorkspaceProps) 
                   total={deptTotal}
                   tone="bg-emerald-500"
                 />
+                ) : null}
+                {hasKitchenService(serviceScope) ? (
                 <DeptBar
                   icon={<UtensilsCrossed className="h-3.5 w-3.5" />}
                   label="Cuisine"
@@ -304,6 +316,7 @@ export function AdminDashboardWorkspace({ data }: AdminDashboardWorkspaceProps) 
                   total={deptTotal}
                   tone="bg-sky-500"
                 />
+                ) : null}
                 {salesByDept.other > 0 ? (
                   <DeptBar
                     icon={<PackagePlus className="h-3.5 w-3.5" />}
@@ -496,7 +509,7 @@ function Panel({
 }) {
   return (
     <section
-      className={`flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ${className}`}
+      className={`flex min-h-[220px] flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm lg:h-full lg:min-h-0 ${className}`}
     >
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
         <h2 className="text-[12px] font-semibold text-slate-900">{title}</h2>

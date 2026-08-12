@@ -18,6 +18,7 @@ export default async function UtilisateursPage({ searchParams }: UtilisateursPag
       {...data}
       defaultEstablishmentId={workspace.establishmentId}
       openCreateOnMount={params.create === "1"}
+      serviceScope={workspace.serviceScope}
     />
   );
 }

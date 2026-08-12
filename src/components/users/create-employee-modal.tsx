@@ -8,6 +8,7 @@ import { FormField, FormSelect } from "@/components/auth/form-field";
 import { CredentialsSuccessModal } from "@/components/users/credentials-success-modal";
 import { suggestLoginIdentifierFromName } from "@/lib/auth/login-identifier";
 import { INVITABLE_SPACES } from "@/lib/auth/roles";
+import { isInvitableSpaceAllowed, type ServiceScope } from "@/lib/settings/service-scope";
 import { DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD } from "@/lib/users/constants";
 import type { CreatedCredentialsSummary } from "@/lib/users/types";
 import { ModalShell } from "@/components/ui/modal-shell";
@@ -17,6 +18,7 @@ type CreateEmployeeModalProps = {
   defaultEstablishmentId: string;
   onClose: () => void;
   onCreated: () => void;
+  serviceScope?: ServiceScope;
 };
 
 const emptyForm = {
@@ -32,6 +34,7 @@ export function CreateEmployeeModal({
   defaultEstablishmentId,
   onClose,
   onCreated,
+  serviceScope = "BOTH",
 }: CreateEmployeeModalProps) {
   const [form, setForm] = useState({
     ...emptyForm,
@@ -43,6 +46,9 @@ export function CreateEmployeeModal({
     null,
   );
   const [isPending, startTransition] = useTransition();
+  const availableSpaces = INVITABLE_SPACES.filter((space) =>
+    isInvitableSpaceAllowed(space.id, serviceScope),
+  );
   const idempotencyKey = useMemo(
     () => (typeof crypto !== "undefined" ? crypto.randomUUID() : ""),
     [],
@@ -212,7 +218,7 @@ export function CreateEmployeeModal({
 
       <fieldset className="mt-6 space-y-3">
         <legend className="text-sm font-medium text-slate-900">Espace attribué</legend>
-        {INVITABLE_SPACES.map((space) => (
+        {availableSpaces.map((space) => (
           <label
             key={space.id}
             className="flex cursor-pointer gap-3 rounded-xl border border-slate-200 p-4 transition hover:border-emerald-200 has-checked:border-emerald-300 has-checked:bg-emerald-50/50"

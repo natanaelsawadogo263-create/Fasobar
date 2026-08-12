@@ -5,6 +5,7 @@ export const ESTABLISHMENT_TYPE_LABELS: Record<EstablishmentType, string> = {
   RESTAURANT: "Restaurant",
   MAQUIS: "Maquis",
   BAR: "Bar",
+  COMMERCE: "Commerce",
 };
 
 export const ESTABLISHMENT_TYPES = Object.keys(

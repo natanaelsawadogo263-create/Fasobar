@@ -12,6 +12,7 @@ import {
 
 import type { CashierCategory } from "@/lib/orders/types";
 import type { DepartmentFilter } from "@/components/pos/constants";
+import type { ServiceScope } from "@/lib/settings/service-scope";
 import { createClient } from "@/lib/supabase/client";
 
 export type FasoBarCaisseFilters = {
@@ -23,6 +24,7 @@ export type FasoBarCaisseFilters = {
   onDepartmentChange: (filter: DepartmentFilter) => void;
   onCategoryChange: (categoryId: string) => void;
   onSearchChange: (value: string) => void;
+  serviceScope?: ServiceScope;
 };
 
 type FasoBarCashierContextValue = {

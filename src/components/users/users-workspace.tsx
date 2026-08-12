@@ -25,11 +25,13 @@ import { CreateEmployeeModal } from "@/components/users/create-employee-modal";
 import { DeleteEmployeeModal } from "@/components/users/delete-employee-modal";
 import { ResetPasswordModal } from "@/components/users/reset-password-modal";
 import { SPACE_LABELS } from "@/lib/auth/roles";
+import type { ServiceScope } from "@/lib/settings/service-scope";
 import type { TeamMemberRow, UsersPageData } from "@/lib/users/types";
 
 type UsersWorkspaceProps = UsersPageData & {
   defaultEstablishmentId: string;
   openCreateOnMount?: boolean;
+  serviceScope?: ServiceScope;
 };
 
 function getInitials(name: string): string {
@@ -77,6 +79,7 @@ export function UsersWorkspace({
   stats,
   defaultEstablishmentId,
   openCreateOnMount = false,
+  serviceScope = "BOTH",
 }: UsersWorkspaceProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -445,6 +448,7 @@ export function UsersWorkspace({
         <CreateEmployeeModal
           establishments={establishments}
           defaultEstablishmentId={defaultEstablishmentId}
+          serviceScope={serviceScope}
           onClose={() => setShowCreateModal(false)}
           onCreated={() => {
             setMessage("Compte employé créé.");

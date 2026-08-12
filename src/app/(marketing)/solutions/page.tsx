@@ -29,16 +29,18 @@ export default function SolutionsPage() {
               <h2 className="text-[16px] font-semibold text-slate-900">
                 {item.label}
               </h2>
+              <p className="mt-1.5 text-[13px] leading-snug text-slate-500">
+                {item.description}
+              </p>
             </article>
           ))}
         </div>
         <p className="mt-8 max-w-2xl text-[14px] leading-relaxed text-slate-600">
-          Restaurant, bar ou maquis font partie des établissements que FasoBar
-          peut gérer, au même titre qu’une boutique, une quincaillerie ou une
-          pharmacie. Le produit reste un logiciel de stock et de ventes.
+          FasoBar s’adapte à l’activité choisie à l’inscription : boutique,
+          pharmacie, quincaillerie, restaurant ou un autre commerce.
         </p>
         <Link
-          href="/inscription"
+          href="/inscription/activite"
           className="mt-8 inline-flex h-11 items-center rounded-xl bg-emerald-700 px-5 text-[14px] font-semibold text-white hover:bg-emerald-600"
         >
           Créer mon établissement

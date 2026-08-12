@@ -1,4 +1,10 @@
 import type { UserSpace } from "@/lib/auth/roles";
+import {
+  hasBarService,
+  hasKitchenService,
+  isPathAllowedForServiceScope,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 
 export type NavItem = {
   href: string;
@@ -54,15 +60,30 @@ export const BAR_MANAGER_NAV: NavItem[] = [
   { href: "/application/bar/session", label: "Ma session", enabled: true },
 ];
 
-export function getNavigationForSpace(space: UserSpace): NavItem[] {
-  switch (space) {
-    case "cashier_kitchen":
-      return CASHIER_KITCHEN_NAV;
-    case "bar_manager":
-      return BAR_MANAGER_NAV;
-    default:
-      return ADMIN_NAV;
-  }
+export function getNavigationForSpace(
+  space: UserSpace,
+  serviceScope: ServiceScope = "BOTH",
+): NavItem[] {
+  const items = (() => {
+    switch (space) {
+      case "cashier_kitchen":
+        return CASHIER_KITCHEN_NAV;
+      case "bar_manager":
+        return BAR_MANAGER_NAV;
+      default:
+        return ADMIN_NAV;
+    }
+  })();
+
+  return items.filter((item) => {
+    if (item.href === "/application/sessions-bar") {
+      return hasBarService(serviceScope);
+    }
+    if (item.href === "/application/cuisine" || item.href === "/application/stock/cuisine") {
+      return hasKitchenService(serviceScope);
+    }
+    return true;
+  });
 }
 
 const ADMIN_ONLY_PREFIXES = [
@@ -94,7 +115,15 @@ const SHARED_PREFIXES = [
   "/application/approvisionnements",
 ];
 
-export function isPathAllowedForSpace(pathname: string, space: UserSpace): boolean {
+export function isPathAllowedForSpace(
+  pathname: string,
+  space: UserSpace,
+  serviceScope: ServiceScope = "BOTH",
+): boolean {
+  if (!isPathAllowedForServiceScope(pathname, serviceScope)) {
+    return false;
+  }
+
   if (space === "admin") {
     // Admin : supervision — pas d'usage opérationnel de la caisse / cuisine.
     if (

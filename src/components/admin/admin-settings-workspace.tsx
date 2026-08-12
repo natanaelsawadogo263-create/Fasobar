@@ -6,10 +6,13 @@ import {
   AlertTriangle,
   Building2,
   KeyRound,
+  LayoutGrid,
   Package,
   Receipt,
   ShieldAlert,
   Store,
+  UtensilsCrossed,
+  Wine,
 } from "lucide-react";
 
 import { updateEstablishmentSettingsAction } from "@/app/(protected)/application/parametres/actions";
@@ -19,6 +22,10 @@ import { NumberField, SelectField, TextField } from "@/components/ui/form-contro
 import { generatePasswordRecoveryLinkAction } from "@/lib/auth/actions";
 import { isInternalFasoBarAuthEmail } from "@/lib/auth/login-identifier";
 import type { EstablishmentSettings } from "@/lib/settings/types";
+import {
+  SERVICE_SCOPE_OPTIONS,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 import { createClient } from "@/lib/supabase/client";
 
 type AdminSettingsWorkspaceProps = {
@@ -29,7 +36,7 @@ type AdminSettingsWorkspaceProps = {
   ownerEmail: string;
 };
 
-type SettingsSection = "general" | "receipt" | "stock" | "security";
+type SettingsSection = "general" | "spaces" | "receipt" | "stock" | "security";
 
 const CURRENCY_OPTIONS = [
   { value: "XOF", label: "Franc CFA — XOF" },
@@ -59,6 +66,12 @@ const SECTIONS: Array<{
     icon: Store,
   },
   {
+    id: "spaces",
+    label: "Espaces",
+    description: "Boissons, nourriture ou les deux",
+    icon: LayoutGrid,
+  },
+  {
     id: "receipt",
     label: "Reçu de caisse",
     description: "Logo et textes d'impression",
@@ -86,6 +99,9 @@ export function AdminSettingsWorkspace({
   ownerEmail,
 }: AdminSettingsWorkspaceProps) {
   const [section, setSection] = useState<SettingsSection>("general");
+  const [serviceScope, setServiceScope] = useState<ServiceScope>(
+    settings?.serviceScope ?? "BOTH",
+  );
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -391,6 +407,65 @@ export function AdminSettingsWorkspace({
                       </SelectField>
                     </div>
                   </div>
+                </div>
+
+                <div className={section === "spaces" ? "space-y-6" : "hidden"}>
+                  <SectionHeader
+                    title="Espaces de l’établissement"
+                    description="Choisissez si FasoBar gère les boissons, la nourriture, ou les deux."
+                  />
+                  <input type="hidden" name="serviceScope" value={serviceScope} />
+                  <div className="grid gap-3">
+                    {SERVICE_SCOPE_OPTIONS.map((option) => {
+                      const selected = serviceScope === option.id;
+                      const Icon =
+                        option.id === "BAR"
+                          ? Wine
+                          : option.id === "KITCHEN"
+                            ? UtensilsCrossed
+                            : LayoutGrid;
+                      return (
+                        <label
+                          key={option.id}
+                          className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3.5 text-left transition ${
+                            selected
+                              ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/15"
+                              : "border-slate-200 bg-white hover:border-emerald-300"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="serviceScopeChoice"
+                            value={option.id}
+                            checked={selected}
+                            onChange={() => setServiceScope(option.id)}
+                            className="sr-only"
+                          />
+                          <span
+                            className={`mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                              selected
+                                ? "bg-emerald-600 text-white"
+                                : "bg-emerald-50 text-emerald-700"
+                            }`}
+                          >
+                            <Icon className="h-5 w-5" strokeWidth={2} />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[14px] font-semibold text-slate-900">
+                              {option.label}
+                            </span>
+                            <span className="mt-0.5 block text-[12px] leading-snug text-slate-500">
+                              {option.description}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[12px] text-slate-500">
+                    Ce choix masque les menus, produits et comptes employés qui ne
+                    correspondent pas à votre activité.
+                  </p>
                 </div>
 
                 <div className={section === "receipt" ? "space-y-6" : "hidden"}>

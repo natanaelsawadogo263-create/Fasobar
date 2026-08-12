@@ -1,8 +1,9 @@
 "use client";
 
-import { Building2, ChevronDown } from "lucide-react";
+import { Building2 } from "lucide-react";
 
 import { AdminNotificationsBell } from "@/components/admin/admin-notifications-bell";
+import { FasoBarLogo } from "@/components/brand/fasobar-logo";
 import { signOutAction } from "@/lib/auth/actions";
 import { LiveClock } from "@/components/ui/live-clock";
 
@@ -27,16 +28,15 @@ export function AdminTopbar({
       .toUpperCase() || "AD";
 
   return (
-    <header className="flex h-11 shrink-0 items-center justify-end gap-2.5 border-b border-slate-200/90 bg-white px-3 lg:h-12 lg:gap-3.5 lg:px-5">
-      <div className="mr-auto flex min-w-0 items-center gap-2">
-        <button
-          type="button"
-          className="inline-flex max-w-[220px] items-center gap-2 truncate rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-left text-[12px] font-medium text-slate-700 lg:max-w-[280px]"
-        >
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/90 bg-white px-3 pt-[env(safe-area-inset-top)] md:h-12 md:gap-2.5 md:px-4 lg:h-12 lg:px-5">
+      <div className="mr-auto flex min-w-0 items-center gap-2.5">
+        <div className="shrink-0 md:hidden">
+          <FasoBarLogo size="sm" />
+        </div>
+        <div className="inline-flex min-w-0 max-w-[min(70vw,16rem)] items-center gap-2 truncate rounded-xl border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-left text-[12px] font-semibold text-slate-800 md:max-w-[280px] md:rounded-lg md:bg-white md:py-1.5 md:font-medium md:text-slate-700">
           <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
           <span className="truncate">{establishmentName}</span>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-        </button>
+        </div>
         <LiveClock className="hidden md:inline-flex" />
       </div>
 
@@ -45,10 +45,10 @@ export function AdminTopbar({
       <form action={signOutAction} className="contents">
         <button
           type="submit"
-          className="flex items-center gap-2 rounded-lg px-1 py-0.5 text-left hover:bg-slate-50"
+          className="flex h-11 items-center gap-2 rounded-xl px-1.5 text-left active:bg-slate-50 md:h-auto md:rounded-lg md:px-1 md:py-0.5 md:hover:bg-slate-50"
           title="Déconnexion"
         >
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-800">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-[12px] font-bold text-emerald-800 md:h-8 md:w-8 md:text-[11px]">
             {initials}
           </span>
           <span className="hidden leading-tight sm:block">

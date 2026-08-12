@@ -28,6 +28,7 @@ export function FasoBarCaisseBridge({
   onDepartmentChange,
   onCategoryChange,
   onSearchChange,
+  serviceScope,
 }: FasoBarCaisseBridgeProps) {
   const parent = useFasoBarCashier();
   const setCaisseFilters = parent?.setCaisseFilters;
@@ -48,6 +49,7 @@ export function FasoBarCaisseBridge({
       onDepartmentChange,
       onCategoryChange,
       onSearchChange,
+      serviceScope,
     });
     setOnCloseSession(onCloseSession);
     setOnOpenOrders(onOpenOrders);
@@ -69,6 +71,7 @@ export function FasoBarCaisseBridge({
     onDepartmentChange,
     onCategoryChange,
     onSearchChange,
+    serviceScope,
     onCloseSession,
     onOpenOrders,
   ]);

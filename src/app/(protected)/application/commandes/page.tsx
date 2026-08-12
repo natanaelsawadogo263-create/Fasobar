@@ -7,6 +7,7 @@ import {
 import { adminOrderFiltersSchema } from "@/lib/orders/schemas";
 import { listAdminOrders, listOrderCashiers } from "@/lib/orders/queries";
 import { AdminOrdersWorkspace } from "@/components/admin/admin-orders-workspace";
+import { coerceAdminOrderDepartment } from "@/lib/settings/service-scope";
 
 type CommandesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -44,6 +45,10 @@ export default async function CommandesPage({ searchParams }: CommandesPageProps
 
   const filters = {
     ...baseFilters,
+    department: coerceAdminOrderDepartment(
+      workspace.serviceScope,
+      baseFilters.department,
+    ),
     period,
     from: range.from,
     to: range.to,
@@ -62,6 +67,7 @@ export default async function CommandesPage({ searchParams }: CommandesPageProps
       cashiers={cashiers}
       establishmentName={workspace.establishmentName}
       canManageOrders={workspace.canManageOrders}
+      serviceScope={workspace.serviceScope}
     />
   );
 }

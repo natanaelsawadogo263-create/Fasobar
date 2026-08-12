@@ -1,11 +1,21 @@
 import type { ReportType } from "@/lib/reports/schemas";
 import type { ReportColumnFormat } from "@/lib/reports/types";
+import {
+  hasBarService,
+  hasKitchenService,
+  type ServiceScope,
+} from "@/lib/settings/service-scope";
 
-export const REPORT_TYPE_OPTIONS: Array<{ id: ReportType; label: string; description: string }> = [
+export const REPORT_TYPE_OPTIONS: Array<{
+  id: ReportType;
+  label: string;
+  description: string;
+}> = [
   {
     id: "ventes",
     label: "Ventes",
-    description: "Synthèse du chiffre d'affaires. Détail des commandes inclus à l'export / impression.",
+    description:
+      "Synthèse du chiffre d'affaires. Détail des commandes inclus à l'export / impression.",
   },
   {
     id: "produits_vendus",
@@ -15,8 +25,7 @@ export const REPORT_TYPE_OPTIONS: Array<{ id: ReportType; label: string; descrip
   {
     id: "benefices",
     label: "Bénéfices",
-    description:
-      "Vue Bar / Cuisine : CA, approvisionnements, dépenses et bénéfice net.",
+    description: "CA, approvisionnements, dépenses et bénéfice net.",
   },
   {
     id: "stock_boissons",
@@ -26,7 +35,7 @@ export const REPORT_TYPE_OPTIONS: Array<{ id: ReportType; label: string; descrip
   {
     id: "approvisionnements",
     label: "Approvisionnements",
-    description: "Entrées de stock (achats) Bar et Cuisine.",
+    description: "Entrées de stock (achats).",
   },
   {
     id: "pertes_casse",
@@ -36,7 +45,7 @@ export const REPORT_TYPE_OPTIONS: Array<{ id: ReportType; label: string; descrip
   {
     id: "depenses",
     label: "Dépenses",
-    description: "Toutes les dépenses enregistrées (Caisse / Bar).",
+    description: "Toutes les dépenses enregistrées.",
   },
   {
     id: "sessions_caisse",
@@ -54,6 +63,51 @@ export const REPORT_TYPE_OPTIONS: Array<{ id: ReportType; label: string; descrip
     description: "Journal d'audit des actions de gestion de l'établissement.",
   },
 ];
+
+export function reportOptionsForScope(scope: ServiceScope) {
+  return REPORT_TYPE_OPTIONS.filter((option) => {
+    if (option.id === "stock_boissons") return hasBarService(scope);
+    return true;
+  }).map((option) => {
+    if (option.id === "benefices") {
+      if (scope === "BAR") {
+        return {
+          ...option,
+          description: "Vue Boissons : CA, approvisionnements, dépenses et bénéfice net.",
+        };
+      }
+      if (scope === "KITCHEN") {
+        return {
+          ...option,
+          description:
+            "Vue Nourriture : CA, approvisionnements, dépenses et bénéfice net.",
+        };
+      }
+      return {
+        ...option,
+        description:
+          "Vue Bar / Cuisine : CA, approvisionnements, dépenses et bénéfice net.",
+      };
+    }
+    if (option.id === "approvisionnements") {
+      if (scope === "BAR") {
+        return { ...option, description: "Entrées de stock (achats) boissons." };
+      }
+      if (scope === "KITCHEN") {
+        return { ...option, description: "Entrées de stock (achats) nourriture." };
+      }
+      return {
+        ...option,
+        description: "Entrées de stock (achats) Bar et Cuisine.",
+      };
+    }
+    return option;
+  });
+}
+
+export function defaultReportTypeForScope(_scope: ServiceScope): ReportType {
+  return "ventes";
+}
 
 export function formatReportCell(
   value: string | number | null,
