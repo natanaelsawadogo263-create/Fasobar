@@ -162,6 +162,44 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
   const membershipSelectLegacy =
     "role, status, establishment_id, establishments(id, name, organization_id, status)";
 
+  type EstablishmentMembershipRow = {
+    role: string;
+    status: string;
+    establishment_id: string;
+    establishments:
+      | (NamedEntity & {
+          organization_id?: string;
+          status?: string;
+          service_scope?: string | null;
+        })
+      | Array<
+          NamedEntity & {
+            organization_id?: string;
+            status?: string;
+            service_scope?: string | null;
+          }
+        >
+      | null;
+  };
+
+  type EstablishmentMembershipQueryResult = {
+    data: EstablishmentMembershipRow[] | null;
+    error: { message: string } | null;
+  };
+
+  function withDefaultServiceScope(
+    establishments:
+      | (NamedEntity & { organization_id?: string; status?: string })
+      | Array<NamedEntity & { organization_id?: string; status?: string }>
+      | null,
+  ): EstablishmentMembershipRow["establishments"] {
+    if (!establishments) return null;
+    if (Array.isArray(establishments)) {
+      return establishments.map((item) => ({ ...item, service_scope: null }));
+    }
+    return { ...establishments, service_scope: null };
+  }
+
   const [
     {
       data: { user },
@@ -188,16 +226,39 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
       .eq("status", "ACTIVE"),
   ]);
 
-  let establishmentResult = establishmentResultPrimary;
+  let establishmentResult: EstablishmentMembershipQueryResult = {
+    data: (establishmentResultPrimary.data ?? null) as EstablishmentMembershipRow[] | null,
+    error: establishmentResultPrimary.error
+      ? { message: establishmentResultPrimary.error.message }
+      : null,
+  };
+
   if (
     establishmentResult.error &&
     /service_scope/i.test(establishmentResult.error.message)
   ) {
-    establishmentResult = await supabase
+    const legacyResult = await supabase
       .from("establishment_memberships")
       .select(membershipSelectLegacy)
       .eq("user_id", userId)
       .eq("status", "ACTIVE");
+
+    establishmentResult = {
+      data: (legacyResult.data ?? null)?.map((row) => ({
+        role: row.role,
+        status: row.status,
+        establishment_id: row.establishment_id,
+        establishments: withDefaultServiceScope(
+          row.establishments as
+            | (NamedEntity & { organization_id?: string; status?: string })
+            | Array<NamedEntity & { organization_id?: string; status?: string }>
+            | null,
+        ),
+      })) ?? null,
+      error: legacyResult.error
+        ? { message: legacyResult.error.message }
+        : null,
+    };
   }
 
   const profile = profileResult.data;

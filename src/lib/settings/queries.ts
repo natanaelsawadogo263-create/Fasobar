@@ -80,8 +80,11 @@ export async function getEstablishmentSettings(
       return { settings: null, migrationMissing: false };
     }
 
+    // Select dynamique (fallback colonnes) → typage Supabase trop large ; normaliser.
+    const row = data as unknown as EstablishmentSettingsRow;
+
     return {
-      settings: mapSettings(data as EstablishmentSettingsRow),
+      settings: mapSettings(row),
       migrationMissing: false,
     };
   }
