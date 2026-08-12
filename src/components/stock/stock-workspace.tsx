@@ -228,19 +228,13 @@ export function StockWorkspace({
   ] as const;
 
   return (
-    <div
-      className={`flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden ${
-        drinksOnly
-          ? "px-4 py-4 lg:gap-4 lg:px-6 lg:py-5"
-          : "gap-3 px-4 py-3 lg:gap-3.5 lg:px-5 lg:py-4"
-      }`}
-    >
-      <header className="flex shrink-0 flex-wrap items-end justify-between gap-3">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-hidden px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:gap-3.5 lg:px-5 lg:py-4">
+      <header className="flex shrink-0 items-center justify-between gap-2">
         <div className="min-w-0">
-          <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
+          <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[20px] lg:text-[22px]">
             {stockTitle}
           </h1>
-          <p className="mt-0.5 text-[12px] text-slate-500">
+          <p className="mt-0.5 hidden text-[12px] text-slate-500 sm:block">
             {drinksOnly ? (
               <>
                 {totalStockItemCount} article
@@ -264,16 +258,28 @@ export function StockWorkspace({
               </>
             )}
           </p>
+          {/* Mobile : alerte compacte sous le titre */}
+          <p className="mt-0.5 text-[11px] text-slate-500 sm:hidden">
+            {stats.alertCount > 0 ? (
+              <span className="font-medium text-orange-600">
+                {stats.alertCount} alerte{stats.alertCount > 1 ? "s" : ""}
+              </span>
+            ) : (
+              <span className="text-emerald-600">Stock stable</span>
+            )}
+            <span className="text-slate-300"> · </span>
+            {stockItems.length} affiché{stockItems.length > 1 ? "s" : ""}
+          </p>
         </div>
 
         {canManageStock ? (
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
             {drinksOnly ? (
               <button
                 type="button"
                 onClick={() => openModal("loss")}
                 disabled={isPending}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                className="hidden h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 sm:inline-flex"
               >
                 <TrendingDown className="h-3.5 w-3.5" />
                 Perte
@@ -283,10 +289,11 @@ export function StockWorkspace({
               type="button"
               onClick={() => openModal("entry")}
               disabled={isPending}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-60"
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:h-9 sm:hover:bg-emerald-500"
             >
               <ArrowDownToLine className="h-3.5 w-3.5" />
-              Nouvelle entrée
+              <span className="sm:hidden">Entrée</span>
+              <span className="hidden sm:inline">Nouvelle entrée</span>
             </button>
           </div>
         ) : null}
@@ -301,11 +308,8 @@ export function StockWorkspace({
         />
       ) : null}
 
-      <div
-        className={`grid shrink-0 gap-2.5 ${
-          drinksOnly ? "grid-cols-3 lg:gap-3" : "grid-cols-3 lg:gap-3"
-        }`}
-      >
+      {/* KPI : desktop uniquement — trop serrés sur téléphone */}
+      <div className="hidden shrink-0 grid-cols-3 gap-2.5 md:grid lg:gap-3">
         <StatCard
           title={articlesKpiTitle}
           value={articlesKpiValue}
@@ -333,8 +337,8 @@ export function StockWorkspace({
       </div>
 
       <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200/80">
-        <div className="flex shrink-0 flex-col gap-2.5 border-b border-slate-100 px-3.5 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-col gap-2 border-b border-slate-100 px-3 py-2 sm:px-3.5 sm:py-2.5">
+          <div className="hidden items-center gap-2 sm:flex">
             <h2 className="text-[13px] font-semibold text-slate-900">
               {drinksOnly ? "Inventaire" : "Articles en stock"}
             </h2>
@@ -343,51 +347,50 @@ export function StockWorkspace({
             </span>
           </div>
 
-          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:max-w-xl">
-              <div className="relative min-w-[140px] flex-1">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="search"
-                  value={searchDraft}
-                  onChange={(event) => setSearchDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      pushFilters({ search: searchDraft });
-                    }
-                  }}
-                  onBlur={() => {
-                    if (searchDraft !== initialSearch) {
-                      pushFilters({ search: searchDraft });
-                    }
-                  }}
-                  placeholder="Rechercher…"
-                  className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-[13px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 sm:h-8 sm:text-[12px]"
-                />
-              </div>
-              <div className="flex w-full items-center gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 sm:w-auto sm:p-0.5">
-                {statusFilters.map((filter) => {
-                  const active = initialStatus === filter.id;
-                  return (
-                    <button
-                      key={filter.id}
-                      type="button"
-                      onClick={() => pushFilters({ status: filter.id })}
-                      className={`h-10 shrink-0 rounded-md px-3 text-[12px] font-semibold transition sm:h-7 sm:px-2.5 sm:text-[11px] ${
-                        active
-                          ? "bg-white text-slate-900 shadow-sm"
-                          : "text-slate-500 active:text-slate-700 sm:hover:text-slate-700"
-                      }`}
-                    >
-                      {filter.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={searchDraft}
+              onChange={(event) => setSearchDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  pushFilters({ search: searchDraft });
+                }
+              }}
+              onBlur={() => {
+                if (searchDraft !== initialSearch) {
+                  pushFilters({ search: searchDraft });
+                }
+              }}
+              placeholder="Rechercher un produit…"
+              className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-[13px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 sm:h-8 sm:text-[12px]"
+            />
+          </div>
+
+          <div className="-mx-0.5 flex items-center gap-1 overflow-x-auto px-0.5 pb-0.5">
+            {statusFilters.map((filter) => {
+              const active = initialStatus === filter.id;
+              return (
+                <button
+                  key={filter.id}
+                  type="button"
+                  onClick={() => pushFilters({ status: filter.id })}
+                  className={`inline-flex h-9 shrink-0 items-center rounded-lg px-3 text-[12px] font-semibold transition sm:h-7 sm:rounded-md sm:px-2.5 sm:text-[11px] ${
+                    active
+                      ? "bg-emerald-600 text-white"
+                      : "bg-slate-100 text-slate-600 active:bg-slate-200"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="app-scroll min-h-0 flex-1 overflow-auto">
-          <div className="space-y-2 p-3 md:hidden">
+          <div className="space-y-1.5 p-2 md:hidden">
             {stockItems.length === 0 ? (
               <StockEmptyState
                 canManage={canManageStock && !drinksOnly}
@@ -401,54 +404,41 @@ export function StockWorkspace({
                   organizationRole,
                   establishmentRole,
                 );
-                const unitLabel =
-                  PRODUCT_UNIT_LABELS[
-                    item.unit as keyof typeof PRODUCT_UNIT_LABELS
-                  ] ?? item.unit;
                 return (
                   <article
                     key={item.id}
-                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                    className="rounded-xl border border-slate-200 bg-white p-2.5"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-[14px] font-semibold text-slate-900">
-                          {item.name}
-                        </p>
-                        <p className="mt-0.5 text-[12px] text-slate-500">
-                          {item.categoryName ? `${item.categoryName} · ` : ""}
-                          {unitLabel}
-                          {!singleScope ? ` · ${item.departmentName}` : ""}
-                        </p>
-                      </div>
-                      <StockStatusBadge status={item.status} />
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
-                      <div className="rounded-lg bg-slate-50 px-3 py-2">
-                        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                          Stock
-                        </p>
-                        <p className="mt-0.5 text-[14px] font-bold tabular-nums text-slate-900">
+                    <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-[13px] font-semibold text-slate-900">
+                            {item.name}
+                          </p>
+                          <StockStatusBadge status={item.status} />
+                        </div>
+                        <p className="mt-0.5 truncate text-[11px] text-slate-500">
                           {formatQuantity(item.currentQuantity, item.unit)}
-                        </p>
-                      </div>
-                      <div className="rounded-lg bg-slate-50 px-3 py-2">
-                        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                          Min.
-                        </p>
-                        <p className="mt-0.5 text-[14px] font-bold tabular-nums text-slate-900">
-                          {formatQuantity(item.minimumQuantity, item.unit)}
+                          <span className="text-slate-300"> · </span>
+                          min {formatQuantity(item.minimumQuantity, item.unit)}
+                          {item.categoryName ? (
+                            <>
+                              <span className="text-slate-300"> · </span>
+                              {item.categoryName}
+                            </>
+                          ) : null}
                         </p>
                       </div>
                     </div>
+
                     {canManageStock ? (
-                      <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="mt-2 flex gap-1">
                         {itemManageable ? (
                           <>
                             <button
                               type="button"
                               onClick={() => openModal("entry", item)}
-                              className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                              className="inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 active:bg-slate-50"
                             >
                               <ArrowDownToLine className="h-3.5 w-3.5" />
                               Entrée
@@ -456,7 +446,7 @@ export function StockWorkspace({
                             <button
                               type="button"
                               onClick={() => openModal("loss", item)}
-                              className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                              className="inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 active:bg-slate-50"
                             >
                               <TrendingDown className="h-3.5 w-3.5" />
                               Perte
@@ -464,20 +454,22 @@ export function StockWorkspace({
                             <button
                               type="button"
                               onClick={() => openModal("adjust", item)}
-                              className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 active:bg-slate-50"
+                              title="Corriger"
+                              aria-label="Corriger"
                             >
                               <Scale className="h-3.5 w-3.5" />
-                              Corriger
                             </button>
                           </>
                         ) : null}
                         <button
                           type="button"
                           onClick={() => openModal("history", item)}
-                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 active:bg-slate-50"
+                          title="Historique"
+                          aria-label="Historique"
                         >
                           <History className="h-3.5 w-3.5" />
-                          Historique
                         </button>
                       </div>
                     ) : null}
