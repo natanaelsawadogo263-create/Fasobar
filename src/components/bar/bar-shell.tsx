@@ -88,7 +88,7 @@ export function BarShell({
           sessionOpenedAt={sessionOpenedAt}
           openSessionHolderName={openSessionHolderName}
         />
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pb-[calc(3.75rem+env(safe-area-inset-bottom))] md:pb-0">
+        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pb-[calc(3.75rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </main>
       </div>

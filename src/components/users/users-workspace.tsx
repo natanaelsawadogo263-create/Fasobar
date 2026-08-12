@@ -163,32 +163,38 @@ export function UsersWorkspace({
 
   return (
     <div className="h-full min-h-0 overflow-y-auto">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-4 lg:gap-6 lg:px-6 lg:py-5">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-3 py-3 sm:gap-5 sm:px-4 sm:py-4 lg:gap-6 lg:px-6 lg:py-5">
         {/* En-tête page */}
-        <header className="flex flex-wrap items-start justify-between gap-3">
+        <header className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h1 className="text-[22px] font-bold tracking-tight text-slate-900">
+            <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
               Utilisateurs
             </h1>
-            <p className="mt-1 text-[13px] text-slate-500">
+            <p className="mt-0.5 hidden text-[13px] text-slate-500 sm:block">
               Créez les comptes employés et gérez leurs accès par espace.
+            </p>
+            <p className="mt-0.5 text-[11px] text-slate-500 sm:hidden">
+              {stats.activeUsers} actif{stats.activeUsers > 1 ? "s" : ""}
+              <span className="text-slate-300"> · </span>
+              {memberRows.length} au total
             </p>
           </div>
           <button
             type="button"
             onClick={() => setShowCreateModal(true)}
             disabled={isPending}
-            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-[13px] font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-60"
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:h-10 sm:gap-2 sm:px-4 sm:text-[13px] sm:hover:bg-emerald-500"
           >
             <UserPlus className="h-4 w-4" />
-            Créer un compte
+            <span className="sm:hidden">Créer</span>
+            <span className="hidden sm:inline">Créer un compte</span>
           </button>
         </header>
 
         {error ? <AlertMessage message={error} /> : null}
 
-        {/* Synthèse */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {/* Synthèse — desktop uniquement */}
+        <div className="hidden grid-cols-2 gap-3 md:grid lg:grid-cols-4">
           {[
             {
               label: "Actifs",
@@ -247,10 +253,10 @@ export function UsersWorkspace({
         </div>
 
         {(stats.mustChangePasswordCount > 0 || stats.inactiveUsers > 0) && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-950">
+          <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12px] text-amber-950 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-2 sm:px-4 sm:py-3 sm:text-[13px]">
             {stats.mustChangePasswordCount > 0 ? (
               <span className="inline-flex items-center gap-2 font-medium">
-                <KeyRound className="h-4 w-4 text-amber-700" />
+                <KeyRound className="h-4 w-4 shrink-0 text-amber-700" />
                 {stats.mustChangePasswordCount} compte
                 {stats.mustChangePasswordCount > 1 ? "s" : ""} en attente de 1ʳᵉ
                 connexion
@@ -258,7 +264,7 @@ export function UsersWorkspace({
             ) : null}
             {stats.inactiveUsers > 0 ? (
               <span className="inline-flex items-center gap-2 font-medium">
-                <UserX className="h-4 w-4 text-amber-700" />
+                <UserX className="h-4 w-4 shrink-0 text-amber-700" />
                 {stats.inactiveUsers} compte
                 {stats.inactiveUsers > 1 ? "s" : ""} inactif
                 {stats.inactiveUsers > 1 ? "s" : ""}
@@ -269,8 +275,8 @@ export function UsersWorkspace({
 
         {/* Équipe */}
         <section className="overflow-visible rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <div>
+          <div className="flex flex-col gap-2 border-b border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5 sm:py-4">
+            <div className="hidden sm:block">
               <h2 className="text-[15px] font-semibold text-slate-900">Équipe</h2>
               <p className="mt-0.5 text-[12px] text-slate-500">
                 {sortedRows.length} membre{sortedRows.length > 1 ? "s" : ""}
@@ -286,7 +292,7 @@ export function UsersWorkspace({
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Rechercher…"
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-[13px] outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-[13px] outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:h-10"
               />
             </div>
           </div>
@@ -322,7 +328,7 @@ export function UsersWorkspace({
                 return (
                   <li
                     key={row.id}
-                    className={`px-4 py-4 sm:px-5 ${isActive ? "bg-white" : "bg-slate-50/70"}`}
+                    className={`px-3 py-3.5 sm:px-5 sm:py-4 ${isActive ? "bg-white" : "bg-slate-50/70"}`}
                   >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       {/* Identité */}
@@ -395,13 +401,13 @@ export function UsersWorkspace({
                       </div>
 
                       {/* Actions toujours visibles */}
-                      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 lg:shrink-0 lg:border-t-0 lg:pt-0">
+                      <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 sm:flex sm:flex-wrap sm:items-center lg:shrink-0 lg:border-t-0 lg:pt-0">
                         {isActive ? (
                           <button
                             type="button"
                             disabled={isPending}
                             onClick={() => setResetMember(row)}
-                            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+                            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 transition active:bg-slate-50 disabled:opacity-50 sm:h-10 sm:justify-start sm:hover:border-slate-300 sm:hover:bg-slate-50"
                           >
                             <KeyRound className="h-3.5 w-3.5 text-slate-500" />
                             Mot de passe
@@ -414,7 +420,9 @@ export function UsersWorkspace({
                           onClick={() =>
                             handleToggleMember(row.userId, row.status !== "active")
                           }
-                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+                          className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 transition active:bg-slate-50 disabled:opacity-50 sm:h-10 sm:justify-start sm:hover:border-slate-300 sm:hover:bg-slate-50 ${
+                            isActive ? "" : "col-span-2 sm:col-span-1"
+                          }`}
                         >
                           <Power className="h-3.5 w-3.5 text-slate-500" />
                           {isActive ? "Désactiver" : "Réactiver"}
@@ -424,7 +432,9 @@ export function UsersWorkspace({
                           type="button"
                           disabled={isPending}
                           onClick={() => setDeleteMember(row)}
-                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-[12px] font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                          className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-[12px] font-semibold text-red-700 transition active:bg-red-50 disabled:opacity-50 sm:h-10 sm:justify-start sm:hover:bg-red-50 ${
+                            isActive ? "col-span-2 sm:col-span-1" : ""
+                          }`}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                           Supprimer

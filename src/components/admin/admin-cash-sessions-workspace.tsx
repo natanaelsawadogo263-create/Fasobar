@@ -75,30 +75,60 @@ export function AdminCashSessionsWorkspace({
   }
 
   const stats = [
-    { title: "Sessions ouvertes", value: String(openCount), subtitle: "en cours" },
-    { title: "Sessions fermées", value: String(closedCount), subtitle: "clôturées" },
+    {
+      title: "Sessions ouvertes",
+      shortTitle: "Ouvertes",
+      value: String(openCount),
+      subtitle: "en cours",
+    },
+    {
+      title: "Sessions fermées",
+      shortTitle: "Fermées",
+      value: String(closedCount),
+      subtitle: "clôturées",
+    },
     {
       title: "Espèces encaissées",
+      shortTitle: "Espèces",
       value: formatPriceXof(totalCashCollected),
       subtitle: "toutes sessions affichées",
     },
   ];
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3 lg:gap-3.5 lg:p-4">
-      <header className="flex shrink-0 flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
+    <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden px-3 py-2.5 sm:gap-3 sm:p-3 lg:gap-3.5 lg:p-4">
+      <header className="flex shrink-0 items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[20px] lg:text-[22px]">
             Caisses
           </h1>
-          <p className="mt-0.5 text-[12px] text-slate-500">
+          <p className="mt-0.5 hidden text-[12px] text-slate-500 sm:block">
             {establishmentName} · supervision lecture seule — ouverture et fermeture réservées
             aux caissiers
           </p>
         </div>
       </header>
 
-      <div className="grid shrink-0 grid-cols-1 gap-2.5 sm:grid-cols-3 lg:gap-3">
+      {/* KPI mobile : défilement horizontal */}
+      <div className="-mx-3 flex shrink-0 gap-2 overflow-x-auto px-3 pb-0.5 md:hidden">
+        {stats.map((stat) => (
+          <div
+            key={stat.title}
+            className="w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm"
+          >
+            <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              {stat.shortTitle}
+            </p>
+            <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+              {stat.value}
+            </p>
+            <p className="mt-0.5 truncate text-[10px] text-slate-400">{stat.subtitle}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* KPI desktop */}
+      <div className="hidden shrink-0 grid-cols-3 gap-2.5 md:grid lg:gap-3">
         {stats.map((stat) => (
           <div
             key={stat.title}
@@ -128,7 +158,66 @@ export function AdminCashSessionsWorkspace({
           </div>
         ) : (
           <div className="h-full overflow-auto">
-            <table className="min-w-full text-left text-[12px]">
+            {/* Liste cartes mobile */}
+            <div className="space-y-1.5 p-2 md:hidden">
+              {sessions.map((session) => (
+                <article
+                  key={session.id}
+                  className="rounded-xl border border-slate-200 px-3 py-2.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-semibold text-slate-900">
+                        {session.cashierName}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        Ouverte {formatDateTime(session.openedAt)}
+                        {session.closedAt
+                          ? ` · Fermée ${formatDateTime(session.closedAt)}`
+                          : ""}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_STYLES[session.status]}`}
+                    >
+                      {STATUS_LABELS[session.status]}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
+                    <span>
+                      Espèces{" "}
+                      <strong className="tabular-nums text-slate-900">
+                        {formatPriceXof(session.cashCollected)}
+                      </strong>
+                    </span>
+                    <span>
+                      Attendu{" "}
+                      <strong className="tabular-nums text-slate-900">
+                        {formatPriceXof(session.expectedCashAmount)}
+                      </strong>
+                    </span>
+                    <span className={differenceClass(session.cashDifference)}>
+                      Écart{" "}
+                      <strong className="tabular-nums">
+                        {session.cashDifference !== null
+                          ? formatPriceXof(session.cashDifference)
+                          : "—"}
+                      </strong>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openDetail(session.id)}
+                    className="mt-2.5 inline-flex h-10 w-full items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-[12px] font-semibold text-emerald-700 active:bg-emerald-100"
+                  >
+                    Voir détail
+                  </button>
+                </article>
+              ))}
+            </div>
+
+            {/* Table desktop */}
+            <table className="hidden min-w-full text-left text-[12px] md:table">
               <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-3 py-2.5 font-semibold">Caissier·ère</th>
@@ -169,7 +258,9 @@ export function AdminCashSessionsWorkspace({
                         ? formatPriceXof(session.countedCashAmount)
                         : "—"}
                     </td>
-                    <td className={`px-3 py-2.5 font-semibold ${differenceClass(session.cashDifference)}`}>
+                    <td
+                      className={`px-3 py-2.5 font-semibold ${differenceClass(session.cashDifference)}`}
+                    >
                       {session.cashDifference !== null
                         ? formatPriceXof(session.cashDifference)
                         : "—"}
@@ -200,18 +291,18 @@ export function AdminCashSessionsWorkspace({
 
       {detailOpen ? (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/45 p-4"
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/45 p-0 sm:items-center sm:p-4"
           role="presentation"
           onClick={() => setDetailOpen(false)}
         >
           <div
             role="dialog"
             aria-modal="true"
-            className="flex max-h-[min(90dvh,720px)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="flex max-h-[min(92dvh,720px)] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
-              <div>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4">
+              <div className="min-w-0">
                 <h2 className="text-[16px] font-bold text-slate-900">Détail de la session</h2>
                 <p className="mt-0.5 text-[12px] text-slate-500">
                   Lecture seule — paiements et reçus liés à cette caisse.
@@ -220,12 +311,13 @@ export function AdminCashSessionsWorkspace({
               <button
                 type="button"
                 onClick={() => setDetailOpen(false)}
-                className="rounded-lg p-1 hover:bg-slate-100"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 active:bg-slate-100 sm:h-9 sm:w-9 sm:hover:bg-slate-100"
+                aria-label="Fermer"
               >
-                <X className="h-4 w-4 text-slate-500" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-5">
               {isPending ? (
                 <p className="text-[12px] text-slate-500">Chargement…</p>
               ) : detailError ? (
@@ -290,7 +382,52 @@ export function AdminCashSessionsWorkspace({
                     <h3 className="text-[13px] font-semibold text-slate-900">
                       Paiements ({detail.payments.length})
                     </h3>
-                    <div className="mt-2 overflow-hidden rounded-xl border border-slate-200">
+                    {/* Paiements mobile */}
+                    <div className="mt-2 space-y-1.5 md:hidden">
+                      {detail.payments.length === 0 ? (
+                        <p className="rounded-xl border border-slate-200 px-3 py-4 text-center text-[12px] text-slate-400">
+                          Aucun paiement enregistré sur cette session.
+                        </p>
+                      ) : (
+                        detail.payments.map((payment) => (
+                          <article
+                            key={payment.id}
+                            className="rounded-xl border border-slate-200 px-3 py-2.5"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-[13px] font-semibold text-slate-900">
+                                  {payment.orderNumber !== null
+                                    ? formatOrderNumber(payment.orderNumber)
+                                    : "—"}
+                                </p>
+                                <p className="mt-0.5 text-[11px] text-slate-500">
+                                  {PAYMENT_METHOD_LABELS[payment.method]} ·{" "}
+                                  {payment.status === "CONFIRMED"
+                                    ? "Confirmé"
+                                    : payment.status}
+                                </p>
+                              </div>
+                              <p className="shrink-0 text-[13px] font-bold tabular-nums text-slate-900">
+                                {formatPriceXof(payment.amountApplied)}
+                              </p>
+                            </div>
+                            {payment.receiptId ? (
+                              <a
+                                href={`/application/recus/${payment.receiptId}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-[12px] font-semibold text-emerald-700 active:bg-emerald-100"
+                              >
+                                Voir le reçu
+                              </a>
+                            ) : null}
+                          </article>
+                        ))
+                      )}
+                    </div>
+                    {/* Paiements desktop */}
+                    <div className="mt-2 hidden overflow-hidden rounded-xl border border-slate-200 md:block">
                       <table className="min-w-full text-left text-[12px]">
                         <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
                           <tr>
@@ -323,7 +460,9 @@ export function AdminCashSessionsWorkspace({
                                   {formatPriceXof(payment.amountApplied)}
                                 </td>
                                 <td className="px-3 py-2 text-slate-600">
-                                  {payment.status === "CONFIRMED" ? "Confirmé" : payment.status}
+                                  {payment.status === "CONFIRMED"
+                                    ? "Confirmé"
+                                    : payment.status}
                                 </td>
                                 <td className="px-3 py-2">
                                   {payment.receiptId ? (

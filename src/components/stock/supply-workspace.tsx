@@ -273,16 +273,16 @@ export function SupplyWorkspace({
           lockedDepartment ? "max-w-5xl" : ""
         } ${
           compact
-            ? "gap-3 px-4 py-4 lg:gap-4 lg:px-6 lg:py-5"
-            : "gap-3 px-4 py-3 lg:gap-3.5 lg:px-5 lg:py-4"
+            ? "gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-4 lg:gap-4 lg:px-6 lg:py-5"
+            : "gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:gap-3.5 lg:px-5 lg:py-4"
         }`}
       >
-      <header className="flex shrink-0 flex-wrap items-end justify-between gap-3">
+      <header className="flex shrink-0 items-center justify-between gap-2">
         <div className="min-w-0">
-          <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
+          <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[20px] lg:text-[22px]">
             Approvisionnements
           </h1>
-          <p className="mt-0.5 text-[12px] text-slate-500">
+          <p className="mt-0.5 hidden text-[12px] text-slate-500 sm:block">
             {compact ? (
               <>
                 {departmentEntries.length} entrée
@@ -319,79 +319,95 @@ export function SupplyWorkspace({
               </>
             )}
           </p>
+          <p className="mt-0.5 text-[11px] text-slate-500 sm:hidden">
+            {departmentEntries.length} entrée
+            {departmentEntries.length > 1 ? "s" : ""}
+            <span className="text-slate-300"> · </span>
+            {activeSuppliers.length} fournisseur
+            {activeSuppliers.length > 1 ? "s" : ""}
+            {periodLabel ? (
+              <>
+                <span className="text-slate-300"> · </span>
+                <span className="capitalize">{periodLabel}</span>
+              </>
+            ) : null}
+          </p>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {periodFilter ? (
-            <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5">
-              {PERIOD_OPTIONS.map((option) => (
+        {canManageStock ? (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={openCreateSupplier}
+              disabled={isPending}
+              title="Ajouter un fournisseur"
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px] font-semibold text-slate-700 active:bg-slate-50 disabled:opacity-60 sm:h-9 sm:px-3.5 sm:hover:bg-slate-50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Fournisseur</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEntryError(null);
+                setShowEntryModal(true);
+              }}
+              disabled={isPending || !canCreateEntry}
+              title={
+                departmentItems.length === 0
+                  ? `Créez d'abord des articles ${SPACE_LABELS[activeDepartment].toLowerCase()}`
+                  : activeSuppliers.length === 0
+                    ? "Ajoutez d'abord un fournisseur pour cet espace"
+                    : undefined
+              }
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:px-3.5 sm:hover:bg-emerald-500"
+            >
+              <ArrowDownToLine className="h-3.5 w-3.5" />
+              <span className="sm:hidden">Entrée</span>
+              <span className="hidden sm:inline">Nouvelle entrée</span>
+            </button>
+          </div>
+        ) : null}
+      </header>
+
+      {/* Filtres : chips horizontales */}
+      {periodFilter ||
+      (!lockedDepartment && availableDepartments.length > 1) ? (
+        <div className="-mx-1 flex shrink-0 items-center gap-1.5 overflow-x-auto px-1 pb-0.5">
+          {periodFilter
+            ? PERIOD_OPTIONS.map((option) => (
                 <button
                   key={option.id}
                   type="button"
                   onClick={() => applyPeriod(option.id)}
-                  className={`h-8 rounded-md px-2.5 text-[11px] font-semibold transition ${
+                  className={`inline-flex h-9 shrink-0 items-center rounded-lg px-3 text-[12px] font-semibold transition sm:h-8 ${
                     periodFilter === option.id
                       ? "bg-emerald-600 text-white"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      : "bg-slate-100 text-slate-600 active:bg-slate-200"
                   }`}
                 >
                   {option.label}
                 </button>
-              ))}
-            </div>
-          ) : null}
-          {canManageStock ? (
-            <>
-              {!lockedDepartment && availableDepartments.length > 1 ? (
-                <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5">
-                  {availableDepartments.map((code) => (
-                    <button
-                      key={code}
-                      type="button"
-                      onClick={() => setDepartmentFilter(code)}
-                      className={`h-9 rounded-md px-3 text-[12px] font-semibold transition ${
-                        activeDepartment === code
-                          ? "bg-white text-slate-900 shadow-sm"
-                          : "text-slate-500 hover:text-slate-700"
-                      }`}
-                    >
-                      {SPACE_LABELS[code]}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <button
-                type="button"
-                onClick={openCreateSupplier}
-                disabled={isPending}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Fournisseur
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEntryError(null);
-                  setShowEntryModal(true);
-                }}
-                disabled={isPending || !canCreateEntry}
-                title={
-                  departmentItems.length === 0
-                    ? `Créez d'abord des articles ${SPACE_LABELS[activeDepartment].toLowerCase()}`
-                    : activeSuppliers.length === 0
-                      ? "Ajoutez d'abord un fournisseur pour cet espace"
-                      : undefined
-                }
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <ArrowDownToLine className="h-3.5 w-3.5" />
-                Nouvelle entrée
-              </button>
-            </>
-          ) : null}
+              ))
+            : null}
+          {!lockedDepartment && availableDepartments.length > 1
+            ? availableDepartments.map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setDepartmentFilter(code)}
+                  className={`inline-flex h-9 shrink-0 items-center rounded-lg px-3 text-[12px] font-semibold transition sm:h-8 ${
+                    activeDepartment === code
+                      ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
+                      : "bg-slate-100 text-slate-600 active:bg-slate-200"
+                  }`}
+                >
+                  {SPACE_LABELS[code]}
+                </button>
+              ))
+            : null}
         </div>
-      </header>
+      ) : null}
 
       {error ? <AlertMessage message={error} /> : null}
       {message ? (
@@ -402,9 +418,60 @@ export function SupplyWorkspace({
         />
       ) : null}
 
+      {/* KPI mobile : bandeau horizontal */}
+      <div className="-mx-1 flex shrink-0 gap-2 overflow-x-auto px-1 pb-0.5 md:hidden">
+        <div className="w-[42%] min-w-[8.5rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm">
+          <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            Fournisseurs
+          </p>
+          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+            {activeSuppliers.length}
+          </p>
+          <p className="mt-0.5 truncate text-[10px] text-slate-400">
+            {departmentSuppliers.length} au total
+          </p>
+        </div>
+        <div className="w-[42%] min-w-[8.5rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm">
+          <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            Entrées
+          </p>
+          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+            {departmentEntries.length}
+          </p>
+          <p className="mt-0.5 truncate text-[10px] text-slate-400">
+            {periodLabel ?? "récentes"}
+          </p>
+        </div>
+        <div className="w-[42%] min-w-[8.5rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm">
+          <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            Montant
+          </p>
+          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+            {formatPriceXof(totalRecentCost)}
+          </p>
+          <p className="mt-0.5 truncate text-[10px] text-slate-400">
+            {periodLabel ?? "récent"}
+          </p>
+        </div>
+        {!compact ? (
+          <div className="w-[42%] min-w-[8.5rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm">
+            <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              Articles
+            </p>
+            <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+              {departmentItems.length}
+            </p>
+            <p className="mt-0.5 truncate text-[10px] text-slate-400">
+              {SPACE_LABELS[activeDepartment]}
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+      {/* KPI desktop */}
       <div
-        className={`grid shrink-0 gap-2.5 ${
-          compact ? "grid-cols-3 lg:gap-3" : "grid-cols-2 lg:grid-cols-4 lg:gap-3"
+        className={`hidden shrink-0 gap-2.5 md:grid lg:gap-3 ${
+          compact ? "grid-cols-3" : "grid-cols-2 lg:grid-cols-4"
         }`}
       >
         <StatCard
@@ -485,7 +552,7 @@ export function SupplyWorkspace({
                       setShowEntryModal(true);
                     }}
                     disabled={!canCreateEntry}
-                    className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+                    className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white active:bg-emerald-500 disabled:opacity-60 sm:h-9 sm:hover:bg-emerald-500"
                   >
                     <ArrowDownToLine className="h-3.5 w-3.5" />
                     Nouvelle entrée
@@ -493,59 +560,103 @@ export function SupplyWorkspace({
                 ) : null}
               </div>
             ) : (
-              <table className="min-w-full text-left text-[12px]">
-                <thead className="sticky top-0 z-10 bg-slate-50/95 text-[10px] font-semibold uppercase tracking-wide text-slate-400 backdrop-blur">
-                  <tr>
-                    <th className="px-3.5 py-2.5 font-medium">Date</th>
-                    <th className="px-3.5 py-2.5 font-medium">Article</th>
-                    <th className="px-3.5 py-2.5 font-medium">Fournisseur</th>
-                    <th className="px-3.5 py-2.5 font-medium">Qté</th>
-                    <th className="px-3.5 py-2.5 text-right font-medium">Montant</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
+              <>
+                {/* Mobile : cartes */}
+                <div className="space-y-1.5 p-2 md:hidden">
                   {departmentEntries.map((entry) => (
-                    <tr
+                    <article
                       key={entry.id}
-                      className="text-slate-700 hover:bg-slate-50/70"
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
                     >
-                      <td className="whitespace-nowrap px-3.5 py-2.5 text-slate-500">
-                        {new Date(entry.createdAt).toLocaleDateString("fr-FR", {
-                          day: "2-digit",
-                          month: "short",
-                        })}
-                      </td>
-                      <td className="px-3.5 py-2.5">
-                        <p className="font-semibold text-slate-900">
-                          {entry.stockItemName}
-                        </p>
-                        {entry.reference ? (
-                          <p className="mt-0.5 text-[11px] text-slate-400">
-                            Réf. {entry.reference}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[13px] font-semibold text-slate-900">
+                            {entry.stockItemName}
                           </p>
-                        ) : null}
-                      </td>
-                      <td className="px-3.5 py-2.5 text-slate-600">
-                        {entry.supplierName ?? "—"}
-                      </td>
-                      <td className="px-3.5 py-2.5 tabular-nums text-slate-700">
-                        {formatQuantity(entry.quantity, entry.unit)}
-                      </td>
-                      <td className="px-3.5 py-2.5 text-right font-semibold tabular-nums text-slate-900">
-                        {entry.totalCost !== null
-                          ? formatPriceXof(entry.totalCost)
-                          : "—"}
-                      </td>
-                    </tr>
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            {new Date(entry.createdAt).toLocaleDateString("fr-FR", {
+                              day: "2-digit",
+                              month: "short",
+                            })}
+                            <span className="text-slate-300"> · </span>
+                            {entry.supplierName ?? "—"}
+                          </p>
+                          {entry.reference ? (
+                            <p className="mt-0.5 text-[11px] text-slate-400">
+                              Réf. {entry.reference}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-[13px] font-bold tabular-nums text-slate-900">
+                            {entry.totalCost !== null
+                              ? formatPriceXof(entry.totalCost)
+                              : "—"}
+                          </p>
+                          <p className="mt-0.5 text-[11px] tabular-nums text-slate-500">
+                            {formatQuantity(entry.quantity, entry.unit)}
+                          </p>
+                        </div>
+                      </div>
+                    </article>
                   ))}
-                </tbody>
-              </table>
+                </div>
+
+                {/* Desktop : tableau */}
+                <table className="hidden min-w-full text-left text-[12px] md:table">
+                  <thead className="sticky top-0 z-10 bg-slate-50/95 text-[10px] font-semibold uppercase tracking-wide text-slate-400 backdrop-blur">
+                    <tr>
+                      <th className="px-3.5 py-2.5 font-medium">Date</th>
+                      <th className="px-3.5 py-2.5 font-medium">Article</th>
+                      <th className="px-3.5 py-2.5 font-medium">Fournisseur</th>
+                      <th className="px-3.5 py-2.5 font-medium">Qté</th>
+                      <th className="px-3.5 py-2.5 text-right font-medium">Montant</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {departmentEntries.map((entry) => (
+                      <tr
+                        key={entry.id}
+                        className="text-slate-700 hover:bg-slate-50/70"
+                      >
+                        <td className="whitespace-nowrap px-3.5 py-2.5 text-slate-500">
+                          {new Date(entry.createdAt).toLocaleDateString("fr-FR", {
+                            day: "2-digit",
+                            month: "short",
+                          })}
+                        </td>
+                        <td className="px-3.5 py-2.5">
+                          <p className="font-semibold text-slate-900">
+                            {entry.stockItemName}
+                          </p>
+                          {entry.reference ? (
+                            <p className="mt-0.5 text-[11px] text-slate-400">
+                              Réf. {entry.reference}
+                            </p>
+                          ) : null}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-slate-600">
+                          {entry.supplierName ?? "—"}
+                        </td>
+                        <td className="px-3.5 py-2.5 tabular-nums text-slate-700">
+                          {formatQuantity(entry.quantity, entry.unit)}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-right font-semibold tabular-nums text-slate-900">
+                          {entry.totalCost !== null
+                            ? formatPriceXof(entry.totalCost)
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
             )}
           </div>
         </section>
 
         <section className="flex min-h-0 flex-col overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200/80">
-          <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-3.5">
+          <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-3 sm:px-3.5">
             <div className="flex items-center gap-2">
               <h2 className="text-[13px] font-semibold text-slate-900">
                 Fournisseurs
@@ -566,10 +677,10 @@ export function SupplyWorkspace({
                   key={value}
                   type="button"
                   onClick={() => setSupplierFilter(value)}
-                  className={`h-7 rounded-md px-2 text-[10px] font-semibold transition ${
+                  className={`inline-flex h-8 shrink-0 items-center rounded-md px-2.5 text-[11px] font-semibold transition sm:h-7 sm:px-2 sm:text-[10px] ${
                     supplierFilter === value
                       ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-500 hover:text-slate-700"
+                      : "text-slate-500 active:text-slate-700 sm:hover:text-slate-700"
                   }`}
                 >
                   {label}
@@ -598,7 +709,7 @@ export function SupplyWorkspace({
                   <button
                     type="button"
                     onClick={openCreateSupplier}
-                    className="mt-4 inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white hover:bg-emerald-500"
+                    className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white active:bg-emerald-500 sm:h-8 sm:px-3 sm:hover:bg-emerald-500"
                   >
                     <Plus className="h-3.5 w-3.5" />
                     Ajouter
@@ -647,20 +758,20 @@ export function SupplyWorkspace({
                       </div>
 
                       {canManageStock ? (
-                        <div className="flex shrink-0 flex-col items-end gap-1">
+                        <div className="flex shrink-0 items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => openEditSupplier(supplier)}
                             title="Modifier"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition active:border-emerald-200 active:bg-emerald-50 active:text-emerald-800 sm:h-8 sm:w-8 sm:rounded-md sm:hover:border-emerald-200 sm:hover:bg-emerald-50 sm:hover:text-emerald-800"
                           >
-                            <Pencil className="h-3 w-3" />
+                            <Pencil className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
                           </button>
                           {supplier.active ? (
                             <button
                               type="button"
                               onClick={() => setDeactivateTarget(supplier)}
-                              className="text-[11px] font-medium text-slate-400 hover:text-slate-700"
+                              className="inline-flex h-10 items-center rounded-lg px-2.5 text-[12px] font-medium text-slate-500 active:bg-slate-100 sm:h-8 sm:px-0 sm:text-[11px] sm:hover:text-slate-700"
                             >
                               Désactiver
                             </button>
@@ -669,7 +780,7 @@ export function SupplyWorkspace({
                               type="button"
                               disabled={isPending}
                               onClick={() => handleReactivateSupplier(supplier)}
-                              className="text-[11px] font-medium text-emerald-700 hover:underline disabled:opacity-60"
+                              className="inline-flex h-10 items-center rounded-lg px-2.5 text-[12px] font-medium text-emerald-700 active:bg-emerald-50 disabled:opacity-60 sm:h-8 sm:px-0 sm:text-[11px] sm:hover:underline"
                             >
                               Réactiver
                             </button>

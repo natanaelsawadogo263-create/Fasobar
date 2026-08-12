@@ -167,10 +167,20 @@ html {
     display: none !important;
   }
 
-  .thermal-receipt-page {
+  .thermal-receipt-page,
+  .thermal-receipt-host,
+  .thermal-receipt-scroll,
+  .thermal-receipt-page-inner {
+    position: static !important;
+    inset: auto !important;
     max-width: none;
-    padding: 0;
+    padding: 0 !important;
     margin: 0;
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    flex: none !important;
+    overflow: visible !important;
   }
 
   .thermal-receipt {
@@ -266,6 +276,8 @@ html {
 .thermal-receipt {
   width: 100%;
   max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
   font-family: var(--font-geist-mono), ui-monospace, monospace;
 }
 
