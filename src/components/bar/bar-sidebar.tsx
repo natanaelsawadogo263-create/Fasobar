@@ -8,6 +8,8 @@ import {
   GlassWater,
   LayoutDashboard,
   Package,
+  PanelLeftClose,
+  PanelLeftOpen,
   ShieldCheck,
   Timer,
   Truck,
@@ -15,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
+import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { isHomeNavItem, type NavItem } from "@/lib/navigation/space-navigation";
 
 const NAV_ICONS: Record<string, LucideIcon> = {
@@ -33,15 +36,40 @@ type BarSidebarProps = {
 
 export function BarSidebar({ navItems }: BarSidebarProps) {
   const pathname = usePathname();
+  const { collapsed, toggle } = useSidebarCollapsed("fasobar.bar.sidebar.collapsed");
 
   return (
-    <aside className="flex h-full w-[220px] shrink-0 flex-col bg-[#051512] lg:w-[236px]">
-      <div className="flex h-14 shrink-0 items-center px-4 lg:px-5">
-        <FasoBarLogo size="sm" tone="dark" />
+    <aside
+      className={`flex h-full shrink-0 flex-col bg-[#051512] transition-[width] duration-200 ease-out ${
+        collapsed ? "w-[68px]" : "w-[220px] lg:w-[236px]"
+      }`}
+    >
+      <div
+        className={`flex h-12 shrink-0 items-center border-b border-white/10 ${
+          collapsed ? "justify-center px-1.5" : "justify-between gap-2 px-3 lg:px-4"
+        }`}
+      >
+        {collapsed ? null : <FasoBarLogo size="sm" tone="dark" />}
+        <button
+          type="button"
+          onClick={toggle}
+          title={collapsed ? "Déplier le menu" : "Replier le menu"}
+          aria-label={collapsed ? "Déplier le menu" : "Replier le menu"}
+          aria-expanded={!collapsed}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/[0.06] text-white/80 transition hover:bg-white/[0.12] hover:text-white"
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="h-4 w-4" />
+          ) : (
+            <PanelLeftClose className="h-4 w-4" />
+          )}
+        </button>
       </div>
 
       <nav
-        className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-4 pt-1"
+        className={`flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pb-4 pt-1.5 ${
+          collapsed ? "px-1.5" : "px-3"
+        }`}
         aria-label="Navigation Responsable Bar"
       >
         {navItems.map((item) => {
@@ -56,10 +84,13 @@ export function BarSidebar({ navItems }: BarSidebarProps) {
             return (
               <span
                 key={item.href}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-white/30"
+                title={item.label}
+                className={`flex items-center rounded-lg text-[13px] text-white/30 ${
+                  collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5"
+                }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {item.label}
+                {collapsed ? null : item.label}
               </span>
             );
           }
@@ -69,27 +100,42 @@ export function BarSidebar({ navItems }: BarSidebarProps) {
               key={item.href}
               href={item.href}
               prefetch
-              className={`flex items-center gap-3 rounded-xl transition ${
+              title={collapsed ? item.label : undefined}
+              className={`flex items-center rounded-xl transition ${
+                collapsed ? "justify-center px-2 py-2.5" : "gap-3"
+              } ${
                 isHome
                   ? isActive
-                    ? "mb-1.5 bg-emerald-600 px-3 py-3 text-[14px] font-bold text-white shadow-md shadow-emerald-950/50"
-                    : "mb-1.5 bg-emerald-500/15 px-3 py-3 text-[14px] font-semibold text-emerald-300 ring-1 ring-emerald-400/25 hover:bg-emerald-500/25"
+                    ? collapsed
+                      ? "mb-1 bg-emerald-600 text-white shadow-md shadow-emerald-950/50"
+                      : "mb-1.5 bg-emerald-600 px-3 py-3 text-[14px] font-bold text-white shadow-md shadow-emerald-950/50"
+                    : collapsed
+                      ? "mb-1 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/25 hover:bg-emerald-500/25"
+                      : "mb-1.5 bg-emerald-500/15 px-3 py-3 text-[14px] font-semibold text-emerald-300 ring-1 ring-emerald-400/25 hover:bg-emerald-500/25"
                   : isActive
-                    ? "bg-emerald-600/80 px-3 py-2.5 text-[13px] font-semibold text-white shadow-sm shadow-emerald-900/40"
-                    : "px-3 py-2.5 text-[13px] font-medium text-white/55 hover:bg-white/[0.06] hover:text-white"
+                    ? collapsed
+                      ? "bg-emerald-600/80 text-white shadow-sm shadow-emerald-900/40"
+                      : "bg-emerald-600/80 px-3 py-2.5 text-[13px] font-semibold text-white shadow-sm shadow-emerald-900/40"
+                    : collapsed
+                      ? "text-white/55 hover:bg-white/[0.06] hover:text-white"
+                      : "px-3 py-2.5 text-[13px] font-medium text-white/55 hover:bg-white/[0.06] hover:text-white"
               }`}
             >
               <Icon
                 className={`shrink-0 ${isHome ? "h-[18px] w-[18px]" : "h-4 w-4"}`}
                 strokeWidth={isHome || isActive ? 2.35 : 2}
               />
-              {item.label}
+              {collapsed ? null : item.label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="shrink-0 border-t border-white/10 px-4 py-4 lg:px-5">
+      <div
+        className={`shrink-0 border-t border-white/10 ${
+          collapsed ? "hidden" : "px-4 py-4 lg:px-5"
+        }`}
+      >
         <div className="flex items-start gap-2.5">
           <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
             <ShieldCheck className="h-3.5 w-3.5" />

@@ -93,7 +93,13 @@ export function InventoryWorkspace({
       </div>
 
       {error ? <AlertMessage message={error} /> : null}
-      {message ? <AlertMessage message={message} tone="success" /> : null}
+      {message ? (
+        <AlertMessage
+          message={message}
+          tone="success"
+          onDismiss={() => setMessage(null)}
+        />
+      ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
         <div className="overflow-x-auto">

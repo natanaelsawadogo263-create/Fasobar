@@ -287,7 +287,13 @@ export function CheckoutWorkspace({
       {(error || message || methodRequiresSession) && (
         <div className="shrink-0 space-y-2 border-b border-slate-200 bg-white px-4 py-2">
           {error ? <AlertMessage message={error} /> : null}
-          {message ? <AlertMessage message={message} tone="success" /> : null}
+          {message ? (
+            <AlertMessage
+              message={message}
+              tone="success"
+              onDismiss={() => setMessage(null)}
+            />
+          ) : null}
           {methodRequiresSession ? (
             <AlertMessage message="Ouvrez une session de caisse depuis la page Caisse pour les paiements en espèces." />
           ) : null}

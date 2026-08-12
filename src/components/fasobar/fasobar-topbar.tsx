@@ -7,6 +7,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
 import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
 import { DesktopSyncIndicator } from "@/components/pos/desktop-sync-indicator";
+import { FullscreenButton } from "@/components/ui/fullscreen-button";
 import { LiveClock } from "@/components/ui/live-clock";
 
 export function FasoBarTopbar() {
@@ -54,6 +55,10 @@ export function FasoBarTopbar() {
       </div>
 
       <div className="ml-auto flex shrink-0 items-center gap-1 md:gap-2">
+        <FullscreenButton
+          showLabel={false}
+          className="hidden h-8 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/5 px-2 text-slate-200 transition hover:bg-white/10 md:inline-flex"
+        />
         <div className="flex items-center gap-0.5 md:gap-1">
           <TopLink href="/application/depenses" icon={Wallet} label="Dépenses" />
           <TopLink

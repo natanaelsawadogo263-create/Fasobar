@@ -203,12 +203,14 @@ export function AdminSettingsWorkspace({
         </div>
       </header>
 
-      {(error || success) && (
-        <div className="shrink-0 space-y-2">
-          {error ? <AlertMessage message={error} /> : null}
-          {success ? <AlertMessage message={success} tone="success" /> : null}
-        </div>
-      )}
+      {error ? <AlertMessage message={error} /> : null}
+      {success ? (
+        <AlertMessage
+          message={success}
+          tone="success"
+          onDismiss={() => setSuccess(null)}
+        />
+      ) : null}
 
       <div className="grid min-h-0 gap-3 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-3.5">
         <nav

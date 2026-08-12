@@ -9,13 +9,27 @@ type FormSectionProps = {
   title: string;
   description?: string;
   children: ReactNode;
+  compact?: boolean;
 };
 
-export function FormSection({ title, description, children }: FormSectionProps) {
+export function FormSection({
+  title,
+  description,
+  children,
+  compact = false,
+}: FormSectionProps) {
   return (
-    <section className="space-y-4">
+    <section className={compact ? "space-y-2" : "space-y-4"}>
       <div>
-        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        <h3
+          className={
+            compact
+              ? "text-[11px] font-semibold uppercase tracking-wide text-slate-500"
+              : "text-sm font-semibold text-slate-900"
+          }
+        >
+          {title}
+        </h3>
         {description ? (
           <p className="mt-0.5 text-xs text-slate-500">{description}</p>
         ) : null}
@@ -187,13 +201,13 @@ export function ToggleField({
   name,
 }: ToggleFieldProps) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3">
-      <div>
-        <label htmlFor={id} className="text-sm font-medium text-slate-900">
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+      <div className="min-w-0">
+        <label htmlFor={id} className="text-[12px] font-medium text-slate-900">
           {label}
         </label>
         {description ? (
-          <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+          <p className="mt-0.5 text-[11px] text-slate-500">{description}</p>
         ) : null}
       </div>
       <button

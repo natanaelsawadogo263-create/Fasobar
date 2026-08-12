@@ -17,7 +17,6 @@ import { ModalFooter } from "@/components/ui/modal-footer";
 import { ModalShell } from "@/components/ui/modal-shell";
 import {
   BAR_BASE_UNITS,
-  BAR_BASE_UNIT_HINTS,
   BAR_PACKAGING_DEFAULT_UNITS,
   BAR_PACKAGING_LABELS,
   BAR_PACKAGING_UNITS,
@@ -115,12 +114,8 @@ export function ProductFormModal({
   return (
     <ModalShell
       formId={FORM_ID}
+      compact
       title={isCreate ? "Ajouter un produit" : "Modifier le produit"}
-      subtitle={
-        isCreate
-          ? "Créez un produit pour cet établissement."
-          : "Mettez à jour les informations de ce produit."
-      }
       onClose={isPending ? () => undefined : onClose}
       dismissible={!isPending}
       noValidate
@@ -183,66 +178,34 @@ export function ProductFormModal({
         if (mode === "edit" && editingProduct) {
           formData.set("productId", editingProduct.id);
         }
-        formData.set("imageSelection", imageAssets.selection);
-        if (imageAssets.originalFile) {
-          formData.set("imageOriginal", imageAssets.originalFile);
-        }
-        if (imageAssets.optimizedFile) {
-          formData.set("imageOptimized", imageAssets.optimizedFile);
-        }
-        // Compat affichage / upload legacy
-        const primary =
-          imageAssets.selection === "optimized"
-            ? imageAssets.optimizedFile ?? imageAssets.originalFile
-            : imageAssets.originalFile ?? imageAssets.optimizedFile;
-        if (primary) {
-          formData.set("image", primary);
+        formData.set("imageSelection", "original");
+        if (imageAssets.file) {
+          formData.set("imageOriginal", imageAssets.file);
+          formData.set("image", imageAssets.file);
         }
         onSubmit(formData);
       }}
       footer={
         <ModalFooter
           onCancel={onClose}
-          submitLabel={isCreate ? "Enregistrer le produit" : "Mettre à jour le produit"}
+          submitLabel={isCreate ? "Enregistrer" : "Mettre à jour"}
           isPending={isPending}
         />
       }
     >
       {formError ? (
-        <div className="mb-5" id="product-form-error" ref={errorRef}>
+        <div className="mb-3" id="product-form-error" ref={errorRef}>
           <AlertMessage message={formError} />
         </div>
       ) : null}
 
-      <div className="space-y-8">
+      <div className="space-y-3.5">
         {mode === "edit" && editingProduct ? (
           <input type="hidden" name="productId" value={editingProduct.id} />
         ) : null}
 
-        <FormSection
-          title="Images catalogue"
-          description="Conservez l'originale et générez une version optimisée prête pour les cartes produit."
-        >
-          <ProductImageField
-            existingOriginalUrl={
-              editingProduct?.imageOriginalUrl ?? editingProduct?.imageUrl
-            }
-            existingOptimizedUrl={editingProduct?.imageOptimizedUrl}
-            productName={formState.name}
-            categoryName={
-              filteredCategories.find((category) => category.id === formState.categoryId)
-                ?.name ?? ""
-            }
-            departmentCode={formState.departmentCode}
-            onAssetsChange={onImageAssetsChange}
-          />
-        </FormSection>
-
-        <FormSection
-          title="Informations principales"
-          description="Identifiez le produit dans votre catalogue."
-        >
-          <div className="grid gap-4 md:grid-cols-2">
+        <FormSection title="Produit" compact>
+          <div className="grid gap-2.5 sm:grid-cols-2">
             <TextField
               id="name"
               name="name"
@@ -253,44 +216,44 @@ export function ProductFormModal({
               onChange={(event) =>
                 onChange((current) => ({ ...current, name: event.target.value }))
               }
-              className="md:col-span-2"
+              className="sm:col-span-2"
             />
 
             {lockDepartment ? (
               <>
                 <input type="hidden" name="departmentCode" value={formState.departmentCode} />
                 <div>
-                  <p className="mb-1.5 text-[12px] font-medium text-slate-700">Département</p>
-                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-800">
+                  <p className="mb-1 text-[11px] font-medium text-slate-700">Département</p>
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-800">
                     {DEPARTMENT_LABELS[formState.departmentCode]}
                   </p>
                 </div>
               </>
             ) : (
-            <SelectField
-              id="departmentCode"
-              name="departmentCode"
-              label="Département"
-              required
-              value={formState.departmentCode}
-              onChange={(event) => {
-                const departmentCode = event.target.value as DepartmentCode;
-                onChange((current) => ({
-                  ...current,
-                  departmentCode,
-                  categoryId: "",
-                  unit: departmentCode === "BAR" ? "BOTTLE" : "PORTION",
-                  packagingUnit: "CASE",
-                  unitsPerPack: BAR_PACKAGING_DEFAULT_UNITS.CASE,
-                }));
-              }}
-            >
-              {departmentChoices.map(([code, label]) => (
-                <option key={code} value={code}>
-                  {label}
-                </option>
-              ))}
-            </SelectField>
+              <SelectField
+                id="departmentCode"
+                name="departmentCode"
+                label="Département"
+                required
+                value={formState.departmentCode}
+                onChange={(event) => {
+                  const departmentCode = event.target.value as DepartmentCode;
+                  onChange((current) => ({
+                    ...current,
+                    departmentCode,
+                    categoryId: "",
+                    unit: departmentCode === "BAR" ? "BOTTLE" : "PORTION",
+                    packagingUnit: "CASE",
+                    unitsPerPack: BAR_PACKAGING_DEFAULT_UNITS.CASE,
+                  }));
+                }}
+              >
+                {departmentChoices.map(([code, label]) => (
+                  <option key={code} value={code}>
+                    {label}
+                  </option>
+                ))}
+              </SelectField>
             )}
 
             <SelectField
@@ -303,7 +266,7 @@ export function ProductFormModal({
                 onChange((current) => ({ ...current, categoryId: event.target.value }))
               }
             >
-              <option value="">Sélectionner une catégorie</option>
+              <option value="">Choisir…</option>
               {filteredCategories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -311,23 +274,15 @@ export function ProductFormModal({
               ))}
             </SelectField>
             {filteredCategories.length === 0 ? (
-              <p className="md:col-span-2 text-[12px] text-amber-700">
-                Aucune catégorie pour ce département. Impossible d&apos;enregistrer le
-                produit tant qu&apos;une catégorie n&apos;est pas disponible.
+              <p className="sm:col-span-2 text-[11px] text-amber-700">
+                Aucune catégorie pour ce département.
               </p>
             ) : null}
           </div>
         </FormSection>
 
-        <FormSection
-          title="Vente"
-          description={
-            isBar
-              ? "Prix de vente unitaire et unité de stock (bouteille, canette, bidon ou sachet)."
-              : "Définissez le prix et les conditions de vente."
-          }
-        >
-          <div className="grid gap-4 md:grid-cols-2">
+        <FormSection title="Prix & stock" compact>
+          <div className="grid gap-2.5 sm:grid-cols-2">
             <PriceField
               id="sellingPrice"
               name="sellingPrice"
@@ -342,91 +297,83 @@ export function ProductFormModal({
               }
             />
 
-            <SelectField
-              id="unit"
-              name="unit"
-              label={isBar ? "Unité de stock" : "Unité"}
-              hint={
-                isBar
-                  ? BAR_BASE_UNIT_HINTS[
-                      formState.unit as (typeof BAR_BASE_UNITS)[number]
-                    ] ??
-                    "Choisissez comment le produit est compté en stock et vendu à l'unité."
-                  : undefined
-              }
-              required
-              value={formState.unit}
-              onChange={(event) =>
-                onChange((current) => ({
-                  ...current,
-                  unit: event.target.value as ProductFormState["unit"],
-                }))
-              }
-            >
-              {unitOptions.map((unit) => (
-                <option key={unit} value={unit}>
-                  {PRODUCT_UNIT_LABELS[unit]}
-                </option>
-              ))}
-            </SelectField>
-
-            {isBar ? (
-              <div className="md:col-span-2 flex flex-wrap gap-2">
-                {BAR_BASE_UNITS.map((unit) => {
-                  const active = formState.unit === unit;
-                  return (
-                    <button
-                      key={unit}
-                      type="button"
-                      onClick={() =>
-                        onChange((current) => ({ ...current, unit }))
-                      }
-                      className={`rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition ${
-                        active
-                          ? "border-emerald-500 bg-emerald-50 text-emerald-800"
-                          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {PRODUCT_UNIT_LABELS[unit]}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-
             <NumberField
               id="minimumStock"
               name="minimumStock"
               label="Stock minimum"
               required
               placeholder="0"
-              value={formState.minimumStock}
+              value={formState.minimumStock === 0 ? "" : formState.minimumStock}
               onChange={(event) =>
                 onChange((current) => ({
                   ...current,
-                  minimumStock: Number(event.target.value),
+                  minimumStock:
+                    event.target.value === "" ? 0 : Number(event.target.value),
                 }))
               }
-              className="md:col-span-2 md:max-w-xs"
-              hint={
-                isBar
-                  ? `Seuil d'alerte en ${baseUnitLabel.toLowerCase()}s`
-                  : undefined
-              }
             />
+
+            <div className="sm:col-span-2">
+              {isBar ? (
+                <>
+                  <input type="hidden" name="unit" value={formState.unit} />
+                  <p className="mb-1.5 text-[11px] font-medium text-slate-700">
+                    Unité de stock
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {BAR_BASE_UNITS.map((unit) => {
+                      const active = formState.unit === unit;
+                      return (
+                        <button
+                          key={unit}
+                          type="button"
+                          onClick={() =>
+                            onChange((current) => ({ ...current, unit }))
+                          }
+                          className={`min-h-9 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                            active
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {PRODUCT_UNIT_LABELS[unit]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <SelectField
+                  id="unit"
+                  name="unit"
+                  label="Unité"
+                  required
+                  value={formState.unit}
+                  onChange={(event) =>
+                    onChange((current) => ({
+                      ...current,
+                      unit: event.target.value as ProductFormState["unit"],
+                    }))
+                  }
+                >
+                  {unitOptions.map((unit) => (
+                    <option key={unit} value={unit}>
+                      {PRODUCT_UNIT_LABELS[unit]}
+                    </option>
+                  ))}
+                </SelectField>
+              )}
+            </div>
           </div>
         </FormSection>
 
         {isBar && isCreate ? (
-          <FormSection
-            title="Conditionnement d'achat"
-            description={`Les boissons s'achètent par casier, carton ou sachet. Indiquez combien de ${baseUnitLabel.toLowerCase()}s contient chaque conditionnement.`}
-          >
-            <div className="grid gap-4 md:grid-cols-2">
+          <FormSection title="Conditionnement" compact>
+            <div className="grid gap-2.5 sm:grid-cols-2">
               <SelectField
                 id="packagingUnit"
                 name="packagingUnit"
-                label="Format d'achat"
+                label="Format d’achat"
                 required
                 value={formState.packagingUnit}
                 onChange={(event) => {
@@ -448,11 +395,11 @@ export function ProductFormModal({
               <NumberField
                 id="unitsPerPack"
                 name="unitsPerPack"
-                label={`Nombre de ${baseUnitLabel.toLowerCase()}s à l'intérieur`}
+                label={`${baseUnitLabel}s / ${packagingLabel.toLowerCase()}`}
                 required
                 min={1}
                 step={1}
-                placeholder="Ex : 12"
+                placeholder="12"
                 value={formState.unitsPerPack || ""}
                 onChange={(event) =>
                   onChange((current) => ({
@@ -461,12 +408,11 @@ export function ProductFormModal({
                       event.target.value === "" ? 0 : Number(event.target.value),
                   }))
                 }
-                hint={`Combien de ${baseUnitLabel.toLowerCase()}s dans un ${packagingLabel.toLowerCase()} ?`}
               />
             </div>
 
             {formState.unitsPerPack > 0 ? (
-              <p className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-[12px] font-medium text-emerald-800">
+              <p className="text-[11px] font-medium text-emerald-700">
                 1 {packagingLabel.toLowerCase()} = {formState.unitsPerPack}{" "}
                 {baseUnitLabel.toLowerCase()}
                 {formState.unitsPerPack > 1 ? "s" : ""}
@@ -487,29 +433,25 @@ export function ProductFormModal({
           />
         ) : null}
 
-        <FormSection title="Détails" description="Informations complémentaires.">
-          <div className="space-y-4">
-            <TextField
-              id="description"
-              name="description"
-              label="Description"
-              placeholder="Optionnel — notes internes ou détails de présentation"
-              value={formState.description}
-              onChange={(event) =>
-                onChange((current) => ({ ...current, description: event.target.value }))
-              }
-            />
-
-            <ToggleField
-              id="active"
-              name="active"
-              label="Produit actif"
-              description="Un produit inactif n'apparaît pas à la vente."
-              checked={formState.active}
-              onChange={(active) => onChange((current) => ({ ...current, active }))}
-            />
-          </div>
+        <FormSection title="Photo" compact>
+          <ProductImageField
+            existingUrl={
+              editingProduct?.imageUrl ??
+              editingProduct?.imageOriginalUrl ??
+              editingProduct?.imageOptimizedUrl
+            }
+            onAssetsChange={onImageAssetsChange}
+            compact
+          />
         </FormSection>
+
+        <ToggleField
+          id="active"
+          name="active"
+          label="Produit actif"
+          checked={formState.active}
+          onChange={(active) => onChange((current) => ({ ...current, active }))}
+        />
       </div>
     </ModalShell>
   );

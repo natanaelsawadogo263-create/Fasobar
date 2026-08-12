@@ -297,9 +297,11 @@ export function ExpensesWorkspace({
       </header>
 
       {message ? (
-        <div className="shrink-0">
-          <AlertMessage message={message} tone="success" />
-        </div>
+        <AlertMessage
+          message={message}
+          tone="success"
+          onDismiss={() => setMessage(null)}
+        />
       ) : null}
 
       <div className={`grid shrink-0 gap-2.5 ${stats.length === 2 ? "grid-cols-2 lg:grid-cols-2" : "grid-cols-2 lg:grid-cols-4"} lg:gap-3`}>

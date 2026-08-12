@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronDown, Circle, Home, UserRound } from "lucide-react";
 
 import { signOutAction } from "@/lib/auth/actions";
+import { FullscreenButton } from "@/components/ui/fullscreen-button";
 import { LiveClock } from "@/components/ui/live-clock";
 
 type BarTopbarProps = {
@@ -76,6 +77,8 @@ export function BarTopbar({
       </Link>
 
       <LiveClock className="hidden lg:inline-flex" />
+
+      <FullscreenButton className="hidden h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-100 md:inline-flex" />
 
       <div className="flex flex-1 items-center justify-end">
         <form action={signOutAction}>

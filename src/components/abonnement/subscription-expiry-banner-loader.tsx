@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
-import { SubscriptionExpiryBanner } from "@/components/abonnement/subscription-expiry-banner";
+import { useToast } from "@/components/ui/toast";
 import {
   getSubscriptionExpiryAlert,
-  type SubscriptionExpiryAlert,
+  getSubscriptionExpiryAlertCopy,
 } from "@/lib/platform/access";
 import { reconcileCloudSaasAccess } from "@/lib/platform/saas-authorization";
 import { createClient } from "@/lib/supabase/client";
@@ -15,14 +15,48 @@ type Props = {
   canRenew: boolean;
 };
 
+function todayKey(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function storageKey(organizationId: string): string {
+  return `fasobar.expiryToast.${organizationId}`;
+}
+
+function alreadyShownToday(organizationId: string): boolean {
+  try {
+    return window.localStorage.getItem(storageKey(organizationId)) === todayKey();
+  } catch {
+    return false;
+  }
+}
+
+function markShownToday(organizationId: string) {
+  try {
+    window.localStorage.setItem(storageKey(organizationId), todayKey());
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * À la connexion admin : toast éphémère si essai / abo bientôt expiré.
+ * Fréquence : une fois par jour et par organisation (localStorage).
+ */
 export function SubscriptionExpiryBannerLoader({
   organizationId,
   canRenew,
 }: Props) {
-  const [alert, setAlert] = useState<SubscriptionExpiryAlert | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     if (!organizationId) return;
+    if (alreadyShownToday(organizationId)) return;
+
     let cancelled = false;
     const supabase = createClient();
 
@@ -66,21 +100,29 @@ export function SubscriptionExpiryBannerLoader({
           : null,
       });
 
-      setAlert(
-        getSubscriptionExpiryAlert({
-          status: reconciled.status,
-          expiresAt: reconciled.expiresAt,
-        }),
-      );
+      const alert = getSubscriptionExpiryAlert({
+        status: reconciled.status,
+        expiresAt: reconciled.expiresAt,
+      });
+
+      if (!alert) return;
+      if (alreadyShownToday(organizationId)) return;
+
+      const copy = getSubscriptionExpiryAlertCopy(alert);
+      const suffix = canRenew
+        ? " Renouvelez depuis Mon abonnement."
+        : " Contactez le propriétaire pour renouveler.";
+      const tone = alert.urgency === "critical" ? "error" : "warning";
+
+      markShownToday(organizationId);
+      toast.show(`${copy.title}.${suffix}`, tone);
     }
 
     void load();
     return () => {
       cancelled = true;
     };
-  }, [organizationId]);
+  }, [organizationId, canRenew, toast]);
 
-  if (!alert) return null;
-
-  return <SubscriptionExpiryBanner alert={alert} canRenew={canRenew} compact />;
+  return null;
 }

@@ -11,6 +11,7 @@ import {
   Package,
   Settings,
   ShoppingBag,
+  Timer,
   Truck,
   Users,
   BarChart3,
@@ -30,6 +31,7 @@ const NAV_ICONS: Record<string, ComponentType<{ className?: string; strokeWidth?
   "/application/ventes": ShoppingBag,
   "/application/commandes": ClipboardList,
   "/application/caisses": Landmark,
+  "/application/sessions-bar": Timer,
   "/application/utilisateurs": Users,
   "/application/rapports": BarChart3,
   "/application/mon-abonnement": CreditCard,
@@ -38,19 +40,30 @@ const NAV_ICONS: Record<string, ComponentType<{ className?: string; strokeWidth?
 
 type AdminSidebarProps = {
   navItems: NavItem[];
+  collapsed?: boolean;
 };
 
-export function AdminSidebar({ navItems }: AdminSidebarProps) {
+export function AdminSidebar({ navItems, collapsed = false }: AdminSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-full w-[220px] shrink-0 flex-col bg-[#0b1220] text-slate-300 lg:w-[240px]">
-      <div className="flex shrink-0 items-center px-4 py-3.5 lg:px-5 lg:py-4">
-        <FasoBarLogo size="sm" tone="dark" />
+    <aside
+      className={`flex h-full shrink-0 flex-col bg-[#0b1220] text-slate-300 transition-[width] duration-200 ease-out ${
+        collapsed ? "w-[68px]" : "w-[220px] lg:w-[240px]"
+      }`}
+    >
+      <div
+        className={`flex h-12 shrink-0 items-center border-b border-white/10 ${
+          collapsed ? "justify-center px-1.5" : "px-4 lg:px-5"
+        }`}
+      >
+        <FasoBarLogo size="sm" tone="dark" markOnly={collapsed} />
       </div>
 
       <nav
-        className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 pb-2 lg:px-3"
+        className={`flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pb-2 pt-1.5 ${
+          collapsed ? "px-1.5" : "px-2.5 lg:px-3"
+        }`}
         aria-label="Navigation admin"
       >
         {navItems.map((item) => {
@@ -65,10 +78,13 @@ export function AdminSidebar({ navItems }: AdminSidebarProps) {
             return (
               <span
                 key={item.href}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] text-slate-600"
+                title={item.label}
+                className={`flex items-center rounded-lg text-[13px] text-slate-600 ${
+                  collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2"
+                }`}
               >
                 <Icon className="h-[15px] w-[15px] shrink-0 opacity-40" />
-                {item.label}
+                {collapsed ? null : item.label}
               </span>
             );
           }
@@ -78,18 +94,36 @@ export function AdminSidebar({ navItems }: AdminSidebarProps) {
               key={item.href}
               href={item.href}
               prefetch
-              className={`relative flex items-center gap-3 rounded-xl transition ${
+              title={collapsed ? item.label : undefined}
+              className={`relative flex items-center rounded-xl transition ${
+                collapsed
+                  ? "justify-center px-2 py-2.5"
+                  : isHome
+                    ? "gap-3"
+                    : "gap-3"
+              } ${
                 isHome
                   ? isActive
-                    ? "mb-1.5 bg-emerald-600 px-3 py-3 text-[14px] font-bold text-white shadow-md shadow-emerald-950/40"
-                    : "mb-1.5 bg-emerald-500/15 px-3 py-3 text-[14px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25 hover:text-emerald-200"
+                    ? collapsed
+                      ? "mb-1 bg-emerald-600 text-white shadow-md shadow-emerald-950/40"
+                      : "mb-1.5 gap-3 bg-emerald-600 px-3 py-3 text-[14px] font-bold text-white shadow-md shadow-emerald-950/40"
+                    : collapsed
+                      ? "mb-1 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25"
+                      : "mb-1.5 gap-3 bg-emerald-500/15 px-3 py-3 text-[14px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25 hover:text-emerald-200"
                   : isActive
-                    ? "bg-[#152033] px-3 py-[9px] text-[13px] font-semibold text-white"
-                    : "px-3 py-[9px] text-[13px] text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
+                    ? collapsed
+                      ? "bg-[#152033] text-white"
+                      : "gap-3 bg-[#152033] px-3 py-[9px] text-[13px] font-semibold text-white"
+                    : collapsed
+                      ? "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
+                      : "gap-3 px-3 py-[9px] text-[13px] text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
               }`}
             >
-              {isActive && !isHome ? (
+              {isActive && !isHome && !collapsed ? (
                 <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-emerald-500" />
+              ) : null}
+              {isActive && !isHome && collapsed ? (
+                <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-emerald-500" />
               ) : null}
               <Icon
                 className={`shrink-0 ${
@@ -99,13 +133,17 @@ export function AdminSidebar({ navItems }: AdminSidebarProps) {
                 }`}
                 strokeWidth={isHome ? 2.4 : 2}
               />
-              {item.label}
+              {collapsed ? null : item.label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="shrink-0 border-t border-white/10 px-5 py-3 text-[11px] leading-relaxed text-slate-500">
+      <div
+        className={`shrink-0 border-t border-white/10 ${
+          collapsed ? "hidden" : "px-4 py-3 text-[11px] leading-relaxed text-slate-500"
+        }`}
+      >
         <p>FasoBar v1.0.0</p>
         <p>© {new Date().getFullYear()} FasoBar</p>
       </div>

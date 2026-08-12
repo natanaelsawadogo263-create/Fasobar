@@ -21,6 +21,7 @@ import {
 import { setMemberStatusAction } from "@/app/(protected)/application/utilisateurs/actions";
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
+import { useToast } from "@/components/ui/toast";
 import { CreateEmployeeModal } from "@/components/users/create-employee-modal";
 import { DeleteEmployeeModal } from "@/components/users/delete-employee-modal";
 import { ResetPasswordModal } from "@/components/users/reset-password-modal";
@@ -82,8 +83,8 @@ export function UsersWorkspace({
   serviceScope = "BOTH",
 }: UsersWorkspaceProps) {
   const router = useRouter();
+  const toast = useToast();
   const [search, setSearch] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(openCreateOnMount);
   const [resetMember, setResetMember] = useState<TeamMemberRow | null>(null);
@@ -139,7 +140,7 @@ export function UsersWorkspace({
       ),
     );
     setError(null);
-    setMessage(active ? "Compte activé." : "Compte désactivé.");
+    toast.success(active ? "Compte activé." : "Compte désactivé.");
 
     const formData = new FormData();
     formData.set("userId", userId);
@@ -157,7 +158,6 @@ export function UsersWorkspace({
         );
       }
       setError(result.error);
-      setMessage(null);
     });
   }
 
@@ -185,12 +185,7 @@ export function UsersWorkspace({
           </button>
         </header>
 
-        {(error || message) && (
-          <div className="space-y-2">
-            {error ? <AlertMessage message={error} /> : null}
-            {message ? <AlertMessage message={message} tone="success" /> : null}
-          </div>
-        )}
+        {error ? <AlertMessage message={error} /> : null}
 
         {/* Synthèse */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -451,7 +446,7 @@ export function UsersWorkspace({
           serviceScope={serviceScope}
           onClose={() => setShowCreateModal(false)}
           onCreated={() => {
-            setMessage("Compte employé créé.");
+            toast.success("Compte employé créé.");
             refresh();
           }}
         />
@@ -462,7 +457,7 @@ export function UsersWorkspace({
           member={resetMember}
           onClose={() => setResetMember(null)}
           onReset={() => {
-            setMessage("Mot de passe temporaire réinitialisé.");
+            toast.success("Mot de passe temporaire réinitialisé.");
             refresh();
           }}
         />
@@ -473,7 +468,7 @@ export function UsersWorkspace({
           member={deleteMember}
           onClose={() => setDeleteMember(null)}
           onDeleted={() => {
-            setMessage("Compte employé supprimé.");
+            toast.success("Compte employé supprimé.");
             refresh();
           }}
         />

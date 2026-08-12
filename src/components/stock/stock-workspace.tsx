@@ -292,12 +292,14 @@ export function StockWorkspace({
         ) : null}
       </header>
 
-      {(error || message) && (
-        <div className="shrink-0 space-y-2">
-          {error ? <AlertMessage message={error} /> : null}
-          {message ? <AlertMessage message={message} tone="success" /> : null}
-        </div>
-      )}
+      {error ? <AlertMessage message={error} /> : null}
+      {message ? (
+        <AlertMessage
+          message={message}
+          tone="success"
+          onDismiss={() => setMessage(null)}
+        />
+      ) : null}
 
       <div
         className={`grid shrink-0 gap-2.5 ${

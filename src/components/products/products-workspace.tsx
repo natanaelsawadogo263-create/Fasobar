@@ -22,6 +22,7 @@ import {
 } from "@/app/(protected)/application/produits/actions";
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
+import { useToast } from "@/components/ui/toast";
 import { ProductFormModal, type ProductFormState } from "@/components/products/product-form-modal";
 import type { ProductImageAssets } from "@/components/products/product-image-field";
 import { resolveCatalogImageUrl } from "@/lib/fasobar/product-images";
@@ -86,6 +87,7 @@ export function ProductsWorkspace({
   serviceScope = "BOTH",
 }: ProductsWorkspaceProps) {
   const router = useRouter();
+  const toast = useToast();
   const allowedDepartments = [
     ...(hasBarService(serviceScope) ? (["BAR"] as const) : []),
     ...(hasKitchenService(serviceScope) ? (["KITCHEN"] as const) : []),
@@ -100,16 +102,13 @@ export function ProductsWorkspace({
   const [tab, setTab] = useState<ProductTab>(initialTab);
   const [search, setSearch] = useState(initialSearch);
   const [categoryId, setCategoryId] = useState(initialCategoryId);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<FormMode>(null);
   const [editingProduct, setEditingProduct] = useState<ProductListItem | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [formState, setFormState] = useState<ProductFormState>(emptyForm);
   const [imageAssets, setImageAssets] = useState<ProductImageAssets>({
-    originalFile: null,
-    optimizedFile: null,
-    selection: "optimized",
+    file: null,
   });
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
   const [rows, setRows] = useState(products);
@@ -120,9 +119,7 @@ export function ProductsWorkspace({
 
   function resetImageAssets() {
     setImageAssets({
-      originalFile: null,
-      optimizedFile: null,
-      selection: "optimized",
+      file: null,
     });
   }
 
@@ -149,7 +146,6 @@ export function ProductsWorkspace({
     setFormMode("create");
     setFormError(null);
     setError(null);
-    setMessage(null);
   }
 
   function openEditForm(product: ProductListItem) {
@@ -174,7 +170,6 @@ export function ProductsWorkspace({
     setFormMode("edit");
     setFormError(null);
     setError(null);
-    setMessage(null);
   }
 
   function closeForm() {
@@ -198,7 +193,7 @@ export function ProductsWorkspace({
         return;
       }
 
-      setMessage(result.success ?? "Opération réussie.");
+      toast.success(result.success ?? "Opération réussie.");
       setFormError(null);
       setError(null);
       setFormMode(null);
@@ -224,7 +219,7 @@ export function ProductsWorkspace({
         row.id === productId ? { ...row, sellingPrice: value } : row,
       ),
     );
-    setMessage("Prix mis à jour.");
+    toast.success("Prix mis à jour.");
     setError(null);
 
     const result = await updateProductPriceAction(productId, value);
@@ -237,7 +232,6 @@ export function ProductsWorkspace({
         );
       }
       setError(result.error);
-      setMessage(null);
     }
   }
 
@@ -248,7 +242,7 @@ export function ProductsWorkspace({
         row.id === product.id ? { ...row, active: nextActive } : row,
       ),
     );
-    setMessage(nextActive ? "Produit activé." : "Produit désactivé.");
+    toast.success(nextActive ? "Produit activé." : "Produit désactivé.");
     setError(null);
 
     const result = await toggleProductStatusAction(product.id, nextActive);
@@ -259,7 +253,6 @@ export function ProductsWorkspace({
         ),
       );
       setError(result.error);
-      setMessage(null);
     }
   }
 
@@ -296,12 +289,7 @@ export function ProductsWorkspace({
         ) : null}
       </header>
 
-      {(error || message) && (
-        <div className="shrink-0 space-y-2">
-          {error ? <AlertMessage message={error} /> : null}
-          {message ? <AlertMessage message={message} tone="success" /> : null}
-        </div>
-      )}
+      {error ? <AlertMessage message={error} /> : null}
 
       <div className={`grid shrink-0 gap-2.5 lg:gap-3 ${hasBarService(serviceScope) && hasKitchenService(serviceScope) ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}>
         <StatCard

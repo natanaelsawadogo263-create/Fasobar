@@ -145,7 +145,13 @@ export function OrderDetailWorkspace({
           {(error || message) && (
             <div className="min-w-0 flex-1">
               {error ? <AlertMessage message={error} /> : null}
-              {message ? <AlertMessage message={message} tone="success" /> : null}
+              {message ? (
+                <AlertMessage
+                  message={message}
+                  tone="success"
+                  onDismiss={() => setMessage(null)}
+                />
+              ) : null}
             </div>
           )}
           <LiveClock showDate={false} className="shrink-0" />

@@ -13,6 +13,7 @@ import { BarShell } from "@/components/bar/bar-shell";
 import { CashierSecondaryShell } from "@/components/cashier/cashier-secondary-shell";
 import { FasoBarCashierShell } from "@/components/fasobar/fasobar-cashier-shell";
 import { SpaceShell } from "@/components/layout/space-shell";
+import { ToastProvider } from "@/components/ui/toast";
 
 type ApplicationShellProps = {
   space: UserSpace;
@@ -77,7 +78,7 @@ export function ApplicationShell({
 
   if (space === "admin") {
     return (
-      <>
+      <ToastProvider>
         {progress}
         {prefetch}
         {liveSync}
@@ -92,7 +93,7 @@ export function ApplicationShell({
         >
           {children}
         </AdminShell>
-      </>
+      </ToastProvider>
     );
   }
 

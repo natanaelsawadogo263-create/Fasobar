@@ -94,7 +94,13 @@ export function ProductPackagingsEditor({
       </div>
 
       {error ? <AlertMessage message={error} /> : null}
-      {success ? <AlertMessage message={success} tone="success" /> : null}
+      {success ? (
+        <AlertMessage
+          message={success}
+          tone="success"
+          onDismiss={() => setSuccess(null)}
+        />
+      ) : null}
 
       <ul className="space-y-1.5">
         {packagings.length === 0 ? (
