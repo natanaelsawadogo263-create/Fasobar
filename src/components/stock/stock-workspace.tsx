@@ -343,8 +343,7 @@ export function StockWorkspace({
             </span>
           </div>
 
-          {drinksOnly ? (
-            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:max-w-xl">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:max-w-xl">
               <div className="relative min-w-[140px] flex-1">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                 <input
@@ -362,10 +361,10 @@ export function StockWorkspace({
                     }
                   }}
                   placeholder="Rechercher…"
-                  className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-[12px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/15"
+                  className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-[13px] text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 sm:h-8 sm:text-[12px]"
                 />
               </div>
-              <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
+              <div className="flex w-full items-center gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 sm:w-auto sm:p-0.5">
                 {statusFilters.map((filter) => {
                   const active = initialStatus === filter.id;
                   return (
@@ -373,10 +372,10 @@ export function StockWorkspace({
                       key={filter.id}
                       type="button"
                       onClick={() => pushFilters({ status: filter.id })}
-                      className={`h-7 rounded-md px-2.5 text-[11px] font-semibold transition ${
+                      className={`h-10 shrink-0 rounded-md px-3 text-[12px] font-semibold transition sm:h-7 sm:px-2.5 sm:text-[11px] ${
                         active
                           ? "bg-white text-slate-900 shadow-sm"
-                          : "text-slate-500 hover:text-slate-700"
+                          : "text-slate-500 active:text-slate-700 sm:hover:text-slate-700"
                       }`}
                     >
                       {filter.label}
@@ -385,11 +384,110 @@ export function StockWorkspace({
                 })}
               </div>
             </div>
-          ) : null}
         </div>
 
         <div className="app-scroll min-h-0 flex-1 overflow-auto">
-          <table className="min-w-full text-left text-[12px]">
+          <div className="space-y-2 p-3 md:hidden">
+            {stockItems.length === 0 ? (
+              <StockEmptyState
+                canManage={canManageStock && !drinksOnly}
+                filtered={totalStockItemCount > 0 && isFilteredView}
+                drinksOnly={drinksOnly}
+              />
+            ) : (
+              stockItems.map((item) => {
+                const itemManageable = canManageItem(
+                  item,
+                  organizationRole,
+                  establishmentRole,
+                );
+                const unitLabel =
+                  PRODUCT_UNIT_LABELS[
+                    item.unit as keyof typeof PRODUCT_UNIT_LABELS
+                  ] ?? item.unit;
+                return (
+                  <article
+                    key={item.id}
+                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-semibold text-slate-900">
+                          {item.name}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-slate-500">
+                          {item.categoryName ? `${item.categoryName} · ` : ""}
+                          {unitLabel}
+                          {!singleScope ? ` · ${item.departmentName}` : ""}
+                        </p>
+                      </div>
+                      <StockStatusBadge status={item.status} />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
+                      <div className="rounded-lg bg-slate-50 px-3 py-2">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                          Stock
+                        </p>
+                        <p className="mt-0.5 text-[14px] font-bold tabular-nums text-slate-900">
+                          {formatQuantity(item.currentQuantity, item.unit)}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-slate-50 px-3 py-2">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                          Min.
+                        </p>
+                        <p className="mt-0.5 text-[14px] font-bold tabular-nums text-slate-900">
+                          {formatQuantity(item.minimumQuantity, item.unit)}
+                        </p>
+                      </div>
+                    </div>
+                    {canManageStock ? (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {itemManageable ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openModal("entry", item)}
+                              className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                            >
+                              <ArrowDownToLine className="h-3.5 w-3.5" />
+                              Entrée
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openModal("loss", item)}
+                              className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                            >
+                              <TrendingDown className="h-3.5 w-3.5" />
+                              Perte
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openModal("adjust", item)}
+                              className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                            >
+                              <Scale className="h-3.5 w-3.5" />
+                              Corriger
+                            </button>
+                          </>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => openModal("history", item)}
+                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                        >
+                          <History className="h-3.5 w-3.5" />
+                          Historique
+                        </button>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })
+            )}
+          </div>
+
+          <table className="hidden min-w-full text-left text-[12px] md:table">
             <thead className="sticky top-0 z-10 bg-slate-50/95 text-[10px] font-semibold uppercase tracking-wide text-slate-400 backdrop-blur">
               <tr>
                 <th className="px-3.5 py-2.5 font-medium">Produit</th>
@@ -630,11 +728,11 @@ function ActionButton({
       title={label}
       className={`inline-flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800 ${
         compact
-          ? "h-7 w-7"
-          : "h-7 gap-1 px-2 text-[11px] font-medium"
+          ? "h-8 w-8"
+          : "h-8 gap-1 px-2 text-[11px] font-medium"
       }`}
     >
-      <Icon className="h-3 w-3" />
+      <Icon className="h-3.5 w-3.5" />
       {!compact ? <span className="hidden xl:inline">{label}</span> : null}
     </button>
   );

@@ -87,7 +87,7 @@ type MobileNavProps = {
 export function MobileNav({
   items,
   primaryHrefs,
-  tone = "admin",
+  tone: _tone = "admin",
 }: MobileNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -128,15 +128,13 @@ export function MobileNav({
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const barTone = tone === "bar";
-
   return (
     <>
       <nav
         className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/90 bg-white/95 backdrop-blur-md md:hidden"
         aria-label="Navigation principale"
       >
-        <div className="mx-auto flex h-[3.75rem] max-w-lg items-stretch px-1 pb-[env(safe-area-inset-bottom)]">
+        <div className="mx-auto flex min-h-[3.75rem] max-w-lg items-stretch px-1 pt-1 pb-[max(0.35rem,env(safe-area-inset-bottom))]">
           {primary.map((item) => {
             const Icon = NAV_ICONS[item.href] ?? Package;
             const active = isActivePath(pathname, item.href);
@@ -145,11 +143,9 @@ export function MobileNav({
                 key={item.href}
                 href={item.href}
                 prefetch
-                className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[10px] font-semibold transition ${
+                className={`relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[10px] font-semibold transition ${
                   active
-                    ? barTone
-                      ? "text-emerald-700"
-                      : "text-emerald-700"
+                    ? "text-emerald-700"
                     : "text-slate-500 active:text-slate-800"
                 }`}
               >
@@ -167,7 +163,7 @@ export function MobileNav({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[10px] font-semibold transition ${
+            className={`relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[10px] font-semibold transition ${
               moreActive || open
                 ? "text-emerald-700"
                 : "text-slate-500 active:text-slate-800"

@@ -45,11 +45,11 @@ export function BarTopbar({
 
       <Link
         href="/application/bar/session"
-        className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-1.5 transition hover:border-emerald-200 hover:bg-emerald-50/50 md:flex"
+        className="inline-flex max-w-[42vw] items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/80 px-2.5 py-2 transition active:bg-emerald-50/50 sm:max-w-none sm:gap-2 sm:px-3 sm:py-1.5 md:hover:border-emerald-200 md:hover:bg-emerald-50/50"
         title="Ma session"
       >
         <Circle
-          className={`h-2 w-2 fill-current ${
+          className={`h-2 w-2 shrink-0 fill-current ${
             hasOwnSession
               ? "text-emerald-500"
               : openSessionHolderName
@@ -57,21 +57,27 @@ export function BarTopbar({
                 : "text-slate-400"
           }`}
         />
-        <p className="whitespace-nowrap text-[12px] text-slate-700">
+        <p className="min-w-0 truncate whitespace-nowrap text-[11px] text-slate-700 sm:text-[12px]">
           {hasOwnSession ? (
             <>
-              <span className="font-semibold text-emerald-800">Service ouvert</span>
+              <span className="font-semibold text-emerald-800">Ouvert</span>
               {openedLabel ? (
-                <span className="text-slate-400"> · depuis {openedLabel}</span>
+                <span className="hidden text-slate-400 sm:inline">
+                  {" "}
+                  · depuis {openedLabel}
+                </span>
               ) : null}
             </>
           ) : openSessionHolderName ? (
             <>
-              <span className="font-semibold text-amber-800">Relève en attente</span>
-              <span className="text-slate-400"> · {openSessionHolderName}</span>
+              <span className="font-semibold text-amber-800">Relève</span>
+              <span className="hidden text-slate-400 sm:inline">
+                {" "}
+                · {openSessionHolderName}
+              </span>
             </>
           ) : (
-            <span className="font-semibold text-slate-600">Service fermé</span>
+            <span className="font-semibold text-slate-600">Fermé</span>
           )}
         </p>
       </Link>

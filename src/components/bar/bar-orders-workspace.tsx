@@ -85,6 +85,7 @@ export function BarOrdersWorkspace({
   const [detailOrder, setDetailOrder] = useState<BarOrderTicket | null>(null);
   const [tableFilter, setTableFilter] = useState("");
   const [showFilter, setShowFilter] = useState(false);
+  const [mobileColumn, setMobileColumn] = useState<BarPrepStatus>("TO_PREPARE");
 
   useEffect(() => {
     setTickets(orders);
@@ -242,7 +243,54 @@ export function BarOrdersWorkspace({
         </p>
       ) : null}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden md:grid-cols-3">
+      {/* Mobile : une colonne à la fois */}
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden md:hidden">
+        <div className="flex shrink-0 gap-1.5 overflow-x-auto pb-0.5">
+          {columns.map((column) => {
+            const active = mobileColumn === column.status;
+            return (
+              <button
+                key={column.status}
+                type="button"
+                onClick={() => setMobileColumn(column.status)}
+                className={`inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border px-3 text-[12px] font-semibold transition ${
+                  active
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                    : "border-slate-200 bg-white text-slate-600"
+                }`}
+              >
+                {column.title}
+                <span
+                  className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${column.badge}`}
+                >
+                  {column.orders.length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto">
+          {(columns.find((c) => c.status === mobileColumn)?.orders ?? []).length ===
+          0 ? (
+            <p className="py-12 text-center text-[13px] text-slate-400">
+              Aucune commande
+            </p>
+          ) : (
+            (columns.find((c) => c.status === mobileColumn)?.orders ?? []).map(
+              (order) => (
+                <BarOrderCard
+                  key={order.id}
+                  order={order}
+                  onAdvance={() => handleAdvance(order)}
+                  onOpenDetail={() => setDetailOrder(order)}
+                />
+              ),
+            )
+          )}
+        </div>
+      </div>
+
+      <div className="hidden min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden md:grid md:grid-cols-3">
         {columns.map((column) => {
           const Icon = column.icon;
           return (
@@ -267,117 +315,14 @@ export function BarOrdersWorkspace({
                     Aucune commande
                   </p>
                 ) : (
-                  column.orders.map((order) => {
-                    const qty = drinkCount(order);
-                    return (
-                      <article
-                        key={order.id}
-                        className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-[13px] font-bold text-slate-900">
-                              {formatBarOrderNumber(order.orderNumber)}
-                            </p>
-                            <p className="text-[11px] text-slate-500">
-                              {order.tableReference ||
-                                order.customerReference ||
-                                "Sans table"}
-                              <span className="text-slate-300"> · </span>
-                              {ORDER_TYPE_LABELS[order.orderType]}
-                            </p>
-                          </div>
-                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                            <Clock3 className="h-3 w-3" />
-                            {formatBarAge(order.barStatusUpdatedAt ?? order.createdAt)}
-                          </span>
-                        </div>
-
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                            {statusLabel(order.status)}
-                          </span>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                            {paymentLabel(order.paymentStatus)}
-                          </span>
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-                            {qty} boisson{qty > 1 ? "s" : ""}
-                          </span>
-                        </div>
-
-                        <ul className="mt-2.5 space-y-1.5 rounded-lg bg-slate-50 p-2">
-                          {order.items.map((item) => (
-                            <li key={item.id} className="text-[12px] text-slate-800">
-                              <div className="flex items-start gap-2">
-                                <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md bg-emerald-600 px-1.5 text-[11px] font-bold text-white">
-                                  {item.quantity}
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <p className="font-semibold leading-snug">
-                                      {item.productName}
-                                    </p>
-                                    <p className="pos-tabular shrink-0 text-[11px] font-medium text-slate-600">
-                                      {formatPriceXof(item.lineTotal)}
-                                    </p>
-                                  </div>
-                                  <p className="pos-tabular text-[10px] text-slate-400">
-                                    {formatPriceXof(item.unitPrice)} / unité
-                                  </p>
-                                  {item.notes ? (
-                                    <p className="mt-0.5 text-[11px] text-amber-700">
-                                      Note : {item.notes}
-                                    </p>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-
-                        {order.notes ? (
-                          <p className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
-                            Commande : {order.notes}
-                          </p>
-                        ) : null}
-
-                        <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-                          <span>
-                            {order.createdByName
-                              ? `Caissier : ${order.createdByName}`
-                              : "—"}
-                          </span>
-                          <span className="pos-tabular font-semibold text-slate-800">
-                            {formatPriceXof(drinksTotal(order))}
-                          </span>
-                        </div>
-
-                        <div className="mt-3 flex items-center justify-between gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setDetailOrder(order)}
-                            className="text-[11px] font-semibold text-emerald-700 hover:underline"
-                          >
-                            Voir tout le détail
-                          </button>
-                          {column.status === "READY" ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                              <CheckCircle2 className="h-3 w-3" />
-                              Prête
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleAdvance(order)}
-                              className="inline-flex h-8 items-center rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white hover:bg-emerald-500"
-                            >
-                              {BAR_NEXT_ACTION[order.barStatus].label}
-                            </button>
-                          )}
-                        </div>
-                      </article>
-                    );
-                  })
+                  column.orders.map((order) => (
+                    <BarOrderCard
+                      key={order.id}
+                      order={order}
+                      onAdvance={() => handleAdvance(order)}
+                      onOpenDetail={() => setDetailOrder(order)}
+                    />
+                  ))
                 )}
               </div>
             </section>
@@ -392,6 +337,116 @@ export function BarOrdersWorkspace({
         />
       ) : null}
     </div>
+  );
+}
+
+function BarOrderCard({
+  order,
+  onAdvance,
+  onOpenDetail,
+}: {
+  order: BarOrderTicket;
+  onAdvance: () => void;
+  onOpenDetail: () => void;
+}) {
+  const qty = drinkCount(order);
+  const next = BAR_NEXT_ACTION[order.barStatus];
+
+  return (
+    <article className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-[13px] font-bold text-slate-900">
+            {formatBarOrderNumber(order.orderNumber)}
+          </p>
+          <p className="text-[11px] text-slate-500">
+            {order.tableReference || order.customerReference || "Sans table"}
+            <span className="text-slate-300"> · </span>
+            {ORDER_TYPE_LABELS[order.orderType]}
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
+          <Clock3 className="h-3 w-3" />
+          {formatBarAge(order.barStatusUpdatedAt ?? order.createdAt)}
+        </span>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+          {statusLabel(order.status)}
+        </span>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+          {paymentLabel(order.paymentStatus)}
+        </span>
+        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+          {qty} boisson{qty > 1 ? "s" : ""}
+        </span>
+      </div>
+
+      <ul className="mt-2.5 space-y-1.5 rounded-lg bg-slate-50 p-2">
+        {order.items.map((item) => (
+          <li key={item.id} className="text-[12px] text-slate-800">
+            <div className="flex items-start gap-2">
+              <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md bg-emerald-600 px-1.5 text-[11px] font-bold text-white">
+                {item.quantity}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold leading-snug">{item.productName}</p>
+                  <p className="pos-tabular shrink-0 text-[11px] font-medium text-slate-600">
+                    {formatPriceXof(item.lineTotal)}
+                  </p>
+                </div>
+                {item.notes ? (
+                  <p className="mt-0.5 text-[11px] text-amber-700">
+                    Note : {item.notes}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {order.notes ? (
+        <p className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800">
+          Commande : {order.notes}
+        </p>
+      ) : null}
+
+      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+        <span>
+          {order.createdByName ? `Caissier : ${order.createdByName}` : "—"}
+        </span>
+        <span className="pos-tabular font-semibold text-slate-800">
+          {formatPriceXof(drinksTotal(order))}
+        </span>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={onOpenDetail}
+          className="inline-flex h-11 items-center px-1 text-[12px] font-semibold text-emerald-700 sm:h-auto sm:text-[11px]"
+        >
+          Voir le détail
+        </button>
+        {order.barStatus === "READY" ? (
+          <span className="inline-flex h-11 items-center gap-1 rounded-xl bg-emerald-50 px-3 text-[12px] font-semibold text-emerald-700 sm:h-auto sm:rounded-full sm:px-2.5 sm:py-1 sm:text-[11px]">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Prête
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={onAdvance}
+            className="inline-flex h-11 items-center rounded-xl bg-emerald-600 px-4 text-[13px] font-semibold text-white active:bg-emerald-500 sm:h-8 sm:rounded-lg sm:px-3 sm:text-[12px]"
+          >
+            {next.label}
+          </button>
+        )}
+      </div>
+    </article>
   );
 }
 

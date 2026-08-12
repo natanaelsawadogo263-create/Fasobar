@@ -29,7 +29,7 @@ export function ModalFooter({
           type="button"
           onClick={onCancel}
           disabled={pending}
-          className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-3.5 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+          className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 text-[13px] font-medium text-slate-700 transition active:bg-slate-50 disabled:opacity-60 sm:h-9 sm:rounded-lg sm:hover:bg-slate-50"
         >
           Annuler
         </button>
@@ -38,7 +38,7 @@ export function ModalFooter({
         type="submit"
         disabled={pending || submitDisabled}
         aria-busy={pending}
-        className="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-4 text-[13px] font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+        className="inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 text-[13px] font-semibold text-white shadow-sm transition active:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70 sm:h-9 sm:rounded-lg sm:hover:bg-emerald-700"
       >
         {pending ? pendingLabel : submitLabel}
       </button>

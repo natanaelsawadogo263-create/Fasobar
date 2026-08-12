@@ -281,7 +281,7 @@ export function ProductsWorkspace({
             type="button"
             onClick={openCreateForm}
             disabled={isPending}
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-60"
+            className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[13px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:h-9 sm:text-[12px] sm:hover:bg-emerald-500"
           >
             <PackagePlus className="h-3.5 w-3.5" />
             Ajouter un produit
@@ -338,10 +338,10 @@ export function ProductsWorkspace({
                   setCategoryId("");
                   applyFilters(item.id, search, "");
                 }}
-                className={`inline-flex h-7 items-center rounded-md px-2.5 text-[11px] font-semibold transition ${
+                className={`inline-flex h-10 min-h-10 items-center rounded-lg px-3 text-[12px] font-semibold transition sm:h-8 sm:min-h-0 sm:rounded-md sm:px-2.5 sm:text-[11px] ${
                   tab === item.id
                     ? "bg-emerald-600 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    : "bg-slate-100 text-slate-600 active:bg-slate-200 sm:hover:bg-slate-200"
                 }`}
               >
                 {item.label}
@@ -365,7 +365,7 @@ export function ProductsWorkspace({
                   }
                 }}
                 placeholder="Rechercher…"
-                className="h-8 w-full rounded-lg border border-slate-200 bg-white pr-2.5 pl-8 text-[12px] text-slate-800 outline-none placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white pr-2.5 pl-8 text-[13px] text-slate-800 outline-none placeholder:text-slate-400 focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 sm:h-8 sm:text-[12px]"
               />
             </label>
 
@@ -375,7 +375,7 @@ export function ProductsWorkspace({
                 setCategoryId(event.target.value);
                 applyFilters(tab, search, event.target.value);
               }}
-              className="h-8 min-w-[140px] rounded-lg border border-slate-200 bg-white px-2.5 text-[12px] text-slate-700 outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+              className="h-11 min-w-[140px] rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] text-slate-700 outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 sm:h-8 sm:text-[12px]"
               aria-label="Filtrer par catégorie"
             >
               <option value="">Toutes les catégories</option>
@@ -389,7 +389,86 @@ export function ProductsWorkspace({
         </div>
 
         <div className="app-scroll min-h-0 flex-1 overflow-auto">
-          <table className="min-w-full text-left text-[12px]">
+          {/* Mobile : cartes tactiles */}
+          <div className="space-y-2 p-3 md:hidden">
+            {rows.length === 0 ? (
+              <p className="px-1 py-10 text-center text-[13px] text-slate-500">
+                Aucun produit trouvé pour ces filtres.
+              </p>
+            ) : (
+              rows.map((product) => {
+                const imageUrl = resolveCatalogImageUrl(product);
+                return (
+                  <article
+                    key={product.id}
+                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+                        <Image
+                          src={imageUrl}
+                          alt={product.name}
+                          fill
+                          className="object-contain p-1"
+                          sizes="56px"
+                          unoptimized
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-semibold text-slate-900">
+                          {product.name}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-slate-500">
+                          {product.categoryName}
+                          <span className="text-slate-300"> · </span>
+                          {PRODUCT_UNIT_LABELS[
+                            product.unit as keyof typeof PRODUCT_UNIT_LABELS
+                          ] ?? product.unit}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="text-[14px] font-bold tabular-nums text-slate-900">
+                            {formatPriceXof(product.sellingPrice)}
+                          </span>
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              product.active
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {product.active ? "Actif" : "Inactif"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {canManage ? (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditForm(product)}
+                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Modifier
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(product)}
+                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                        >
+                          <Power className="h-3.5 w-3.5" />
+                          {product.active ? "Désactiver" : "Activer"}
+                        </button>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop : tableau */}
+          <table className="hidden min-w-full text-left text-[12px] md:table">
             <thead className="sticky top-0 z-10 bg-slate-50/95 text-[10px] font-semibold uppercase tracking-wide text-slate-400 backdrop-blur">
               <tr>
                 <th className="px-3.5 py-2.5 font-medium">Produit</th>
