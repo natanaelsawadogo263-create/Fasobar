@@ -225,10 +225,10 @@ export function AdminSettingsWorkspace({
                 key={item.id}
                 type="button"
                 onClick={() => setSection(item.id)}
-                className={`flex min-w-[140px] items-start gap-2.5 rounded-lg px-3 py-2.5 text-left transition lg:min-w-0 ${
+                className={`flex min-h-11 min-w-[140px] items-center gap-2.5 rounded-lg px-3 py-2.5 text-left transition lg:min-h-0 lg:min-w-0 lg:items-start ${
                   active
                     ? "bg-emerald-50 text-emerald-900 ring-1 ring-emerald-100"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    : "text-slate-600 active:bg-slate-50 sm:hover:bg-slate-50 sm:hover:text-slate-900"
                 }`}
               >
                 <span
@@ -279,7 +279,7 @@ export function AdminSettingsWorkspace({
                         type="button"
                         disabled={isPending || !ownerEmail.trim()}
                         onClick={handleOwnerPasswordReset}
-                        className="mt-3 inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="mt-3 inline-flex h-11 items-center rounded-lg border border-slate-200 bg-white px-3.5 text-[13px] font-semibold text-slate-700 active:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:h-9 sm:text-[12px] sm:hover:bg-slate-50"
                       >
                         {isPending
                           ? "Envoi du lien..."
@@ -529,7 +529,7 @@ export function AdminSettingsWorkspace({
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="ml-auto inline-flex h-10 items-center justify-center rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="ml-auto inline-flex h-11 w-full items-center justify-center rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition active:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70 sm:h-10 sm:w-auto sm:hover:bg-emerald-700"
                   >
                     {isPending ? "Enregistrement..." : "Enregistrer"}
                   </button>

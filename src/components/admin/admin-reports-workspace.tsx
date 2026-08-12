@@ -377,17 +377,17 @@ export function AdminReportsWorkspace({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+        <div className="flex flex-col gap-2 print:hidden sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 sm:mx-0 sm:overflow-visible sm:rounded-lg sm:border sm:border-slate-200 sm:bg-white sm:p-1 sm:shadow-sm sm:pb-1">
             {presets.map((preset) => (
               <button
                 key={preset.id}
                 type="button"
                 onClick={() => applyPreset(preset.from, preset.to)}
-                className={`rounded-md px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                className={`inline-flex h-10 shrink-0 items-center rounded-lg px-3 text-[12px] font-semibold transition sm:h-8 sm:rounded-md sm:px-2.5 sm:text-[11px] ${
                   activePresetId === preset.id
                     ? "bg-emerald-600 text-white"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    : "bg-slate-100 text-slate-600 active:bg-slate-200 sm:bg-transparent sm:hover:bg-slate-50 sm:hover:text-slate-900"
                 }`}
               >
                 {preset.label}
@@ -395,8 +395,8 @@ export function AdminReportsWorkspace({
             ))}
           </div>
 
-          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1 shadow-sm">
-            <label className="flex items-center gap-1.5 text-[11px] text-slate-500">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2 sm:rounded-lg sm:border sm:border-slate-200 sm:bg-white sm:px-2 sm:py-1 sm:shadow-sm">
+            <label className="flex min-w-0 flex-col gap-1 text-[11px] font-medium text-slate-500 sm:flex-row sm:items-center sm:gap-1.5">
               Du
               <input
                 type="date"
@@ -404,10 +404,10 @@ export function AdminReportsWorkspace({
                 onChange={(event) =>
                   handleFilterChange({ from: event.target.value || undefined })
                 }
-                className="h-8 rounded-md border border-slate-200 bg-white px-2 text-[12px] font-medium text-slate-800 outline-none focus:border-emerald-500"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] font-medium text-slate-800 outline-none focus:border-emerald-500 sm:h-8 sm:w-auto sm:rounded-md sm:px-2 sm:text-[12px]"
               />
             </label>
-            <label className="flex items-center gap-1.5 text-[11px] text-slate-500">
+            <label className="flex min-w-0 flex-col gap-1 text-[11px] font-medium text-slate-500 sm:flex-row sm:items-center sm:gap-1.5">
               Au
               <input
                 type="date"
@@ -415,48 +415,51 @@ export function AdminReportsWorkspace({
                 onChange={(event) =>
                   handleFilterChange({ to: event.target.value || undefined })
                 }
-                className="h-8 rounded-md border border-slate-200 bg-white px-2 text-[12px] font-medium text-slate-800 outline-none focus:border-emerald-500"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] font-medium text-slate-800 outline-none focus:border-emerald-500 sm:h-8 sm:w-auto sm:rounded-md sm:px-2 sm:text-[12px]"
               />
             </label>
           </div>
 
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={
-              (report.rows.length === 0 && report.summary.length === 0) || isPending
-            }
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Download className="h-3.5 w-3.5" />
-            CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setPrintStamp(
-                new Date().toLocaleString("fr-FR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-              );
-              const root = document.documentElement;
-              const clearPrintMode = () => {
-                root.classList.remove("printing-reports");
-                window.removeEventListener("afterprint", clearPrintMode);
-              };
-              root.classList.add("printing-reports");
-              window.addEventListener("afterprint", clearPrintMode);
-              window.setTimeout(() => window.print(), 80);
-            }}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm hover:bg-emerald-500"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            Imprimer
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={
+                (report.rows.length === 0 && report.summary.length === 0) ||
+                isPending
+              }
+              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 text-[12px] font-semibold text-slate-700 active:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:h-9 sm:flex-none sm:hover:bg-slate-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPrintStamp(
+                  new Date().toLocaleString("fr-FR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                );
+                const root = document.documentElement;
+                const clearPrintMode = () => {
+                  root.classList.remove("printing-reports");
+                  window.removeEventListener("afterprint", clearPrintMode);
+                };
+                root.classList.add("printing-reports");
+                window.addEventListener("afterprint", clearPrintMode);
+                window.setTimeout(() => window.print(), 80);
+              }}
+              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white shadow-sm active:bg-emerald-500 sm:h-9 sm:flex-none sm:hover:bg-emerald-500"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Imprimer
+            </button>
+          </div>
         </div>
       </header>
 
@@ -528,7 +531,7 @@ export function AdminReportsWorkspace({
               onChange={(event) =>
                 handleSelectType(event.target.value as ReportType)
               }
-              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-800"
+              className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-800"
             >
               {reportOptions.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -568,46 +571,79 @@ export function AdminReportsWorkspace({
             </div>
 
             {report.type !== "benefices" && report.summary.length > 0 ? (
-              <div
-                className={`mt-2.5 grid gap-2 ${
-                  report.summary.length === 1
-                    ? "grid-cols-1 sm:max-w-xs"
-                    : report.summary.length === 2
-                      ? "grid-cols-2"
-                      : report.summary.length === 3
-                        ? "grid-cols-3"
-                        : report.summary.length === 6
-                          ? "grid-cols-2 xl:grid-cols-3"
-                          : "grid-cols-2 xl:grid-cols-4"
-                }`}
-              >
-                {report.summary.map((item, index) => {
-                  const tone = summaryTone(item.label, index);
-                  const SummaryIcon = SUMMARY_ICONS[tone.iconKey];
-                  return (
-                    <article
-                      key={item.label}
-                      className={`rounded-lg border px-2.5 py-2 ${tone.card}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${tone.icon}`}
-                        >
-                          <SummaryIcon className="h-3.5 w-3.5" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[10px] font-medium text-slate-500">
-                            {item.label}
-                          </p>
-                          <p className="truncate text-[13px] font-bold tabular-nums text-slate-900">
-                            {item.value}
-                          </p>
+              <>
+                {/* Résumé mobile : bandeau horizontal */}
+                <div className="-mx-1 mt-2.5 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:hidden">
+                  {report.summary.map((item, index) => {
+                    const tone = summaryTone(item.label, index);
+                    const SummaryIcon = SUMMARY_ICONS[tone.iconKey];
+                    return (
+                      <article
+                        key={item.label}
+                        className={`w-[42%] min-w-[9.5rem] shrink-0 rounded-lg border px-2.5 py-2 ${tone.card}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${tone.icon}`}
+                          >
+                            <SummaryIcon className="h-3.5 w-3.5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[10px] font-medium text-slate-500">
+                              {item.label}
+                            </p>
+                            <p className="truncate text-[13px] font-bold tabular-nums text-slate-900">
+                              {item.value}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
+                      </article>
+                    );
+                  })}
+                </div>
+
+                {/* Résumé desktop */}
+                <div
+                  className={`mt-2.5 hidden gap-2 sm:grid ${
+                    report.summary.length === 1
+                      ? "grid-cols-1 sm:max-w-xs"
+                      : report.summary.length === 2
+                        ? "grid-cols-2"
+                        : report.summary.length === 3
+                          ? "grid-cols-3"
+                          : report.summary.length === 6
+                            ? "grid-cols-2 xl:grid-cols-3"
+                            : "grid-cols-2 xl:grid-cols-4"
+                  }`}
+                >
+                  {report.summary.map((item, index) => {
+                    const tone = summaryTone(item.label, index);
+                    const SummaryIcon = SUMMARY_ICONS[tone.iconKey];
+                    return (
+                      <article
+                        key={item.label}
+                        className={`rounded-lg border px-2.5 py-2 ${tone.card}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${tone.icon}`}
+                          >
+                            <SummaryIcon className="h-3.5 w-3.5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[10px] font-medium text-slate-500">
+                              {item.label}
+                            </p>
+                            <p className="truncate text-[13px] font-bold tabular-nums text-slate-900">
+                              {item.value}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </>
             ) : null}
           </div>
 
@@ -632,7 +668,7 @@ export function AdminReportsWorkspace({
                   </p>
                 </div>
                 {report.rows.length > 0 ? (
-                  <div className="reports-table-scroll reports-print-scroll hidden h-full overflow-y-auto overflow-x-hidden print:block print:h-auto print:overflow-visible">
+                  <div className="reports-table-scroll reports-print-scroll hidden h-full overflow-auto print:block print:h-auto print:overflow-visible">
                     <table className="min-w-full text-left text-[12px] print:w-full">
                       <thead className="bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-400 print:bg-white">
                         <tr>
@@ -698,7 +734,7 @@ export function AdminReportsWorkspace({
                 </p>
               </div>
             ) : (
-              <div className="reports-table-scroll reports-print-scroll h-full overflow-y-auto overflow-x-hidden print:h-auto print:overflow-visible">
+              <div className="reports-table-scroll reports-print-scroll h-full overflow-auto print:h-auto print:overflow-visible">
                 <table className="min-w-full text-left text-[12px] print:w-full">
                   <thead className="sticky top-0 z-10 bg-slate-50/95 text-[10px] font-semibold uppercase tracking-wide text-slate-400 backdrop-blur print:static print:bg-white">
                     <tr>

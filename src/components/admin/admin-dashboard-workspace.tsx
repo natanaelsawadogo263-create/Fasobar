@@ -173,7 +173,65 @@ export function AdminDashboardWorkspace({
         </div>
       </header>
 
-      <div className="grid shrink-0 grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-2.5">
+      {/* KPI mobile — bandeau horizontal */}
+      <div className="-mx-3 flex shrink-0 gap-2 overflow-x-auto px-3 pb-0.5 lg:hidden">
+        <div className="w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-l-4 border-slate-200/90 border-l-emerald-500 bg-white px-3 py-2.5 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            Ventes
+          </p>
+          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+            {formatPriceXof(kpis.salesToday)}
+          </p>
+          <div className="mt-0.5">
+            <TrendBadge trend={salesTrend} />
+          </div>
+        </div>
+        <div className="w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-l-4 border-slate-200/90 border-l-sky-500 bg-white px-3 py-2.5 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            Commandes
+          </p>
+          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+            {kpis.ordersToday}
+          </p>
+          <div className="mt-0.5">
+            <TrendBadge trend={ordersTrend} />
+          </div>
+        </div>
+        <div className="w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-l-4 border-slate-200/90 border-l-teal-500 bg-white px-3 py-2.5 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            Caisses
+          </p>
+          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+            {formatPriceXof(kpis.openCashBalance ?? 0)}
+          </p>
+          <p className="mt-0.5 truncate text-[10px] text-slate-400">
+            {openSessionsCount > 0
+              ? `${openSessionsCount} ouverte${openSessionsCount > 1 ? "s" : ""}`
+              : "Aucune ouverte"}
+          </p>
+        </div>
+        <div
+          className={`w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-l-4 border-slate-200/90 bg-white px-3 py-2.5 shadow-sm ${
+            kpis.stockAlertCount > 0 ? "border-l-orange-500" : "border-l-slate-300"
+          }`}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            Alertes
+          </p>
+          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+            {kpis.stockAlertCount}
+          </p>
+          <Link
+            href="/application/stock"
+            className="mt-0.5 inline-block text-[10px] font-medium text-emerald-700"
+          >
+            Voir le stock
+          </Link>
+        </div>
+      </div>
+
+      {/* KPI desktop */}
+      <div className="hidden shrink-0 grid-cols-2 gap-2 lg:grid lg:grid-cols-4 lg:gap-2.5">
         <KpiCard
           accent="border-l-emerald-500"
           icon={<TrendingUp className="h-3.5 w-3.5" />}

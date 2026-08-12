@@ -95,7 +95,7 @@ export function MonAbonnementWorkspace({ data, canRenew }: Props) {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f7f8fa]">
       <header className="shrink-0 border-b border-slate-200/80 bg-white px-5 py-3.5 sm:px-6">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
@@ -114,7 +114,7 @@ export function MonAbonnementWorkspace({ data, canRenew }: Props) {
           {canRenew && data.canAccessZone && !awaitingReview ? (
             <Link
               href={needsPaymentAction ? "/abonnement" : renewHref}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 text-[12px] font-semibold text-white hover:bg-slate-800"
+              className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3.5 text-[13px] font-semibold text-white active:bg-slate-800 sm:h-9 sm:w-auto sm:text-[12px] sm:hover:bg-slate-800"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               {needsPaymentAction ? "Continuer le paiement" : renewLabel}
@@ -139,86 +139,88 @@ export function MonAbonnementWorkspace({ data, canRenew }: Props) {
           ) : null}
 
           {/* Indicateurs */}
-          <section className="grid shrink-0 grid-cols-3 divide-x divide-slate-100 border-b border-slate-100">
-            <div className="px-4 py-4 sm:px-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Accès
-              </p>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span
-                  className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${statusStyle}`}
-                >
-                  {PLATFORM_ACCESS_STATUS_LABELS[data.access.status] ??
-                    data.access.status}
-                </span>
+          <section className="shrink-0 border-b border-slate-100">
+            <div className="flex gap-0 overflow-x-auto divide-x divide-slate-100 sm:grid sm:grid-cols-3 sm:overflow-visible">
+              <div className="min-w-[9.5rem] shrink-0 px-4 py-4 sm:min-w-0 sm:px-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  Accès
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${statusStyle}`}
+                  >
+                    {PLATFORM_ACCESS_STATUS_LABELS[data.access.status] ??
+                      data.access.status}
+                  </span>
+                </div>
+                {daysLeft != null ? (
+                  <p
+                    className={`mt-2 text-[13px] font-semibold tabular-nums ${
+                      daysLeft <= 0
+                        ? "text-red-700"
+                        : daysLeft <= 7
+                          ? "text-amber-700"
+                          : "text-slate-900"
+                    }`}
+                  >
+                    {daysLeft > 0
+                      ? `${daysLeft} j restants`
+                      : "Échéance dépassée"}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-[13px] font-medium text-slate-500">—</p>
+                )}
               </div>
-              {daysLeft != null ? (
-                <p
-                  className={`mt-2 text-[13px] font-semibold tabular-nums ${
-                    daysLeft <= 0
-                      ? "text-red-700"
-                      : daysLeft <= 7
-                        ? "text-amber-700"
-                        : "text-slate-900"
-                  }`}
-                >
-                  {daysLeft > 0
-                    ? `${daysLeft} j restants`
-                    : "Échéance dépassée"}
-                </p>
-              ) : (
-                <p className="mt-2 text-[13px] font-medium text-slate-500">—</p>
-              )}
-            </div>
 
-            <div className="px-4 py-4 sm:px-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                {endLabel}
-              </p>
-              <p className="mt-2 text-[13px] font-semibold tabular-nums text-slate-900">
-                {endValue}
-              </p>
-              {data.currentSubscription ? (
-                <p className="mt-1.5 text-[11px] text-slate-500">
-                  {
-                    PLATFORM_SUBSCRIPTION_STATUS_LABELS[
-                      data.currentSubscription.status
-                    ]
-                  }
-                  {data.currentSubscription.planName
-                    ? ` · ${data.currentSubscription.planName}`
-                    : ""}
+              <div className="min-w-[9.5rem] shrink-0 px-4 py-4 sm:min-w-0 sm:px-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  {endLabel}
                 </p>
-              ) : data.trialStatus ? (
-                <p className="mt-1.5 text-[11px] text-slate-500">
-                  {data.trialStatus}
+                <p className="mt-2 text-[13px] font-semibold tabular-nums text-slate-900">
+                  {endValue}
                 </p>
-              ) : null}
-            </div>
-
-            <div className="px-4 py-4 sm:px-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Demande
-              </p>
-              {openRequest ? (
-                <>
-                  <p className="mt-2 text-[13px] font-semibold text-slate-900">
-                    {PLATFORM_REQUEST_STATUS_LABELS[openRequest.status]}
-                  </p>
-                  <p className="mt-1.5 truncate text-[11px] tabular-nums text-slate-500">
-                    {openRequest.referenceCode}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="mt-2 text-[13px] font-semibold text-slate-900">
-                    Aucune
-                  </p>
+                {data.currentSubscription ? (
                   <p className="mt-1.5 text-[11px] text-slate-500">
-                    Pas de dossier ouvert
+                    {
+                      PLATFORM_SUBSCRIPTION_STATUS_LABELS[
+                        data.currentSubscription.status
+                      ]
+                    }
+                    {data.currentSubscription.planName
+                      ? ` · ${data.currentSubscription.planName}`
+                      : ""}
                   </p>
-                </>
-              )}
+                ) : data.trialStatus ? (
+                  <p className="mt-1.5 text-[11px] text-slate-500">
+                    {data.trialStatus}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="min-w-[9.5rem] shrink-0 px-4 py-4 sm:min-w-0 sm:px-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  Demande
+                </p>
+                {openRequest ? (
+                  <>
+                    <p className="mt-2 text-[13px] font-semibold text-slate-900">
+                      {PLATFORM_REQUEST_STATUS_LABELS[openRequest.status]}
+                    </p>
+                    <p className="mt-1.5 truncate text-[11px] tabular-nums text-slate-500">
+                      {openRequest.referenceCode}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-2 text-[13px] font-semibold text-slate-900">
+                      Aucune
+                    </p>
+                    <p className="mt-1.5 text-[11px] text-slate-500">
+                      Pas de dossier ouvert
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </section>
 
@@ -274,7 +276,7 @@ export function MonAbonnementWorkspace({ data, canRenew }: Props) {
             </h2>
 
             {openRequest ? (
-              <dl className="mt-3 grid grid-cols-3 gap-3">
+              <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
                 <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-3">
                   <dt className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
                     Référence
@@ -315,7 +317,7 @@ export function MonAbonnementWorkspace({ data, canRenew }: Props) {
             {canRenew && needsPaymentAction ? (
               <Link
                 href="/abonnement"
-                className="mt-4 inline-flex h-9 items-center rounded-lg bg-slate-900 px-3.5 text-[12px] font-semibold text-white hover:bg-slate-800"
+                className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-slate-900 px-3.5 text-[13px] font-semibold text-white active:bg-slate-800 sm:h-9 sm:w-auto sm:text-[12px] sm:hover:bg-slate-800"
               >
                 Continuer le paiement
               </Link>

@@ -157,7 +157,7 @@ export function BeneficesReportPanel({
                 Bénéfice net total
               </p>
               <p
-                className={`mt-1 text-[28px] font-bold tabular-nums tracking-tight sm:text-[32px] ${moneyClass(total.profit, true)}`}
+                className={`mt-1 text-[26px] font-bold tabular-nums tracking-tight sm:text-[32px] ${moneyClass(total.profit, true)}`}
               >
                 {formatReportCell(total.profit, "currency")}
               </p>
@@ -180,12 +180,12 @@ export function BeneficesReportPanel({
               )}
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3 text-right">
+          <div className="mt-3 grid w-full grid-cols-3 gap-2 border-t border-slate-200/60 pt-3 text-left sm:mt-0 sm:w-auto sm:gap-3 sm:border-0 sm:pt-0 sm:text-right">
             <div>
               <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
                 CA
               </p>
-              <p className="mt-0.5 text-[13px] font-bold tabular-nums text-slate-900">
+              <p className="mt-0.5 text-[12px] font-bold tabular-nums text-slate-900 sm:text-[13px]">
                 {formatReportCell(total.revenue, "currency")}
               </p>
             </div>
@@ -193,7 +193,7 @@ export function BeneficesReportPanel({
               <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
                 Appro
               </p>
-              <p className="mt-0.5 text-[13px] font-bold tabular-nums text-slate-800">
+              <p className="mt-0.5 text-[12px] font-bold tabular-nums text-slate-800 sm:text-[13px]">
                 {formatReportCell(total.supplyCost, "currency")}
               </p>
             </div>
@@ -201,7 +201,7 @@ export function BeneficesReportPanel({
               <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
                 Dépenses
               </p>
-              <p className="mt-0.5 text-[13px] font-bold tabular-nums text-slate-800">
+              <p className="mt-0.5 text-[12px] font-bold tabular-nums text-slate-800 sm:text-[13px]">
                 {formatReportCell(total.expenses, "currency")}
               </p>
             </div>

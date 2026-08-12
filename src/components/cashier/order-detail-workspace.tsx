@@ -132,12 +132,12 @@ export function OrderDetailWorkspace({
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full items-center justify-center overflow-hidden p-2">
-      <div className="flex w-full max-w-[720px] flex-col gap-2">
+    <div className="flex h-full min-h-0 w-full items-stretch justify-center overflow-hidden p-2 sm:items-center">
+      <div className="flex min-h-0 w-full max-w-[720px] flex-col gap-2 overflow-y-auto overscroll-contain pb-2 sm:overflow-visible">
         <div className="flex shrink-0 items-center justify-between gap-2">
           <Link
             href={backHref}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-emerald-600 px-2.5 text-[12px] font-semibold text-white transition hover:bg-emerald-500"
+            className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 text-[13px] font-semibold text-white transition active:bg-emerald-500 sm:h-8 sm:rounded-md sm:px-2.5 sm:text-[12px] sm:hover:bg-emerald-500"
           >
             <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.25} />
             {backLabel}
@@ -282,13 +282,13 @@ export function OrderDetailWorkspace({
               </div>
 
               {hasActions ? (
-                <div className="grid gap-1">
+                <div className="grid gap-2">
                   {isEditable ? (
                     <button
                       type="button"
                       disabled={isPending || order.items.length === 0}
                       onClick={handlePrepare}
-                      className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md bg-emerald-600 px-2.5 text-[12px] font-bold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                      className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-2.5 text-[13px] font-bold text-white transition active:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 sm:h-8 sm:rounded-md sm:text-[12px] sm:hover:bg-emerald-500"
                     >
                       <Banknote className="h-3.5 w-3.5" strokeWidth={2} />
                       {isPending ? "…" : "Encaisser"}
@@ -298,7 +298,7 @@ export function OrderDetailWorkspace({
                   {canPrintAddition ? (
                     <Link
                       href={`/application/commandes/${order.id}/addition?print=1&next=${additionNext}`}
-                      className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-[12px] font-semibold text-amber-900 transition hover:bg-amber-100"
+                      className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2.5 text-[13px] font-semibold text-amber-900 transition active:bg-amber-100 sm:h-8 sm:rounded-md sm:text-[12px] sm:hover:bg-amber-100"
                     >
                       <Printer className="h-3.5 w-3.5" strokeWidth={2} />
                       Addition
@@ -308,7 +308,7 @@ export function OrderDetailWorkspace({
                   {isEditable ? (
                     <Link
                       href={`/application/caisse?order=${order.id}`}
-                      className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50"
+                      className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-[13px] font-semibold text-slate-700 transition active:bg-slate-50 sm:h-8 sm:rounded-md sm:text-[12px] sm:hover:bg-slate-50"
                     >
                       <Pencil className="h-3 w-3" strokeWidth={2} />
                       Modifier
@@ -320,7 +320,7 @@ export function OrderDetailWorkspace({
                       type="button"
                       disabled={isPending}
                       onClick={openCancelModal}
-                      className="inline-flex h-8 w-full items-center justify-center rounded-md border border-red-200 bg-white px-2.5 text-[12px] font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                      className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-red-200 bg-white px-2.5 text-[13px] font-semibold text-red-700 transition active:bg-red-50 disabled:opacity-50 sm:h-8 sm:rounded-md sm:text-[12px] sm:hover:bg-red-50"
                     >
                       Annuler
                     </button>
