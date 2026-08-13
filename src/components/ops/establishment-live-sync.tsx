@@ -10,6 +10,7 @@ import {
   scheduleOpsRefresh,
 } from "@/lib/ops/schedule-refresh";
 import { createClient } from "@/lib/supabase/client";
+import { bindRealtimeAuth } from "@/lib/supabase/realtime-session";
 
 type EstablishmentLiveSyncProps = {
   establishmentId: string;
@@ -109,6 +110,7 @@ export function EstablishmentLiveSync({ establishmentId }: EstablishmentLiveSync
     if (!establishmentId) return;
 
     const supabase = createClient();
+    let unbindAuth: (() => void) | null = null;
 
     const requestRefresh = (kind: "ops" | "catalog") => {
       const path = pathnameRef.current;
@@ -135,7 +137,10 @@ export function EstablishmentLiveSync({ establishmentId }: EstablishmentLiveSync
       );
     }
 
-    channel.subscribe();
+    void bindRealtimeAuth(supabase).then((unbind) => {
+      unbindAuth = unbind;
+      channel.subscribe();
+    });
 
     function onVisibility() {
       if (document.visibilityState !== "visible") return;
@@ -147,6 +152,7 @@ export function EstablishmentLiveSync({ establishmentId }: EstablishmentLiveSync
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
       cancelScheduledOpsRefresh();
+      unbindAuth?.();
       void supabase.removeChannel(channel);
     };
   }, [establishmentId, router]);

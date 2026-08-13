@@ -14,16 +14,8 @@ import {
 } from "lucide-react";
 
 import { markAdminNotificationsReadAction } from "@/app/(protected)/application/notifications/actions";
-import { useToast } from "@/components/ui/toast";
-import {
-  playFasoBarNotificationChime,
-  unlockNotificationAudio,
-} from "@/lib/admin/notification-chime";
-import type {
-  AdminNotificationItem,
-  AdminNotificationKind,
-} from "@/lib/admin/notification-types";
-import { createClient } from "@/lib/supabase/client";
+import { useAdminNotificationsLive } from "@/hooks/use-admin-notifications-live";
+import type { AdminNotificationItem } from "@/lib/admin/notification-types";
 
 type AdminNotificationsBellProps = {
   establishmentId: string;
@@ -63,168 +55,14 @@ function formatRelativeTime(iso: string): string {
 export function AdminNotificationsBell({
   establishmentId,
 }: AdminNotificationsBellProps) {
-  const toast = useToast();
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<AdminNotificationItem[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [isPending, startTransition] = useTransition();
   const panelRef = useRef<HTMLDivElement>(null);
-  const openRef = useRef(open);
-  const knownIdsRef = useRef(new Set<string>());
+  const live = useAdminNotificationsLive(establishmentId);
 
   useEffect(() => {
-    openRef.current = open;
-  }, [open]);
-
-  useEffect(() => {
-    if (!establishmentId) return;
-
-    let cancelled = false;
-    const supabase = createClient();
-
-    async function loadInitial() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-
-      const { data: rows, error } = await supabase
-        .from("admin_notifications")
-        .select("id, kind, title, body, href, created_at")
-        .eq("establishment_id", establishmentId)
-        .order("created_at", { ascending: false })
-        .limit(30);
-
-      if (error || !rows || cancelled) return;
-
-      const ids = rows.map((row) => row.id);
-      const { data: reads } =
-        ids.length > 0
-          ? await supabase
-              .from("admin_notification_reads")
-              .select("notification_id")
-              .eq("user_id", user.id)
-              .in("notification_id", ids)
-          : { data: [] as Array<{ notification_id: string }> };
-
-      if (cancelled) return;
-
-      const readIds = new Set(
-        (reads ?? []).map((row) => String(row.notification_id)),
-      );
-      const nextItems: AdminNotificationItem[] = rows.map((row) => ({
-        id: row.id,
-        kind: (row.kind as AdminNotificationKind) ?? "SALE",
-        title: row.title,
-        body: row.body,
-        href: row.href,
-        createdAt: row.created_at,
-        read: readIds.has(row.id),
-      }));
-
-      for (const item of nextItems) {
-        knownIdsRef.current.add(item.id);
-      }
-
-      setItems((prev) => {
-        const byId = new Map(nextItems.map((item) => [item.id, item]));
-        for (const item of prev) {
-          if (!byId.has(item.id)) {
-            byId.set(item.id, item);
-          }
-        }
-        const merged = [...byId.values()]
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-          .slice(0, 40);
-        queueMicrotask(() => {
-          if (!cancelled) {
-            setUnreadCount(merged.filter((item) => !item.read).length);
-          }
-        });
-        return merged;
-      });
-    }
-
-    void loadInitial();
-
-    function onVisibility() {
-      if (document.visibilityState === "visible") {
-        void loadInitial();
-      }
-    }
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      cancelled = true;
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [establishmentId]);
-
-  // Unlock audio after first user gesture (browser autoplay policy).
-  useEffect(() => {
-    const unlock = () => unlockNotificationAudio();
-    window.addEventListener("pointerdown", unlock);
-    window.addEventListener("keydown", unlock);
-    return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-    };
-  }, []);
-
-  // Realtime: new activity → chime + badge.
-  useEffect(() => {
-    if (!establishmentId) return;
-
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`admin-notifications-chime:${establishmentId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "admin_notifications",
-          filter: `establishment_id=eq.${establishmentId}`,
-        },
-        (payload) => {
-          const row = payload.new as {
-            id?: string;
-            kind?: string;
-            title?: string;
-            body?: string | null;
-            href?: string | null;
-            created_at?: string;
-          };
-
-          if (!row.id || knownIdsRef.current.has(row.id)) {
-            return;
-          }
-          knownIdsRef.current.add(row.id);
-
-          const nextItem: AdminNotificationItem = {
-            id: row.id,
-            kind: (row.kind as AdminNotificationKind) ?? "SALE",
-            title: row.title ?? "Nouvelle activité",
-            body: row.body ?? null,
-            href: row.href ?? null,
-            createdAt: row.created_at ?? new Date().toISOString(),
-            read: false,
-          };
-
-          setItems((prev) => [nextItem, ...prev].slice(0, 40));
-          if (!openRef.current) {
-            setUnreadCount((count) => count + 1);
-          }
-          void playFasoBarNotificationChime();
-          toast.show(nextItem.title, "info");
-        },
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [establishmentId, toast]);
+    live.setOpen(open);
+  }, [open, live.setOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -239,23 +77,15 @@ export function AdminNotificationsBell({
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, [open]);
 
-  function markAllRead() {
-    if (unreadCount === 0) return;
-
-    setItems((prev) => prev.map((item) => ({ ...item, read: true })));
-    setUnreadCount(0);
-
-    startTransition(async () => {
-      await markAdminNotificationsReadAction();
-    });
-  }
-
   function toggleOpen() {
-    unlockNotificationAudio();
+    live.unlock();
     const next = !open;
     setOpen(next);
-    if (next) {
-      markAllRead();
+    if (next && live.unreadCount > 0) {
+      live.markAllReadLocal();
+      startTransition(async () => {
+        await markAdminNotificationsReadAction();
+      });
     }
   }
 
@@ -266,17 +96,17 @@ export function AdminNotificationsBell({
         onClick={toggleOpen}
         className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition active:bg-slate-50 md:h-8 md:w-8 md:rounded-full md:hover:bg-slate-50 md:hover:text-slate-700"
         aria-label={
-          unreadCount > 0
-            ? `Notifications : ${unreadCount} non lues`
+          live.unreadCount > 0
+            ? `Notifications : ${live.unreadCount} non lues`
             : "Notifications"
         }
         aria-expanded={open}
         title="Notifications"
       >
         <Bell className="h-4 w-4" />
-        {unreadCount > 0 ? (
+        {live.unreadCount > 0 ? (
           <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            {unreadCount > 9 ? "9+" : unreadCount}
+            {live.unreadCount > 9 ? "9+" : live.unreadCount}
           </span>
         ) : null}
       </button>
@@ -288,18 +118,22 @@ export function AdminNotificationsBell({
               Notifications
             </p>
             <span className="text-[11px] text-slate-400">
-              {isPending ? "…" : unreadCount > 0 ? `${unreadCount} non lues` : "À jour"}
+              {isPending
+                ? "…"
+                : live.unreadCount > 0
+                  ? `${live.unreadCount} non lues`
+                  : "À jour"}
             </span>
           </div>
 
           <div className="max-h-[22rem] overflow-y-auto">
-            {items.length === 0 ? (
+            {live.items.length === 0 ? (
               <p className="px-4 py-8 text-center text-[13px] text-slate-500">
                 Aucune notification pour le moment.
               </p>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {items.map((item) => {
+                {live.items.map((item) => {
                   const Icon = kindIcon(item.kind);
                   const content = (
                     <>
