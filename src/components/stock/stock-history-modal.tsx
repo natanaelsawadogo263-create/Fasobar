@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 
 import { fetchStockMovementsAction } from "@/app/(protected)/application/stock/actions";
+import { AlertMessage } from "@/components/auth/alert-message";
 import {
   formatPriceXof,
   formatQuantity,
@@ -67,9 +68,7 @@ export function StockHistoryModal({ stockItem, onClose }: StockHistoryModalProps
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           {error ? (
-            <p role="alert" className="text-sm text-red-600">
-              {error}
-            </p>
+            <AlertMessage message={error} />
           ) : isPending ? (
             <p className="text-sm text-slate-500">Chargement de l&apos;historique...</p>
           ) : movements.length === 0 ? (

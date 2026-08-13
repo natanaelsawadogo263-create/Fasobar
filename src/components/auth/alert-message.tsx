@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 import { useToastOptional } from "@/components/ui/toast";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 
 type AlertMessageProps = {
   message: string;
@@ -33,6 +34,8 @@ export function AlertMessage({
   variant = "auto",
 }: AlertMessageProps) {
   const toast = useToastOptional();
+  const displayMessage =
+    tone === "error" ? toUserFacingError(message) : message;
   const mode =
     variant === "auto" ? (tone === "success" ? "toast" : "inline") : variant;
   const onDismissRef = useRef(onDismiss);
@@ -42,13 +45,13 @@ export function AlertMessage({
 
   useEffect(() => {
     if (mode !== "toast" || !toast) return;
-    const key = `${tone}:${message}`;
+    const key = `${tone}:${displayMessage}`;
     if (pushedRef.current === key) return;
     pushedRef.current = key;
-    toast.show(message, tone);
+    toast.show(displayMessage, tone);
     // Libère l’état parent pour éviter un 2ᵉ toast après router.refresh().
     queueMicrotask(() => onDismissRef.current?.());
-  }, [mode, toast, message, tone]);
+  }, [mode, toast, displayMessage, tone]);
 
   if (mode === "toast" && toast) {
     return null;
@@ -57,7 +60,7 @@ export function AlertMessage({
   if (mode === "toast") {
     return (
       <StandaloneToast
-        message={message}
+        message={displayMessage}
         tone={tone}
         dismissible={dismissible}
         onDismiss={onDismiss}
@@ -67,7 +70,7 @@ export function AlertMessage({
 
   return (
     <InlineAlert
-      message={message}
+      message={displayMessage}
       tone={tone}
       dismissible={dismissible}
       onDismiss={onDismiss}

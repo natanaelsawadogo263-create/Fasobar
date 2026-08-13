@@ -1,5 +1,7 @@
 import type { AuthError } from "@supabase/supabase-js";
 
+import { USER_ERROR_MESSAGE, toUserFacingError } from "@/lib/errors/user-facing";
+
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   invalid_credentials: "Identifiant, e-mail ou mot de passe incorrect.",
   email_not_confirmed:
@@ -122,14 +124,6 @@ export function mapGenericError(error: unknown): string {
     return "Un enregistrement similaire existe déjà. Vérifiez le nom de l'établissement.";
   }
 
-  const cleaned = message
-    .replace(/^.*ERROR:\s*/i, "")
-    .replace(/\s+CONTEXT:[\s\S]*$/i, "")
-    .trim();
-
-  if (cleaned && cleaned.length > 0 && cleaned.length < 220 && !cleaned.includes("json")) {
-    return cleaned;
-  }
-
-  return "Une erreur inattendue est survenue. Veuillez réessayer.";
+  console.error("[app]", error);
+  return toUserFacingError(message);
 }

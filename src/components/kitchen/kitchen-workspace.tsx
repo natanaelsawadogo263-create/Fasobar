@@ -22,6 +22,7 @@ import {
 import type { KitchenStatus } from "@/lib/kitchen/schemas";
 import { ORDER_TYPE_LABELS } from "@/lib/orders/constants";
 import { formatOrderNumber } from "@/lib/orders/constants";
+import { AlertMessage } from "@/components/auth/alert-message";
 import { createClient } from "@/lib/supabase/client";
 
 type KitchenWorkspaceProps = {
@@ -170,9 +171,9 @@ export function KitchenWorkspace({
           </div>
         </div>
         {error ? (
-          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
+          <div className="mt-3">
+            <AlertMessage message={error} />
+          </div>
         ) : null}
       </div>
 

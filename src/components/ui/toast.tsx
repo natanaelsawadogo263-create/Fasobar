@@ -13,6 +13,8 @@ import {
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
+import { toUserFacingError } from "@/lib/errors/user-facing";
+
 export type ToastTone = "success" | "error" | "info" | "warning";
 
 type ToastItem = {
@@ -36,7 +38,7 @@ type ToastListener = (message: string, tone: ToastTone) => void;
 const toastListeners = new Set<ToastListener>();
 
 function publishToast(message: string, tone: ToastTone = "success") {
-  const text = message.trim();
+  const text = (tone === "error" ? toUserFacingError(message) : message).trim();
   if (!text) return;
   if (toastListeners.size > 0) {
     toastListeners.forEach((listener) => listener(text, tone));
@@ -145,7 +147,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const show = useCallback((message: string, tone: ToastTone = "success") => {
-    const text = message.trim();
+    const text = (tone === "error" ? toUserFacingError(message) : message).trim();
     if (!text) return;
     seq.current += 1;
     const id = `toast-${Date.now()}-${seq.current}`;

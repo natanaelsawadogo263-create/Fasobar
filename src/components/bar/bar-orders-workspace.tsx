@@ -29,6 +29,7 @@ import {
   ORDER_TYPE_LABELS,
 } from "@/lib/orders/constants";
 import type { OrderPaymentStatus, OrderStatus } from "@/lib/orders/schemas";
+import { AlertMessage } from "@/components/auth/alert-message";
 import { ModalShell } from "@/components/ui/modal-shell";
 
 type BarOrdersWorkspaceProps = {
@@ -227,9 +228,9 @@ export function BarOrdersWorkspace({
       ) : null}
 
       {error ? (
-        <p className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
-          {error}
-        </p>
+        <div className="shrink-0">
+          <AlertMessage message={error} />
+        </div>
       ) : null}
 
       {/* Mobile : une colonne à la fois */}
