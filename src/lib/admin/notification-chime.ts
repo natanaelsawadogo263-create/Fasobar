@@ -1,9 +1,9 @@
 /**
- * Notification FasoBar — son « span » (pop message).
+ * Notification FasoBar — son fourni (Son notifications / Dragon Studio).
  * Lecture HTMLAudio + AudioContext pour passer l’autoplay après un clic.
  */
 
-const CHIME_SRC = "/sounds/span.mp3";
+const CHIME_SRC = "/sounds/notification.mp3";
 const CHIME_COOLDOWN_MS = 500;
 
 let unlocked = false;
