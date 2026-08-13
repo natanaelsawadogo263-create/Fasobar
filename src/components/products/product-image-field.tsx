@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, Loader2, X } from "lucide-react";
+
+import { compressProductImage } from "@/lib/products/compress-product-image";
 
 export type ProductImageAssets = {
   file: File | null;
@@ -30,6 +32,7 @@ export function ProductImageField({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [cleared, setCleared] = useState(false);
+  const [compressing, setCompressing] = useState(false);
 
   const displayUrl = preview ?? (cleared ? null : existingUrl ?? null);
 
@@ -45,16 +48,22 @@ export function ProductImageField({
     return () => revokeIfBlob(preview);
   }, [preview]);
 
-  function handleFileChange(fileList: FileList | null) {
+  async function handleFileChange(fileList: FileList | null) {
     const next = fileList?.[0];
     if (!next) return;
 
-    revokeIfBlob(preview);
-    setFile(next);
-    setPreview(URL.createObjectURL(next));
-    setCleared(false);
-    if (inputRef.current) {
-      inputRef.current.value = "";
+    setCompressing(true);
+    try {
+      const optimized = await compressProductImage(next);
+      revokeIfBlob(preview);
+      setFile(optimized);
+      setPreview(URL.createObjectURL(optimized));
+      setCleared(false);
+    } finally {
+      setCompressing(false);
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
     }
   }
 
@@ -86,22 +95,32 @@ export function ProductImageField({
             <p className="text-[9px] leading-tight text-slate-400">Aucune</p>
           </div>
         )}
+        {compressing ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+            <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <label
           className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-800 px-3 text-[11px] font-semibold text-white hover:bg-slate-700 ${
             compact ? "h-9" : "min-h-11"
-          }`}
+          } ${compressing ? "pointer-events-none opacity-60" : ""}`}
         >
-          <ImagePlus className="h-3.5 w-3.5" />
-          {displayUrl ? "Changer" : "Ajouter"}
+          {compressing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <ImagePlus className="h-3.5 w-3.5" />
+          )}
+          {compressing ? "Préparation…" : displayUrl ? "Changer" : "Ajouter"}
           <input
             ref={inputRef}
             type="file"
             accept="image/png,image/jpeg,image/webp,image/*"
             className="hidden"
-            onChange={(event) => handleFileChange(event.target.files)}
+            disabled={compressing}
+            onChange={(event) => void handleFileChange(event.target.files)}
           />
         </label>
 
@@ -109,7 +128,8 @@ export function ProductImageField({
           <button
             type="button"
             onClick={clearImage}
-            className={`inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-[11px] font-medium text-slate-600 hover:bg-slate-50 ${
+            disabled={compressing}
+            className={`inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-[11px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 ${
               compact ? "h-9" : "min-h-11"
             }`}
           >

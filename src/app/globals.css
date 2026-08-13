@@ -156,15 +156,41 @@ html {
 }
 
 @media print {
+  html,
   body {
-    background: #fff;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: #fff !important;
   }
 
   .no-print,
   aside,
   nav,
-  header:not(.thermal-receipt header) {
+  header:not(.thermal-receipt-header) {
     display: none !important;
+  }
+
+  /* Un seul ticket, centré sur la feuille. */
+  html.printing-ticket body {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  html.printing-ticket body > *:not(#print-ticket-clone) {
+    display: none !important;
+  }
+
+  html.printing-ticket #print-ticket-clone {
+    display: block !important;
+    position: static !important;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 auto !important;
+    padding: 4mm 5mm !important;
+    overflow: visible !important;
+    box-shadow: none !important;
   }
 
   .thermal-receipt-page,
@@ -202,6 +228,19 @@ html {
   .thermal-receipt th,
   .thermal-receipt td {
     padding: 1px 0;
+  }
+
+  .thermal-receipt .receipt-logo,
+  .thermal-receipt-header .receipt-logo {
+    display: block !important;
+    max-height: 16mm;
+    max-width: 32mm;
+    width: auto;
+    height: auto;
+    margin: 0 auto 1mm;
+    object-fit: contain;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   /* Rapports admin : pagination multi-pages (évite la coupe en bas de page) */

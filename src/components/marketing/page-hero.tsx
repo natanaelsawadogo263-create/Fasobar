@@ -8,7 +8,7 @@ export function PageHero({
   subtitle?: string;
 }) {
   return (
-    <section className="bg-[#07110e] py-14 text-white sm:py-16">
+    <section className="bg-[#07110e] py-12 text-white sm:py-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {kicker ? (
           <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-amber-300">

@@ -118,25 +118,14 @@ export function BarOrdersWorkspace({
             return;
           }
           if (!row.bar_status) return;
-          setTickets((prev) =>
-            prev.map((ticket) =>
-              ticket.id === row.id
-                ? {
-                    ...ticket,
-                    barStatus: row.bar_status!,
-                    barStatusUpdatedAt:
-                      row.bar_status_updated_at ?? ticket.barStatusUpdatedAt,
-                  }
-                : ticket,
-            ),
-          );
+          router.refresh();
         },
       )
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [establishmentId]);
+  }, [establishmentId, router]);
 
   const filtered = useMemo(() => {
     const needle = tableFilter.trim().toLowerCase();
@@ -381,6 +370,11 @@ function BarOrderCard({
         <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
           {qty} boisson{qty > 1 ? "s" : ""}
         </span>
+        {order.isSupplement ? (
+          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+            Ajout
+          </span>
+        ) : null}
       </div>
 
       <ul className="mt-2.5 space-y-1.5 rounded-lg bg-slate-50 p-2">
@@ -526,7 +520,7 @@ function BarOrderDetailModal({
 
         <div>
           <p className="mb-2 text-[12px] font-semibold text-slate-800">
-            Boissons ({qty})
+            {order.isSupplement ? "Ajout · " : ""}Boissons ({qty})
           </p>
           <ul className="space-y-2">
             {order.items.map((item) => (

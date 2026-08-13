@@ -72,9 +72,7 @@ export function SignInForm({
             Connexion
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            {desktopMode
-              ? "Entrez votre identifiant FasoBar et votre mot de passe."
-              : "Entrez vos identifiants pour accéder à votre espace."}
+            Entrez vos identifiants pour accéder à votre espace.
           </p>
           {desktopMode ? (
             <p className="mt-3 inline-flex items-center gap-2 text-xs text-slate-500">
@@ -93,25 +91,18 @@ export function SignInForm({
           {authError ? <AlertMessage message={authError} /> : null}
           {state.error ? <AlertMessage message={state.error} /> : null}
 
-          {desktopMode ? (
-            <FormField
-              id="identifier"
-              name="identifier"
-              label="Identifiant FasoBar"
-              type="text"
-              autoComplete="username"
-              required
-            />
-          ) : (
-            <FormField
-              id="email"
-              name="email"
-              label="E-mail"
-              type="email"
-              autoComplete="email"
-              required
-            />
-          )}
+          <FormField
+            id="identifier"
+            name="identifier"
+            label={desktopMode ? "Identifiant FasoBar" : "Identifiant ou e-mail"}
+            type="text"
+            inputMode="text"
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            required
+          />
 
           <FormField
             id="password"

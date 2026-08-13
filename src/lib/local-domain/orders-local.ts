@@ -143,6 +143,7 @@ function buildOrderPayload(
       product_name_snapshot: String(item.product_name_snapshot),
       unit_price_snapshot: moneyXof(Number(item.unit_price_snapshot)),
       quantity: Number(item.quantity),
+      prepared_quantity: Number(item.prepared_quantity ?? 0),
       line_total: moneyXof(Number(item.line_total)),
       department_code: String(item.department_code),
       notes: item.notes ?? null,
@@ -364,6 +365,18 @@ export function saveLocalOrder(
     const lineRows: Array<Record<string, unknown>> = [];
     let subtotal = 0;
 
+    const preparedByProduct = new Map<string, number>();
+    for (const row of db
+      .prepare(
+        `SELECT product_id, prepared_quantity FROM local_order_items WHERE order_id = ?`,
+      )
+      .all(orderId)) {
+      preparedByProduct.set(
+        String(row.product_id),
+        Number(row.prepared_quantity ?? 0),
+      );
+    }
+
     db.prepare(`DELETE FROM local_order_items WHERE order_id = ?`).run(orderId);
 
     for (const item of input.items) {
@@ -375,11 +388,15 @@ export function saveLocalOrder(
       const lineTotal = moneyXof(snap.unitPrice * quantity);
       subtotal += lineTotal;
       const lineId = randomUUID();
+      const preparedQuantity = Math.min(
+        quantity,
+        preparedByProduct.get(item.productId) ?? 0,
+      );
       db.prepare(
         `INSERT INTO local_order_items (
           id, order_id, product_id, product_name_snapshot, unit_price_snapshot,
-          quantity, line_total, department_code, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          quantity, prepared_quantity, line_total, department_code, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         lineId,
         orderId,
@@ -387,6 +404,7 @@ export function saveLocalOrder(
         snap.name,
         snap.unitPrice,
         quantity,
+        preparedQuantity,
         lineTotal,
         snap.departmentCode,
         item.notes?.trim() || null,
@@ -397,6 +415,7 @@ export function saveLocalOrder(
         product_name_snapshot: snap.name,
         unit_price_snapshot: snap.unitPrice,
         quantity,
+        prepared_quantity: preparedQuantity,
         line_total: lineTotal,
         department_code: snap.departmentCode,
         notes: item.notes?.trim() || null,

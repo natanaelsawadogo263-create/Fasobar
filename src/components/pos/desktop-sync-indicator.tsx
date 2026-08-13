@@ -20,9 +20,11 @@ function tone(label: DesktopConnectivityLabel): string {
 export function DesktopSyncIndicator({
   compact = false,
   showIcon = false,
+  hideLabel = false,
 }: {
   compact?: boolean;
   showIcon?: boolean;
+  hideLabel?: boolean;
 }) {
   const [label, setLabel] = useState<DesktopConnectivityLabel>("En ligne");
   const wasOfflineRef = useRef(false);
@@ -112,7 +114,11 @@ export function DesktopSyncIndicator({
           aria-hidden
         />
       )}
-      <span className={tone(label)}>{label}</span>
+      {hideLabel ? (
+        <span className="sr-only">{label}</span>
+      ) : (
+        <span className={tone(label)}>{label}</span>
+      )}
     </span>
   );
 }

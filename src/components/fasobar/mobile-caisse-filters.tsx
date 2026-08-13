@@ -48,7 +48,7 @@ export function MobileCaisseFilters() {
   });
 
   return (
-    <div className="shrink-0 border-b border-slate-200 bg-white lg:hidden">
+    <div className="shrink-0 border-b border-slate-200 bg-white md:hidden">
       <div className="flex gap-1.5 overflow-x-auto px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {departments.map((dept) => {
           const active =

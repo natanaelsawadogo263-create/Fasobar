@@ -9,6 +9,7 @@ import { MIGRATION_001_SQL } from "@/lib/local-db/migrations/001_initial";
 import { MIGRATION_002_SQL } from "@/lib/local-db/migrations/002_local_auth";
 import { MIGRATION_003_SQL } from "@/lib/local-db/migrations/003_offline_caisse";
 import { MIGRATION_004_SQL } from "@/lib/local-db/migrations/004_saas_authorization";
+import { MIGRATION_005_SQL } from "@/lib/local-db/migrations/005_order_item_prepared_quantity";
 
 export type MigrationDefinition = {
   version: number;
@@ -28,6 +29,7 @@ export function loadMigrationDefinitions(): MigrationDefinition[] {
     { version: 2, name: "local_auth", sql: MIGRATION_002_SQL },
     { version: 3, name: "offline_caisse", sql: MIGRATION_003_SQL },
     { version: 4, name: "saas_authorization", sql: MIGRATION_004_SQL },
+    { version: 5, name: "order_item_prepared_quantity", sql: MIGRATION_005_SQL },
   ];
 
   return entries.map((entry) => ({

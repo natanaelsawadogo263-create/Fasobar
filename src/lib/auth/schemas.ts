@@ -32,7 +32,10 @@ export const signUpSchema = z
   });
 
 export const signInSchema = z.object({
-  email: emailSchema,
+  identifier: z
+    .string()
+    .trim()
+    .min(1, "L'identifiant ou l'e-mail est obligatoire."),
   password: z.string().min(1, "Le mot de passe est obligatoire."),
 });
 

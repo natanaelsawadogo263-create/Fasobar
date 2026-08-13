@@ -1,7 +1,7 @@
 import type { AuthError } from "@supabase/supabase-js";
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
-  invalid_credentials: "E-mail ou mot de passe incorrect.",
+  invalid_credentials: "Identifiant, e-mail ou mot de passe incorrect.",
   email_not_confirmed:
     "Veuillez confirmer votre adresse e-mail avant de vous connecter.",
   user_already_exists: "Un compte existe déjà avec cette adresse e-mail.",

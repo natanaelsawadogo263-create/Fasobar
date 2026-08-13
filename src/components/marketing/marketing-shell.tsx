@@ -12,7 +12,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
         <main className="flex-1">{children}</main>
         <MarketingFooter />
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex justify-end p-4 sm:p-6">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex justify-end p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
         <div className="pointer-events-auto">
           <WhatsAppContact variant="float" />
         </div>

@@ -34,25 +34,31 @@ export function ResetPasswordRequestForm({
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const email = String(new FormData(event.currentTarget).get("email") ?? "")
+    const formData = new FormData(event.currentTarget);
+    const raw = String(formData.get("email") ?? formData.get("identifier") ?? "")
       .trim()
       .toLowerCase();
 
     startTransition(async () => {
       setState({});
 
-      if (!email || !email.includes("@")) {
-        setState({ error: "Adresse e-mail invalide." });
+      const looksLikeEmployeeIdentifier =
+        !raw.includes("@") || isInternalFasoBarAuthEmail(raw);
+
+      if (!raw) {
+        setState({ error: "Indiquez votre e-mail ou identifiant FasoBar." });
         return;
       }
 
-      if (isInternalFasoBarAuthEmail(email)) {
+      if (looksLikeEmployeeIdentifier) {
         setState({
           error:
-            "Les comptes employés doivent passer par l'administrateur (Utilisateurs).",
+            "Les comptes créés par l'admin (Admin, Caisse–Cuisine, Bar) se connectent avec l'identifiant FasoBar. Pour le mot de passe, demandez une réinitialisation à l'administrateur (menu Utilisateurs).",
         });
         return;
       }
+
+      const email = raw;
 
       // Local: lien direct (évite le quota e-mail Supabase).
       if (isLocalHost()) {
@@ -102,7 +108,7 @@ export function ResetPasswordRequestForm({
   return (
     <AuthCard
       title="Mot de passe oublié"
-      description="Indiquez l’e-mail de votre compte pour recevoir un lien sécurisé."
+      description="Gérant : indiquez votre e-mail. Employé (Admin, Caisse ou Bar) : demandez la réinitialisation à l'administrateur."
       footer={
         <p className="text-center text-sm text-slate-600">
           <Link href="/connexion" className="font-medium text-emerald-700 hover:underline">

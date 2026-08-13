@@ -386,10 +386,10 @@ export function PosWorkspace({
     });
   }
 
-  /** Enregistre la commande à jour, imprime l'addition, puis revient sur la même commande. */
+  /** Enregistre la commande, imprime l'addition, puis revient au menu caisse. */
   function handlePrintAddition() {
     submitOrder("READY_TO_PAY", async (savedOrderId) => {
-      const next = encodeURIComponent(`/application/caisse?order=${savedOrderId}`);
+      const next = encodeURIComponent("/application/caisse");
       router.push(
         `/application/commandes/${savedOrderId}/addition?print=1&next=${next}`,
       );

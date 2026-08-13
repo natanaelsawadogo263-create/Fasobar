@@ -9,12 +9,14 @@ type AdditionPageProps = {
   searchParams: Promise<{ print?: string; next?: string }>;
 };
 
-function resolveReturnTo(next: string | undefined): string | null {
-  if (!next) return null;
-  if (next.startsWith("/application/caisse")) return next;
-  if (next.startsWith("/application/cuisine")) return next;
-  if (next.startsWith("/application/commandes")) return next;
-  return null;
+function resolveReturnTo(next: string | undefined, userSpace: string): string {
+  if (next?.startsWith("/application/cuisine")) return next;
+  if (userSpace === "admin" && next?.startsWith("/application/commandes")) {
+    return next;
+  }
+  if (userSpace === "bar_manager") return "/application/bar";
+  if (userSpace === "admin") return "/application/commandes";
+  return "/application/caisse";
 }
 
 export default async function OrderAdditionPage({
@@ -31,9 +33,7 @@ export default async function OrderAdditionPage({
   }
 
   const autoPrint = query.print === "1";
-  const returnTo =
-    resolveReturnTo(query.next) ??
-    (autoPrint ? `/application/caisse?order=${id}` : null);
+  const returnTo = resolveReturnTo(query.next, workspace.userSpace);
 
   return (
     <ThermalAddition

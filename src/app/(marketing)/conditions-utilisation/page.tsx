@@ -24,9 +24,6 @@ export default function ConditionsPage() {
           FasoBar. Le détail des offres est disponible sur la page Tarifs et
           dans l’espace abonnement après inscription.
         </p>
-        <p className="text-[13px] text-slate-500">
-          Texte de base — une version juridique complète pourra être publiée ici.
-        </p>
       </section>
     </>
   );

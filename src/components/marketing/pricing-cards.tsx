@@ -72,10 +72,8 @@ export function PricingCards({ plans }: PricingCardsProps) {
         price={formatPriceAmountXof(monthlyPrice)}
         priceUnit="FCFA / mois"
         features={[
-          "Espace Admin Web",
-          "FasoBar Desktop",
+          "Caisse, stock et ventes",
           "Employés et rôles",
-          "Ventes, caisse et stock",
           "Renouvellement mensuel",
         ]}
         cta="Choisir le plan mensuel"
@@ -219,7 +217,7 @@ function PricingCard({
 
       <Link
         href={href}
-        className={`mt-5 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl text-[13px] font-semibold transition ${BUTTON_STYLES[buttonStyle]}`}
+        className={`mt-5 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-[13px] font-semibold transition ${BUTTON_STYLES[buttonStyle]}`}
       >
         {cta}
         <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.25} />

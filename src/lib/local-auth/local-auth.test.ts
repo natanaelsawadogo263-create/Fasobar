@@ -292,7 +292,7 @@ describe("schema v4", () => {
     const version = db
       .prepare("SELECT MAX(version) AS v FROM local_schema_migrations")
       .get();
-    expect(Number(version?.v)).toBe(4);
+    expect(Number(version?.v)).toBe(5);
     expect(resolveSyncUiStatus(db, { cloudReachable: false })).toBe("OFFLINE");
     closeLocalDatabase();
   });

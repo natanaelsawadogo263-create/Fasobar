@@ -425,16 +425,33 @@ export async function getOrderAddition(
   let logoUrl: string | null = null;
 
   try {
-    const { getEstablishmentSettings } = await import("@/lib/settings/queries");
-    const { settings } = await getEstablishmentSettings(workspace);
-    if (settings) {
-      establishmentName = settings.name || establishmentName;
-      establishmentAddress = settings.address;
-      establishmentPhone = settings.phone;
-      logoUrl = settings.logoUrl;
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    const { data: establishment } = await supabase
+      .from("establishments")
+      .select("name, address, phone, logo_url")
+      .eq("id", workspace.establishmentId)
+      .maybeSingle();
+
+    if (establishment) {
+      establishmentName = establishment.name || establishmentName;
+      establishmentAddress = establishment.address ?? null;
+      establishmentPhone = establishment.phone ?? null;
+      logoUrl = establishment.logo_url ?? null;
     }
   } catch {
-    // Settings may be unavailable offline — workspace name is enough.
+    try {
+      const { getEstablishmentSettings } = await import("@/lib/settings/queries");
+      const { settings } = await getEstablishmentSettings(workspace);
+      if (settings) {
+        establishmentName = settings.name || establishmentName;
+        establishmentAddress = settings.address;
+        establishmentPhone = settings.phone;
+        logoUrl = settings.logoUrl;
+      }
+    } catch {
+      // Settings may be unavailable offline — workspace name is enough.
+    }
   }
 
   return {

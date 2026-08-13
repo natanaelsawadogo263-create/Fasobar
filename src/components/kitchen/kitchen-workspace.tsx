@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -43,6 +44,7 @@ export function KitchenWorkspace({
   orders,
   establishmentId,
 }: KitchenWorkspaceProps) {
+  const router = useRouter();
   const [tickets, setTickets] = useState(orders);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,18 +79,7 @@ export function KitchenWorkspace({
             return;
           }
           if (!row.kitchen_status) return;
-          setTickets((prev) =>
-            prev.map((ticket) =>
-              ticket.id === row.id
-                ? {
-                    ...ticket,
-                    kitchenStatus: row.kitchen_status!,
-                    kitchenStatusUpdatedAt:
-                      row.kitchen_status_updated_at ?? ticket.kitchenStatusUpdatedAt,
-                  }
-                : ticket,
-            ),
-          );
+          router.refresh();
         },
       )
       .subscribe();
@@ -96,7 +87,7 @@ export function KitchenWorkspace({
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [establishmentId]);
+  }, [establishmentId, router]);
 
   const columns = useMemo(() => {
     return KITCHEN_COLUMNS.map((status) => ({
@@ -266,6 +257,7 @@ function KitchenOrderCard({
       <p className="mt-1 text-xs font-medium text-slate-800">{reference}</p>
       <p className="text-[11px] text-slate-500">
         {ORDER_TYPE_LABELS[order.orderType]} · {order.items.length} plat(s)
+        {order.isSupplement ? " · Ajout" : ""}
       </p>
 
       <ul className="mt-2 space-y-1 border-t border-dashed border-slate-100 pt-2">

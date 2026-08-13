@@ -131,7 +131,7 @@ export function CreateEmployeeModal({
     <ModalShell
       formId="create-employee-form"
       title="Créer un compte employé"
-      subtitle="FasoBar attribue un identifiant personnel et un mot de passe temporaire. Communiquez-les à l'employé."
+      subtitle="FasoBar attribue un identifiant personnel (pas un e-mail) et un mot de passe temporaire. Même connexion pour Admin, Caisse–Cuisine et Bar."
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={

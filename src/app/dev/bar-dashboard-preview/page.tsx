@@ -28,6 +28,7 @@ const MOCK: BarDashboardData = {
       notes: null,
       createdAt: new Date(Date.now() - 2 * 60_000).toISOString(),
       createdByName: "Awa",
+      isSupplement: false,
       items: [
         {
           id: "a",
@@ -64,6 +65,7 @@ const MOCK: BarDashboardData = {
       notes: null,
       createdAt: new Date(Date.now() - 8 * 60_000).toISOString(),
       createdByName: "Ibrahim",
+      isSupplement: false,
       items: [
         {
           id: "c",
@@ -100,6 +102,7 @@ const MOCK: BarDashboardData = {
       notes: null,
       createdAt: new Date(Date.now() - 15 * 60_000).toISOString(),
       createdByName: "Awa",
+      isSupplement: false,
       items: [
         {
           id: "e",

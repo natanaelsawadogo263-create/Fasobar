@@ -52,10 +52,9 @@ export default async function ReceiptPage({ params, searchParams }: ReceiptPageP
   }
 
   const autoPrint = query.print === "1";
-  const returnTo = autoPrint
-    ? (resolveReturnTo(query.next, workspace.userSpace) ??
-      (workspace.userSpace === "admin" ? ADMIN_VENTES_NEXT : CAISSE_NEXT))
-    : resolveReturnTo(query.next, workspace.userSpace);
+  const returnTo =
+    resolveReturnTo(query.next, workspace.userSpace) ??
+    (workspace.userSpace === "admin" ? ADMIN_VENTES_NEXT : CAISSE_NEXT);
 
   return (
     <ThermalReceipt

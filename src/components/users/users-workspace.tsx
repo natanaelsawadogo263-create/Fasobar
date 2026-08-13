@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Building2,
   KeyRound,
-  Mail,
+  AtSign,
   Phone,
   Power,
   Search,
@@ -372,7 +372,7 @@ export function UsersWorkspace({
 
                           <div className="flex flex-col gap-1 text-[12px] text-slate-600 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
                             <span className="inline-flex min-w-0 items-center gap-1.5">
-                              <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                              <AtSign className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                               <span className="truncate">{row.loginIdentifier}</span>
                             </span>
                             {row.phone ? (

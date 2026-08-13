@@ -41,6 +41,7 @@ export type KitchenOrderTicket = {
   kitchenStatus: KitchenStatus;
   kitchenStatusUpdatedAt: string | null;
   createdAt: string;
+  isSupplement: boolean;
   items: Array<{
     id: string;
     productName: string;

@@ -46,6 +46,8 @@ export type BarOrderTicket = {
   notes: string | null;
   createdAt: string;
   createdByName: string | null;
+  /** True si ce ticket n’est que le complément (commande déjà servie). */
+  isSupplement: boolean;
   items: Array<{
     id: string;
     productName: string;

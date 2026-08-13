@@ -5,6 +5,11 @@ import { mapMovementToBarHistoryType } from "@/lib/bar/constants";
 import type { BarHistoryTypeFilter, BarPrepStatus } from "@/lib/bar/schemas";
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import type { OrderType } from "@/lib/orders/schemas";
+import {
+  isStationSupplement,
+  stationLineQuantity,
+  stationLineTotal,
+} from "@/lib/orders/station-ticket-items";
 import { getDepartmentIdByCode } from "@/lib/products/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,6 +25,10 @@ function isMissingBarStatusError(error: { message?: string; code?: string }): bo
     msg.includes("does not exist") ||
     error.code === "42703"
   );
+}
+
+function isMissingPreparedQuantityError(error: { message?: string; code?: string }): boolean {
+  return (error.message ?? "").includes("prepared_quantity");
 }
 
 type BarOrderRow = {
@@ -43,6 +52,7 @@ type BarOrderRow = {
     id: string;
     product_name_snapshot: string;
     quantity: number;
+    prepared_quantity?: number | null;
     unit_price_snapshot: number;
     line_total: number;
     notes: string | null;
@@ -65,10 +75,7 @@ export async function listBarDrinkOrders(
     return [];
   }
 
-  const { data, error } = await supabase
-    .from("orders")
-    .select(
-      `
+  const selectWithPrepared = `
       id,
       order_number,
       table_reference,
@@ -89,19 +96,38 @@ export async function listBarDrinkOrders(
         id,
         product_name_snapshot,
         quantity,
+        prepared_quantity,
         unit_price_snapshot,
         line_total,
         notes,
         department_id
       )
-    `,
-    )
+    `;
+
+  let query = supabase
+    .from("orders")
+    .select(selectWithPrepared)
     .eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .not("bar_status", "is", null)
     .neq("status", "CANCELLED")
     .neq("payment_status", "PAID")
     .order("bar_status_updated_at", { ascending: true });
+
+  let { data, error } = await query;
+
+  if (error && isMissingPreparedQuantityError(error)) {
+    query = supabase
+      .from("orders")
+      .select(selectWithPrepared.replace(/\s*prepared_quantity,\s*/g, "\n        "))
+      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId)
+      .not("bar_status", "is", null)
+      .neq("status", "CANCELLED")
+      .neq("payment_status", "PAID")
+      .order("bar_status_updated_at", { ascending: true });
+    ({ data, error } = await query);
+  }
 
   if (error || !data) {
     if (error && isMissingBarStatusError(error)) {
@@ -118,17 +144,36 @@ export async function listBarDrinkOrders(
     if (!row.bar_status) return [];
 
     const profile = readSingle(row.profiles);
-    const items = (row.order_items ?? [])
-      .filter((item) => item.department_id === barDepartmentId)
-      .map((item) => ({
-        id: item.id,
-        productName: item.product_name_snapshot,
+    const activePrep =
+      row.bar_status === "TO_PREPARE" || row.bar_status === "IN_PREPARATION";
+    const barLines = (row.order_items ?? []).filter(
+      (item) => item.department_id === barDepartmentId,
+    );
+    const isSupplement = isStationSupplement(
+      barLines.map((item) => ({
+        preparedQuantity: Number(item.prepared_quantity ?? 0),
+      })),
+      activePrep,
+    );
+    const items = barLines.flatMap((item) => {
+      const quantity = stationLineQuantity({
         quantity: Number(item.quantity),
-        unitPrice: Number(item.unit_price_snapshot ?? 0),
-        lineTotal: Number(item.line_total ?? 0),
-        notes: item.notes,
-      }))
-      .filter((item) => item.productName && item.quantity > 0);
+        preparedQuantity: Number(item.prepared_quantity ?? 0),
+        activePrep,
+      });
+      if (quantity == null || !item.product_name_snapshot) return [];
+      const unitPrice = Number(item.unit_price_snapshot ?? 0);
+      return [
+        {
+          id: item.id,
+          productName: item.product_name_snapshot,
+          quantity,
+          unitPrice,
+          lineTotal: stationLineTotal(unitPrice, quantity),
+          notes: item.notes,
+        },
+      ];
+    });
 
     if (items.length === 0) return [];
 
@@ -150,6 +195,7 @@ export async function listBarDrinkOrders(
         notes: row.notes,
         createdAt: row.created_at,
         createdByName: profile?.full_name ?? null,
+        isSupplement,
         items,
       },
     ];

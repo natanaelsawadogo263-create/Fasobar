@@ -13,7 +13,10 @@ import {
 import { redirectAfterLogin } from "@/lib/auth/post-login";
 import { getAuthRedirectOrigin } from "@/lib/auth/redirect-origin";
 import type { AuthActionState } from "@/lib/auth/types";
-import { isInternalFasoBarAuthEmail } from "@/lib/auth/login-identifier";
+import {
+  isInternalFasoBarAuthEmail,
+  resolveSupabaseAuthEmail,
+} from "@/lib/auth/login-identifier";
 import {
   createAdminClient,
   isAdminClientConfigured,
@@ -180,16 +183,28 @@ export async function signInAction(
     return redirectAfterLogin(result.userId);
   }
 
-  const parsed = signInSchema.safeParse(formDataToObject(formData));
+  const parsed = signInSchema.safeParse({
+    identifier: String(
+      formData.get("identifier") ?? formData.get("email") ?? "",
+    ),
+    password: String(formData.get("password") ?? ""),
+  });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
+  let authEmail: string;
+  try {
+    authEmail = resolveSupabaseAuthEmail(parsed.data.identifier);
+  } catch {
+    return { error: "Identifiant FasoBar invalide." };
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
+    email: authEmail,
     password: parsed.data.password,
   });
 

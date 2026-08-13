@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Printer } from "lucide-react";
 
 import { formatPriceXof } from "@/lib/payments/constants";
+import { printThermalTicket } from "@/lib/payments/print-thermal-ticket";
 import { formatOrderNumber } from "@/lib/orders/constants";
 import type { OrderAddition } from "@/lib/payments/types";
 
@@ -29,36 +30,61 @@ export function ThermalAddition({
     addition.tableReference ?? addition.customerReference ?? "—";
   const unpaid = addition.paymentStatus !== "PAID";
   const redirectedRef = useRef(false);
+  const printedRef = useRef(false);
+
+  const homePath = returnTo || "/application/caisse";
 
   function goBack() {
-    if (redirectedRef.current || !returnTo) return;
+    if (redirectedRef.current) return;
     redirectedRef.current = true;
-    router.replace(returnTo);
+    router.replace(homePath);
+  }
+
+  function runPrint() {
+    if (printedRef.current) return;
+    printedRef.current = true;
+    printThermalTicket();
+    window.setTimeout(goBack, 400);
   }
 
   useEffect(() => {
     if (!autoPrint) return;
 
-    function handleAfterPrint() {
-      goBack();
+    window.addEventListener("afterprint", goBack);
+
+    let cancelled = false;
+    const logo = document.querySelector<HTMLImageElement>(
+      ".thermal-receipt-header .receipt-logo",
+    );
+
+    function printWhenReady() {
+      if (cancelled) return;
+      runPrint();
     }
 
-    window.addEventListener("afterprint", handleAfterPrint);
+    if (logo && !logo.complete) {
+      logo.addEventListener("load", printWhenReady, { once: true });
+      logo.addEventListener("error", printWhenReady, { once: true });
+    }
 
-    const timer = window.setTimeout(() => {
-      window.print();
-    }, 120);
+    const timer = window.setTimeout(
+      printWhenReady,
+      logo?.complete === false ? 1200 : 180,
+    );
 
     return () => {
+      cancelled = true;
       window.clearTimeout(timer);
-      window.removeEventListener("afterprint", handleAfterPrint);
+      window.removeEventListener("afterprint", goBack);
+      logo?.removeEventListener("load", printWhenReady);
+      logo?.removeEventListener("error", printWhenReady);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- goBack closes over returnTo/router
-  }, [autoPrint, addition.orderId, returnTo, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- goBack/runPrint close over homePath
+  }, [autoPrint, addition.orderId, homePath, router]);
 
   function handleManualPrint() {
     window.addEventListener("afterprint", goBack, { once: true });
-    window.print();
+    runPrint();
   }
 
   function formatReceiptCell(amount: number): string {
@@ -89,7 +115,7 @@ export function ThermalAddition({
       </div>
 
       <article className="thermal-receipt w-full shrink-0 bg-white p-4 text-black shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0">
-        <header className="text-center">
+        <header className="thermal-receipt-header text-center">
           {addition.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- impression thermique
             <img

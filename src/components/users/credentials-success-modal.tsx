@@ -19,6 +19,8 @@ function buildCopyText(summary: CreatedCredentialsSummary): string {
     `Espace : ${summary.spaceLabel}`,
     `Établissement : ${summary.establishmentName}`,
     "",
+    "Connexion : utilisez l'identifiant FasoBar (pas un e-mail).",
+    "Valable pour tous les comptes créés par l'admin (Admin, Caisse–Cuisine, Bar).",
     "À votre première connexion, vous devrez créer un nouveau mot de passe.",
   ].join("\n");
 }
@@ -50,8 +52,12 @@ export function CredentialsSuccessModal({
         </p>
         <h2 className="mt-2 text-2xl font-semibold text-slate-900">{summary.fullName}</h2>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
-          Communiquez ces identifiants à l&apos;employé. Le mot de passe devra être changé
-          à la première connexion avant toute utilisation hors ligne.
+          Communiquez ces identifiants à l&apos;employé (Admin, Caisse–Cuisine ou
+          Bar). Il se connecte avec l&apos;identifiant FasoBar, pas un e-mail.
+          Déconnectez-vous du compte admin avant de tester. Le mot de passe
+          devra être changé à la première connexion, puis l&apos;espace{" "}
+          <span className="font-semibold text-slate-800">{summary.spaceLabel}</span>{" "}
+          s&apos;ouvre automatiquement.
         </p>
 
         <dl className="mt-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">

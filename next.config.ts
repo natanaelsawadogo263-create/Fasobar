@@ -31,6 +31,10 @@ const nextConfig: NextConfig = {
       dynamic: 180,
       static: 600,
     },
+    // Photos produit (téléphone) dépassent souvent 1 Mo en multipart.
+    serverActions: {
+      bodySizeLimit: "8mb",
+    },
   },
   images: {
     remotePatterns: [

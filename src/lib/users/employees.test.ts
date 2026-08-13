@@ -118,6 +118,23 @@ describe("première connexion", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepte un identifiant FasoBar (pas un e-mail) à la connexion", async () => {
+    const { signInSchema } = await import("@/lib/auth/schemas");
+    const { resolveSupabaseAuthEmail } = await import(
+      "@/lib/auth/login-identifier"
+    );
+    const result = signInSchema.safeParse({
+      identifier: "awa.ouedraogo",
+      password: DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(resolveSupabaseAuthEmail(result.data.identifier)).toBe(
+        "awa.ouedraogo@users.fasobar.internal",
+      );
+    }
+  });
+
   it("redirige les espaces connus vers leur home", () => {
     expect(resolveUserSpace("ADMIN", "ADMIN")).toBe("admin");
     expect(resolveHomePathForRoles("CASHIER_KITCHEN", "CASHIER_KITCHEN")).toContain(

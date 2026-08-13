@@ -4,6 +4,10 @@ import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import type { KitchenOrderTicket } from "@/lib/kitchen/constants";
 import type { KitchenStatus } from "@/lib/kitchen/schemas";
 import type { OrderType } from "@/lib/orders/schemas";
+import {
+  isStationSupplement,
+  stationLineQuantity,
+} from "@/lib/orders/station-ticket-items";
 import { createClient } from "@/lib/supabase/server";
 
 function readSingle<T>(value: T | T[] | null): T | null {
@@ -24,6 +28,7 @@ type KitchenOrderRow = {
     id: string;
     product_name_snapshot: string;
     quantity: number;
+    prepared_quantity?: number | null;
     notes: string | null;
     departments: { code: string } | { code: string }[] | null;
   }>;
@@ -50,6 +55,7 @@ export async function listKitchenOrders(
         id,
         product_name_snapshot,
         quantity,
+        prepared_quantity,
         notes,
         departments (code)
       )
@@ -71,17 +77,34 @@ export async function listKitchenOrders(
       return [];
     }
 
-    const kitchenItems = (row.order_items ?? []).flatMap((item) => {
+    const activePrep =
+      row.kitchen_status === "TO_PREPARE" ||
+      row.kitchen_status === "IN_PREPARATION";
+    const kitchenLines = (row.order_items ?? []).flatMap((item) => {
       const department = readSingle(item.departments);
       if (!department || department.code !== "KITCHEN") {
         return [];
       }
-
+      return [item];
+    });
+    const isSupplement = isStationSupplement(
+      kitchenLines.map((item) => ({
+        preparedQuantity: Number(item.prepared_quantity ?? 0),
+      })),
+      activePrep,
+    );
+    const kitchenItems = kitchenLines.flatMap((item) => {
+      const quantity = stationLineQuantity({
+        quantity: Number(item.quantity),
+        preparedQuantity: Number(item.prepared_quantity ?? 0),
+        activePrep,
+      });
+      if (quantity == null) return [];
       return [
         {
           id: item.id,
           productName: item.product_name_snapshot,
-          quantity: Number(item.quantity),
+          quantity,
           notes: item.notes,
         },
       ];
@@ -101,6 +124,7 @@ export async function listKitchenOrders(
         kitchenStatus: row.kitchen_status,
         kitchenStatusUpdatedAt: row.kitchen_status_updated_at,
         createdAt: row.created_at,
+        isSupplement,
         items: kitchenItems,
       },
     ];

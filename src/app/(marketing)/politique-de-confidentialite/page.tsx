@@ -18,13 +18,10 @@ export default function ConfidentialitePage() {
         </p>
         <p>
           Ces données servent à authentifier les utilisateurs, tracer les
-          opérations et fournir l’espace administrateur ainsi que FasoBar
-          Desktop.
+          opérations et fournir le service FasoBar.
         </p>
         <p>
-          Nous ne vendons pas vos données à des partenaires marketing. Cette
-          page sera enrichie d’une politique complète lorsque le site public
-          sera mis en production.
+          Nous ne vendons pas vos données à des partenaires marketing.
         </p>
       </section>
     </>

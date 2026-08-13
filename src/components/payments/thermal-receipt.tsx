@@ -9,6 +9,7 @@ import {
   formatReceiptNumber,
   PAYMENT_METHOD_LABELS,
 } from "@/lib/payments/constants";
+import { printThermalTicket } from "@/lib/payments/print-thermal-ticket";
 import { formatOrderNumber } from "@/lib/orders/constants";
 import type { ReceiptDetail } from "@/lib/payments/types";
 
@@ -75,7 +76,7 @@ export function ThermalReceipt({
         return;
       }
       printedReceiptIds.add(receipt.id);
-      window.print();
+      printThermalTicket();
     }, 120);
 
     return () => {
@@ -91,16 +92,18 @@ export function ThermalReceipt({
       return;
     }
     printedReceiptIds.add(receipt.id);
+    const homePath = returnTo || "/application/caisse?fresh=1";
     window.addEventListener(
       "afterprint",
       () => {
-        if (returnTo) {
-          router.replace(returnTo);
-        }
+        router.replace(homePath);
       },
       { once: true },
     );
-    window.print();
+    printThermalTicket();
+    window.setTimeout(() => {
+      router.replace(homePath);
+    }, 400);
   }
 
   return (
@@ -128,7 +131,7 @@ export function ThermalReceipt({
           )}
 
           <article className="thermal-receipt w-full shrink-0 bg-white p-4 text-black shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0">
-          <header className="text-center">
+          <header className="thermal-receipt-header text-center">
             {receipt.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- impression thermique
               <img

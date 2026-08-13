@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { mapAuthError, mapGenericError } from "@/lib/auth/errors";
-import { resolveHomePathForRoles } from "@/lib/auth/roles";
+import { redirectAfterLogin } from "@/lib/auth/post-login";
 import { firstLoginPasswordSchema } from "@/lib/users/password-policy";
 import {
   createAdminClient,
@@ -35,7 +35,8 @@ export async function completeFirstLoginAction(
   } = await supabase.auth.getUser();
 
   // user_id uniquement depuis la session serveur — jamais depuis le formulaire.
-  if (!user?.id || !user.email) {
+  // Les employés n'ont pas forcément un e-mail réel (identifiant FasoBar).
+  if (!user?.id) {
     return { error: "Session expirée. Veuillez vous reconnecter." };
   }
 
@@ -104,26 +105,5 @@ export async function completeFirstLoginAction(
     };
   }
 
-  const { data: orgMembership } = await supabase
-    .from("organization_memberships")
-    .select("role")
-    .eq("user_id", sessionUserId)
-    .eq("status", "ACTIVE")
-    .limit(1)
-    .maybeSingle();
-
-  const { data: estMembership } = await supabase
-    .from("establishment_memberships")
-    .select("role")
-    .eq("user_id", sessionUserId)
-    .eq("status", "ACTIVE")
-    .limit(1)
-    .maybeSingle();
-
-  redirect(
-    resolveHomePathForRoles(
-      orgMembership?.role ?? "ADMIN",
-      estMembership?.role ?? orgMembership?.role ?? "ADMIN",
-    ),
-  );
+  return redirectAfterLogin(sessionUserId);
 }

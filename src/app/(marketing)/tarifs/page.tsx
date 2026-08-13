@@ -18,12 +18,20 @@ export default async function TarifsPage() {
     <>
       <PageHero
         kicker="Tarifs"
-        title="Simple et transparent."
-        subtitle="Essai gratuit, puis choisissez l’offre qui convient à votre établissement."
+        title="Simple, en francs CFA."
+        subtitle={`Essai gratuit ${PUBLIC_TRIAL_DURATION_DAYS} jours, puis un abonnement mensuel ou annuel.`}
       />
       <section className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 lg:pb-20 lg:pt-12">
         <PricingCards plans={plans} />
         <p className="mt-10 text-center text-[13px] text-slate-500">
+          Une question ?{" "}
+          <Link
+            href="/contact"
+            className="font-semibold text-emerald-800 hover:underline"
+          >
+            Contactez-nous
+          </Link>
+          {" · "}
           Déjà client ?{" "}
           <Link
             href="/connexion"

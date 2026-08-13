@@ -2,49 +2,46 @@ import Link from "next/link";
 
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
 import { WhatsAppContact } from "@/components/marketing/whatsapp-contact";
-import { MARKETING_ACTIVITIES } from "@/lib/marketing/config";
+import { FASOBAR_WHATSAPP } from "@/lib/marketing/config";
 
 export function MarketingFooter() {
   return (
     <footer className="border-t border-emerald-950/40 bg-[#07110e] text-emerald-50/80">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:grid-cols-6">
-        <div className="lg:col-span-2">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-3">
+        <div>
           <FasoBarLogo size="sm" tone="dark" />
-          <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-emerald-100/70">
-            Logiciel de gestion des stocks et des ventes.
+          <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-emerald-100/70">
+            Caisse, stock et ventes pour maquis, bars et restaurants.
           </p>
         </div>
 
-        <FooterCol title="Produit">
-          <FooterLink href="/fonctionnalites">Fonctionnalités</FooterLink>
-          <FooterLink href="/tarifs">Tarifs</FooterLink>
-          <FooterLink href="/telecharger">Télécharger</FooterLink>
-        </FooterCol>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300/90">
+            FasoBar
+          </p>
+          <div className="mt-3 flex flex-col gap-2 text-[13px]">
+            <FooterLink href="/">Accueil</FooterLink>
+            <FooterLink href="/tarifs">Tarifs</FooterLink>
+            <FooterLink href="/contact">Contact</FooterLink>
+            <FooterLink href="/connexion">Se connecter</FooterLink>
+          </div>
+        </div>
 
-        <FooterCol title="Solutions">
-          <FooterLink href="/solutions">Activités</FooterLink>
-          {MARKETING_ACTIVITIES.slice(0, 6).map((item) => (
-            <FooterLink key={item.id} href={`/solutions#${item.id}`}>
-              {item.label}
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300/90">
+            Assistance
+          </p>
+          <div className="mt-3 flex flex-col gap-2 text-[13px]">
+            <WhatsAppContact variant="link" />
+            <p className="text-emerald-100/55">{FASOBAR_WHATSAPP.display}</p>
+            <FooterLink href="/conditions-utilisation">
+              Conditions d’utilisation
             </FooterLink>
-          ))}
-        </FooterCol>
-
-        <FooterCol title="Assistance">
-          <FooterLink href="/aide">Aide</FooterLink>
-          <FooterLink href="/faq">FAQ</FooterLink>
-          <FooterLink href="/contact">Contact</FooterLink>
-          <WhatsAppContact variant="link" />
-        </FooterCol>
-
-        <FooterCol title="Légal">
-          <FooterLink href="/conditions-utilisation">
-            Conditions d’utilisation
-          </FooterLink>
-          <FooterLink href="/politique-de-confidentialite">
-            Politique de confidentialité
-          </FooterLink>
-        </FooterCol>
+            <FooterLink href="/politique-de-confidentialite">
+              Confidentialité
+            </FooterLink>
+          </div>
+        </div>
       </div>
 
       <div className="border-t border-white/10">
@@ -53,23 +50,6 @@ export function MarketingFooter() {
         </p>
       </div>
     </footer>
-  );
-}
-
-function FooterCol({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-300/90">
-        {title}
-      </p>
-      <div className="mt-3 flex flex-col gap-2 text-[13px]">{children}</div>
-    </div>
   );
 }
 
