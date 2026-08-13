@@ -27,10 +27,6 @@ function isMissingBarStatusError(error: { message?: string; code?: string }): bo
   );
 }
 
-function isMissingPreparedQuantityError(error: { message?: string; code?: string }): boolean {
-  return (error.message ?? "").includes("prepared_quantity");
-}
-
 type BarOrderRow = {
   id: string;
   order_number: number;
@@ -75,7 +71,10 @@ export async function listBarDrinkOrders(
     return [];
   }
 
-  const selectWithPrepared = `
+  const { data, error } = await supabase
+    .from("orders")
+    .select(
+      `
       id,
       order_number,
       table_reference,
@@ -102,32 +101,14 @@ export async function listBarDrinkOrders(
         notes,
         department_id
       )
-    `;
-
-  let query = supabase
-    .from("orders")
-    .select(selectWithPrepared)
+    `,
+    )
     .eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .not("bar_status", "is", null)
     .neq("status", "CANCELLED")
     .neq("payment_status", "PAID")
     .order("bar_status_updated_at", { ascending: true });
-
-  let { data, error } = await query;
-
-  if (error && isMissingPreparedQuantityError(error)) {
-    query = supabase
-      .from("orders")
-      .select(selectWithPrepared.replace(/\s*prepared_quantity,\s*/g, "\n        "))
-      .eq("establishment_id", workspace.establishmentId)
-      .eq("organization_id", workspace.organizationId)
-      .not("bar_status", "is", null)
-      .neq("status", "CANCELLED")
-      .neq("payment_status", "PAID")
-      .order("bar_status_updated_at", { ascending: true });
-    ({ data, error } = await query);
-  }
 
   if (error || !data) {
     if (error && isMissingBarStatusError(error)) {
