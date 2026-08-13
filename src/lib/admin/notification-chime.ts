@@ -1,16 +1,27 @@
 /**
- * Sonnette FasoBar — AudioContext (fiable après un clic) + WAV chat.
- * Ne dépend pas d’un <audio muted> : c’est ce qui empêchait d’entendre.
+ * Notification FasoBar — son « span » (pop message).
+ * Lecture HTMLAudio + AudioContext pour passer l’autoplay après un clic.
  */
 
-const CHIME_SRC = "/sounds/fasobar-notify.wav";
-const CHIME_COOLDOWN_MS = 650;
+const CHIME_SRC = "/sounds/span.mp3";
+const CHIME_COOLDOWN_MS = 500;
 
+let unlocked = false;
+let lastPlayedAt = 0;
+let sharedAudio: HTMLAudioElement | null = null;
 let ctx: AudioContext | null = null;
 let decodedBuffer: AudioBuffer | null = null;
 let loadingBuffer = false;
-let unlocked = false;
-let lastPlayedAt = 0;
+
+function getSharedAudio(): HTMLAudioElement | null {
+  if (typeof window === "undefined") return null;
+  if (!sharedAudio) {
+    sharedAudio = new Audio(CHIME_SRC);
+    sharedAudio.preload = "auto";
+    sharedAudio.volume = 1;
+  }
+  return sharedAudio;
+}
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -25,59 +36,13 @@ function getAudioContext(): AudioContext | null {
   return ctx;
 }
 
-function voice(
-  audioCtx: AudioContext,
-  destination: AudioNode,
-  frequency: number,
-  type: OscillatorType,
-  startAt: number,
-  duration: number,
-  peak: number,
-) {
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(frequency, startAt);
-  gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(peak, startAt + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
-  osc.connect(gain);
-  gain.connect(destination);
-  osc.start(startAt);
-  osc.stop(startAt + duration + 0.03);
-}
-
-function playSynthBell(audioCtx: AudioContext) {
-  const master = audioCtx.createGain();
-  master.gain.value = 0.7;
-  const compressor = audioCtx.createDynamicsCompressor();
-  compressor.threshold.value = -18;
-  compressor.knee.value = 8;
-  compressor.ratio.value = 4;
-  compressor.attack.value = 0.003;
-  compressor.release.value = 0.12;
-  master.connect(compressor);
-  compressor.connect(audioCtx.destination);
-
-  const now = audioCtx.currentTime;
-  // Note 1 — corps
-  voice(audioCtx, master, 830.6, "sine", now, 0.42, 0.28);
-  voice(audioCtx, master, 830.6, "triangle", now, 0.28, 0.14);
-  voice(audioCtx, master, 1661, "sine", now, 0.22, 0.08);
-  // Note 2 — réponse type chat
-  voice(audioCtx, master, 1318.5, "sine", now + 0.08, 0.48, 0.32);
-  voice(audioCtx, master, 1318.5, "triangle", now + 0.08, 0.3, 0.12);
-  voice(audioCtx, master, 1975.5, "sine", now + 0.15, 0.28, 0.07);
-}
-
-async function preloadWav(audioCtx: AudioContext) {
+async function preloadBuffer(audioCtx: AudioContext) {
   if (decodedBuffer || loadingBuffer) return;
   loadingBuffer = true;
   try {
     const response = await fetch(CHIME_SRC, { cache: "force-cache" });
     if (!response.ok) return;
-    const raw = await response.arrayBuffer();
-    decodedBuffer = await audioCtx.decodeAudioData(raw.slice(0));
+    decodedBuffer = await audioCtx.decodeAudioData((await response.arrayBuffer()).slice(0));
   } catch {
     decodedBuffer = null;
   } finally {
@@ -85,12 +50,12 @@ async function preloadWav(audioCtx: AudioContext) {
   }
 }
 
-function playDecoded(audioCtx: AudioContext) {
+function playDecoded(audioCtx: AudioContext): boolean {
   if (!decodedBuffer) return false;
   const src = audioCtx.createBufferSource();
   const gain = audioCtx.createGain();
   src.buffer = decodedBuffer;
-  gain.gain.value = 1.15;
+  gain.gain.value = 1.2;
   src.connect(gain);
   gain.connect(audioCtx.destination);
   src.start(0);
@@ -99,57 +64,76 @@ function playDecoded(audioCtx: AudioContext) {
 
 /** À appeler dans le même tick qu’un clic / touche. */
 export function unlockNotificationAudio(): void {
+  const audio = getSharedAudio();
   const audioCtx = getAudioContext();
-  if (!audioCtx) return;
 
-  if (audioCtx.state === "suspended") {
-    void audioCtx.resume();
+  if (audioCtx) {
+    if (audioCtx.state === "suspended") {
+      void audioCtx.resume();
+    }
+    void preloadBuffer(audioCtx);
   }
 
-  try {
-    const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-    const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioCtx.destination);
-    source.start(0);
-    unlocked = true;
-  } catch {
-    unlocked = audioCtx.state === "running";
-  }
-
-  void preloadWav(audioCtx);
+  if (!audio) return;
+  audio.muted = false;
+  audio.load();
+  unlocked = true;
 }
 
-/** Ping notification. `force` ignore le cooldown (ex. clic sur la cloche). */
+/** Joue le son span. `force` ignore le cooldown (clic sur la cloche). */
 export async function playFasoBarNotificationChime(
   options: { force?: boolean } = {},
 ): Promise<void> {
   const now = Date.now();
   if (!options.force && now - lastPlayedAt < CHIME_COOLDOWN_MS) return;
+  lastPlayedAt = now;
 
   const audioCtx = getAudioContext();
-  if (!audioCtx) return;
-
-  if (audioCtx.state === "suspended") {
+  if (audioCtx?.state === "suspended") {
     try {
       await audioCtx.resume();
     } catch {
-      return;
+      // continue vers HTMLAudio
     }
   }
 
-  if (audioCtx.state !== "running" && !unlocked) {
+  if (audioCtx && playDecoded(audioCtx)) {
+    unlocked = true;
     return;
   }
 
-  lastPlayedAt = now;
-  unlocked = true;
+  const audio = getSharedAudio();
+  if (!audio) return;
 
-  if (!decodedBuffer) {
-    void preloadWav(audioCtx);
+  audio.muted = false;
+  audio.volume = 1;
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+  } catch {
+    // Safari
   }
 
-  if (!playDecoded(audioCtx)) {
-    playSynthBell(audioCtx);
+  try {
+    const clone = audio.cloneNode(true) as HTMLAudioElement;
+    clone.volume = 1;
+    clone.muted = false;
+    await clone.play();
+    unlocked = true;
+    return;
+  } catch {
+    // clone bloqué
+  }
+
+  try {
+    await audio.play();
+    unlocked = true;
+  } catch {
+    if (!unlocked) {
+      lastPlayedAt = 0;
+    }
+    if (audioCtx) {
+      void preloadBuffer(audioCtx);
+    }
   }
 }
