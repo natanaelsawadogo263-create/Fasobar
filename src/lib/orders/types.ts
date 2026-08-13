@@ -16,6 +16,8 @@ export type CashierProduct = {
   departmentName: string;
   categoryId: string;
   categoryName: string;
+  /** Quantité stock bar ; null/absent = non suivi. */
+  stockQuantity?: number | null;
 };
 
 export type CashierCategory = {

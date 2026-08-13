@@ -31,6 +31,7 @@ import {
   shouldUseDemoCart,
 } from "@/lib/caisse/demo-cart";
 import { sortCaisseProducts } from "@/lib/caisse/sort-products";
+import { isBarProductOutOfStock } from "@/lib/orders/stock-availability";
 import type {
   CartLine,
   CashierCategory,
@@ -233,6 +234,9 @@ export function PosWorkspace({
   }, []);
 
   function addProduct(product: CashierProduct) {
+    if (isBarProductOutOfStock(product)) {
+      return;
+    }
     setFlashProductId(product.id);
     window.setTimeout(() => setFlashProductId(null), 180);
 

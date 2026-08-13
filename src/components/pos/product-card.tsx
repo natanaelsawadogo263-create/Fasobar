@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 
 import { POS_DEPARTMENT_BADGE } from "@/components/pos/constants";
 import { formatPriceXof } from "@/lib/orders/constants";
+import { isBarProductOutOfStock } from "@/lib/orders/stock-availability";
 import { getProductImage } from "@/lib/fasobar/product-images";
 import type { CashierProduct } from "@/lib/orders/types";
 import type { DepartmentCode } from "@/lib/products/schemas";
@@ -27,14 +28,24 @@ export function ProductCard({
   const department = product.departmentCode as DepartmentCode;
   const badge = POS_DEPARTMENT_BADGE[department];
   const imageUrl = getProductImage(product.name, product.imageUrl);
+  const outOfStock = isBarProductOutOfStock(product);
+  const locked = Boolean(disabled || outOfStock);
 
   if (variant === "list") {
     return (
       <button
         type="button"
-        disabled={disabled}
-        onClick={() => onAdd(product)}
-        className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white p-2 text-left shadow-sm transition hover:border-emerald-400 disabled:opacity-50"
+        disabled={locked}
+        aria-disabled={locked}
+        onClick={() => {
+          if (outOfStock) return;
+          onAdd(product);
+        }}
+        className={`relative flex min-h-11 w-full items-center gap-3 overflow-hidden rounded-xl border p-2 text-left transition ${
+          outOfStock
+            ? "scale-[0.98] cursor-not-allowed border-slate-200 bg-slate-100 shadow-inner grayscale"
+            : "border-slate-200 bg-white shadow-sm hover:border-emerald-400 disabled:opacity-50"
+        }`}
       >
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white">
           <Image src={imageUrl} alt={product.name} fill className="object-contain p-1" unoptimized />
@@ -46,6 +57,13 @@ export function ProductCard({
         <p className="pos-tabular shrink-0 text-sm font-bold text-emerald-600">
           {formatPriceXof(product.sellingPrice)}
         </p>
+        {outOfStock ? (
+          <span className="absolute inset-0 flex items-center justify-center bg-slate-900/40">
+            <span className="rounded-md bg-red-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
+              Rupture
+            </span>
+          </span>
+        ) : null}
       </button>
     );
   }
@@ -53,12 +71,20 @@ export function ProductCard({
   return (
     <button
       type="button"
-      disabled={disabled}
-      onClick={() => onAdd(product)}
-      className={`group relative flex flex-col overflow-hidden rounded-xl border bg-white text-left shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 ${
-        flash
-          ? "border-emerald-500 ring-2 ring-emerald-400/30"
-          : "border-slate-200/90 hover:border-emerald-400/60 hover:shadow-md"
+      disabled={locked}
+      aria-disabled={locked}
+      onClick={() => {
+        if (outOfStock) return;
+        onAdd(product);
+      }}
+      className={`group relative flex flex-col overflow-hidden rounded-xl border text-left transition ${
+        outOfStock
+          ? "scale-[0.97] cursor-not-allowed border-slate-300 bg-slate-100 shadow-[inset_0_4px_10px_rgba(15,23,42,0.18)] grayscale"
+          : `bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 ${
+              flash
+                ? "border-emerald-500 ring-2 ring-emerald-400/30"
+                : "border-slate-200/90 hover:border-emerald-400/60 hover:shadow-md"
+            }`
       }`}
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-white">
@@ -66,7 +92,7 @@ export function ProductCard({
           src={imageUrl}
           alt={product.name}
           fill
-          className="object-contain p-3 transition group-hover:scale-[1.02]"
+          className={`object-contain p-3 ${outOfStock ? "" : "transition group-hover:scale-[1.02]"}`}
           sizes="(max-width: 768px) 50vw, 20vw"
           unoptimized
         />
@@ -75,9 +101,18 @@ export function ProductCard({
         >
           {badge.label}
         </span>
-        <span className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#DCFCE7] text-[#166534] shadow-sm">
-          <Plus className="h-3.5 w-3.5" strokeWidth={3} />
-        </span>
+        {outOfStock ? null : (
+          <span className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#DCFCE7] text-[#166534] shadow-sm">
+            <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+          </span>
+        )}
+        {outOfStock ? (
+          <span className="absolute inset-0 flex items-center justify-center bg-slate-900/45">
+            <span className="rounded-md bg-red-600 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm">
+              Rupture
+            </span>
+          </span>
+        ) : null}
       </div>
       <div className="flex flex-1 flex-col px-3 pb-3 pt-1">
         <p className="line-clamp-2 text-[11px] font-bold uppercase leading-snug tracking-wide text-slate-900">

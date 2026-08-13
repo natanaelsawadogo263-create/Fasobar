@@ -88,6 +88,12 @@ export async function listCashierProducts(
 
   const supabase = await createClient();
 
+  const stockQuery = supabase
+    .from("stock_items")
+    .select("product_id, name, current_quantity")
+    .eq("establishment_id", workspace.establishmentId)
+    .eq("active", true);
+
   const { data, error } = await supabase
     .from("products")
     .select(
@@ -116,12 +122,36 @@ export async function listCashierProducts(
     selectError = legacy.error;
   }
 
+  const { data: stockRows } = await stockQuery;
+
   if (selectError || !rows) {
     if (isDesktopServerRuntime()) {
       const { listLocalCashierProducts } = await loadLocalCatalogService();
       return listLocalCashierProducts(workspace.establishmentId);
     }
     return [];
+  }
+
+  const qtyByProductId = new Map<string, number>();
+  const qtyByName = new Map<string, number>();
+  for (const item of stockRows ?? []) {
+    const qty = Number(item.current_quantity);
+    if (!Number.isFinite(qty)) continue;
+    const productId = item.product_id as string | null;
+    if (productId) {
+      const previous = qtyByProductId.get(productId);
+      qtyByProductId.set(
+        productId,
+        previous === undefined ? qty : Math.min(previous, qty),
+      );
+    }
+    const nameKey = String(item.name ?? "")
+      .trim()
+      .toLowerCase();
+    if (nameKey) {
+      const previous = qtyByName.get(nameKey);
+      qtyByName.set(nameKey, previous === undefined ? qty : Math.min(previous, qty));
+    }
   }
 
   return rows.flatMap((row) => {
@@ -137,11 +167,18 @@ export async function listCashierProducts(
     const optimized = (row.image_optimized_url as string | null | undefined) ?? null;
     const original = (row.image_original_url as string | null | undefined) ?? null;
     const legacy = (row.image_url as string | null | undefined) ?? null;
+    const name = row.name as string;
+    const stockQuantity =
+      department.code === "BAR"
+        ? (qtyByProductId.get(row.id as string) ??
+          qtyByName.get(name.trim().toLowerCase()) ??
+          null)
+        : null;
 
     return [
       {
         id: row.id as string,
-        name: row.name as string,
+        name,
         sellingPrice: row.selling_price as number,
         unit: row.unit as string,
         imageUrl: optimized ?? original ?? legacy,
@@ -149,6 +186,7 @@ export async function listCashierProducts(
         departmentName: department.name,
         categoryId: row.category_id as string,
         categoryName: category.name,
+        stockQuantity,
       },
     ];
   });
