@@ -108,6 +108,8 @@ export function mapActivityToEstablishmentType(
   return "COMMERCE";
 }
 
-export function isFoodServiceActivity(activityId: string | null | undefined): boolean {
+export function isFoodServiceActivity(
+  activityId: string | null | undefined,
+): activityId is "restaurant" {
   return activityId === "restaurant";
 }

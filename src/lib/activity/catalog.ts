@@ -253,6 +253,13 @@ const RETAIL_OVERRIDES: Partial<
   },
 };
 
+function getRetailCatalogOverride(
+  id: BusinessActivityId,
+): Partial<CatalogFormProfile> | undefined {
+  if (id === "restaurant") return undefined;
+  return RETAIL_OVERRIDES[id];
+}
+
 export function getCatalogFormProfile(
   activityCode: string | null | undefined,
 ): CatalogFormProfile {
@@ -264,7 +271,7 @@ export function getCatalogFormProfile(
   return {
     ...RETAIL_BASE,
     departmentLabel: profile.catalogDepartmentLabel,
-    ...RETAIL_OVERRIDES[profile.id],
+    ...getRetailCatalogOverride(profile.id),
   };
 }
 
