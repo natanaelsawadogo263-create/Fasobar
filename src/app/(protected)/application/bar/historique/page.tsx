@@ -15,7 +15,14 @@ type PageProps = {
 export default async function BarHistoryPage({ searchParams }: PageProps) {
   const workspace = await requireBarManagerContext();
 
-  if (!isPathAllowedForSpace("/application/bar/historique", workspace.userSpace)) {
+  if (
+    !isPathAllowedForSpace(
+      "/application/bar/historique",
+      workspace.userSpace,
+      workspace.serviceScope,
+      workspace.activityCode,
+    )
+  ) {
     redirect("/application/acces-refuse");
   }
 

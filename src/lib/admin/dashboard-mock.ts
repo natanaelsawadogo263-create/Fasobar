@@ -19,6 +19,8 @@ export function getMockAdminDashboardData(): AdminDashboardData {
       openCashBalance: 325_000,
       openCashOpenedAt: new Date().toISOString().replace(/T.*/, "T08:15:00.000Z"),
       stockAlertCount: 8,
+      expensesToday: 185_000,
+      profitToday: 1_245_800 - 185_000,
     },
     stockAlerts: [
       {

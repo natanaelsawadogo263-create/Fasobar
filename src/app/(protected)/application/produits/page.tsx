@@ -1,7 +1,8 @@
 import { ProductsWorkspace } from "@/components/products/products-workspace";
 import { ensureProductImages } from "@/lib/products/ensure-product-images";
 import { listPackagingsForProducts } from "@/lib/products/packaging-queries";
-import { listCategories, listProducts } from "@/lib/products/queries";
+import { ensureRetailCategories } from "@/lib/products/ensure-retail-categories";
+import { listProducts } from "@/lib/products/queries";
 import type { ProductStats } from "@/lib/products/types";
 import { productFiltersSchema, type ProductTab } from "@/lib/products/schemas";
 import { requireSpacePathAccess } from "@/lib/auth/workspace-context";
@@ -28,7 +29,7 @@ export default async function ProduitsPage({ searchParams }: ProduitsPageProps) 
   const [, allProducts, categories] = await Promise.all([
     ensureProductImages(workspace),
     listProducts(workspace, { tab: "all", search: "", categoryId: "" }),
-    listCategories(workspace),
+    ensureRetailCategories(workspace),
   ]);
 
   const search = (filters.search ?? "").trim().toLowerCase();
@@ -68,6 +69,7 @@ export default async function ProduitsPage({ searchParams }: ProduitsPageProps) 
       initialCategoryId={filters.categoryId ?? ""}
       canManage={workspace.canManageProducts}
       serviceScope={workspace.serviceScope}
+      activityCode={workspace.activityCode}
     />
   );
 }

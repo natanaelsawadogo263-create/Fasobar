@@ -10,6 +10,7 @@ export default async function CaissesPage() {
     <AdminCashSessionsWorkspace
       {...data}
       establishmentName={workspace.establishmentName}
+      activityCode={workspace.activityCode}
     />
   );
 }

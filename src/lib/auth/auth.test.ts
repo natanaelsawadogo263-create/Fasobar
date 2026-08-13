@@ -55,7 +55,7 @@ describe("onboardingSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("refuse une activité pas encore disponible", () => {
+  it("accepte une activité commerce du catalogue", () => {
     const result = onboardingSchema.safeParse({
       organizationName: "Pharmacie du Centre",
       organizationSlug: "pharmacie-du-centre",
@@ -69,7 +69,7 @@ describe("onboardingSchema", () => {
       timezone: "Africa/Ouagadougou",
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("refuse sans ville ou quartier", () => {

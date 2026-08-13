@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { mapGenericError } from "@/lib/auth/errors";
 import { slugifyFromName } from "@/lib/auth/slugs";
+import { isRetailActivity } from "@/lib/activity/profile";
 import { requireProductManagementMutationContext } from "@/lib/auth/workspace-context";
 import { ensureStockItemForBarProduct } from "@/lib/bar/ensure-stock";
 import { getLocalProductImage } from "@/lib/fasobar/product-images";
@@ -55,6 +56,54 @@ function isRlsError(error: { message?: string; code?: string } | null): boolean 
 
 function parseCheckbox(value: FormDataEntryValue | null): boolean {
   return value === "on" || value === "true";
+}
+
+async function createCategoryForDepartment(
+  workspace: Awaited<ReturnType<typeof requireProductManagementMutationContext>>,
+  departmentId: string,
+  name: string,
+): Promise<{ id: string } | { error: string }> {
+  const slug = slugifyFromName(name);
+  if (!slug) {
+    return { error: "Le nom de catégorie produit un identifiant invalide." };
+  }
+
+  const supabase = await createClient();
+  const writeClient = getProductWriteClient() ?? supabase;
+  const payload = {
+    organization_id: workspace.organizationId,
+    establishment_id: workspace.establishmentId,
+    department_id: departmentId,
+    name: name.trim(),
+    slug,
+    active: true,
+  };
+
+  const inserted = await writeClient
+    .from("categories")
+    .insert(payload)
+    .select("id")
+    .maybeSingle();
+
+  if (!inserted.error && inserted.data?.id) {
+    return { id: inserted.data.id };
+  }
+
+  const existing = await supabase
+    .from("categories")
+    .select("id")
+    .eq("establishment_id", workspace.establishmentId)
+    .eq("department_id", departmentId)
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (existing.data?.id) {
+    return { id: existing.data.id };
+  }
+
+  return {
+    error: inserted.error?.message || "Impossible de créer la catégorie.",
+  };
 }
 
 function readNamedImageFile(formData: FormData, key: string): File | null {
@@ -185,6 +234,8 @@ export async function createProductAction(
     name: formData.get("name"),
     departmentCode: formData.get("departmentCode"),
     categoryId: formData.get("categoryId"),
+    newCategoryName: formData.get("newCategoryName") || undefined,
+    catalogKind: formData.get("catalogKind") || undefined,
     sellingPrice: formData.get("sellingPrice"),
     unit: formData.get("unit"),
     minimumStock: formData.get("minimumStock"),
@@ -214,16 +265,34 @@ export async function createProductAction(
     return { error: "Département introuvable pour cet établissement." };
   }
 
+  let categoryId = parsed.data.categoryId ?? null;
+  if (!categoryId && parsed.data.newCategoryName) {
+    const created = await createCategoryForDepartment(
+      workspace,
+      departmentId,
+      parsed.data.newCategoryName,
+    );
+    if ("error" in created) {
+      return { error: created.error };
+    }
+    categoryId = created.id;
+  }
+
+  if (!categoryId) {
+    return { error: "Sélectionnez une catégorie ou créez-en une." };
+  }
+
   const categoryValid = await validateCategoryForDepartment(
     workspace,
-    parsed.data.categoryId,
+    categoryId,
     departmentId,
   );
 
   if (!categoryValid) {
     return {
-      error:
-        "La catégorie sélectionnée est invalide pour ce département. Choisissez une catégorie Boissons ou Nourriture adaptée.",
+      error: isRetailActivity(workspace.activityCode)
+        ? "Catégorie invalide pour ce magasin. Choisissez-en une autre ou créez-en une."
+        : "La catégorie sélectionnée est invalide pour ce département. Choisissez une catégorie Boissons ou Nourriture adaptée.",
     };
   }
 
@@ -259,7 +328,7 @@ export async function createProductAction(
     organization_id: workspace.organizationId,
     establishment_id: workspace.establishmentId,
     department_id: departmentId,
-    category_id: parsed.data.categoryId,
+    category_id: categoryId,
     name: parsed.data.name,
     slug,
     description: parsed.data.description ?? null,
@@ -281,7 +350,7 @@ export async function createProductAction(
     const rpcAttempt = await supabase.rpc("create_establishment_product", {
       p_establishment_id: workspace.establishmentId,
       p_department_id: departmentId,
-      p_category_id: parsed.data.categoryId,
+      p_category_id: categoryId,
       p_name: parsed.data.name,
       p_slug: slug,
       p_selling_price: parsed.data.sellingPrice,
@@ -433,14 +502,17 @@ export async function createProductAction(
   revalidatePath("/application/stock");
   revalidatePath("/application/bar/stock");
 
+  const retail = isRetailActivity(workspace.activityCode);
   return {
     success: packagingWarning
       ? `${packagingWarning} Disponible immédiatement en caisse${
-          parsed.data.departmentCode === "BAR" ? " et dans l'espace bar" : ""
+          parsed.data.departmentCode === "BAR" && !retail ? " et dans l'espace bar" : ""
         }.`
-      : parsed.data.departmentCode === "BAR"
-        ? "Article ajouté. Disponible en caisse et dans l'espace responsable bar."
-        : "Article ajouté. Disponible immédiatement en caisse–cuisine.",
+      : retail
+        ? "Article ajouté. Disponible immédiatement en caisse."
+        : parsed.data.departmentCode === "BAR"
+          ? "Article ajouté. Disponible en caisse et dans l'espace responsable bar."
+          : "Article ajouté. Disponible immédiatement en caisse–cuisine.",
   };
 }
 

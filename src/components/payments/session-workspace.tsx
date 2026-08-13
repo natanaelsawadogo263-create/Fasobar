@@ -13,15 +13,22 @@ import {
 
 import { closeCashSessionAction } from "@/app/(protected)/application/caisse/payment-actions";
 import { AlertMessage } from "@/components/auth/alert-message";
+import { getActivityPages } from "@/lib/activity/pages";
 import { formatPriceXof } from "@/lib/payments/constants";
 import type { CashSessionDetail } from "@/lib/payments/types";
 
 type SessionWorkspaceProps = {
   session: CashSessionDetail;
   establishmentName: string;
+  activityCode?: string | null;
 };
 
-export function SessionWorkspace({ session, establishmentName }: SessionWorkspaceProps) {
+export function SessionWorkspace({
+  session,
+  establishmentName,
+  activityCode = null,
+}: SessionWorkspaceProps) {
+  const pages = getActivityPages(activityCode);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [countedCash, setCountedCash] = useState(
@@ -72,7 +79,7 @@ export function SessionWorkspace({ session, establishmentName }: SessionWorkspac
           />
           <StatCard
             icon={<User className="h-4 w-4" />}
-            label="Caissier"
+            label={pages.session.cashierLabel}
             value={session.openedByName ?? "—"}
           />
           <StatCard
@@ -94,7 +101,7 @@ export function SessionWorkspace({ session, establishmentName }: SessionWorkspac
             value={formatPriceXof(session.cashCollected)}
             sub={`${((session.cashCollected / Math.max(theoreticalAmount, 1)) * 100).toFixed(2)}%`}
           />
-          <MetricCard label="Commandes" value="—" sub="Voir le détail" />
+          <MetricCard label={pages.session.ticketsLabel} value="—" sub="Voir le détail" />
           <MetricCard label="Paiements partiels" value="—" />
           <MetricCard
             icon={<TrendingUp className="h-4 w-4 text-emerald-600" />}

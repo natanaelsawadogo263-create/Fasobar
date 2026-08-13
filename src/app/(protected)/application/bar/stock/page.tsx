@@ -18,7 +18,14 @@ type BarStockPageProps = {
 export default async function BarStockPage({ searchParams }: BarStockPageProps) {
   const workspace = await requireBarManagerContext();
 
-  if (!isPathAllowedForSpace("/application/bar/stock", workspace.userSpace)) {
+  if (
+    !isPathAllowedForSpace(
+      "/application/bar/stock",
+      workspace.userSpace,
+      workspace.serviceScope,
+      workspace.activityCode,
+    )
+  ) {
     redirect("/application/acces-refuse");
   }
 

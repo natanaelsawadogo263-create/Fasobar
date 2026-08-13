@@ -2,6 +2,7 @@
 
 import { TrendingDown, TrendingUp, Wine, UtensilsCrossed } from "lucide-react";
 
+import { getActivityPages } from "@/lib/activity/pages";
 import { formatReportCell } from "@/lib/reports/constants";
 import type { ReportResult } from "@/lib/reports/types";
 import {
@@ -108,15 +109,18 @@ function SpaceCard({
 type BeneficesReportPanelProps = {
   report: ReportResult;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
 export function BeneficesReportPanel({
   report,
   serviceScope = "BOTH",
+  activityCode = null,
 }: BeneficesReportPanelProps) {
-  const showBar = hasBarService(serviceScope);
-  const showKitchen = hasKitchenService(serviceScope);
-  const singleScope = isSingleServiceScope(serviceScope);
+  const pages = getActivityPages(activityCode);
+  const showBar = !pages.retail && hasBarService(serviceScope);
+  const showKitchen = !pages.retail && hasKitchenService(serviceScope);
+  const singleScope = pages.retail || isSingleServiceScope(serviceScope);
 
   const bar = showBar ? readSpace(report.rows, "Bar") : null;
   const kitchen = showKitchen ? readSpace(report.rows, "Cuisine") : null;
@@ -252,9 +256,11 @@ export function BeneficesReportPanel({
                   >
                     <td className="px-4 py-3 text-slate-900">
                       {singleScope && isTotal
-                        ? serviceScope === "BAR"
-                          ? "Boissons"
-                          : "Nourriture"
+                        ? pages.retail
+                          ? pages.supply.spaceLabel
+                          : serviceScope === "BAR"
+                            ? "Boissons"
+                            : "Nourriture"
                         : row.space}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-slate-800">
@@ -280,8 +286,9 @@ export function BeneficesReportPanel({
       </section>
 
       <p className="text-[11px] leading-relaxed text-slate-500">
-        Formule : bénéfice = ventes payées − approvisionnements stock − dépenses
-        {singleScope
+        Formule : bénéfice = ventes {pages.retail ? "encaissées" : "payées"} −
+        approvisionnements stock − dépenses
+        {pages.retail || singleScope
           ? "."
           : " de l'espace (Bar ou Caisse/Cuisine)."}
       </p>

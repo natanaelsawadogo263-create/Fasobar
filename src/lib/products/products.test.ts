@@ -25,6 +25,37 @@ describe("product schemas", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepte un article commerce sans casier", () => {
+    const result = createProductSchema.safeParse({
+      name: "Paracétamol 500 mg",
+      departmentCode: "BAR",
+      categoryId: "00000000-0000-4000-8000-000000000001",
+      sellingPrice: 500,
+      unit: "PIECE",
+      minimumStock: 10,
+      active: true,
+      catalogKind: "retail",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepte une nouvelle catégorie commerce", () => {
+    const result = createProductSchema.safeParse({
+      name: "T-shirt col rond",
+      departmentCode: "BAR",
+      categoryId: "",
+      newCategoryName: "Homme",
+      sellingPrice: 3500,
+      unit: "PIECE",
+      minimumStock: 0,
+      active: true,
+      catalogKind: "retail",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it("refuse une boisson sans conditionnement", () => {
     const result = createProductSchema.safeParse({
       name: "Brakina",

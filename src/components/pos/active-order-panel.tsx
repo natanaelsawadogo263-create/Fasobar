@@ -27,6 +27,9 @@ type ActiveOrderPanelProps = {
   onClear: () => void;
   onNewOrder?: () => void;
   className?: string;
+  retailMode?: boolean;
+  ticketTitle?: string;
+  clientPlaceholder?: string;
 };
 
 export function ActiveOrderPanel({
@@ -47,6 +50,9 @@ export function ActiveOrderPanel({
   onClear,
   onNewOrder,
   className = "",
+  retailMode = false,
+  ticketTitle = "Commande active",
+  clientPlaceholder,
 }: ActiveOrderPanelProps) {
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const isEmpty = cart.length === 0;
@@ -65,7 +71,7 @@ export function ActiveOrderPanel({
     >
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-[#eeeeee] px-3.5 py-2">
         <div className="flex min-w-0 items-baseline gap-2">
-          <h2 className="text-[14px] font-bold leading-none text-[#111827]">Commande active</h2>
+          <h2 className="text-[14px] font-bold leading-none text-[#111827]">{ticketTitle}</h2>
           <p className="truncate text-[12px] text-[#9ca3af]">
             {isEmpty ? "vide" : `${itemCount} art.`}
           </p>
@@ -89,6 +95,8 @@ export function ActiveOrderPanel({
         onTableChange={onTableChange}
         onOrderTypeChange={onOrderTypeChange}
         compact
+        retailMode={retailMode}
+        clientPlaceholder={clientPlaceholder}
       />
 
       <div className="shrink-0 border-b border-[#e5e7eb] bg-[#fafafa] px-3.5 py-2.5">
@@ -122,7 +130,7 @@ export function ActiveOrderPanel({
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2 text-[12px] font-semibold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-[#e5e7eb] disabled:bg-white disabled:text-[#9ca3af]"
           >
             <Printer className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-            Addition
+            {retailMode ? "Ticket" : "Addition"}
           </button>
 
           <button

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AlertMessage } from "@/components/auth/alert-message";
 import { ProductImageField, type ProductImageAssets } from "@/components/products/product-image-field";
@@ -15,6 +15,11 @@ import {
 } from "@/components/ui/form-controls";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { ModalShell } from "@/components/ui/modal-shell";
+import {
+  getCatalogFormProfile,
+  shouldShowCatalogCategory,
+  type CatalogFormProfile,
+} from "@/lib/activity/catalog";
 import {
   BAR_BASE_UNITS,
   BAR_PACKAGING_DEFAULT_UNITS,
@@ -58,7 +63,11 @@ type ProductFormModalProps = {
   isPending?: boolean;
   onClientValidationError?: (message: string) => void;
   allowedDepartments?: DepartmentCode[];
+  catalogDepartmentLabel?: string;
+  catalog?: CatalogFormProfile;
 };
+
+const NEW_CATEGORY_VALUE = "__new__";
 
 export function ProductFormModal({
   mode,
@@ -76,14 +85,24 @@ export function ProductFormModal({
   isPending = false,
   onClientValidationError = undefined,
   allowedDepartments,
+  catalogDepartmentLabel,
+  catalog: catalogProp,
 }: ProductFormModalProps) {
+  const catalog = catalogProp ?? getCatalogFormProfile(null);
+  const retail = catalog.kind === "retail";
   const isCreate = mode === "create";
   const isBar = formState.departmentCode === "BAR";
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const creatingCategory = formState.categoryId === NEW_CATEGORY_VALUE;
+  const departmentLabels: Record<DepartmentCode, string> = {
+    ...DEPARTMENT_LABELS,
+    ...(catalogDepartmentLabel ? { BAR: catalogDepartmentLabel } : {}),
+  };
   const departmentChoices = allowedDepartments?.length
-    ? Object.entries(DEPARTMENT_LABELS).filter(([code]) =>
+    ? Object.entries(departmentLabels).filter(([code]) =>
         allowedDepartments.includes(code as DepartmentCode),
       )
-    : Object.entries(DEPARTMENT_LABELS);
+    : Object.entries(departmentLabels);
   const lockDepartment = departmentChoices.length === 1;
   const errorRef = useRef<HTMLDivElement>(null);
 
@@ -94,11 +113,21 @@ export function ProductFormModal({
   }, [formError]);
 
   const filteredCategories = useMemo(
-    () => categories.filter((category) => category.departmentCode === formState.departmentCode),
-    [categories, formState.departmentCode],
+    () =>
+      categories.filter((category) => {
+        if (category.departmentCode !== formState.departmentCode) return false;
+        return shouldShowCatalogCategory(category.name, catalog);
+      }),
+    [categories, formState.departmentCode, catalog],
   );
 
   const unitOptions = useMemo(() => {
+    if (retail) {
+      if ((catalog.units as readonly ProductUnit[]).includes(formState.unit)) {
+        return catalog.units;
+      }
+      return [formState.unit, ...catalog.units];
+    }
     if (!isBar) {
       return PRODUCT_UNITS;
     }
@@ -106,7 +135,7 @@ export function ProductFormModal({
       return [...BAR_BASE_UNITS];
     }
     return [formState.unit, ...BAR_BASE_UNITS];
-  }, [formState.unit, isBar]);
+  }, [formState.unit, isBar, retail, catalog.units]);
   const baseUnitLabel =
     PRODUCT_UNIT_LABELS[formState.unit] ?? formState.unit;
   const packagingLabel = BAR_PACKAGING_LABELS[formState.packagingUnit];
@@ -115,7 +144,7 @@ export function ProductFormModal({
     <ModalShell
       formId={FORM_ID}
       compact
-      title={isCreate ? "Ajouter un produit" : "Modifier le produit"}
+      title={isCreate ? catalog.addTitle : catalog.editTitle}
       onClose={isPending ? () => undefined : onClose}
       dismissible={!isPending}
       noValidate
@@ -127,12 +156,19 @@ export function ProductFormModal({
 
         const name = formState.name.trim();
         if (name.length < 2) {
-          onClientValidationError?.("Indiquez le nom du produit (au moins 2 caractères).");
+          onClientValidationError?.("Indiquez le nom (au moins 2 caractères).");
           return;
         }
-        if (!formState.categoryId) {
+        if (creatingCategory) {
+          if (newCategoryName.trim().length < 2) {
+            onClientValidationError?.("Indiquez le nom de la nouvelle catégorie.");
+            return;
+          }
+        } else if (!formState.categoryId) {
           onClientValidationError?.(
-            "Sélectionnez une catégorie (ex. Bières, Sodas…).",
+            retail
+              ? "Sélectionnez une catégorie ou créez-en une."
+              : "Sélectionnez une catégorie (ex. Bières, Sodas…).",
           );
           return;
         }
@@ -147,7 +183,7 @@ export function ProductFormModal({
           onClientValidationError?.("Le stock minimum doit être un nombre positif ou nul.");
           return;
         }
-        if (isBar && isCreate) {
+        if (isBar && isCreate && !retail) {
           if (!formState.packagingUnit) {
             onClientValidationError?.(
               "Indiquez le format d'achat (casier, carton ou sachet).",
@@ -165,15 +201,23 @@ export function ProductFormModal({
         const formData = new FormData();
         formData.set("name", name);
         formData.set("departmentCode", formState.departmentCode);
-        formData.set("categoryId", formState.categoryId);
+        formData.set("catalogKind", catalog.kind);
+        if (creatingCategory) {
+          formData.set("categoryId", "");
+          formData.set("newCategoryName", newCategoryName.trim());
+        } else {
+          formData.set("categoryId", formState.categoryId);
+        }
         formData.set("sellingPrice", String(formState.sellingPrice));
         formData.set("unit", formState.unit);
         formData.set("minimumStock", String(formState.minimumStock));
         formData.set("description", formState.description.trim());
         formData.set("active", formState.active ? "on" : "off");
-        if (isBar && isCreate) {
-          formData.set("packagingUnit", formState.packagingUnit);
-          formData.set("unitsPerPack", String(formState.unitsPerPack));
+        if (isBar && isCreate && (!retail || catalog.showPackaging)) {
+          if (formState.packagingUnit && formState.unitsPerPack > 0) {
+            formData.set("packagingUnit", formState.packagingUnit);
+            formData.set("unitsPerPack", String(formState.unitsPerPack));
+          }
         }
         if (mode === "edit" && editingProduct) {
           formData.set("productId", editingProduct.id);
@@ -204,14 +248,14 @@ export function ProductFormModal({
           <input type="hidden" name="productId" value={editingProduct.id} />
         ) : null}
 
-        <FormSection title="Produit" compact>
+        <FormSection title={retail ? "Article" : "Produit"} compact>
           <div className="grid gap-2.5 sm:grid-cols-2">
             <TextField
               id="name"
               name="name"
-              label="Nom"
+              label={catalog.nameLabel}
               required
-              placeholder="Ex : Flag 65cl"
+              placeholder={catalog.namePlaceholder}
               value={formState.name}
               onChange={(event) =>
                 onChange((current) => ({ ...current, name: event.target.value }))
@@ -219,21 +263,26 @@ export function ProductFormModal({
               className="sm:col-span-2"
             />
 
-            {lockDepartment ? (
-              <>
-                <input type="hidden" name="departmentCode" value={formState.departmentCode} />
-                <div>
-                  <p className="mb-1 text-[11px] font-medium text-slate-700">Département</p>
-                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-800">
-                    {DEPARTMENT_LABELS[formState.departmentCode]}
-                  </p>
-                </div>
-              </>
-            ) : (
+            {catalog.hideDepartment || lockDepartment ? (
+              <input type="hidden" name="departmentCode" value={formState.departmentCode} />
+            ) : null}
+
+            {!catalog.hideDepartment && lockDepartment ? (
+              <div>
+                <p className="mb-1 text-[11px] font-medium text-slate-700">
+                  {catalog.departmentLabel}
+                </p>
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-800">
+                  {departmentLabels[formState.departmentCode]}
+                </p>
+              </div>
+            ) : null}
+
+            {!catalog.hideDepartment && !lockDepartment ? (
               <SelectField
                 id="departmentCode"
                 name="departmentCode"
-                label="Département"
+                label={catalog.departmentLabel}
                 required
                 value={formState.departmentCode}
                 onChange={(event) => {
@@ -242,10 +291,11 @@ export function ProductFormModal({
                     ...current,
                     departmentCode,
                     categoryId: "",
-                    unit: departmentCode === "BAR" ? "BOTTLE" : "PORTION",
+                    unit: departmentCode === "BAR" ? catalog.defaultUnit : "PORTION",
                     packagingUnit: "CASE",
                     unitsPerPack: BAR_PACKAGING_DEFAULT_UNITS.CASE,
                   }));
+                  setNewCategoryName("");
                 }}
               >
                 {departmentChoices.map(([code, label]) => (
@@ -254,7 +304,7 @@ export function ProductFormModal({
                   </option>
                 ))}
               </SelectField>
-            )}
+            ) : null}
 
             <SelectField
               id="categoryId"
@@ -262,9 +312,14 @@ export function ProductFormModal({
               label="Catégorie"
               required
               value={formState.categoryId}
-              onChange={(event) =>
-                onChange((current) => ({ ...current, categoryId: event.target.value }))
-              }
+              onChange={(event) => {
+                const value = event.target.value;
+                onChange((current) => ({ ...current, categoryId: value }));
+                if (value !== NEW_CATEGORY_VALUE) {
+                  setNewCategoryName("");
+                }
+              }}
+              className={catalog.hideDepartment ? "sm:col-span-2" : undefined}
             >
               <option value="">Choisir…</option>
               {filteredCategories.map((category) => (
@@ -272,10 +327,46 @@ export function ProductFormModal({
                   {category.name}
                 </option>
               ))}
+              <option value={NEW_CATEGORY_VALUE}>+ Nouvelle catégorie</option>
             </SelectField>
-            {filteredCategories.length === 0 ? (
+
+            {creatingCategory ? (
+              <TextField
+                id="newCategoryName"
+                name="newCategoryName"
+                label="Nom de la catégorie"
+                required
+                placeholder={
+                  catalog.suggestedCategories[0]
+                    ? `Ex : ${catalog.suggestedCategories[0]}`
+                    : "Ex : Accessoires"
+                }
+                value={newCategoryName}
+                onChange={(event) => setNewCategoryName(event.target.value)}
+                className="sm:col-span-2"
+              />
+            ) : null}
+
+            {catalog.showReference ? (
+              <TextField
+                id="description"
+                name="description"
+                label={catalog.referenceLabel}
+                placeholder={catalog.referencePlaceholder}
+                value={formState.description}
+                onChange={(event) =>
+                  onChange((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                className="sm:col-span-2"
+              />
+            ) : null}
+
+            {!creatingCategory && filteredCategories.length === 0 ? (
               <p className="sm:col-span-2 text-[11px] text-amber-700">
-                Aucune catégorie pour ce département.
+                Aucune catégorie pour l’instant — créez-en une ci-dessus.
               </p>
             ) : null}
           </div>
@@ -314,14 +405,14 @@ export function ProductFormModal({
             />
 
             <div className="sm:col-span-2">
-              {isBar ? (
+              {isBar || retail ? (
                 <>
                   <input type="hidden" name="unit" value={formState.unit} />
                   <p className="mb-1.5 text-[11px] font-medium text-slate-700">
                     Unité de stock
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {BAR_BASE_UNITS.map((unit) => {
+                    {unitOptions.map((unit) => {
                       const active = formState.unit === unit;
                       return (
                         <button
@@ -330,7 +421,7 @@ export function ProductFormModal({
                           onClick={() =>
                             onChange((current) => ({ ...current, unit }))
                           }
-                          className={`min-h-9 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                          className={`inline-flex min-h-11 items-center rounded-md border px-3 text-[12px] font-semibold transition sm:min-h-9 sm:px-2.5 sm:text-[11px] ${
                             active
                               ? "border-emerald-500 bg-emerald-50 text-emerald-800"
                               : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
@@ -367,14 +458,17 @@ export function ProductFormModal({
           </div>
         </FormSection>
 
-        {isBar && isCreate ? (
-          <FormSection title="Conditionnement" compact>
+        {isBar && isCreate && (!retail || catalog.showPackaging) ? (
+          <FormSection
+            title={retail ? "Conditionnement (optionnel)" : "Conditionnement"}
+            compact
+          >
             <div className="grid gap-2.5 sm:grid-cols-2">
               <SelectField
                 id="packagingUnit"
                 name="packagingUnit"
                 label="Format d’achat"
-                required
+                required={!retail}
                 value={formState.packagingUnit}
                 onChange={(event) => {
                   const packagingUnit = event.target.value as BarPackagingUnit;
@@ -396,7 +490,7 @@ export function ProductFormModal({
                 id="unitsPerPack"
                 name="unitsPerPack"
                 label={`${baseUnitLabel}s / ${packagingLabel.toLowerCase()}`}
-                required
+                required={!retail}
                 min={1}
                 step={1}
                 placeholder="12"
@@ -424,6 +518,7 @@ export function ProductFormModal({
         {mode === "edit" &&
         editingProduct &&
         formState.departmentCode === "BAR" &&
+        !retail &&
         onPackagingsChanged ? (
           <ProductPackagingsEditor
             productId={editingProduct.id}
@@ -448,7 +543,7 @@ export function ProductFormModal({
         <ToggleField
           id="active"
           name="active"
-          label="Produit actif"
+          label={catalog.activeLabel}
           checked={formState.active}
           onChange={(active) => onChange((current) => ({ ...current, active }))}
         />

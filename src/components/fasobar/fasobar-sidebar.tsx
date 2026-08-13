@@ -7,6 +7,7 @@ import { LayoutGrid, PanelLeftClose, PanelLeftOpen, UtensilsCrossed, Wine } from
 import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";
 import type { DepartmentFilter } from "@/components/pos/constants";
+import { isRetailActivity } from "@/lib/activity/profile";
 import { hasBarService, hasKitchenService } from "@/lib/settings/service-scope";
 
 const DEPARTMENTS: {
@@ -29,35 +30,39 @@ export function FasoBarSidebar({ collapsed = false, onToggle }: FasoBarSidebarPr
   const ctx = useFasoBarCashier();
   const filters = ctx?.caisseFilters;
   const serviceScope = filters?.serviceScope ?? "BOTH";
-  const departments = DEPARTMENTS.filter((dept) => {
-    if (dept.id === "bar") return hasBarService(serviceScope);
-    if (dept.id === "kitchen") return hasKitchenService(serviceScope);
-    return hasBarService(serviceScope) && hasKitchenService(serviceScope);
-  });
+  const retail = isRetailActivity(filters?.activityCode);
+  const departments = retail
+    ? []
+    : DEPARTMENTS.filter((dept) => {
+        if (dept.id === "bar") return hasBarService(serviceScope);
+        if (dept.id === "kitchen") return hasKitchenService(serviceScope);
+        return hasBarService(serviceScope) && hasKitchenService(serviceScope);
+      });
   const isCaisse = pathname === "/application/caisse" || pathname.startsWith("/application/caisse?");
 
-  const categoryOptions = isCaisse
-    ? CAISSE_CATEGORIES.map((category) => {
-        const match = filters?.categories.find(
-          (item) => item.name.toLowerCase() === category.name.toLowerCase(),
-        );
-        return {
-          id: match?.id ?? category.slug,
+  const categoryOptions =
+    isCaisse && !retail
+      ? CAISSE_CATEGORIES.map((category) => {
+          const match = filters?.categories.find(
+            (item) => item.name.toLowerCase() === category.name.toLowerCase(),
+          );
+          return {
+            id: match?.id ?? category.slug,
+            name: category.name,
+            departmentCode: category.departmentCode,
+            isStatic: !match,
+          };
+        }).filter((category) => {
+          if (filters?.departmentFilter === "bar") return category.departmentCode === "BAR";
+          if (filters?.departmentFilter === "kitchen") return category.departmentCode === "KITCHEN";
+          return true;
+        })
+      : (filters?.categories ?? []).map((category) => ({
+          id: category.id,
           name: category.name,
           departmentCode: category.departmentCode,
-          isStatic: !match,
-        };
-      }).filter((category) => {
-        if (filters?.departmentFilter === "bar") return category.departmentCode === "BAR";
-        if (filters?.departmentFilter === "kitchen") return category.departmentCode === "KITCHEN";
-        return true;
-      })
-    : (filters?.categories ?? []).map((category) => ({
-        id: category.id,
-        name: category.name,
-        departmentCode: category.departmentCode,
-        isStatic: false,
-      }));
+          isStatic: false,
+        }));
 
   return (
     <aside
@@ -98,7 +103,7 @@ export function FasoBarSidebar({ collapsed = false, onToggle }: FasoBarSidebarPr
           collapsed ? "px-1.5" : "px-2"
         }`}
       >
-        {collapsed ? null : (
+        {collapsed || departments.length === 0 ? null : (
           <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
             Départements
           </p>

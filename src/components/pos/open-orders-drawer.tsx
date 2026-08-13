@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ClipboardList, Printer, Search, X } from "lucide-react";
 
 import { OrderPrepBadges } from "@/components/ops/order-prep-badges";
+import { getActivityPages } from "@/lib/activity/pages";
 import {
   formatOrderNumber,
   formatPriceXof,
@@ -21,6 +22,7 @@ type OpenOrdersDrawerProps = {
   onClose: () => void;
   onResume: (orderId: string) => void;
   onCheckout: (orderId: string) => void | Promise<void>;
+  activityCode?: string | null;
 };
 
 type DrawerFilter = "all" | "to_pay" | "hold" | "finalized";
@@ -60,7 +62,9 @@ export function OpenOrdersDrawer({
   onClose,
   onResume,
   onCheckout,
+  activityCode = null,
 }: OpenOrdersDrawerProps) {
+  const pages = getActivityPages(activityCode);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<DrawerFilter>("all");
 
@@ -114,7 +118,7 @@ export function OpenOrdersDrawer({
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
           <div>
             <h2 id="open-orders-title" className="text-lg font-semibold text-slate-900">
-              Commandes du jour
+              {pages.openTickets.title}
             </h2>
             <p className="mt-0.5 text-sm text-slate-500">
               {counts.toPay} à encaisser · {counts.hold} brouillon
@@ -139,7 +143,7 @@ export function OpenOrdersDrawer({
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Rechercher table, client, n°…"
+              placeholder={pages.openTickets.searchPlaceholder}
               className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
@@ -187,7 +191,7 @@ export function OpenOrdersDrawer({
               <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                 <ClipboardList className="h-7 w-7" />
               </div>
-              <h3 className="mt-4 font-semibold text-slate-900">Aucune commande</h3>
+              <h3 className="mt-4 font-semibold text-slate-900">{pages.tickets.emptyTitle}</h3>
               <p className="mt-1 text-sm text-slate-500">
                 {search || statusFilter !== "all"
                   ? "Aucun résultat pour ce filtre."
@@ -221,11 +225,13 @@ export function OpenOrdersDrawer({
                       </span>
                     </div>
 
-                    <OrderPrepBadges
-                      barStatus={order.barStatus}
-                      kitchenStatus={order.kitchenStatus}
-                      className="mt-2"
-                    />
+                    {pages.retail ? null : (
+                      <OrderPrepBadges
+                        barStatus={order.barStatus}
+                        kitchenStatus={order.kitchenStatus}
+                        className="mt-2"
+                      />
+                    )}
 
                     <dl className="mt-3 grid grid-cols-3 gap-2 text-xs text-slate-500">
                       <div>
@@ -251,7 +257,7 @@ export function OpenOrdersDrawer({
 
                     {order.createdByName ? (
                       <p className="mt-2 text-xs text-slate-500">
-                        Caissière : {order.createdByName}
+                        {pages.tickets.cashierColumn} : {order.createdByName}
                       </p>
                     ) : null}
 
@@ -294,7 +300,7 @@ export function OpenOrdersDrawer({
                             className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
                           >
                             <Printer className="h-3.5 w-3.5" />
-                            Addition
+                            {pages.pos.additionLabel}
                           </Link>
                           <button
                             type="button"

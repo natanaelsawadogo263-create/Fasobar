@@ -172,6 +172,43 @@ describe("profil d’exploitation", () => {
       isPathAllowedForSpace("/application/stock/boissons", "admin", "BAR"),
     ).toBe(true);
   });
+
+  it("adapte la navigation commerce : pas de cuisine, sessions bar ni Tickets", () => {
+    const items = getNavigationForSpace("admin", "BAR", "pharmacy");
+    expect(items.some((item) => item.href === "/application/sessions-bar")).toBe(false);
+    expect(items.some((item) => item.href === "/application/cuisine")).toBe(false);
+    expect(items.some((item) => item.href === "/application/commandes")).toBe(false);
+    expect(items.find((item) => item.href === "/application/produits")?.label).toBe(
+      "Produits",
+    );
+    expect(items.some((item) => item.href === "/application/ventes")).toBe(true);
+    expect(
+      isPathAllowedForSpace("/application/commandes", "admin", "BAR", "pharmacy"),
+    ).toBe(false);
+    expect(
+      isPathAllowedForSpace("/application/commandes/order-1", "admin", "BAR", "pharmacy"),
+    ).toBe(true);
+  });
+
+  it("donne le stock magasin au caissier commerce", () => {
+    const items = getNavigationForSpace("cashier_kitchen", "BAR", "hardware");
+    expect(items.some((item) => item.href === "/application/stock")).toBe(true);
+    expect(items.some((item) => item.href === "/application/cuisine")).toBe(false);
+    expect(
+      isPathAllowedForSpace(
+        "/application/stock",
+        "cashier_kitchen",
+        "BAR",
+        "hardware",
+      ),
+    ).toBe(true);
+    expect(
+      isPathAllowedForSpace("/application/cuisine", "cashier_kitchen", "BAR", "hardware"),
+    ).toBe(false);
+    expect(
+      isPathAllowedForSpace("/application/bar", "admin", "BAR", "hardware"),
+    ).toBe(false);
+  });
 });
 
 describe("client admin server-only", () => {

@@ -15,6 +15,7 @@ export default async function ParametresPage() {
       organizationName={workspace.organizationName}
       establishmentName={workspace.establishmentName}
       ownerEmail={workspace.email}
+      activityCode={workspace.activityCode}
     />
   );
 }

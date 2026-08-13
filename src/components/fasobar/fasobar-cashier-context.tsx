@@ -25,6 +25,7 @@ export type FasoBarCaisseFilters = {
   onCategoryChange: (categoryId: string) => void;
   onSearchChange: (value: string) => void;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
 type FasoBarCashierContextValue = {

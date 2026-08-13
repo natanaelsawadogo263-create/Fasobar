@@ -24,6 +24,7 @@ export default async function CommandeDetailPage({ params }: CommandeDetailPageP
       order={order}
       canManageOrders={workspace.canManageOrders}
       canOperateCashRegister={workspace.canOperateCashRegister}
+      activityCode={workspace.activityCode}
     />
   );
 }

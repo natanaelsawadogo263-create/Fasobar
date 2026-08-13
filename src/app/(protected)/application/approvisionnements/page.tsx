@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { SupplyWorkspace } from "@/components/stock/supply-workspace";
+import { isRetailActivity } from "@/lib/activity/profile";
 import { ensureBarStockItemsFromProducts } from "@/lib/bar/ensure-stock";
 import { requireStockReadContext } from "@/lib/auth/workspace-context";
 import { isPathAllowedForSpace } from "@/lib/navigation/space-navigation";
@@ -43,6 +44,7 @@ export default async function ApprovisionnementsPage({
       "/application/approvisionnements",
       workspace.userSpace,
       workspace.serviceScope,
+      workspace.activityCode,
     )
   ) {
     redirect("/application/acces-refuse");
@@ -52,7 +54,9 @@ export default async function ApprovisionnementsPage({
   const scope = workspace.serviceScope;
   const lockedDepartment =
     workspace.userSpace === "cashier_kitchen"
-      ? ("KITCHEN" as const)
+      ? isRetailActivity(workspace.activityCode)
+        ? ("BAR" as const)
+        : ("KITCHEN" as const)
       : isSingleServiceScope(scope)
         ? defaultDepartmentCode(scope)
         : null;
@@ -121,6 +125,7 @@ export default async function ApprovisionnementsPage({
           : null
       }
       periodBasePath="/application/approvisionnements"
+      activityCode={workspace.activityCode}
     />
   );
 }

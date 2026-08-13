@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { StockWorkspace } from "@/components/stock/stock-workspace";
+import { isRetailActivity } from "@/lib/activity/profile";
 import { requireStockReadContext } from "@/lib/auth/workspace-context";
 import { hasBarService, hasKitchenService } from "@/lib/settings/service-scope";
 import { loadStockPageData } from "@/lib/stock/page-data";
@@ -55,8 +56,9 @@ export default async function StockPage({ searchParams }: StockPageProps) {
       establishmentRole={workspace.establishmentRole}
       totalStockItemCount={totalStockItemCount}
       basePath={basePath}
-      drinksOnly={serviceScope === "BAR"}
+      drinksOnly={serviceScope === "BAR" && !isRetailActivity(workspace.activityCode)}
       serviceScope={serviceScope}
+      activityCode={workspace.activityCode}
     />
   );
 }

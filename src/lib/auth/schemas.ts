@@ -68,7 +68,7 @@ export const activityCodeSchema = z
       ...(typeof BUSINESS_ACTIVITIES)[number]["id"][],
     ],
   )
-  .refine(isSelectableActivityId, "Cette activité n’est pas encore disponible.");
+  .refine(isSelectableActivityId, "Choisissez une activité commerciale.");
 
 export const onboardingSchema = z.object({
   organizationName: z

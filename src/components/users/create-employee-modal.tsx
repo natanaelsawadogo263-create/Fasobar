@@ -7,8 +7,9 @@ import { AlertMessage } from "@/components/auth/alert-message";
 import { FormField, FormSelect } from "@/components/auth/form-field";
 import { CredentialsSuccessModal } from "@/components/users/credentials-success-modal";
 import { suggestLoginIdentifierFromName } from "@/lib/auth/login-identifier";
+import { getInvitableSpacesForActivity, isRetailActivity } from "@/lib/activity/profile";
 import { INVITABLE_SPACES } from "@/lib/auth/roles";
-import { isInvitableSpaceAllowed, type ServiceScope } from "@/lib/settings/service-scope";
+import type { ServiceScope } from "@/lib/settings/service-scope";
 import { DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD } from "@/lib/users/constants";
 import type { CreatedCredentialsSummary } from "@/lib/users/types";
 import { ModalShell } from "@/components/ui/modal-shell";
@@ -19,6 +20,7 @@ type CreateEmployeeModalProps = {
   onClose: () => void;
   onCreated: () => void;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
 const emptyForm = {
@@ -35,6 +37,7 @@ export function CreateEmployeeModal({
   onClose,
   onCreated,
   serviceScope = "BOTH",
+  activityCode = null,
 }: CreateEmployeeModalProps) {
   const [form, setForm] = useState({
     ...emptyForm,
@@ -46,9 +49,7 @@ export function CreateEmployeeModal({
     null,
   );
   const [isPending, startTransition] = useTransition();
-  const availableSpaces = INVITABLE_SPACES.filter((space) =>
-    isInvitableSpaceAllowed(space.id, serviceScope),
-  );
+  const availableSpaces = getInvitableSpacesForActivity(activityCode, serviceScope);
   const idempotencyKey = useMemo(
     () => (typeof crypto !== "undefined" ? crypto.randomUUID() : ""),
     [],
@@ -119,6 +120,7 @@ export function CreateEmployeeModal({
     return (
       <CredentialsSuccessModal
         summary={successSummary}
+        retail={isRetailActivity(activityCode)}
         onClose={() => {
           setSuccessSummary(null);
           onClose();
@@ -131,7 +133,7 @@ export function CreateEmployeeModal({
     <ModalShell
       formId="create-employee-form"
       title="Créer un compte employé"
-      subtitle="FasoBar attribue un identifiant personnel (pas un e-mail) et un mot de passe temporaire. Même connexion pour Admin, Caisse–Cuisine et Bar."
+      subtitle="FasoBar attribue un identifiant personnel (pas un e-mail) et un mot de passe temporaire. Chaque employé n’accède qu’à son espace de travail."
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={

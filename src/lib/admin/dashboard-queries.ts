@@ -21,6 +21,8 @@ export type AdminDashboardKpis = {
   openCashBalance: number | null;
   openCashOpenedAt: string | null;
   stockAlertCount: number;
+  expensesToday: number;
+  profitToday: number;
 };
 
 export type AdminTopProduct = {
@@ -221,6 +223,7 @@ export async function getAdminDashboardData(
     openCashPayments,
     liveOpenOrders,
     openBarSessionRow,
+    todayExpenses,
   ] = await Promise.all([
     listDashboardStockAlerts(workspace, 5),
     supabase
@@ -303,6 +306,12 @@ export async function getAdminDashboardData(
       .order("opened_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("expenses")
+      .select("amount, status")
+      .eq("establishment_id", workspace.establishmentId)
+      .eq("status", "RECORDED")
+      .eq("expense_date", toLocalIsoDate(new Date())),
   ]);
 
   const stockItems = stockAlertsResult.alerts;
@@ -316,6 +325,11 @@ export async function getAdminDashboardData(
     (sum, row) => sum + (row.total_amount ?? 0),
     0,
   );
+  const expensesToday = (todayExpenses.data ?? []).reduce(
+    (sum, row) => sum + (row.amount ?? 0),
+    0,
+  );
+  const profitToday = salesToday - expensesToday;
 
   const openSessionRows = openSessions.data ?? [];
   const firstOpen = openSessionRows[0];
@@ -474,6 +488,8 @@ export async function getAdminDashboardData(
       openCashBalance,
       openCashOpenedAt,
       stockAlertCount: stockAlertsResult.alertCount,
+      expensesToday,
+      profitToday,
     },
     liveOps,
     stockAlerts: stockItems,

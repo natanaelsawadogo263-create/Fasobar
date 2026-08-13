@@ -7,9 +7,10 @@ import type { CreatedCredentialsSummary } from "@/lib/users/types";
 type CredentialsSuccessModalProps = {
   summary: CreatedCredentialsSummary;
   onClose: () => void;
+  retail?: boolean;
 };
 
-function buildCopyText(summary: CreatedCredentialsSummary): string {
+function buildCopyText(summary: CreatedCredentialsSummary, retail: boolean): string {
   return [
     "FasoBar — Identifiants de connexion",
     "",
@@ -20,7 +21,9 @@ function buildCopyText(summary: CreatedCredentialsSummary): string {
     `Établissement : ${summary.establishmentName}`,
     "",
     "Connexion : utilisez l'identifiant FasoBar (pas un e-mail).",
-    "Valable pour tous les comptes créés par l'admin (Admin, Caisse–Cuisine, Bar).",
+    retail
+      ? "Valable pour tous les comptes créés par l'admin (Admin, Caissier / Vendeur)."
+      : "Valable pour tous les comptes créés par l'admin (Admin, Caisse–Cuisine, Bar).",
     "À votre première connexion, vous devrez créer un nouveau mot de passe.",
   ].join("\n");
 }
@@ -28,11 +31,12 @@ function buildCopyText(summary: CreatedCredentialsSummary): string {
 export function CredentialsSuccessModal({
   summary,
   onClose,
+  retail = false,
 }: CredentialsSuccessModalProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(buildCopyText(summary));
+    await navigator.clipboard.writeText(buildCopyText(summary, retail));
     setCopied(true);
   }
 
@@ -52,8 +56,11 @@ export function CredentialsSuccessModal({
         </p>
         <h2 className="mt-2 text-2xl font-semibold text-slate-900">{summary.fullName}</h2>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
-          Communiquez ces identifiants à l&apos;employé (Admin, Caisse–Cuisine ou
-          Bar). Il se connecte avec l&apos;identifiant FasoBar, pas un e-mail.
+          Communiquez ces identifiants à l&apos;employé
+          {retail
+            ? " (Admin ou Caissier / Vendeur)"
+            : " (Admin, Caisse–Cuisine ou Bar)"}
+          . Il se connecte avec l&apos;identifiant FasoBar, pas un e-mail.
           Déconnectez-vous du compte admin avant de tester. Le mot de passe
           devra être changé à la première connexion, puis l&apos;espace{" "}
           <span className="font-semibold text-slate-800">{summary.spaceLabel}</span>{" "}

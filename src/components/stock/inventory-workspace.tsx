@@ -9,6 +9,7 @@ import { startInventorySessionAction } from "@/app/(protected)/application/stock
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { FormSelect } from "@/components/auth/form-field";
+import { getActivityPages } from "@/lib/activity/pages";
 import {
   allowedDepartments,
   defaultDepartmentCode,
@@ -22,6 +23,7 @@ type InventoryWorkspaceProps = {
   sessions: InventorySessionItem[];
   canManageStock: boolean;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -50,14 +52,16 @@ export function InventoryWorkspace({
   sessions,
   canManageStock,
   serviceScope = "BOTH",
+  activityCode = null,
 }: InventoryWorkspaceProps) {
+  const pages = getActivityPages(activityCode);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showStart, setShowStart] = useState(false);
   const departments = allowedDepartments(serviceScope);
-  const singleScope = isSingleServiceScope(serviceScope);
+  const singleScope = pages.retail || isSingleServiceScope(serviceScope);
   const [department, setDepartment] = useState<"BAR" | "KITCHEN">(
     defaultDepartmentCode(serviceScope),
   );
@@ -277,7 +281,9 @@ export function InventoryWorkspace({
                 <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
                   Département :{" "}
                   <span className="font-semibold text-slate-900">
-                    {departments[0] === "BAR" ? "Boissons" : "Cuisine"}
+                    {departments[0] === "BAR"
+                      ? pages.supply.spaceLabel
+                      : "Cuisine"}
                   </span>
                 </p>
               ) : (
@@ -291,7 +297,7 @@ export function InventoryWorkspace({
                 >
                   {departments.map((code) => (
                     <option key={code} value={code}>
-                      {code === "BAR" ? "Boissons" : "Cuisine"}
+                      {code === "BAR" ? pages.supply.spaceLabel : "Cuisine"}
                     </option>
                   ))}
                 </FormSelect>

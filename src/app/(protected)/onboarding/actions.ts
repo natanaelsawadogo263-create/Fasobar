@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { mapGenericError } from "@/lib/auth/errors";
 import { onboardingSchema } from "@/lib/auth/schemas";
 import { mapActivityToEstablishmentType } from "@/lib/auth/activities";
+import { getActivityProfile } from "@/lib/activity/profile";
 import type { AuthActionState } from "@/lib/auth/types";
 import { requireAuthenticatedUser, userHasActiveOrganization } from "@/lib/auth/session";
 import { getBootstrapBlockedMessage } from "@/lib/auth/routes";
@@ -101,9 +102,13 @@ export async function bootstrapOrganizationAction(
     : (data as { establishment_id?: string } | null)?.establishment_id;
 
   if (establishmentId) {
+    const profile = getActivityProfile(parsed.data.activityCode);
     await supabase
       .from("establishments")
-      .update({ activity_code: parsed.data.activityCode })
+      .update({
+        activity_code: parsed.data.activityCode,
+        ...(profile.kind === "retail" ? { service_scope: "BAR" } : {}),
+      })
       .eq("id", establishmentId);
   }
 

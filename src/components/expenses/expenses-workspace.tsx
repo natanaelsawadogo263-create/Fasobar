@@ -33,9 +33,10 @@ import type {
 } from "@/lib/expenses/schemas";
 import type { ExpenseListItem } from "@/lib/expenses/types";
 import { resolveOrderPeriodRange, toLocalIsoDate } from "@/lib/orders/period";
+import { getActivityPages } from "@/lib/activity/pages";
 import { hasBarService, type ServiceScope } from "@/lib/settings/service-scope";
 
-type ExpensePeriodFilter = "day" | "week" | "month";
+type ExpensePeriodFilter = "day" | "week" | "month" | "custom";
 
 type ExpensesWorkspaceProps = {
   expenses: ExpenseListItem[];
@@ -53,9 +54,9 @@ type ExpensesWorkspaceProps = {
   periodLabel?: string | null;
   canManage?: boolean;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
-const CATEGORY_OPTIONS = Object.entries(EXPENSE_CATEGORY_LABELS);
 const AREA_OPTIONS = Object.entries(EXPENSE_AREA_LABELS);
 const PERIOD_OPTIONS: Array<{ id: ExpensePeriodFilter; label: string }> = [
   { id: "day", label: "Jour" },
@@ -82,14 +83,23 @@ export function ExpensesWorkspace({
   periodLabel = null,
   canManage = true,
   serviceScope = "BOTH",
+  activityCode = null,
 }: ExpensesWorkspaceProps) {
   const router = useRouter();
+  const pages = getActivityPages(activityCode);
+  const retail = pages.retail;
+  const categoryLabels = {
+    ...EXPENSE_CATEGORY_LABELS,
+    KITCHEN_PURCHASE: pages.expenses.kitchenPurchase,
+  } as const;
+  const categoryOptions = Object.entries(categoryLabels);
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [modal, setModal] = useState<"create" | "edit" | "cancel" | null>(null);
   const [selected, setSelected] = useState<ExpenseListItem | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const showBarArea = hasBarService(serviceScope);
+  const showBarArea = !retail && hasBarService(serviceScope);
+  const showAreaChoice = !lockedArea && !retail;
 
   function openCreate() {
     setSelected(null);
@@ -114,19 +124,23 @@ export function ExpensesWorkspace({
   ) {
     const params = new URLSearchParams();
     const merged = { ...filters, ...next };
-    const nextPeriod = next.period ?? periodFilter;
 
     if (merged.area) params.set("area", merged.area);
     if (merged.category) params.set("category", merged.category);
     if (merged.status && merged.status !== "all") params.set("status", merged.status);
     if (merged.search) params.set("search", merged.search);
 
-    if (lockedArea && nextPeriod) {
+    const nextPeriod =
+      next.period ??
+      (next.from !== undefined || next.to !== undefined ? "custom" : periodFilter);
+
+    if (nextPeriod && nextPeriod !== "custom") {
       const range = resolveOrderPeriodRange(nextPeriod, toLocalIsoDate(new Date()));
       params.set("period", nextPeriod);
       if (range.from) params.set("from", range.from);
       if (range.to) params.set("to", range.to);
     } else {
+      params.set("period", "custom");
       if (merged.from) params.set("from", merged.from);
       if (merged.to) params.set("to", merged.to);
     }
@@ -201,13 +215,17 @@ export function ExpensesWorkspace({
       {
         title: "Total période",
         value: formatPriceXof(periodTotal),
-        subtitle: "dépenses actives",
+        subtitle: periodLabel ?? "dépenses actives",
       },
-      {
-        title: "Liées à la caisse",
-        value: formatPriceXof(caisseTotal),
-        subtitle: "service caisse",
-      },
+      ...(retail
+        ? []
+        : [
+            {
+              title: "Liées à la caisse",
+              value: formatPriceXof(caisseTotal),
+              subtitle: "service caisse",
+            },
+          ]),
       ...(showBarArea
         ? [
             {
@@ -232,6 +250,7 @@ export function ExpensesWorkspace({
     recordedCount,
     cancelledCount,
     showBarArea,
+    retail,
   ]);
 
   return (
@@ -241,59 +260,37 @@ export function ExpensesWorkspace({
       }`}
     >
       <div
-        className={`flex min-h-0 w-full flex-1 flex-col gap-3 overflow-hidden p-3 lg:gap-3.5 lg:p-4 ${
-          lockedArea ? "max-w-3xl" : ""
+        className={`flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 ${
+          lockedArea ? "max-w-3xl gap-2.5" : "gap-2"
         }`}
       >
-      <header className="flex shrink-0 flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
+      <header className="flex shrink-0 items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[20px]">
             Dépenses
           </h1>
-          <p className="mt-0.5 text-[12px] text-slate-500">
+          <p className="mt-0.5 truncate text-[11px] text-slate-500 sm:text-[12px]">
             {establishmentName}
-            {lockedArea
-              ? ` · dépenses ${EXPENSE_AREA_LABELS[lockedArea].toLowerCase()}`
-              : " · charges réelles, sans modification du stock boissons"}
             {periodLabel ? (
               <>
-                <span className="mx-1.5 text-slate-300">·</span>
+                <span className="mx-1 text-slate-300">·</span>
                 <span className="capitalize">{periodLabel}</span>
               </>
             ) : null}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {lockedArea && periodFilter ? (
-            <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
-              {PERIOD_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => applyFilters({ period: option.id })}
-                  className={`inline-flex h-10 items-center rounded-md px-3 text-[12px] font-semibold transition sm:h-8 sm:px-2.5 sm:text-[11px] ${
-                    periodFilter === option.id
-                      ? "bg-emerald-600 text-white"
-                      : "text-slate-600 active:bg-slate-50 sm:hover:bg-slate-50 sm:hover:text-slate-900"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {canManage ? (
-            <button
-              type="button"
-              onClick={openCreate}
-              disabled={isPending}
-              className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[13px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:h-9 sm:text-[12px] sm:hover:bg-emerald-500"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Nouvelle dépense
-            </button>
-          ) : null}
-        </div>
+        {canManage ? (
+          <button
+            type="button"
+            onClick={openCreate}
+            disabled={isPending}
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:hover:bg-emerald-500"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="sm:hidden">Ajouter</span>
+            <span className="hidden sm:inline">Nouvelle dépense</span>
+          </button>
+        ) : null}
       </header>
 
       {message ? (
@@ -304,125 +301,145 @@ export function ExpensesWorkspace({
         />
       ) : null}
 
-      {/* KPI mobile : bandeau horizontal */}
-      <div className="-mx-3 flex shrink-0 gap-2 overflow-x-auto px-3 pb-0.5 md:hidden">
-        {stats.map((stat) => (
-          <div
-            key={stat.title}
-            className="w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm"
-          >
-            <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-              {stat.title}
-            </p>
-            <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
-              {stat.value}
-            </p>
-            <p className="mt-0.5 truncate text-[10px] text-slate-400">
-              {stat.subtitle}
-            </p>
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+        {periodFilter ? (
+          <div className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5">
+            {PERIOD_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => applyFilters({ period: option.id })}
+                className={`inline-flex h-8 items-center rounded-md px-2.5 text-[11px] font-semibold transition ${
+                  periodFilter === option.id
+                    ? "bg-emerald-600 text-white"
+                    : "text-slate-600 active:bg-slate-50 sm:hover:bg-slate-50"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
-        ))}
+        ) : null}
+        <label className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-500">
+          Du
+          <input
+            type="date"
+            value={filters.from ?? ""}
+            onChange={(event) => applyFilters({ from: event.target.value })}
+            className="h-7 border-0 bg-transparent px-0 text-[12px] text-slate-800 outline-none"
+          />
+        </label>
+        <label className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-500">
+          Au
+          <input
+            type="date"
+            value={filters.to ?? ""}
+            onChange={(event) => applyFilters({ to: event.target.value })}
+            className="h-7 border-0 bg-transparent px-0 text-[12px] text-slate-800 outline-none"
+          />
+        </label>
       </div>
 
-      {/* KPI desktop */}
       <div
-        className={`hidden shrink-0 gap-2.5 md:grid lg:gap-3 ${
-          stats.length === 2 ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-4"
+        className={`grid shrink-0 gap-1.5 ${
+          stats.length <= 2 ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-4"
         }`}
       >
         {stats.map((stat) => (
           <div
             key={stat.title}
-            className="rounded-xl border border-slate-200/90 bg-white px-3.5 py-3 shadow-sm"
+            className="min-w-0 rounded-lg border border-slate-200/90 bg-white px-2.5 py-1.5"
           >
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-              {stat.title}
+            <p className="truncate text-[10px] font-medium text-slate-500">{stat.title}</p>
+            <p className="mt-0.5 truncate text-[14px] font-bold tabular-nums text-slate-900 sm:text-[15px]">
+              {stat.value}
             </p>
-            <p className="mt-1 text-[18px] font-bold text-slate-900">{stat.value}</p>
-            <p className="text-[11px] text-slate-500">{stat.subtitle}</p>
+            <p className="truncate text-[10px] text-slate-400">{stat.subtitle}</p>
           </div>
         ))}
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1 basis-full sm:min-w-[200px] sm:basis-auto">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            defaultValue={filters.search ?? ""}
-            placeholder={
-              lockedArea ? "Rechercher un titre…" : "Rechercher libellé, fournisseur…"
-            }
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-[13px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:h-9 sm:text-[12px]"
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                applyFilters({ search: (event.target as HTMLInputElement).value });
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-slate-100 px-2.5 py-2 sm:px-3">
+          <div className="relative min-w-0 flex-1 basis-[10rem]">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              defaultValue={filters.search ?? ""}
+              placeholder={
+                lockedArea ? "Rechercher un titre…" : "Rechercher libellé, fournisseur…"
               }
-            }}
-          />
+              className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-[12px] outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 sm:h-8"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  applyFilters({ search: (event.target as HTMLInputElement).value });
+                }
+              }}
+            />
+          </div>
+          {showAreaChoice ? (
+            <select
+              value={filters.area || ""}
+              onChange={(event) =>
+                applyFilters({ area: event.target.value as ExpenseArea | "" })
+              }
+              className="h-9 min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-[12px] sm:h-8"
+            >
+              <option value="">Caisse & Bar</option>
+              {AREA_OPTIONS.filter(([value]) => showBarArea || value !== "BAR").map(
+                ([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ),
+              )}
+            </select>
+          ) : null}
+          {!lockedArea ? (
+            <select
+              value={filters.category || ""}
+              onChange={(event) =>
+                applyFilters({ category: event.target.value as ExpenseCategory | "" })
+              }
+              className="h-9 min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-[12px] sm:h-8"
+            >
+              <option value="">Toutes catégories</option>
+              {categoryOptions.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <select
+            value={filters.status || "all"}
+            onChange={(event) =>
+              applyFilters({ status: event.target.value as ExpenseFiltersInput["status"] })
+            }
+            className="h-9 min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-[12px] sm:h-8"
+          >
+            <option value="all">Tous statuts</option>
+            <option value="RECORDED">Enregistrées</option>
+            <option value="CANCELLED">Annulées</option>
+          </select>
         </div>
-        {!lockedArea ? (
-          <select
-            value={filters.area || ""}
-            onChange={(event) =>
-              applyFilters({ area: event.target.value as ExpenseArea | "" })
-            }
-            className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] sm:h-9 sm:flex-none sm:text-[12px]"
-          >
-            <option value="">Caisse & Bar</option>
-            {AREA_OPTIONS.filter(([value]) => showBarArea || value !== "BAR").map(
-              ([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ),
-            )}
-          </select>
-        ) : null}
-        {!lockedArea ? (
-          <select
-            value={filters.category || ""}
-            onChange={(event) =>
-              applyFilters({ category: event.target.value as ExpenseCategory | "" })
-            }
-            className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] sm:h-9 sm:flex-none sm:text-[12px]"
-          >
-            <option value="">Toutes catégories</option>
-            {CATEGORY_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        ) : null}
-        <select
-          value={filters.status || "all"}
-          onChange={(event) =>
-            applyFilters({ status: event.target.value as ExpenseFiltersInput["status"] })
-          }
-          className="h-11 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] sm:h-9 sm:flex-none sm:text-[12px]"
-        >
-          <option value="all">Tous statuts</option>
-          <option value="RECORDED">Enregistrées</option>
-          <option value="CANCELLED">Annulées</option>
-        </select>
-      </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+        <div className="app-scroll min-h-0 flex-1 overflow-auto">
         {expenses.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+          <div className="flex flex-col items-center px-6 py-10 text-center sm:py-12">
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
               <Wallet className="h-6 w-6" />
             </div>
             <h2 className="mt-3 text-[15px] font-semibold text-slate-900">Aucune dépense</h2>
             <p className="mt-1 max-w-sm text-[12px] text-slate-500">
-              Enregistrez les achats Cuisine et les autres charges. Cela n&apos;affecte jamais le
-              stock boissons.
+              {retail
+                ? "Enregistrez les charges du magasin (loyer, transport, pertes, divers). Cela n'affecte pas le stock."
+                : "Enregistrez les achats Cuisine et les autres charges. Cela n'affecte jamais le stock boissons."}
             </p>
           </div>
         ) : (
-          <div className="h-full overflow-auto">
-            <div className="space-y-2 p-3 md:hidden">
+          <>
+            <div className="space-y-2 p-2.5 md:hidden">
               {expenses.map((item) => (
                 <article
                   key={item.id}
@@ -438,7 +455,7 @@ export function ExpensesWorkspace({
                           new Date(item.expenseDate),
                         )}
                         {!lockedArea
-                          ? ` · ${EXPENSE_CATEGORY_LABELS[item.category]}`
+                          ? ` · ${categoryLabels[item.category]}`
                           : ""}
                       </p>
                     </div>
@@ -447,7 +464,7 @@ export function ExpensesWorkspace({
                     </p>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {!lockedArea ? (
+                    {showAreaChoice ? (
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${EXPENSE_AREA_STYLES[item.area]}`}
                       >
@@ -488,7 +505,7 @@ export function ExpensesWorkspace({
               <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-3 py-2.5 font-semibold">Date</th>
-                  {!lockedArea ? (
+                  {showAreaChoice ? (
                     <th className="px-3 py-2.5 font-semibold">Rattachée à</th>
                   ) : null}
                   {!lockedArea ? (
@@ -509,7 +526,7 @@ export function ExpensesWorkspace({
                     <td className="whitespace-nowrap px-3 py-2.5 text-slate-700">
                       {new Intl.DateTimeFormat("fr-FR").format(new Date(item.expenseDate))}
                     </td>
-                    {!lockedArea ? (
+                    {showAreaChoice ? (
                       <td className="px-3 py-2.5">
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${EXPENSE_AREA_STYLES[item.area]}`}
@@ -520,7 +537,7 @@ export function ExpensesWorkspace({
                     ) : null}
                     {!lockedArea ? (
                       <td className="px-3 py-2.5 text-slate-700">
-                        {EXPENSE_CATEGORY_LABELS[item.category]}
+                        {categoryLabels[item.category]}
                       </td>
                     ) : null}
                     <td className="px-3 py-2.5 font-medium text-slate-900">{item.label}</td>
@@ -563,9 +580,10 @@ export function ExpensesWorkspace({
                 ))}
               </tbody>
             </table>
-          </div>
+          </>
         )}
-      </div>
+        </div>
+      </section>
 
       {modal === "create" || modal === "edit" ? (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/45 p-0 sm:items-center sm:p-4">
@@ -579,7 +597,7 @@ export function ExpensesWorkspace({
                   {modal === "edit" ? "Modifier la dépense" : "Nouvelle dépense"}
                 </h2>
                 <p className="mt-0.5 text-[12px] text-slate-500">
-                  Montants en XOF entiers. Aucun impact sur le stock boissons.
+                  Montants en XOF entiers. Aucun impact sur le stock.
                 </p>
               </div>
               <button
@@ -595,8 +613,8 @@ export function ExpensesWorkspace({
               {formError ? <AlertMessage message={formError} /> : null}
               {selected ? <input type="hidden" name="expenseId" value={selected.id} /> : null}
               <FormSection title="Informations">
-                {lockedArea ? (
-                  <input type="hidden" name="area" value={lockedArea} />
+                {lockedArea || retail ? (
+                  <input type="hidden" name="area" value={lockedArea ?? "CAISSE"} />
                 ) : (
                   <SelectField
                     id="area"
@@ -616,7 +634,7 @@ export function ExpensesWorkspace({
                     )}
                   </SelectField>
                 )}
-                {lockedArea ? (
+                {lockedArea && !retail ? (
                   <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
                     Zone :{" "}
                     <span className="font-semibold text-slate-900">
@@ -632,7 +650,7 @@ export function ExpensesWorkspace({
                     defaultValue={selected?.category ?? "KITCHEN_PURCHASE"}
                     required
                   >
-                    {CATEGORY_OPTIONS.map(([value, label]) => (
+                    {categoryOptions.map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>

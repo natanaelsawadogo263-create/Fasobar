@@ -53,6 +53,7 @@ function workspace(): WorkspaceContext {
     canReadOrders: true,
     canOperateCashRegister: true,
     serviceScope: "BOTH",
+    activityCode: null,
   };
 }
 

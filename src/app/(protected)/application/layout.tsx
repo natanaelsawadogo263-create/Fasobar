@@ -15,7 +15,11 @@ export default async function ApplicationLayout({
       organizationName={workspace.organizationName}
       organizationId={workspace.organizationId}
       userId={workspace.userId}
-      navItems={getNavigationForSpace(workspace.userSpace, workspace.serviceScope)}
+      navItems={getNavigationForSpace(
+        workspace.userSpace,
+        workspace.serviceScope,
+        workspace.activityCode,
+      )}
       cashierName={workspace.ownerName}
       canRenewSubscription={workspace.organizationRole === "OWNER"}
     >

@@ -18,6 +18,7 @@ export default async function InventairesPage() {
       sessions={sessions}
       canManageStock={workspace.canManageStock}
       serviceScope={workspace.serviceScope}
+      activityCode={workspace.activityCode}
     />
   );
 }

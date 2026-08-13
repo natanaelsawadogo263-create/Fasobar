@@ -13,9 +13,15 @@ type ResetPasswordModalProps = {
   member: TeamMemberRow;
   onClose: () => void;
   onReset: () => void;
+  retail?: boolean;
 };
 
-export function ResetPasswordModal({ member, onClose, onReset }: ResetPasswordModalProps) {
+export function ResetPasswordModal({
+  member,
+  onClose,
+  onReset,
+  retail = false,
+}: ResetPasswordModalProps) {
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [temporaryPasswordConfirmation, setTemporaryPasswordConfirmation] = useState("");
   const [confirmed, setConfirmed] = useState(false);
@@ -58,6 +64,7 @@ export function ResetPasswordModal({ member, onClose, onReset }: ResetPasswordMo
     return (
       <CredentialsSuccessModal
         summary={successSummary}
+        retail={retail}
         onClose={() => {
           setSuccessSummary(null);
           onClose();

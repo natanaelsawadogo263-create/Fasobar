@@ -30,12 +30,14 @@ import {
   ORDER_STATUS_STYLES,
   ORDER_TYPE_LABELS,
 } from "@/lib/orders/constants";
+import { getActivityPages } from "@/lib/activity/pages";
 import type { OrderDetail } from "@/lib/orders/types";
 
 type OrderDetailWorkspaceProps = {
   order: OrderDetail;
   canManageOrders: boolean;
   canOperateCashRegister?: boolean;
+  activityCode?: string | null;
 };
 
 type PaymentStatusKey = keyof typeof ORDER_PAYMENT_STATUS_LABELS;
@@ -51,7 +53,9 @@ export function OrderDetailWorkspace({
   order,
   canManageOrders,
   canOperateCashRegister = false,
+  activityCode = null,
 }: OrderDetailWorkspaceProps) {
+  const pages = getActivityPages(activityCode);
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -78,12 +82,17 @@ export function OrderDetailWorkspace({
   const paymentStatus = resolvePaymentStatus(order.paymentStatus);
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
   const reference = order.tableReference ?? order.customerReference ?? "—";
+  const retail = pages.retail;
   const backHref = canOperateCashRegister
     ? "/application/caisse"
-    : "/application/commandes";
+    : retail
+      ? "/application/ventes"
+      : "/application/commandes";
   const backLabel = canOperateCashRegister
     ? "Retour à la caisse"
-    : "Retour aux commandes";
+    : retail
+      ? "Retour aux ventes"
+      : pages.detail.backLabel;
   const additionNext = encodeURIComponent(`/application/commandes/${order.id}`);
   const createdLabel = new Date(order.createdAt).toLocaleString("fr-FR", {
     day: "2-digit",
@@ -126,7 +135,7 @@ export function OrderDetailWorkspace({
       }
 
       setShowCancelModal(false);
-      setMessage(result.success ?? "Commande annulée.");
+      setMessage(result.success ?? pages.detail.cancelToast);
       refreshSoon(() => router.refresh());
     });
   }
@@ -165,9 +174,13 @@ export function OrderDetailWorkspace({
                   {formatOrderNumber(order.orderNumber)}
                 </h1>
                 <p className="mt-1 truncate text-[11px] text-slate-500">
-                  {ORDER_TYPE_LABELS[order.orderType]}
-                  <span className="mx-1 text-slate-300">·</span>
-                  Table {reference}
+                  {pages.retail ? null : (
+                    <>
+                      {ORDER_TYPE_LABELS[order.orderType]}
+                      <span className="mx-1 text-slate-300">·</span>
+                    </>
+                  )}
+                  {pages.detail.referencePrefix} {reference}
                   <span className="mx-1 text-slate-300">·</span>
                   {itemCount} art.
                   <span className="mx-1 text-slate-300">·</span>
@@ -186,10 +199,12 @@ export function OrderDetailWorkspace({
                 >
                   {ORDER_PAYMENT_STATUS_LABELS[paymentStatus]}
                 </span>
-                <OrderPrepBadges
-                  barStatus={order.barStatus}
-                  kitchenStatus={order.kitchenStatus}
-                />
+                {pages.retail ? null : (
+                  <OrderPrepBadges
+                    barStatus={order.barStatus}
+                    kitchenStatus={order.kitchenStatus}
+                  />
+                )}
               </div>
             </div>
           </header>
@@ -207,10 +222,14 @@ export function OrderDetailWorkspace({
                 <table className="w-full text-[12px]">
                   <thead className="sticky top-0 bg-white">
                     <tr className="border-b border-slate-100 text-left text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">
-                      <th className="px-3.5 py-1.5 font-semibold">Produit</th>
-                      <th className="hidden px-2 py-1.5 font-semibold sm:table-cell">
-                        Dépt.
+                      <th className="px-3.5 py-1.5 font-semibold">
+                        {pages.detail.productColumn}
                       </th>
+                      {pages.retail ? null : (
+                        <th className="hidden px-2 py-1.5 font-semibold sm:table-cell">
+                          Dépt.
+                        </th>
+                      )}
                       <th className="px-2 py-1.5 text-right font-semibold">Qté</th>
                       <th className="px-2 py-1.5 text-right font-semibold">P.U.</th>
                       <th className="px-3.5 py-1.5 text-right font-semibold">Total</th>
@@ -239,9 +258,11 @@ export function OrderDetailWorkspace({
                               </p>
                             ) : null}
                           </td>
-                          <td className="hidden px-2 py-1.5 text-slate-500 sm:table-cell">
-                            {item.departmentName}
-                          </td>
+                          {pages.retail ? null : (
+                            <td className="hidden px-2 py-1.5 text-slate-500 sm:table-cell">
+                              {item.departmentName}
+                            </td>
+                          )}
                           <td className="pos-tabular px-2 py-1.5 text-right font-medium text-slate-800">
                             {item.quantity}
                           </td>
@@ -301,7 +322,7 @@ export function OrderDetailWorkspace({
                       className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2.5 text-[13px] font-semibold text-amber-900 transition active:bg-amber-100 sm:h-8 sm:rounded-md sm:text-[12px] sm:hover:bg-amber-100"
                     >
                       <Printer className="h-3.5 w-3.5" strokeWidth={2} />
-                      Addition
+                      {pages.pos.additionLabel}
                     </Link>
                   ) : null}
 
@@ -344,7 +365,7 @@ export function OrderDetailWorkspace({
       {showCancelModal ? (
         <ModalShell
           formId="cancel-order-form"
-          title="Annuler la commande"
+          title={pages.tickets.cancelLabel}
           subtitle={`${formatOrderNumber(order.orderNumber)} — cette action est définitive.`}
           onClose={() => setShowCancelModal(false)}
           onSubmit={handleCancelSubmit}

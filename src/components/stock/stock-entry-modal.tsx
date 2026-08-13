@@ -37,6 +37,8 @@ type StockEntryModalProps = {
   isPending?: boolean;
   /** Approvisionnements : uniquement les boissons (bar). */
   drinksOnly?: boolean;
+  /** Magasin commerce : entrée en unités, sans casier. */
+  simpleEntry?: boolean;
   onClose: () => void;
   onSubmit: (formData: FormData) => void;
 };
@@ -80,6 +82,7 @@ export function StockEntryModal({
   formError,
   isPending = false,
   drinksOnly = false,
+  simpleEntry = false,
   onClose,
   onSubmit,
 }: StockEntryModalProps) {
@@ -179,7 +182,7 @@ export function StockEntryModal({
       return;
     }
 
-    if (isBarItem && !selectedPackaging) {
+    if (isBarItem && !simpleEntry && !selectedPackaging) {
       setLocalError(
         "Ce produit n'a pas de format (casier / carton / sachet). Modifiez-le dans Produits.",
       );
@@ -252,7 +255,7 @@ export function StockEntryModal({
   const displayError = localError ?? formError;
   const cannotSubmit =
     activeSuppliers.length === 0 ||
-    (isBarItem && packagings.length === 0 && Boolean(selectedItem));
+    (isBarItem && !simpleEntry && packagings.length === 0 && Boolean(selectedItem));
 
   if (!mounted) {
     return null;
@@ -313,7 +316,9 @@ export function StockEntryModal({
 
               {stockItems.length === 0 ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                  {drinksOnly
+                  {simpleEntry
+                    ? "Aucun article de stock. Créez d'abord un article dans le catalogue."
+                    : drinksOnly
                     ? "Aucun produit bar. Créez-en un dans Produits (avec casier, carton ou sachet)."
                     : "Aucun article de stock. Créez d'abord un produit."}
                 </div>
@@ -321,7 +326,11 @@ export function StockEntryModal({
                 <>
                   <FormSection
                     title="Produit"
-                    description="Le conditionnement est défini à la création du produit."
+                    description={
+                      simpleEntry
+                        ? "Choisissez l’article à réapprovisionner."
+                        : "Le conditionnement est défini à la création du produit."
+                    }
                   >
                     <SelectField
                       id="stockItemId"
@@ -339,7 +348,7 @@ export function StockEntryModal({
                       ))}
                     </SelectField>
 
-                    {selectedItem && packagings.length === 0 ? (
+                    {selectedItem && packagings.length === 0 && !simpleEntry ? (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                         « {selectedItem.name} » n&apos;a pas de conditionnement (casier,
                         carton ou sachet). Ouvrez le produit dans{" "}
@@ -529,8 +538,9 @@ export function StockEntryModal({
                       <option value="">Choisir un article</option>
                       {stockItems.map((item) => (
                         <option key={item.id} value={item.id}>
-                          {item.departmentCode === "KITCHEN" ? "Cuisine · " : "Bar · "}
-                          {item.name}
+                          {simpleEntry
+                            ? item.name
+                            : `${item.departmentCode === "KITCHEN" ? "Cuisine · " : "Bar · "}${item.name}`}
                         </option>
                       ))}
                     </SelectField>

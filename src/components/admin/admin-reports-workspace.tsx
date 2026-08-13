@@ -15,7 +15,6 @@ import {
   TrendingUp,
   Truck,
   Wallet,
-  Wine,
 } from "lucide-react";
 
 import { getReportDataAction } from "@/app/(protected)/application/rapports/actions";
@@ -39,6 +38,7 @@ type AdminReportsWorkspaceProps = {
   initialFilters: ReportFiltersInput;
   establishment: ReportEstablishmentInfo;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
 const REPORT_ICONS: Partial<
@@ -47,7 +47,7 @@ const REPORT_ICONS: Partial<
   ventes: ShoppingBag,
   produits_vendus: Package,
   benefices: TrendingUp,
-  stock_boissons: Wine,
+  stock_boissons: Package,
   approvisionnements: Truck,
   pertes_casse: AlertTriangle,
   depenses: Wallet,
@@ -200,6 +200,7 @@ export function AdminReportsWorkspace({
   initialFilters,
   establishment,
   serviceScope = "BOTH",
+  activityCode = null,
 }: AdminReportsWorkspaceProps) {
   const [report, setReport] = useState<ReportResult>(initialReport);
   const [filters, setFilters] = useState<ReportFiltersInput>(initialFilters);
@@ -210,8 +211,8 @@ export function AdminReportsWorkspace({
   const [printStamp, setPrintStamp] = useState<string | null>(null);
 
   const reportOptions = useMemo(
-    () => reportOptionsForScope(serviceScope),
-    [serviceScope],
+    () => reportOptionsForScope(serviceScope, activityCode),
+    [serviceScope, activityCode],
   );
 
   const optionsById = useMemo(
@@ -658,7 +659,11 @@ export function AdminReportsWorkspace({
             ) : null}
 
             {report.type === "benefices" ? (
-              <BeneficesReportPanel report={report} serviceScope={serviceScope} />
+              <BeneficesReportPanel
+                report={report}
+                serviceScope={serviceScope}
+                activityCode={activityCode}
+              />
             ) : report.type === "ventes" ? (
               <>
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center print:hidden">

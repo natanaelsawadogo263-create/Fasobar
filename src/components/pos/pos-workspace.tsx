@@ -41,6 +41,8 @@ import type {
 } from "@/lib/orders/types";
 import type { OrderType } from "@/lib/orders/schemas";
 import type { CashSessionDetail } from "@/lib/payments/types";
+import { getActivityPages } from "@/lib/activity/pages";
+import { getActivityProfile } from "@/lib/activity/profile";
 import {
   defaultPosDepartmentFilter,
   type ServiceScope,
@@ -56,6 +58,7 @@ type PosWorkspaceProps = {
   /** Panier vide (pas de panier démo). */
   freshCart?: boolean;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
 type MobileTab = "products" | "order";
@@ -93,6 +96,8 @@ function getCategoryTitle(
   categoryId: string,
   departmentFilter: DepartmentFilter,
   categories: CashierCategory[],
+  allProductsLabel: string,
+  retail: boolean,
 ): string {
   if (categoryId !== "all") {
     const fromDb = categories.find((category) => category.id === categoryId);
@@ -101,9 +106,9 @@ function getCategoryTitle(
     }
     return CAISSE_CATEGORIES.find((category) => category.slug === categoryId)?.name ?? "Catégorie";
   }
-  if (departmentFilter === "bar") return "Boissons";
-  if (departmentFilter === "kitchen") return "Cuisine";
-  return "Tous les produits";
+  if (!retail && departmentFilter === "bar") return "Boissons";
+  if (!retail && departmentFilter === "kitchen") return "Cuisine";
+  return allProductsLabel;
 }
 
 function resolveCategoryName(
@@ -131,7 +136,11 @@ export function PosWorkspace({
   initialOrder,
   freshCart = false,
   serviceScope = "BOTH",
+  activityCode = null,
 }: PosWorkspaceProps) {
+  const profile = getActivityProfile(activityCode);
+  const pages = getActivityPages(activityCode);
+  const retail = profile.kind === "retail";
   const router = useRouter();
   // Tous les produits actifs de l'établissement (créés par l'admin) — pas le catalogue démo.
   const catalogProducts = useMemo(() => {
@@ -169,7 +178,7 @@ export function PosWorkspace({
     return "";
   });
   const [orderType, setOrderType] = useState<OrderType>(
-    initialOrder?.orderType ?? "ON_SITE",
+    initialOrder?.orderType ?? (retail ? "TAKEAWAY" : "ON_SITE"),
   );
   const [departmentFilter, setDepartmentFilter] = useState<DepartmentFilter>(
     defaultPosDepartmentFilter(serviceScope),
@@ -205,7 +214,13 @@ export function PosWorkspace({
 
   const subtotal = cart.reduce((total, line) => total + line.unitPrice * line.quantity, 0);
   const totalAmount = Math.max(subtotal - discountAmount, 0);
-  const categoryTitle = getCategoryTitle(categoryId, departmentFilter, categories);
+  const categoryTitle = getCategoryTitle(
+    categoryId,
+    departmentFilter,
+    categories,
+    pages.pos.allProducts,
+    retail,
+  );
   const totalProductCount = products.length;
 
   const showToast = useCallback((message: string, tone: ToastTone = "info") => {
@@ -314,7 +329,7 @@ export function PosWorkspace({
 
   function startFreshOrder(options?: { toast?: string; remount?: boolean }) {
     clearCart();
-    setOrderType("ON_SITE");
+    setOrderType(retail ? "TAKEAWAY" : "ON_SITE");
     setMobileTab("products");
     if (options?.toast) {
       showToast(options.toast, "success");
@@ -331,7 +346,7 @@ export function PosWorkspace({
     onSuccess?: (savedOrderId: string) => void | Promise<void>,
   ) {
     if (cart.length === 0) {
-      showToast("Ajoutez au moins un article à la commande.", "error");
+      showToast(pages.pos.emptyCart, "error");
       return;
     }
 
@@ -340,7 +355,7 @@ export function PosWorkspace({
     const formData = buildFormData(targetStatus);
     if (!onSuccess) {
       clearCart();
-      showToast("Commande envoyée.", "success");
+      showToast(pages.pos.sentToast, "success");
     }
 
     startTransition(async () => {
@@ -361,7 +376,12 @@ export function PosWorkspace({
             setCart(snapshot);
             setOrderType(snapshotType);
           }
-          showToast("La commande n'a pas pu être créée. Réessayez.", "error");
+          showToast(
+            pages.retail
+              ? "La vente n'a pas pu être créée. Réessayez."
+              : "La commande n'a pas pu être créée. Réessayez.",
+            "error",
+          );
           return;
         }
 
@@ -373,7 +393,7 @@ export function PosWorkspace({
         }
 
         startFreshOrder({
-          toast: result.success ?? "Commande enregistrée.",
+          toast: result.success ?? pages.pos.savedToast,
         });
       } catch (error) {
         if (!onSuccess) {
@@ -383,7 +403,9 @@ export function PosWorkspace({
         showToast(
           error instanceof Error
             ? error.message
-            : "Impossible d'enregistrer la commande. Réessayez.",
+            : pages.retail
+              ? "Impossible d'enregistrer la vente. Réessayez."
+              : "Impossible d'enregistrer la commande. Réessayez.",
           "error",
         );
       }
@@ -405,7 +427,7 @@ export function PosWorkspace({
     submitOrder("READY_TO_PAY", async () => {
       startFreshOrder({
         toast:
-          "Commande mise en attente d'encaissement. Vous pouvez ouvrir une nouvelle commande.",
+          pages.pos.holdToast,
         remount: true,
       });
     });
@@ -420,7 +442,7 @@ export function PosWorkspace({
       if (!confirmed) return;
     }
     startFreshOrder({
-      toast: "Nouvelle commande prête.",
+      toast: pages.retail ? "Nouvelle vente prête." : "Nouvelle commande prête.",
       remount: true,
     });
   }
@@ -490,7 +512,12 @@ export function PosWorkspace({
 
           const saved = await saveOrderAction({}, buildFormData("READY_TO_PAY"));
           if (saved.error || !saved.orderId) {
-            setCheckoutError(saved.error ?? "Impossible d'enregistrer la commande.");
+            setCheckoutError(
+              saved.error ??
+                (pages.retail
+                  ? "Impossible d'enregistrer la vente."
+                  : "Impossible d'enregistrer la commande."),
+            );
             return;
           }
 
@@ -499,7 +526,7 @@ export function PosWorkspace({
         }
 
         if (!targetOrderId) {
-          setCheckoutError("Commande introuvable.");
+          setCheckoutError(pages.pos.notFound);
           return;
         }
 
@@ -564,6 +591,9 @@ export function PosWorkspace({
     subtotal,
     discountAmount,
     isPending,
+    retailMode: retail,
+    ticketTitle: profile.ticketTitle,
+    clientPlaceholder: profile.clientPlaceholder,
     onTableChange: setTableReference,
     onOrderTypeChange: setOrderType,
     onQuantityChange: updateQuantity,
@@ -587,6 +617,7 @@ export function PosWorkspace({
       onDepartmentChange={handleDepartmentChange}
       onCategoryChange={handleCategoryChange}
       onSearchChange={handleSearchChange}
+      activityCode={activityCode}
       onCloseSession={handleCloseSession}
       onOpenOrders={handleOpenOrdersDrawer}
     >
@@ -661,7 +692,7 @@ export function PosWorkspace({
           }`}
         >
           <LayoutGrid className="h-5 w-5" />
-          Produits
+          {pages.pos.productsTab}
         </button>
         <button
           type="button"
@@ -671,7 +702,7 @@ export function PosWorkspace({
           }`}
         >
           <ShoppingBag className="h-5 w-5" />
-          Commande
+          {pages.pos.cartTab}
           {cart.length > 0 ? (
             <span className="absolute right-[calc(50%-28px)] top-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-bold text-white">
               {cart.reduce((s, l) => s + l.quantity, 0)}
@@ -683,6 +714,7 @@ export function PosWorkspace({
       <OpenOrdersDrawer
         open={showOpenOrders}
         orders={openOrders}
+        activityCode={activityCode}
         onClose={() => setShowOpenOrders(false)}
         onResume={(id) => router.push(`/application/caisse?order=${id}`)}
         onCheckout={(id) => {

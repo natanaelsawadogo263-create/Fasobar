@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Lock, LogOut, Package } from "lucide-react";
 
+import { getActivityPages } from "@/lib/activity/pages";
 import { signOutAction } from "@/lib/auth/actions";
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
 import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
@@ -15,6 +16,7 @@ const iconBtn =
 
 export function FasoBarTopbar() {
   const ctx = useFasoBarCashier();
+  const pages = getActivityPages(ctx?.caisseFilters?.activityCode);
   const openCount = ctx?.openOrdersCount ?? 0;
   const sessionOpen = Boolean(ctx?.hasSession);
   const cashierName = ctx?.cashierName?.trim() || "";
@@ -79,8 +81,8 @@ export function FasoBarTopbar() {
             type="button"
             onClick={ctx.onOpenOrders}
             className={`${iconBtn} relative`}
-            title="Commandes ouvertes"
-            aria-label={`Commandes ouvertes${openCount > 0 ? ` (${openCount})` : ""}`}
+            title={pages.pos.openTicketsTitle}
+            aria-label={`${pages.pos.openTicketsTitle}${openCount > 0 ? ` (${openCount})` : ""}`}
           >
             <Package className="h-4 w-4" />
             {openCount > 0 ? (
@@ -93,8 +95,8 @@ export function FasoBarTopbar() {
           <Link
             href="/application/commandes-ouvertes"
             className={`${iconBtn} relative`}
-            title="Commandes ouvertes"
-            aria-label={`Commandes ouvertes${openCount > 0 ? ` (${openCount})` : ""}`}
+            title={pages.pos.openTicketsTitle}
+            aria-label={`${pages.pos.openTicketsTitle}${openCount > 0 ? ` (${openCount})` : ""}`}
           >
             <Package className="h-4 w-4" />
             {openCount > 0 ? (

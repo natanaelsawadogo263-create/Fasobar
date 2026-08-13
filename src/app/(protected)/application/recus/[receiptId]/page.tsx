@@ -61,6 +61,7 @@ export default async function ReceiptPage({ params, searchParams }: ReceiptPageP
       receipt={receipt}
       autoPrint={autoPrint}
       returnTo={returnTo}
+      activityCode={workspace.activityCode}
     />
   );
 }

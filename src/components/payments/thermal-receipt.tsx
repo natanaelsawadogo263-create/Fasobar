@@ -11,6 +11,7 @@ import {
 } from "@/lib/payments/constants";
 import { printThermalTicket } from "@/lib/payments/print-thermal-ticket";
 import { formatOrderNumber } from "@/lib/orders/constants";
+import { getActivityPages } from "@/lib/activity/pages";
 import type { ReceiptDetail } from "@/lib/payments/types";
 
 type ThermalReceiptProps = {
@@ -18,6 +19,7 @@ type ThermalReceiptProps = {
   autoPrint?: boolean;
   /** Après fermeture de la boîte d'impression, naviguer ici (ex. /application/caisse?fresh=1). */
   returnTo?: string | null;
+  activityCode?: string | null;
 };
 
 const printedReceiptIds = new Set<string>();
@@ -33,7 +35,9 @@ export function ThermalReceipt({
   receipt,
   autoPrint = false,
   returnTo = null,
+  activityCode = null,
 }: ThermalReceiptProps) {
+  const pages = getActivityPages(activityCode);
   const router = useRouter();
   const reference =
     receipt.tableReference ?? receipt.customerReference ?? "—";
@@ -183,13 +187,13 @@ export function ThermalReceipt({
               </span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="shrink-0">Caissière</span>
+              <span className="shrink-0">{pages.tickets.cashierColumn}</span>
               <span className="min-w-0 break-words text-right">
                 {receipt.cashierName ?? "—"}
               </span>
             </div>
             <div className="flex justify-between gap-3">
-              <span className="shrink-0">Table / Réf.</span>
+              <span className="shrink-0">{pages.tickets.clientColumn}</span>
               <span className="min-w-0 text-right">{reference}</span>
             </div>
           </section>

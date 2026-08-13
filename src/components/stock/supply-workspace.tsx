@@ -33,6 +33,7 @@ import type {
   SupplierOption,
 } from "@/lib/stock/types";
 import type { ProductPackaging } from "@/lib/products/types";
+import { getActivityPages } from "@/lib/activity/pages";
 import {
   allowedDepartments,
   defaultDepartmentCode,
@@ -57,14 +58,10 @@ type SupplyWorkspaceProps = {
   periodFilter?: SupplyPeriodFilter | null;
   periodLabel?: string | null;
   periodBasePath?: string;
+  activityCode?: string | null;
 };
 
 type SupplierFormMode = "create" | "edit" | null;
-
-const SPACE_LABELS: Record<SupplyDepartment, string> = {
-  BAR: "Bar",
-  KITCHEN: "Cuisine",
-};
 
 const PERIOD_OPTIONS: Array<{ id: SupplyPeriodFilter; label: string }> = [
   { id: "day", label: "Jour" },
@@ -93,8 +90,14 @@ export function SupplyWorkspace({
   periodFilter = null,
   periodLabel = null,
   periodBasePath = "/application/approvisionnements",
+  activityCode = null,
 }: SupplyWorkspaceProps) {
   const router = useRouter();
+  const pages = getActivityPages(activityCode);
+  const spaceLabels: Record<SupplyDepartment, string> = {
+    BAR: pages.supply.spaceLabel,
+    KITCHEN: pages.retail ? pages.supply.spaceLabel : "Cuisine",
+  };
   const availableDepartments = lockedDepartment
     ? [lockedDepartment]
     : allowedDepartments(serviceScope);
@@ -306,7 +309,7 @@ export function SupplyWorkspace({
               </>
             ) : (
               <>
-                Achats {SPACE_LABELS[activeDepartment].toLowerCase()} ·{" "}
+                Achats {spaceLabels[activeDepartment].toLowerCase()} ·{" "}
                 <span className="font-medium text-slate-700">
                   {establishmentName}
                 </span>
@@ -355,7 +358,7 @@ export function SupplyWorkspace({
               disabled={isPending || !canCreateEntry}
               title={
                 departmentItems.length === 0
-                  ? `Créez d'abord des articles ${SPACE_LABELS[activeDepartment].toLowerCase()}`
+                  ? `Créez d'abord des articles ${spaceLabels[activeDepartment].toLowerCase()}`
                   : activeSuppliers.length === 0
                     ? "Ajoutez d'abord un fournisseur pour cet espace"
                     : undefined
@@ -402,7 +405,7 @@ export function SupplyWorkspace({
                       : "bg-slate-100 text-slate-600 active:bg-slate-200"
                   }`}
                 >
-                  {SPACE_LABELS[code]}
+                  {spaceLabels[code]}
                 </button>
               ))
             : null}
@@ -462,7 +465,7 @@ export function SupplyWorkspace({
               {departmentItems.length}
             </p>
             <p className="mt-0.5 truncate text-[10px] text-slate-400">
-              {SPACE_LABELS[activeDepartment]}
+              {spaceLabels[activeDepartment]}
             </p>
           </div>
         ) : null}
@@ -480,7 +483,7 @@ export function SupplyWorkspace({
           subtitle={
             compact
               ? `${departmentSuppliers.length} au total`
-              : `${departmentSuppliers.length} · ${SPACE_LABELS[activeDepartment]}`
+              : `${departmentSuppliers.length} · ${spaceLabels[activeDepartment]}`
           }
           icon={Building2}
           tone="sky"
@@ -510,7 +513,7 @@ export function SupplyWorkspace({
         />
         {!compact ? (
           <StatCard
-            title={`Articles ${SPACE_LABELS[activeDepartment].toLowerCase()}`}
+            title={`Articles ${spaceLabels[activeDepartment].toLowerCase()}`}
             value={String(departmentItems.length)}
             subtitle="disponibles pour entrée"
             icon={Package}
@@ -702,7 +705,7 @@ export function SupplyWorkspace({
                 </h3>
                 <p className="mt-1 text-[12px] text-slate-500">
                   {departmentSuppliers.length === 0
-                    ? `Ajoutez un fournisseur ${SPACE_LABELS[activeDepartment].toLowerCase()} avant une entrée.`
+                    ? `Ajoutez un fournisseur ${spaceLabels[activeDepartment].toLowerCase()} avant une entrée.`
                     : "Changez le filtre pour afficher d'autres."}
                 </p>
                 {canManageStock && departmentSuppliers.length === 0 ? (
@@ -730,7 +733,7 @@ export function SupplyWorkspace({
                             {supplier.name}
                           </p>
                           <span className="inline-flex rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
-                            {SPACE_LABELS[supplier.departmentCode]}
+                            {spaceLabels[supplier.departmentCode]}
                           </span>
                           <span
                             className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
@@ -803,7 +806,8 @@ export function SupplyWorkspace({
           packagingsByProduct={packagingsByProduct}
           formError={entryError}
           isPending={isPending}
-          drinksOnly={activeDepartment === "BAR"}
+          drinksOnly={activeDepartment === "BAR" && !pages.retail}
+          simpleEntry={pages.retail}
           onClose={() => setShowEntryModal(false)}
           onSubmit={handleEntrySubmit}
         />
@@ -819,6 +823,8 @@ export function SupplyWorkspace({
             lockedDepartment ??
             (availableDepartments.length === 1 ? availableDepartments[0] : null)
           }
+          departmentLabel={spaceLabels.BAR}
+          hideDepartmentSelect={pages.retail}
           onClose={closeSupplierForm}
           onSubmit={handleSupplierSubmit}
           onChange={setSupplierForm}

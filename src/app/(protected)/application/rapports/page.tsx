@@ -52,6 +52,7 @@ export default async function RapportsPage({ searchParams }: RapportsPageProps) 
         logoUrl: settings?.logoUrl ?? null,
       }}
       serviceScope={workspace.serviceScope}
+      activityCode={workspace.activityCode}
     />
   );
 }

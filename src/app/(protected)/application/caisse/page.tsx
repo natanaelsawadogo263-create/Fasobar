@@ -47,6 +47,7 @@ export default async function CaissePage({ searchParams }: CaissePageProps) {
       initialOrder={initialOrder}
       freshCart={freshCart}
       serviceScope={workspace.serviceScope}
+      activityCode={workspace.activityCode}
     />
   );
 }

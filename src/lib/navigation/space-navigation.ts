@@ -1,3 +1,4 @@
+import { getActivityProfile, isRetailActivity } from "@/lib/activity/profile";
 import type { UserSpace } from "@/lib/auth/roles";
 import {
   hasBarService,
@@ -63,7 +64,26 @@ export const BAR_MANAGER_NAV: NavItem[] = [
 export function getNavigationForSpace(
   space: UserSpace,
   serviceScope: ServiceScope = "BOTH",
+  activityCode?: string | null,
 ): NavItem[] {
+  const profile = getActivityProfile(activityCode);
+  const retail = profile.kind === "retail";
+
+  if (retail && space === "cashier_kitchen") {
+    return [
+      { href: "/application/caisse", label: profile.cashierNavLabel, enabled: true },
+      {
+        href: "/application/commandes-ouvertes",
+        label: profile.openTicketsNavLabel,
+        enabled: true,
+      },
+      { href: "/application/stock", label: profile.stockNavLabel, enabled: true },
+      { href: "/application/approvisionnements", label: "Approvisionnements", enabled: true },
+      { href: "/application/depenses", label: "Dépenses", enabled: true },
+      { href: "/application/caisse/session", label: "Ma session", enabled: true },
+    ];
+  }
+
   const items = (() => {
     switch (space) {
       case "cashier_kitchen":
@@ -75,15 +95,30 @@ export function getNavigationForSpace(
     }
   })();
 
-  return items.filter((item) => {
-    if (item.href === "/application/sessions-bar") {
-      return hasBarService(serviceScope);
-    }
-    if (item.href === "/application/cuisine" || item.href === "/application/stock/cuisine") {
-      return hasKitchenService(serviceScope);
-    }
-    return true;
-  });
+  return items
+    .filter((item) => {
+      if (item.href === "/application/sessions-bar") {
+        return !retail && hasBarService(serviceScope);
+      }
+      if (item.href === "/application/cuisine" || item.href === "/application/stock/cuisine") {
+        return !retail && hasKitchenService(serviceScope);
+      }
+      // Commerce : l’historique des tickets est côté Ventes, pas une page dédiée.
+      if (retail && item.href === "/application/commandes") {
+        return false;
+      }
+      return true;
+    })
+    .map((item) => {
+      if (!retail || space !== "admin") return item;
+      if (item.href === "/application/produits") {
+        return { ...item, label: profile.productNavLabel };
+      }
+      if (item.href === "/application/stock") {
+        return { ...item, label: profile.stockNavLabel };
+      }
+      return item;
+    });
 }
 
 const ADMIN_ONLY_PREFIXES = [
@@ -119,8 +154,22 @@ export function isPathAllowedForSpace(
   pathname: string,
   space: UserSpace,
   serviceScope: ServiceScope = "BOTH",
+  activityCode?: string | null,
 ): boolean {
-  if (!isPathAllowedForServiceScope(pathname, serviceScope)) {
+  const retail = isRetailActivity(activityCode);
+
+  if (retail) {
+    if (
+      pathname.startsWith("/application/sessions-bar") ||
+      pathname.startsWith("/application/bar") ||
+      pathname.startsWith("/application/cuisine") ||
+      pathname.startsWith("/application/stock/cuisine")
+    ) {
+      return false;
+    }
+  }
+
+  if (!retail && !isPathAllowedForServiceScope(pathname, serviceScope)) {
     return false;
   }
 
@@ -135,6 +184,11 @@ export function isPathAllowedForSpace(
       pathname === "/application/cuisine" ||
       pathname.startsWith("/application/cuisine/")
     ) {
+      return false;
+    }
+
+    // Commerce : liste Tickets remplacée par Ventes (détail /application/commandes/:id OK).
+    if (retail && pathname === "/application/commandes") {
       return false;
     }
 
@@ -158,13 +212,18 @@ export function isPathAllowedForSpace(
       return false;
     }
 
-    if (pathname.startsWith("/application/stock") && !pathname.startsWith("/application/stock/cuisine")) {
+    if (
+      pathname.startsWith("/application/stock") &&
+      !pathname.startsWith("/application/stock/cuisine") &&
+      !retail
+    ) {
       return false;
     }
 
     return (
       CASHIER_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
       SHARED_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
+      (retail && pathname.startsWith("/application/stock")) ||
       pathname === "/application" ||
       pathname.startsWith("/application/mode-hors-connexion")
     );

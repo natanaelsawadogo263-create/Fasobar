@@ -25,6 +25,7 @@ import { useToast } from "@/components/ui/toast";
 import { CreateEmployeeModal } from "@/components/users/create-employee-modal";
 import { DeleteEmployeeModal } from "@/components/users/delete-employee-modal";
 import { ResetPasswordModal } from "@/components/users/reset-password-modal";
+import { getActivityProfile } from "@/lib/activity/profile";
 import { SPACE_LABELS } from "@/lib/auth/roles";
 import type { ServiceScope } from "@/lib/settings/service-scope";
 import type { TeamMemberRow, UsersPageData } from "@/lib/users/types";
@@ -33,6 +34,7 @@ type UsersWorkspaceProps = UsersPageData & {
   defaultEstablishmentId: string;
   openCreateOnMount?: boolean;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
 function getInitials(name: string): string {
@@ -74,6 +76,17 @@ function spaceTone(spaceLabel: string): string {
   return "bg-orange-50 text-orange-900 ring-orange-200";
 }
 
+function displayMemberSpace(
+  spaceLabel: string,
+  activityCode: string | null | undefined,
+): string {
+  const profile = getActivityProfile(activityCode);
+  if (profile.kind === "retail" && spaceLabel === SPACE_LABELS.cashier_kitchen) {
+    return profile.cashierSpaceLabel;
+  }
+  return spaceLabel;
+}
+
 export function UsersWorkspace({
   members,
   establishments,
@@ -81,7 +94,10 @@ export function UsersWorkspace({
   defaultEstablishmentId,
   openCreateOnMount = false,
   serviceScope = "BOTH",
+  activityCode = null,
 }: UsersWorkspaceProps) {
+  const profile = getActivityProfile(activityCode);
+  const retail = profile.kind === "retail";
   const router = useRouter();
   const toast = useToast();
   const [search, setSearch] = useState("");
@@ -194,7 +210,7 @@ export function UsersWorkspace({
         {error ? <AlertMessage message={error} /> : null}
 
         {/* Synthèse — desktop uniquement */}
-        <div className="hidden grid-cols-2 gap-3 md:grid lg:grid-cols-4">
+        <div className={`hidden grid-cols-2 gap-3 md:grid ${retail ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
           {[
             {
               label: "Actifs",
@@ -211,19 +227,23 @@ export function UsersWorkspace({
               tone: "bg-sky-50 text-sky-700",
             },
             {
-              label: "Caisse–Cuisine",
+              label: profile.cashierSpaceLabel,
               value: stats.cashierKitchenCount,
               hint: "opérations",
               icon: UtensilsCrossed,
               tone: "bg-orange-50 text-orange-700",
             },
-            {
-              label: "Responsable Bar",
-              value: stats.barManagerCount,
-              hint: "stock boissons",
-              icon: Wine,
-              tone: "bg-amber-50 text-amber-700",
-            },
+            ...(retail
+              ? []
+              : [
+                  {
+                    label: "Responsable Bar",
+                    value: stats.barManagerCount,
+                    hint: "stock boissons",
+                    icon: Wine,
+                    tone: "bg-amber-50 text-amber-700",
+                  },
+                ]),
           ].map((kpi) => {
             const Icon = kpi.icon;
             return (
@@ -391,7 +411,7 @@ export function UsersWorkspace({
                             <span
                               className={`inline-flex rounded-md px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${spaceTone(row.spaceLabel)}`}
                             >
-                              {row.spaceLabel}
+                              {displayMemberSpace(row.spaceLabel, profile.id)}
                             </span>
                             <span className="text-[11px] text-slate-400">
                               Créé le {formatDate(row.createdAt)}
@@ -454,6 +474,7 @@ export function UsersWorkspace({
           establishments={establishments}
           defaultEstablishmentId={defaultEstablishmentId}
           serviceScope={serviceScope}
+          activityCode={activityCode}
           onClose={() => setShowCreateModal(false)}
           onCreated={() => {
             toast.success("Compte employé créé.");
@@ -465,6 +486,7 @@ export function UsersWorkspace({
       {resetMember ? (
         <ResetPasswordModal
           member={resetMember}
+          retail={profile.kind === "retail"}
           onClose={() => setResetMember(null)}
           onReset={() => {
             toast.success("Mot de passe temporaire réinitialisé.");

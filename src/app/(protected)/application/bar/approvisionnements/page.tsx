@@ -37,6 +37,8 @@ export default async function BarApprovisionnementsPage({
     !isPathAllowedForSpace(
       "/application/bar/approvisionnements",
       workspace.userSpace,
+      workspace.serviceScope,
+      workspace.activityCode,
     )
   ) {
     redirect("/application/acces-refuse");
@@ -95,6 +97,7 @@ export default async function BarApprovisionnementsPage({
           periodRange.to,
         )}
         periodBasePath="/application/bar/approvisionnements"
+        activityCode={workspace.activityCode}
       />
     </BarSessionGate>
   );

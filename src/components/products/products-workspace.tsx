@@ -40,6 +40,11 @@ import type {
 } from "@/lib/products/types";
 import type { ProductTab } from "@/lib/products/schemas";
 import {
+  getCatalogFormProfile,
+  shouldShowCatalogCategory,
+} from "@/lib/activity/catalog";
+import { getActivityProfile } from "@/lib/activity/profile";
+import {
   defaultDepartmentCode,
   hasBarService,
   hasKitchenService,
@@ -57,6 +62,7 @@ type ProductsWorkspaceProps = {
   initialCategoryId: string;
   canManage: boolean;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
 type FormMode = "create" | "edit" | null;
@@ -85,16 +91,20 @@ export function ProductsWorkspace({
   initialCategoryId,
   canManage,
   serviceScope = "BOTH",
+  activityCode = null,
 }: ProductsWorkspaceProps) {
   const router = useRouter();
   const toast = useToast();
+  const profile = getActivityProfile(activityCode);
+  const catalog = getCatalogFormProfile(activityCode);
+  const retail = profile.kind === "retail";
   const allowedDepartments = [
     ...(hasBarService(serviceScope) ? (["BAR"] as const) : []),
-    ...(hasKitchenService(serviceScope) ? (["KITCHEN"] as const) : []),
+    ...(!retail && hasKitchenService(serviceScope) ? (["KITCHEN"] as const) : []),
   ];
   const visibleTabs = PRODUCT_TABS.filter((item) => {
-    if (item.id === "bar") return hasBarService(serviceScope);
-    if (item.id === "kitchen") return hasKitchenService(serviceScope);
+    if (item.id === "bar") return !retail && hasBarService(serviceScope);
+    if (item.id === "kitchen") return !retail && hasKitchenService(serviceScope);
     return true;
   });
   const [isPending, startTransition] = useTransition();
@@ -133,14 +143,23 @@ export function ProductsWorkspace({
 
   function openCreateForm() {
     const departmentCode = defaultDepartmentCode(serviceScope);
+    const visibleCategories = categories.filter(
+      (category) =>
+        category.departmentCode === departmentCode &&
+        shouldShowCatalogCategory(category.name, catalog),
+    );
     setEditingProduct(null);
     setFormState({
       ...emptyForm,
       departmentCode,
-      unit: departmentCode === "BAR" ? "BOTTLE" : "PORTION",
-      categoryId:
-        categories.find((category) => category.departmentCode === departmentCode)?.id ??
-        "",
+      unit: retail
+        ? catalog.defaultUnit
+        : departmentCode === "BAR"
+          ? "BOTTLE"
+          : "PORTION",
+      packagingUnit: catalog.showPackaging ? "CARTON" : "CASE",
+      unitsPerPack: catalog.showPackaging ? BAR_PACKAGING_DEFAULT_UNITS.CARTON : 0,
+      categoryId: visibleCategories[0]?.id ?? "",
     });
     resetImageAssets();
     setFormMode("create");
@@ -256,19 +275,20 @@ export function ProductsWorkspace({
     }
   }
 
-  const filteredCategories =
+  const filteredCategories = (
     tab === "bar"
       ? categories.filter((c) => c.departmentCode === "BAR")
       : tab === "kitchen"
         ? categories.filter((c) => c.departmentCode === "KITCHEN")
-        : categories;
+        : categories
+  ).filter((category) => shouldShowCatalogCategory(category.name, catalog));
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-hidden px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:gap-3.5 lg:px-5 lg:py-4">
       <header className="flex shrink-0 items-center justify-between gap-2">
         <div className="min-w-0">
           <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[20px] lg:text-[22px]">
-            Produits
+            {profile.productNavLabel}
           </h1>
           <p className="mt-0.5 hidden text-[12px] text-slate-500 sm:block">
             Établissement actif :{" "}
@@ -285,7 +305,7 @@ export function ProductsWorkspace({
           >
             <PackagePlus className="h-3.5 w-3.5" />
             <span className="sm:hidden">Ajouter</span>
-            <span className="hidden sm:inline">Ajouter un produit</span>
+            <span className="hidden sm:inline">{catalog.addButtonLabel}</span>
           </button>
         ) : null}
       </header>
@@ -294,7 +314,7 @@ export function ProductsWorkspace({
 
       <div
         className={`hidden shrink-0 gap-2.5 md:grid lg:gap-3 ${
-          hasBarService(serviceScope) && hasKitchenService(serviceScope)
+          !retail && hasBarService(serviceScope) && hasKitchenService(serviceScope)
             ? "grid-cols-2 sm:grid-cols-4"
             : "grid-cols-2 sm:grid-cols-3"
         }`}
@@ -302,20 +322,20 @@ export function ProductsWorkspace({
         <StatCard
           title="Catalogue"
           value={String(stats.total)}
-          subtitle="produits au total"
+          subtitle={`${catalog.itemNounPlural} au total`}
           icon={Package}
           tone="emerald"
         />
         {hasBarService(serviceScope) ? (
           <StatCard
-            title="Boissons"
+            title={retail ? profile.catalogDepartmentLabel : "Boissons"}
             value={String(stats.barCount)}
-            subtitle="actifs · bar"
-            icon={Wine}
+            subtitle={retail ? "en vente" : "actifs · bar"}
+            icon={retail ? Package : Wine}
             tone="sky"
           />
         ) : null}
-        {hasKitchenService(serviceScope) ? (
+        {!retail && hasKitchenService(serviceScope) ? (
           <StatCard
             title="Nourriture"
             value={String(stats.kitchenCount)}
@@ -607,6 +627,7 @@ export function ProductsWorkspace({
 
       {formMode && canManage ? (
         <ProductFormModal
+          key={editingProduct?.id ?? "create"}
           mode={formMode}
           formState={formState}
           categories={categories}
@@ -624,6 +645,10 @@ export function ProductsWorkspace({
           onPackagingsChanged={() => refreshSoon(() => router.refresh())}
           onClientValidationError={setFormError}
           allowedDepartments={allowedDepartments}
+          catalogDepartmentLabel={
+            retail ? profile.catalogDepartmentLabel : undefined
+          }
+          catalog={catalog}
         />
       ) : null}
     </div>

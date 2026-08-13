@@ -10,7 +10,14 @@ import { isPathAllowedForSpace } from "@/lib/navigation/space-navigation";
 export default async function BarDashboardPage() {
   const workspace = await requireBarManagerContext();
 
-  if (!isPathAllowedForSpace("/application/bar", workspace.userSpace)) {
+  if (
+    !isPathAllowedForSpace(
+      "/application/bar",
+      workspace.userSpace,
+      workspace.serviceScope,
+      workspace.activityCode,
+    )
+  ) {
     redirect("/application/acces-refuse");
   }
 

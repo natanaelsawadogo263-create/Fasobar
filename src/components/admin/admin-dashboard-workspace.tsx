@@ -13,11 +13,14 @@ import {
   DoorClosed,
   PackagePlus,
   ShoppingCart,
+  TrendingDown,
   TrendingUp,
+  Wallet,
   Wine,
   UtensilsCrossed,
 } from "lucide-react";
 
+import { getActivityProfile } from "@/lib/activity/profile";
 import type {
   AdminDashboardData,
   AdminDashboardPeriod,
@@ -32,6 +35,7 @@ import {
 type AdminDashboardWorkspaceProps = {
   data: AdminDashboardData;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
 const PERIOD_OPTIONS: Array<{ id: AdminDashboardPeriod; label: string }> = [
@@ -106,8 +110,11 @@ function emptySalesMessage(period: AdminDashboardPeriod): string {
 export function AdminDashboardWorkspace({
   data,
   serviceScope = "BOTH",
+  activityCode = null,
 }: AdminDashboardWorkspaceProps) {
   const router = useRouter();
+  const profile = getActivityProfile(activityCode);
+  const retail = profile.kind === "retail";
   const { kpis, salesByDept, salesSeries, analysisPeriod, analysisPeriodLabel } =
     data;
   const salesTrend = trendLabel(kpis.salesToday, kpis.salesYesterday);
@@ -145,7 +152,11 @@ export function AdminDashboardWorkspace({
           <h1 className="text-[18px] font-bold leading-none tracking-tight text-slate-900 lg:text-[20px]">
             Tableau de bord
           </h1>
-          <p className="mt-1 text-[11px] capitalize text-slate-500">{todayLabel()}</p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            <span className="capitalize">{todayLabel()}</span>
+            <span className="text-slate-300"> · </span>
+            {profile.dashboardHint}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white p-1 sm:h-8 sm:rounded-lg sm:p-0.5">
@@ -177,7 +188,7 @@ export function AdminDashboardWorkspace({
       <div className="-mx-3 flex shrink-0 gap-2 overflow-x-auto px-3 pb-0.5 lg:hidden">
         <div className="w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-l-4 border-slate-200/90 border-l-emerald-500 bg-white px-3 py-2.5 shadow-sm">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            Ventes
+            {retail ? "CA" : "Ventes"}
           </p>
           <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
             {formatPriceXof(kpis.salesToday)}
@@ -188,26 +199,34 @@ export function AdminDashboardWorkspace({
         </div>
         <div className="w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-l-4 border-slate-200/90 border-l-sky-500 bg-white px-3 py-2.5 shadow-sm">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            Commandes
+            {retail ? "Dépenses" : "Commandes"}
           </p>
           <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
-            {kpis.ordersToday}
+            {retail ? formatPriceXof(kpis.expensesToday) : kpis.ordersToday}
           </p>
           <div className="mt-0.5">
-            <TrendBadge trend={ordersTrend} />
+            {retail ? (
+              <span className="font-medium text-slate-500">Du jour</span>
+            ) : (
+              <TrendBadge trend={ordersTrend} />
+            )}
           </div>
         </div>
         <div className="w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-l-4 border-slate-200/90 border-l-teal-500 bg-white px-3 py-2.5 shadow-sm">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            Caisses
+            {retail ? "Bénéfice" : "Caisses"}
           </p>
           <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
-            {formatPriceXof(kpis.openCashBalance ?? 0)}
+            {retail
+              ? formatPriceXof(kpis.profitToday)
+              : formatPriceXof(kpis.openCashBalance ?? 0)}
           </p>
           <p className="mt-0.5 truncate text-[10px] text-slate-400">
-            {openSessionsCount > 0
-              ? `${openSessionsCount} ouverte${openSessionsCount > 1 ? "s" : ""}`
-              : "Aucune ouverte"}
+            {retail
+              ? "CA − dépenses"
+              : openSessionsCount > 0
+                ? `${openSessionsCount} ouverte${openSessionsCount > 1 ? "s" : ""}`
+                : "Aucune ouverte"}
           </p>
         </div>
         <div
@@ -236,24 +255,48 @@ export function AdminDashboardWorkspace({
           accent="border-l-emerald-500"
           icon={<TrendingUp className="h-3.5 w-3.5" />}
           iconClass="bg-emerald-50 text-emerald-700"
-          label="Ventes du jour"
+          label={retail ? "Chiffre d’affaires" : "Ventes du jour"}
           value={formatPriceXof(kpis.salesToday)}
           sub={<TrendBadge trend={salesTrend} />}
         />
         <KpiCard
           accent="border-l-sky-500"
-          icon={<ShoppingCart className="h-3.5 w-3.5" />}
+          icon={
+            retail ? (
+              <TrendingDown className="h-3.5 w-3.5" />
+            ) : (
+              <ShoppingCart className="h-3.5 w-3.5" />
+            )
+          }
           iconClass="bg-sky-50 text-sky-700"
-          label="Commandes du jour"
-          value={String(kpis.ordersToday)}
-          sub={<TrendBadge trend={ordersTrend} />}
+          label={retail ? "Dépenses du jour" : profile.ordersKpiLabel}
+          value={
+            retail ? formatPriceXof(kpis.expensesToday) : String(kpis.ordersToday)
+          }
+          sub={
+            retail ? (
+              <span className="font-medium text-slate-500">Sorties enregistrées</span>
+            ) : (
+              <TrendBadge trend={ordersTrend} />
+            )
+          }
         />
         <KpiCard
           accent="border-l-teal-500"
-          icon={<Banknote className="h-3.5 w-3.5" />}
+          icon={
+            retail ? (
+              <Wallet className="h-3.5 w-3.5" />
+            ) : (
+              <Banknote className="h-3.5 w-3.5" />
+            )
+          }
           iconClass="bg-teal-50 text-teal-700"
-          label="Solde caisses"
-          value={formatPriceXof(kpis.openCashBalance ?? 0)}
+          label={retail ? "Bénéfice du jour" : "Solde caisses"}
+          value={
+            retail
+              ? formatPriceXof(kpis.profitToday)
+              : formatPriceXof(kpis.openCashBalance ?? 0)
+          }
           sub={
             openSessionsCount > 0 ? (
               <span className="inline-flex items-center gap-1 text-slate-500">
@@ -290,7 +333,7 @@ export function AdminDashboardWorkspace({
       <div className="grid min-h-0 flex-1 gap-2.5 overflow-y-auto lg:grid-cols-12 lg:gap-3 lg:overflow-hidden">
         <Panel
           className="min-h-0 lg:col-span-5"
-          title="Produits les plus vendus"
+          title={profile.topProductsTitle}
           action={
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold capitalize text-slate-500">
               {analysisPeriodLabel} · Top {topProducts.length || 0}
@@ -360,13 +403,13 @@ export function AdminDashboardWorkspace({
                 {hasBarService(serviceScope) ? (
                 <DeptBar
                   icon={<Wine className="h-3.5 w-3.5" />}
-                  label="Bar"
+                  label={retail ? profile.catalogDepartmentLabel : "Bar"}
                   amount={salesByDept.bar}
                   total={deptTotal}
                   tone="bg-emerald-500"
                 />
                 ) : null}
-                {hasKitchenService(serviceScope) ? (
+                {!retail && hasKitchenService(serviceScope) ? (
                 <DeptBar
                   icon={<UtensilsCrossed className="h-3.5 w-3.5" />}
                   label="Cuisine"

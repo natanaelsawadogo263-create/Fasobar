@@ -1,3 +1,4 @@
+import { getActivityPages } from "@/lib/activity/pages";
 import type { ReportType } from "@/lib/reports/schemas";
 import type { ReportColumnFormat } from "@/lib/reports/types";
 import {
@@ -64,12 +65,29 @@ export const REPORT_TYPE_OPTIONS: Array<{
   },
 ];
 
-export function reportOptionsForScope(scope: ServiceScope) {
+export function reportOptionsForScope(
+  scope: ServiceScope,
+  activityCode?: string | null,
+) {
+  const pages = getActivityPages(activityCode);
   return REPORT_TYPE_OPTIONS.filter((option) => {
     if (option.id === "stock_boissons") return hasBarService(scope);
     return true;
   }).map((option) => {
+    if (option.id === "ventes") {
+      return { ...option, description: pages.reports.salesHint };
+    }
+    if (option.id === "produits_vendus") {
+      return {
+        ...option,
+        label: pages.reports.productsSold,
+        description: pages.reports.productsSoldHint,
+      };
+    }
     if (option.id === "benefices") {
+      if (pages.retail) {
+        return { ...option, description: pages.reports.profitHint };
+      }
       if (scope === "BAR") {
         return {
           ...option,
@@ -89,7 +107,17 @@ export function reportOptionsForScope(scope: ServiceScope) {
           "Vue Bar / Cuisine : CA, approvisionnements, dépenses et bénéfice net.",
       };
     }
+    if (option.id === "stock_boissons") {
+      return {
+        ...option,
+        label: pages.reports.stockLabel,
+        description: pages.reports.stockHint,
+      };
+    }
     if (option.id === "approvisionnements") {
+      if (pages.retail) {
+        return { ...option, description: pages.reports.supplyHint };
+      }
       if (scope === "BAR") {
         return { ...option, description: "Entrées de stock (achats) boissons." };
       }

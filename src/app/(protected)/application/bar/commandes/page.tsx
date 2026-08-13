@@ -10,7 +10,14 @@ import { isPathAllowedForSpace } from "@/lib/navigation/space-navigation";
 export default async function BarOrdersPage() {
   const workspace = await requireBarManagerContext();
 
-  if (!isPathAllowedForSpace("/application/bar/commandes", workspace.userSpace)) {
+  if (
+    !isPathAllowedForSpace(
+      "/application/bar/commandes",
+      workspace.userSpace,
+      workspace.serviceScope,
+      workspace.activityCode,
+    )
+  ) {
     redirect("/application/acces-refuse");
   }
 

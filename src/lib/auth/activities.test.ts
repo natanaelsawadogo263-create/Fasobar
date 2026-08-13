@@ -14,10 +14,11 @@ describe("activités commerciales", () => {
     expect(isBusinessActivityId("bar")).toBe(false);
   });
 
-  it("n’ouvre que l’espace restauration pour l’instant", () => {
+  it("ouvre toutes les activités du catalogue", () => {
     expect(isSelectableActivityId("restaurant")).toBe(true);
-    expect(isSelectableActivityId("pharmacy")).toBe(false);
-    expect(isSelectableActivityId("hardware")).toBe(false);
+    expect(isSelectableActivityId("pharmacy")).toBe(true);
+    expect(isSelectableActivityId("hardware")).toBe(true);
+    expect(isSelectableActivityId("bar")).toBe(false);
   });
 
   it("mappe restaurant vers RESTAURANT et le reste vers COMMERCE", () => {

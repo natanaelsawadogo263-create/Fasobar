@@ -89,13 +89,10 @@ export function isBusinessActivityId(value: string | null | undefined): value is
   return Boolean(value && ACTIVITY_IDS.has(value));
 }
 
-/** Seul l’espace restauration est ouvert pour l’instant. */
-const SELECTABLE_ACTIVITY_IDS = new Set<BusinessActivityId>(["restaurant"]);
-
 export function isSelectableActivityId(
   value: string | null | undefined,
 ): value is BusinessActivityId {
-  return isBusinessActivityId(value) && SELECTABLE_ACTIVITY_IDS.has(value);
+  return isBusinessActivityId(value);
 }
 
 export function getBusinessActivity(id: string | null | undefined) {

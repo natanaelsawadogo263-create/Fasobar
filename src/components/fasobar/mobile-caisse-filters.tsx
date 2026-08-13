@@ -5,6 +5,7 @@ import { LayoutGrid, UtensilsCrossed, Wine } from "lucide-react";
 import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";
 import type { DepartmentFilter } from "@/components/pos/constants";
+import { isRetailActivity } from "@/lib/activity/profile";
 import { hasBarService, hasKitchenService } from "@/lib/settings/service-scope";
 
 const DEPARTMENTS: {
@@ -24,31 +25,41 @@ export function MobileCaisseFilters() {
   if (!filters) return null;
 
   const serviceScope = filters.serviceScope ?? "BOTH";
-  const departments = DEPARTMENTS.filter((dept) => {
-    if (dept.id === "bar") return hasBarService(serviceScope);
-    if (dept.id === "kitchen") return hasKitchenService(serviceScope);
-    return hasBarService(serviceScope) && hasKitchenService(serviceScope);
-  });
+  const retail = isRetailActivity(filters.activityCode);
+  const departments = retail
+    ? []
+    : DEPARTMENTS.filter((dept) => {
+        if (dept.id === "bar") return hasBarService(serviceScope);
+        if (dept.id === "kitchen") return hasKitchenService(serviceScope);
+        return hasBarService(serviceScope) && hasKitchenService(serviceScope);
+      });
 
-  const categoryOptions = CAISSE_CATEGORIES.map((category) => {
-    const match = filters.categories.find(
-      (item) => item.name.toLowerCase() === category.name.toLowerCase(),
-    );
-    return {
-      id: match?.id ?? category.slug,
-      name: category.name,
-      departmentCode: category.departmentCode,
-    };
-  }).filter((category) => {
-    if (filters.departmentFilter === "bar") return category.departmentCode === "BAR";
-    if (filters.departmentFilter === "kitchen") {
-      return category.departmentCode === "KITCHEN";
-    }
-    return true;
-  });
+  const categoryOptions = retail
+    ? filters.categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        departmentCode: category.departmentCode,
+      }))
+    : CAISSE_CATEGORIES.map((category) => {
+        const match = filters.categories.find(
+          (item) => item.name.toLowerCase() === category.name.toLowerCase(),
+        );
+        return {
+          id: match?.id ?? category.slug,
+          name: category.name,
+          departmentCode: category.departmentCode,
+        };
+      }).filter((category) => {
+        if (filters.departmentFilter === "bar") return category.departmentCode === "BAR";
+        if (filters.departmentFilter === "kitchen") {
+          return category.departmentCode === "KITCHEN";
+        }
+        return true;
+      });
 
   return (
     <div className="shrink-0 border-b border-slate-200 bg-white md:hidden">
+      {departments.length > 0 ? (
       <div className="flex gap-1.5 overflow-x-auto px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {departments.map((dept) => {
           const active =
@@ -75,6 +86,7 @@ export function MobileCaisseFilters() {
           );
         })}
       </div>
+      ) : null}
       {categoryOptions.length > 0 ? (
         <div className="flex gap-1.5 overflow-x-auto border-t border-slate-100 px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {categoryOptions.map((category) => {

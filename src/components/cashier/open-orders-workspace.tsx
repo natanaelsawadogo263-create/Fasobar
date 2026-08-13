@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ClipboardList, Plus, Search } from "lucide-react";
 
 import { OrderPrepBadges } from "@/components/ops/order-prep-badges";
+import { getActivityPages } from "@/lib/activity/pages";
 import {
   formatOrderNumber,
   formatPriceXof,
@@ -19,6 +20,7 @@ type OpenOrdersWorkspaceProps = {
   orders: OpenOrderListItem[];
   canManageOrders: boolean;
   canOperateCashRegister?: boolean;
+  activityCode?: string | null;
 };
 
 function isFinalized(order: OpenOrderListItem): boolean {
@@ -43,7 +45,9 @@ export function OpenOrdersWorkspace({
   orders,
   canManageOrders,
   canOperateCashRegister = false,
+  activityCode = null,
 }: OpenOrdersWorkspaceProps) {
+  const pages = getActivityPages(activityCode);
   const openCount = orders.filter(
     (order) => !isFinalized(order) && order.status !== "DRAFT",
   ).length;
@@ -57,7 +61,7 @@ export function OpenOrdersWorkspace({
       <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Commandes du jour</h1>
+            <h1 className="text-xl font-bold text-slate-900">{pages.openTickets.title}</h1>
             <p className="mt-0.5 text-sm text-slate-500">
               {establishmentName} · {openCount} ouverte{openCount > 1 ? "s" : ""} ·{" "}
               {holdCount} en attente · {doneCount} terminée{doneCount > 1 ? "s" : ""}
@@ -69,7 +73,7 @@ export function OpenOrdersWorkspace({
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
             >
               <Plus className="h-4 w-4" />
-              Nouvelle commande
+              {pages.openTickets.newButton}
             </Link>
           ) : null}
         </div>
@@ -79,7 +83,7 @@ export function OpenOrdersWorkspace({
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="search"
-              placeholder="Rechercher une commande, table…"
+              placeholder={pages.openTickets.searchPlaceholder}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
@@ -94,11 +98,10 @@ export function OpenOrdersWorkspace({
                 <ClipboardList className="h-7 w-7" />
               </div>
               <h2 className="mt-4 text-lg font-semibold text-slate-900">
-                Aucune commande du jour
+                {pages.openTickets.emptyTitle}
               </h2>
               <p className="mt-2 max-w-md text-sm text-slate-600">
-                Les commandes ouvertes, en attente et terminées de la journée apparaîtront
-                ici.
+                {pages.openTickets.emptyDetail}
               </p>
             </div>
           ) : (
@@ -107,11 +110,11 @@ export function OpenOrdersWorkspace({
                 <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-4 py-3 font-semibold">N°</th>
-                    <th className="px-4 py-3 font-semibold">Table / Réf.</th>
+                    <th className="px-4 py-3 font-semibold">{pages.tickets.clientColumn}</th>
                     <th className="px-4 py-3 font-semibold">Heure</th>
                     <th className="px-4 py-3 font-semibold">Articles</th>
                     <th className="px-4 py-3 font-semibold">Total</th>
-                    <th className="px-4 py-3 font-semibold">Caissière</th>
+                    <th className="px-4 py-3 font-semibold">{pages.tickets.cashierColumn}</th>
                     <th className="px-4 py-3 font-semibold">Statut</th>
                     {canManageOrders ? (
                       <th className="px-4 py-3 font-semibold">Actions</th>
@@ -151,10 +154,12 @@ export function OpenOrdersWorkspace({
                             >
                               {badge.label}
                             </span>
-                            <OrderPrepBadges
-                              barStatus={order.barStatus}
-                              kitchenStatus={order.kitchenStatus}
-                            />
+                            {pages.retail ? null : (
+                              <OrderPrepBadges
+                                barStatus={order.barStatus}
+                                kitchenStatus={order.kitchenStatus}
+                              />
+                            )}
                           </div>
                         </td>
                         {canManageOrders ? (

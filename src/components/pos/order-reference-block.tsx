@@ -12,6 +12,8 @@ type OrderReferenceBlockProps = {
   onOrderTypeChange: (type: OrderType) => void;
   /** Version plus courte pour le panneau caisse. */
   compact?: boolean;
+  retailMode?: boolean;
+  clientPlaceholder?: string;
 };
 
 export function OrderReferenceBlock({
@@ -20,7 +22,35 @@ export function OrderReferenceBlock({
   onTableChange,
   onOrderTypeChange,
   compact = false,
+  retailMode = false,
+  clientPlaceholder,
 }: OrderReferenceBlockProps) {
+  const placeholder = clientPlaceholder ?? (retailMode ? "Nom du client (optionnel)" : "Table / réf. (ex. T12)");
+
+  if (retailMode) {
+    return (
+      <div className={`shrink-0 border-b border-[#eeeeee] ${compact ? "px-3.5 py-2.5" : "px-5 py-4"}`}>
+        <div className="relative">
+          <label htmlFor="pos-client-ref" className="sr-only">
+            Client
+          </label>
+          <Store
+            className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#059669]"
+            strokeWidth={2}
+          />
+          <input
+            id="pos-client-ref"
+            type="text"
+            value={tableReference}
+            onChange={(event) => onTableChange(event.target.value)}
+            placeholder={placeholder}
+            className="h-9 w-full rounded-lg border border-[#e5e7eb] bg-white py-2 pl-9 pr-3 text-[13px] font-medium text-[#111827] outline-none placeholder:font-normal placeholder:text-[#9ca3af] focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/15"
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (compact) {
     return (
       <div className="shrink-0 space-y-2 border-b border-[#eeeeee] px-3.5 py-2.5">

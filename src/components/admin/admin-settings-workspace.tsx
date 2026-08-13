@@ -26,6 +26,7 @@ import {
   SERVICE_SCOPE_OPTIONS,
   type ServiceScope,
 } from "@/lib/settings/service-scope";
+import { isRetailActivity } from "@/lib/activity/profile";
 import { createClient } from "@/lib/supabase/client";
 
 type AdminSettingsWorkspaceProps = {
@@ -34,6 +35,7 @@ type AdminSettingsWorkspaceProps = {
   organizationName: string;
   establishmentName: string;
   ownerEmail: string;
+  activityCode?: string | null;
 };
 
 type SettingsSection = "general" | "spaces" | "receipt" | "stock" | "security";
@@ -97,7 +99,10 @@ export function AdminSettingsWorkspace({
   organizationName,
   establishmentName,
   ownerEmail,
+  activityCode = null,
 }: AdminSettingsWorkspaceProps) {
+  const retail = isRetailActivity(activityCode);
+  const visibleSections = SECTIONS.filter((item) => !(retail && item.id === "spaces"));
   const [section, setSection] = useState<SettingsSection>("general");
   const [serviceScope, setServiceScope] = useState<ServiceScope>(
     settings?.serviceScope ?? "BOTH",
@@ -111,6 +116,12 @@ export function AdminSettingsWorkspace({
     const timer = window.setTimeout(() => setSuccess(null), 4000);
     return () => window.clearTimeout(timer);
   }, [success]);
+
+  useEffect(() => {
+    if (retail && section === "spaces") {
+      setSection("general");
+    }
+  }, [retail, section]);
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -217,7 +228,7 @@ export function AdminSettingsWorkspace({
           aria-label="Sections paramètres"
           className="flex shrink-0 gap-1 overflow-x-auto rounded-xl border border-slate-200/90 bg-white p-1.5 shadow-sm lg:flex-col lg:overflow-visible lg:p-2"
         >
-          {SECTIONS.map((item) => {
+          {visibleSections.map((item) => {
             const Icon = item.icon;
             const active = section === item.id;
             return (
@@ -335,6 +346,7 @@ export function AdminSettingsWorkspace({
               noValidate
               className="flex min-h-0 flex-1 flex-col"
             >
+              {retail ? <input type="hidden" name="serviceScope" value="BAR" /> : null}
               <div className="app-scroll min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
                 {/* All settings fields stay mounted so edits persist across sections */}
                 <div className={section === "general" ? "space-y-6" : "hidden"}>
@@ -411,6 +423,7 @@ export function AdminSettingsWorkspace({
                   </div>
                 </div>
 
+                {!retail ? (
                 <div className={section === "spaces" ? "space-y-6" : "hidden"}>
                   <SectionHeader
                     title="Espaces de l’établissement"
@@ -469,6 +482,7 @@ export function AdminSettingsWorkspace({
                     correspondent pas à votre activité.
                   </p>
                 </div>
+                ) : null}
 
                 <div className={section === "receipt" ? "space-y-6" : "hidden"}>
                   <SectionHeader
@@ -502,7 +516,7 @@ export function AdminSettingsWorkspace({
                 <div className={section === "stock" ? "space-y-6" : "hidden"}>
                   <SectionHeader
                     title="Stock"
-                    description="Seuil minimum appliqué par défaut aux nouveaux articles bar."
+                    description="Seuil minimum appliqué par défaut aux nouveaux articles."
                   />
                   <div className="max-w-xs">
                     <NumberField

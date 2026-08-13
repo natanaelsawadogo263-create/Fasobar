@@ -16,7 +16,7 @@ type DepensesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-type ExpensePeriodFilter = "day" | "week" | "month";
+type ExpensePeriodFilter = "day" | "week" | "month" | "custom";
 
 function lockedAreaForSpace(
   space: "admin" | "cashier_kitchen" | "bar_manager",
@@ -27,8 +27,27 @@ function lockedAreaForSpace(
 }
 
 function parsePeriod(value: string | undefined): ExpensePeriodFilter {
-  if (value === "week" || value === "month" || value === "day") return value;
+  if (value === "week" || value === "month" || value === "day" || value === "custom") {
+    return value;
+  }
   return "day";
+}
+
+function formatCustomPeriodLabel(from?: string, to?: string): string {
+  const format = (iso: string) =>
+    new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(`${iso}T12:00:00`));
+
+  if (from && to) {
+    if (from === to) return format(from);
+    return `${format(from)} → ${format(to)}`;
+  }
+  if (from) return `Depuis ${format(from)}`;
+  if (to) return `Jusqu’au ${format(to)}`;
+  return "Période libre";
 }
 
 export default async function DepensesPage({ searchParams }: DepensesPageProps) {
@@ -36,19 +55,26 @@ export default async function DepensesPage({ searchParams }: DepensesPageProps) 
   const raw = await searchParams;
   const lockedArea = lockedAreaForSpace(workspace.userSpace);
 
-  const periodFilter = lockedArea
-    ? parsePeriod(typeof raw.period === "string" ? raw.period : "day")
-    : null;
+  const hasCustomDates =
+    typeof raw.from === "string" || typeof raw.to === "string";
+  const periodFilter = parsePeriod(
+    typeof raw.period === "string"
+      ? raw.period
+      : hasCustomDates
+        ? "custom"
+        : "day",
+  );
 
-  const periodRange = periodFilter
-    ? resolveOrderPeriodRange(
-        periodFilter,
-        typeof raw.anchor === "string" ? raw.anchor : toLocalIsoDate(new Date()),
-      )
-    : {
-        from: typeof raw.from === "string" ? raw.from : undefined,
-        to: typeof raw.to === "string" ? raw.to : undefined,
-      };
+  const periodRange =
+    periodFilter === "custom"
+      ? {
+          from: typeof raw.from === "string" ? raw.from : undefined,
+          to: typeof raw.to === "string" ? raw.to : undefined,
+        }
+      : resolveOrderPeriodRange(
+          periodFilter,
+          typeof raw.anchor === "string" ? raw.anchor : toLocalIsoDate(new Date()),
+        );
 
   const parsed = expenseFiltersSchema.safeParse({
     area:
@@ -85,12 +111,13 @@ export default async function DepensesPage({ searchParams }: DepensesPageProps) 
       lockedArea={lockedArea}
       periodFilter={periodFilter}
       periodLabel={
-        periodFilter
-          ? formatOrderPeriodLabel(periodFilter, periodRange.from, periodRange.to)
-          : null
+        periodFilter === "custom"
+          ? formatCustomPeriodLabel(periodRange.from, periodRange.to)
+          : formatOrderPeriodLabel(periodFilter, periodRange.from, periodRange.to)
       }
       canManage
       serviceScope={workspace.serviceScope}
+      activityCode={workspace.activityCode}
     />
   );
 }

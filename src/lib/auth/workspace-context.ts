@@ -21,6 +21,8 @@ import {
   requireOrganizationBusinessAccess,
 } from "@/lib/platform/saas-gate";
 import { createClient } from "@/lib/supabase/server";
+import { isBusinessActivityId } from "@/lib/auth/activities";
+import { isRetailActivity } from "@/lib/activity/profile";
 import {
   hasBarService,
   hasKitchenService,
@@ -58,6 +60,7 @@ export type WorkspaceContext = {
   canOperateCashRegister: boolean;
   mustChangePassword?: boolean;
   serviceScope: ServiceScope;
+  activityCode: string | null;
 };
 
 /** Priorité stable si plusieurs memberships (évite LIMIT 1 non déterministe). */
@@ -157,6 +160,8 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
 
   const supabase = await createClient();
 
+  const membershipSelectWithActivity =
+    "role, status, establishment_id, establishments(id, name, organization_id, status, service_scope, activity_code)";
   const membershipSelectWithScope =
     "role, status, establishment_id, establishments(id, name, organization_id, status, service_scope)";
   const membershipSelectLegacy =
@@ -171,12 +176,14 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
           organization_id?: string;
           status?: string;
           service_scope?: string | null;
+          activity_code?: string | null;
         })
       | Array<
           NamedEntity & {
             organization_id?: string;
             status?: string;
             service_scope?: string | null;
+            activity_code?: string | null;
           }
         >
       | null;
@@ -221,7 +228,7 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
       .eq("status", "ACTIVE"),
     supabase
       .from("establishment_memberships")
-      .select(membershipSelectWithScope)
+      .select(membershipSelectWithActivity)
       .eq("user_id", userId)
       .eq("status", "ACTIVE"),
   ]);
@@ -232,6 +239,22 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
       ? { message: establishmentResultPrimary.error.message }
       : null,
   };
+
+  if (
+    establishmentResult.error &&
+    /activity_code/i.test(establishmentResult.error.message)
+  ) {
+    const scopedResult = await supabase
+      .from("establishment_memberships")
+      .select(membershipSelectWithScope)
+      .eq("user_id", userId)
+      .eq("status", "ACTIVE");
+
+    establishmentResult = {
+      data: (scopedResult.data ?? null) as EstablishmentMembershipRow[] | null,
+      error: scopedResult.error ? { message: scopedResult.error.message } : null,
+    };
+  }
 
   if (
     establishmentResult.error &&
@@ -347,10 +370,22 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     establishment.id,
     (establishment as { service_scope?: string }).service_scope,
   );
+  const activityCode = isBusinessActivityId(
+    (establishment as { activity_code?: string | null }).activity_code,
+  )
+    ? (establishment as { activity_code: string }).activity_code
+    : null;
+  const retailCashier =
+    isRetailActivity(activityCode) &&
+    (cashierKitchenRoles.has(organizationRole) ||
+      cashierKitchenRoles.has(establishmentRole));
   const canManageBarStock =
-    stockPermissions.canManageBarStock && hasBarService(serviceScope);
+    (stockPermissions.canManageBarStock || retailCashier) &&
+    hasBarService(serviceScope);
   const canManageKitchenStock =
-    stockPermissions.canManageKitchenStock && hasKitchenService(serviceScope);
+    stockPermissions.canManageKitchenStock &&
+    hasKitchenService(serviceScope) &&
+    !isRetailActivity(activityCode);
   const canManageStock = canManageBarStock || canManageKitchenStock;
 
   return {
@@ -380,6 +415,7 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     canReadOrders: orderPermissions.canReadOrders || canManageOrders,
     canOperateCashRegister: operateCash,
     serviceScope,
+    activityCode,
   };
 });
 
@@ -530,7 +566,14 @@ export async function requireAdminMutationContext(): Promise<WorkspaceContext> {
 export async function requireSpacePathAccess(pathname: string): Promise<WorkspaceContext> {
   const context = await requireWorkspaceContext();
 
-  if (!isPathAllowedForSpace(pathname, context.userSpace, context.serviceScope)) {
+  if (
+    !isPathAllowedForSpace(
+      pathname,
+      context.userSpace,
+      context.serviceScope,
+      context.activityCode,
+    )
+  ) {
     redirectDenied(context);
   }
 
@@ -616,6 +659,10 @@ export async function requireCashRegisterOperatorMutationContext(): Promise<Work
 
 export async function requireKitchenContext(): Promise<WorkspaceContext> {
   const context = await requireWorkspaceContext();
+
+  if (isRetailActivity(context.activityCode)) {
+    redirectDenied(context);
+  }
 
   if (context.userSpace !== "cashier_kitchen") {
     redirectDenied(context);

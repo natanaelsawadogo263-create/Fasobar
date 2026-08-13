@@ -7,6 +7,7 @@ import { Printer } from "lucide-react";
 import { formatPriceXof } from "@/lib/payments/constants";
 import { printThermalTicket } from "@/lib/payments/print-thermal-ticket";
 import { formatOrderNumber } from "@/lib/orders/constants";
+import { getActivityPages } from "@/lib/activity/pages";
 import type { OrderAddition } from "@/lib/payments/types";
 
 type ThermalAdditionProps = {
@@ -14,6 +15,7 @@ type ThermalAdditionProps = {
   autoPrint?: boolean;
   /** Après impression, revenir ici (ex. caisse avec la même commande). */
   returnTo?: string | null;
+  activityCode?: string | null;
 };
 
 /**
@@ -24,7 +26,9 @@ export function ThermalAddition({
   addition,
   autoPrint = false,
   returnTo = null,
+  activityCode = null,
 }: ThermalAdditionProps) {
+  const pages = getActivityPages(activityCode);
   const router = useRouter();
   const reference =
     addition.tableReference ?? addition.customerReference ?? "—";
@@ -138,7 +142,7 @@ export function ThermalAddition({
             <p className="text-xs">Tél. {addition.establishmentPhone}</p>
           ) : null}
           <p className="mt-2 text-sm font-bold uppercase tracking-wide">
-            Addition
+            {pages.pos.additionLabel}
           </p>
           {unpaid ? (
             <p className="mt-1 text-[11px] font-semibold uppercase text-slate-700">
@@ -151,7 +155,7 @@ export function ThermalAddition({
 
         <section className="space-y-1 text-xs">
           <div className="flex justify-between">
-            <span>Commande</span>
+            <span>{pages.retail ? "Ticket" : "Commande"}</span>
             <span className="font-semibold">
               {formatOrderNumber(addition.orderNumber)}
             </span>
@@ -168,12 +172,14 @@ export function ThermalAddition({
               })}
             </span>
           </div>
+          {pages.retail ? null : (
+            <div className="flex justify-between">
+              <span>Type</span>
+              <span>{addition.orderTypeLabel}</span>
+            </div>
+          )}
           <div className="flex justify-between">
-            <span>Type</span>
-            <span>{addition.orderTypeLabel}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Table / Réf.</span>
+            <span>{pages.tickets.clientColumn}</span>
             <span>{reference}</span>
           </div>
         </section>
@@ -237,11 +243,19 @@ export function ThermalAddition({
         <div className="my-4 border-t border-dashed border-black" />
 
         <footer className="pb-2 text-center text-xs">
-          <p className="font-medium">Veuillez vérifier votre commande</p>
+          <p className="font-medium">
+            {pages.retail
+              ? "Veuillez vérifier votre ticket"
+              : "Veuillez vérifier votre commande"}
+          </p>
           <p className="mt-1 text-[10px] text-slate-600">
             {unpaid
-              ? "Cette addition n'est pas un reçu de paiement."
-              : "Commande déjà réglée."}
+              ? pages.retail
+                ? "Ce ticket n'est pas un reçu de paiement."
+                : "Cette addition n'est pas un reçu de paiement."
+              : pages.retail
+                ? "Ticket déjà réglé."
+                : "Commande déjà réglée."}
           </p>
         </footer>
       </article>

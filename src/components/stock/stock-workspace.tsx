@@ -41,6 +41,7 @@ import type {
   StockStats,
   SupplierOption,
 } from "@/lib/stock/types";
+import { getActivityProfile, isRetailActivity } from "@/lib/activity/profile";
 import {
   isSingleServiceScope,
   type ServiceScope,
@@ -68,6 +69,7 @@ type StockWorkspaceProps = {
   /** Espace responsable bar : boissons uniquement (même UI que l'admin stock). */
   drinksOnly?: boolean;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
 type ModalMode = "entry" | "loss" | "adjust" | "history" | null;
@@ -76,7 +78,11 @@ function canManageItem(
   item: StockListItem,
   organizationRole: string,
   establishmentRole: string,
+  canManageBarStock: boolean,
+  canManageKitchenStock: boolean,
 ): boolean {
+  if (item.departmentCode === "BAR" && canManageBarStock) return true;
+  if (item.departmentCode === "KITCHEN" && canManageKitchenStock) return true;
   return canManageDepartmentStock(
     organizationRole,
     establishmentRole,
@@ -105,6 +111,7 @@ export function StockWorkspace({
   basePath = "/application/stock",
   drinksOnly = false,
   serviceScope = "BOTH",
+  activityCode = null,
 }: StockWorkspaceProps) {
   void categories;
   void products;
@@ -112,14 +119,19 @@ export function StockWorkspace({
   void canManageBarStock;
   void canManageKitchenStock;
   const router = useRouter();
-  const singleScope = drinksOnly || isSingleServiceScope(serviceScope);
-  const stockTitle = drinksOnly
-    ? "Stock boissons"
-    : serviceScope === "KITCHEN"
-      ? "Stock nourriture"
-      : "Stock";
-  const articlesKpiTitle =
-    drinksOnly || serviceScope === "BAR"
+  const retail = isRetailActivity(activityCode);
+  const activity = getActivityProfile(activityCode);
+  const singleScope = drinksOnly || isSingleServiceScope(serviceScope) || retail;
+  const stockTitle = retail
+    ? activity.stockNavLabel
+    : drinksOnly
+      ? "Stock boissons"
+      : serviceScope === "KITCHEN"
+        ? "Stock nourriture"
+        : "Stock";
+  const articlesKpiTitle = retail
+    ? "Articles"
+    : drinksOnly || serviceScope === "BAR"
       ? "Articles"
       : serviceScope === "KITCHEN"
         ? "Articles"
@@ -145,7 +157,13 @@ export function StockWorkspace({
     (!drinksOnly && initialTab !== "all");
 
   const manageableItems = stockItems.filter((item) =>
-    canManageItem(item, organizationRole, establishmentRole),
+    canManageItem(
+      item,
+      organizationRole,
+      establishmentRole,
+      canManageBarStock,
+      canManageKitchenStock,
+    ),
   );
 
   const tableColSpan = canManageStock
@@ -228,14 +246,20 @@ export function StockWorkspace({
   ] as const;
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-hidden px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:gap-3.5 lg:px-5 lg:py-4">
+    <div
+      className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 ${
+        retail
+          ? "gap-2 lg:py-3"
+          : "gap-2 sm:gap-3 lg:gap-3.5 lg:py-4"
+      }`}
+    >
       <header className="flex shrink-0 items-center justify-between gap-2">
         <div className="min-w-0">
           <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[20px] lg:text-[22px]">
             {stockTitle}
           </h1>
           <p className="mt-0.5 hidden text-[12px] text-slate-500 sm:block">
-            {drinksOnly ? (
+            {drinksOnly || retail ? (
               <>
                 {totalStockItemCount} article
                 {totalStockItemCount > 1 ? "s" : ""} suivi
@@ -309,30 +333,36 @@ export function StockWorkspace({
       ) : null}
 
       {/* KPI : desktop uniquement — trop serrés sur téléphone */}
-      <div className="hidden shrink-0 grid-cols-3 gap-2.5 md:grid lg:gap-3">
+      <div
+        className={`hidden shrink-0 grid-cols-3 md:grid ${
+          retail ? "gap-2" : "gap-2.5 lg:gap-3"
+        }`}
+      >
         <StatCard
           title={articlesKpiTitle}
           value={articlesKpiValue}
           subtitle={singleScope ? "suivis" : "articles suivis"}
-          icon={Wine}
+          icon={retail ? Package : Wine}
           tone="sky"
-          compact={drinksOnly}
+          compact={drinksOnly || retail}
         />
         <StatCard
-          title={drinksOnly ? "Alertes" : "Produits en alerte"}
+          title={drinksOnly ? "Alertes" : retail ? "Alertes" : "Produits en alerte"}
           value={String(stats.alertCount)}
-          subtitle={drinksOnly ? "faible / rupture" : "stock faible ou rupture"}
+          subtitle={
+            drinksOnly || retail ? "faible / rupture" : "stock faible ou rupture"
+          }
           icon={AlertTriangle}
           tone="amber"
-          compact={drinksOnly}
+          compact={drinksOnly || retail}
         />
         <StatCard
-          title={drinksOnly ? "Valeur" : "Valeur estimée"}
+          title={drinksOnly || retail ? "Valeur" : "Valeur estimée"}
           value={formatPriceXof(stats.estimatedValue)}
-          subtitle={drinksOnly ? "estimée" : "basée sur derniers coûts"}
-          icon={drinksOnly ? Wallet : Package}
+          subtitle={drinksOnly || retail ? "estimée" : "basée sur derniers coûts"}
+          icon={drinksOnly || retail ? Wallet : Package}
           tone="emerald"
-          compact={drinksOnly}
+          compact={drinksOnly || retail}
         />
       </div>
 
@@ -396,6 +426,7 @@ export function StockWorkspace({
                 canManage={canManageStock && !drinksOnly}
                 filtered={totalStockItemCount > 0 && isFilteredView}
                 drinksOnly={drinksOnly}
+                retail={retail}
               />
             ) : (
               stockItems.map((item) => {
@@ -403,6 +434,8 @@ export function StockWorkspace({
                   item,
                   organizationRole,
                   establishmentRole,
+                  canManageBarStock,
+                  canManageKitchenStock,
                 );
                 return (
                   <article
@@ -505,6 +538,7 @@ export function StockWorkspace({
                       canManage={canManageStock && !drinksOnly}
                       filtered={totalStockItemCount > 0 && isFilteredView}
                       drinksOnly={drinksOnly}
+                      retail={retail}
                     />
                   </td>
                 </tr>
@@ -514,6 +548,8 @@ export function StockWorkspace({
                     item,
                     organizationRole,
                     establishmentRole,
+                    canManageBarStock,
+                    canManageKitchenStock,
                   );
                   const unitLabel =
                     PRODUCT_UNIT_LABELS[
@@ -603,6 +639,7 @@ export function StockWorkspace({
           formError={formError}
           isPending={isPending}
           drinksOnly={drinksOnly}
+          simpleEntry={retail}
           onClose={closeModal}
           onSubmit={handleEntrySubmit}
         />
@@ -638,7 +675,7 @@ type StatCardProps = {
   title: string;
   value: string;
   subtitle: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon?: React.ComponentType<{ className?: string }>;
   tone: "emerald" | "amber" | "sky";
   compact?: boolean;
 };
@@ -661,11 +698,13 @@ function StatCard({
     return (
       <article className="rounded-xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-slate-200/80">
         <div className="flex items-center gap-2.5">
-          <span
-            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${toneClasses[tone]}`}
-          >
-            <Icon className="h-3.5 w-3.5" />
-          </span>
+          {Icon ? (
+            <span
+              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${toneClasses[tone]}`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </span>
+          ) : null}
           <div className="min-w-0">
             <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
               {title}
@@ -683,11 +722,13 @@ function StatCard({
   return (
     <article className="rounded-xl border border-slate-200/90 bg-white px-3.5 py-3 shadow-sm">
       <div className="flex items-start gap-3">
-        <span
-          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${toneClasses[tone]}`}
-        >
-          <Icon className="h-4 w-4" />
-        </span>
+        {Icon ? (
+          <span
+            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${toneClasses[tone]}`}
+          >
+            <Icon className="h-4 w-4" />
+          </span>
+        ) : null}
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-medium text-slate-500">{title}</p>
           <p className="mt-0.5 truncate text-[16px] font-bold tracking-tight tabular-nums text-slate-900 lg:text-[17px]">

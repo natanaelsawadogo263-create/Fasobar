@@ -40,7 +40,18 @@ export const productFormSchema = z.object({
 });
 
 export const createProductSchema = productFormSchema
+  .omit({ categoryId: true })
   .extend({
+    categoryId: z.preprocess(
+      (value) =>
+        value === "" || value === "__new__" || value == null ? undefined : value,
+      z.string().uuid("Catégorie invalide.").optional(),
+    ),
+    newCategoryName: z.preprocess((value) => {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text.length > 0 ? text : undefined;
+    }, z.string().min(2, "Indiquez le nom de la nouvelle catégorie.").optional()),
+    catalogKind: z.enum(["food", "retail"]).optional(),
     packagingUnit: z.preprocess(
       (value) => (value === "" || value == null ? undefined : value),
       barPackagingUnitSchema.optional(),
@@ -55,7 +66,15 @@ export const createProductSchema = productFormSchema
     ),
   })
   .superRefine((data, ctx) => {
-    if (data.departmentCode !== "BAR") {
+    if (!data.categoryId && !data.newCategoryName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Sélectionnez une catégorie ou créez-en une.",
+        path: ["categoryId"],
+      });
+    }
+
+    if (data.departmentCode !== "BAR" || data.catalogKind === "retail") {
       return;
     }
     if (!data.packagingUnit) {
