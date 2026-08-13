@@ -1,5 +1,6 @@
 export type AdminNotificationKind =
   | "SALE"
+  | "ORDER"
   | "SUPPLY"
   | "LOSS"
   | "CASH_SESSION_OPEN"

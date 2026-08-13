@@ -3,15 +3,19 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+import { unlockNotificationAudio } from "@/lib/admin/notification-chime";
+import {
+  cancelScheduledOpsRefresh,
+  flushPendingOpsRefresh,
+  scheduleOpsRefresh,
+} from "@/lib/ops/schedule-refresh";
 import { createClient } from "@/lib/supabase/client";
 
 type EstablishmentLiveSyncProps = {
   establishmentId: string;
 };
 
-const REFRESH_DEBOUNCE_MS = 900;
-
-/** Pages admin “statiques” : pas de refresh ops (évite de recharger tout le SSR). */
+/** Pages admin « statiques » : pas de refresh ops (évite de recharger tout le SSR). */
 function shouldSkipOpsRefresh(pathname: string | null): boolean {
   if (!pathname) return false;
   if (pathname.includes("acces-refuse")) return true;
@@ -25,18 +29,22 @@ function shouldSkipOpsRefresh(pathname: string | null): boolean {
 
 function isOpsSurface(pathname: string | null): boolean {
   if (!pathname) return true;
-  if (pathname.startsWith("/application/cuisine")) return false;
-  if (pathname.startsWith("/application/bar/commandes")) return false;
   return (
     pathname.startsWith("/application/caisse") ||
     pathname.startsWith("/application/commandes") ||
     pathname.startsWith("/application/bar") ||
+    pathname.startsWith("/application/cuisine") ||
     pathname.startsWith("/application/encaissement") ||
     pathname.startsWith("/application/commandes-ouvertes") ||
     pathname.startsWith("/application/tableau-de-bord") ||
     pathname.startsWith("/application/sessions") ||
     pathname.startsWith("/application/caisses") ||
-    pathname.startsWith("/application/ventes")
+    pathname.startsWith("/application/ventes") ||
+    pathname.startsWith("/application/depenses") ||
+    pathname.startsWith("/application/inventaires") ||
+    pathname.startsWith("/application/rapports") ||
+    pathname.startsWith("/application/recus") ||
+    pathname.startsWith("/application/stock")
   );
 }
 
@@ -48,18 +56,39 @@ function isCatalogSurface(pathname: string | null): boolean {
     pathname.startsWith("/application/approvisionnements") ||
     pathname.startsWith("/application/bar/stock") ||
     pathname.startsWith("/application/bar/approvisionnements") ||
-    pathname.startsWith("/application/tableau-de-bord")
+    pathname.startsWith("/application/tableau-de-bord") ||
+    pathname.startsWith("/application/caisse") ||
+    pathname.startsWith("/application/cuisine") ||
+    pathname.startsWith("/application/bar")
   );
 }
 
+type LiveTable = {
+  table: string;
+  kind: "ops" | "catalog";
+};
+
+const LIVE_TABLES: LiveTable[] = [
+  { table: "orders", kind: "ops" },
+  { table: "order_items", kind: "ops" },
+  { table: "payments", kind: "ops" },
+  { table: "cash_register_sessions", kind: "ops" },
+  { table: "bar_sessions", kind: "ops" },
+  { table: "expenses", kind: "ops" },
+  { table: "inventory_sessions", kind: "ops" },
+  { table: "products", kind: "catalog" },
+  { table: "stock_items", kind: "catalog" },
+  { table: "stock_movements", kind: "catalog" },
+];
+
 /**
- * Abonnement Realtime établissement : rafraîchit le SSR sans naviguer ailleurs.
- * Scopé par page pour éviter les rechargements inutiles hors caisse / ops.
+ * Abonnement Realtime établissement : rafraîchit le SSR sans naviguer.
+ * Toutes les pages ops (caisse, bar, cuisine, admin) restent à jour tant
+ * que l’utilisateur est connecté — sans F5.
  */
 export function EstablishmentLiveSync({ establishmentId }: EstablishmentLiveSyncProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathnameRef = useRef(pathname);
 
   useEffect(() => {
@@ -67,104 +96,57 @@ export function EstablishmentLiveSync({ establishmentId }: EstablishmentLiveSync
   }, [pathname]);
 
   useEffect(() => {
-    if (!establishmentId) {
-      return;
-    }
+    const unlock = () => unlockNotificationAudio();
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!establishmentId) return;
 
     const supabase = createClient();
-    const scheduleRefresh = (kind: "ops" | "catalog" | "any" = "any") => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
-        return;
-      }
+
+    const requestRefresh = (kind: "ops" | "catalog") => {
       const path = pathnameRef.current;
-      if (shouldSkipOpsRefresh(path)) {
-        return;
-      }
-      if (kind === "ops" && !isOpsSurface(path)) {
-        return;
-      }
-      if (kind === "catalog" && !isCatalogSurface(path)) {
-        return;
-      }
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-      timerRef.current = setTimeout(() => {
-        if (shouldSkipOpsRefresh(pathnameRef.current)) {
-          return;
-        }
+      if (shouldSkipOpsRefresh(path)) return;
+      if (kind === "ops" && !isOpsSurface(path)) return;
+      if (kind === "catalog" && !isCatalogSurface(path)) return;
+      scheduleOpsRefresh(() => {
+        if (shouldSkipOpsRefresh(pathnameRef.current)) return;
         router.refresh();
-      }, REFRESH_DEBOUNCE_MS);
+      });
     };
 
-    const channel = supabase
-      .channel(`ops-establishment:${establishmentId}`)
-      .on(
+    let channel = supabase.channel(`ops-establishment:${establishmentId}`);
+    for (const { table, kind } of LIVE_TABLES) {
+      channel = channel.on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
-          table: "orders",
+          table,
           filter: `establishment_id=eq.${establishmentId}`,
         },
-        () => scheduleRefresh("ops"),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "payments",
-          filter: `establishment_id=eq.${establishmentId}`,
-        },
-        () => scheduleRefresh("ops"),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "cash_register_sessions",
-          filter: `establishment_id=eq.${establishmentId}`,
-        },
-        () => scheduleRefresh("ops"),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bar_sessions",
-          filter: `establishment_id=eq.${establishmentId}`,
-        },
-        () => scheduleRefresh("ops"),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "products",
-          filter: `establishment_id=eq.${establishmentId}`,
-        },
-        () => scheduleRefresh("catalog"),
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "stock_items",
-          filter: `establishment_id=eq.${establishmentId}`,
-        },
-        () => scheduleRefresh("catalog"),
-      )
-      .subscribe();
+        () => requestRefresh(kind),
+      );
+    }
+
+    channel.subscribe();
+
+    function onVisibility() {
+      if (document.visibilityState !== "visible") return;
+      flushPendingOpsRefresh();
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      document.removeEventListener("visibilitychange", onVisibility);
+      cancelScheduledOpsRefresh();
       void supabase.removeChannel(channel);
     };
   }, [establishmentId, router]);

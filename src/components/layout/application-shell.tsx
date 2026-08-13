@@ -76,95 +76,57 @@ export function ApplicationShell({
     </Suspense>
   );
 
+  let shell: ReactNode;
+
   if (space === "admin") {
-    return (
-      <ToastProvider>
-        {progress}
-        {prefetch}
-        {liveSync}
-        <AdminShell
-          establishmentId={establishmentId}
-          establishmentName={establishmentName}
-          organizationName={organizationName}
-          organizationId={organizationId}
-          adminName={cashierName || "Admin"}
-          navItems={navItems}
-          canRenewSubscription={canRenewSubscription}
-        >
+    shell = (
+      <AdminShell
+        establishmentId={establishmentId}
+        establishmentName={establishmentName}
+        organizationName={organizationName}
+        organizationId={organizationId}
+        adminName={cashierName || "Admin"}
+        navItems={navItems}
+        canRenewSubscription={canRenewSubscription}
+      >
+        {children}
+      </AdminShell>
+    );
+  } else if (space === "cashier_kitchen" && isOrderFocusRoute(pathname)) {
+    shell = (
+      <div className="app-shell flex h-dvh w-full max-w-full flex-col overflow-hidden bg-slate-50">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 py-2 md:px-4 md:py-3">
           {children}
-        </AdminShell>
-      </ToastProvider>
+        </main>
+      </div>
     );
-  }
-
-  if (space === "cashier_kitchen" && isOrderFocusRoute(pathname)) {
-    return (
-      <>
-        {progress}
-        {prefetch}
-        {liveSync}
-        <div className="app-shell flex h-dvh w-full max-w-full flex-col overflow-hidden bg-slate-50">
-          <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 py-2 md:px-4 md:py-3">
-            {children}
-          </main>
-        </div>
-      </>
+  } else if (space === "cashier_kitchen" && isCashierSecondaryRoute(pathname)) {
+    shell = <CashierSecondaryShell>{children}</CashierSecondaryShell>;
+  } else if (space === "cashier_kitchen" && isFasoBarCashierRoute(pathname)) {
+    shell = (
+      <FasoBarCashierShell
+        establishmentId={establishmentId}
+        userId={userId}
+        establishmentName={establishmentName}
+        cashierName={cashierName}
+      >
+        {children}
+      </FasoBarCashierShell>
     );
-  }
-
-  if (space === "cashier_kitchen" && isCashierSecondaryRoute(pathname)) {
-    return (
-      <>
-        {progress}
-        {prefetch}
-        {liveSync}
-        <CashierSecondaryShell>{children}</CashierSecondaryShell>
-      </>
+  } else if (space === "bar_manager") {
+    shell = (
+      <BarShell
+        establishmentId={establishmentId}
+        userId={userId}
+        establishmentName={establishmentName}
+        navItems={navItems}
+        managerName={cashierName || "Responsable Bar"}
+      >
+        {children}
+      </BarShell>
     );
-  }
-
-  if (space === "cashier_kitchen" && isFasoBarCashierRoute(pathname)) {
-    return (
-      <>
-        {progress}
-        {prefetch}
-        {liveSync}
-        <FasoBarCashierShell
-          establishmentId={establishmentId}
-          userId={userId}
-          establishmentName={establishmentName}
-          cashierName={cashierName}
-        >
-          {children}
-        </FasoBarCashierShell>
-      </>
-    );
-  }
-
-  if (space === "bar_manager") {
-    return (
-      <>
-        {progress}
-        {prefetch}
-        {liveSync}
-        <BarShell
-          establishmentId={establishmentId}
-          userId={userId}
-          establishmentName={establishmentName}
-          navItems={navItems}
-          managerName={cashierName || "Responsable Bar"}
-        >
-          {children}
-        </BarShell>
-      </>
-    );
-  }
-
-  return (
-    <>
-      {progress}
-      {prefetch}
-      {liveSync}
+  } else {
+    shell = (
       <SpaceShell
         space={space}
         establishmentName={establishmentName}
@@ -173,6 +135,15 @@ export function ApplicationShell({
       >
         {children}
       </SpaceShell>
-    </>
+    );
+  }
+
+  return (
+    <ToastProvider>
+      {progress}
+      {prefetch}
+      {liveSync}
+      {shell}
+    </ToastProvider>
   );
 }

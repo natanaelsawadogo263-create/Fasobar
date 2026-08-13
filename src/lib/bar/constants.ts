@@ -1,4 +1,5 @@
 import type { BarPrepStatus } from "@/lib/bar/schemas";
+import { formatOrderNumber } from "@/lib/orders/constants";
 import type { OrderType } from "@/lib/orders/schemas";
 
 export const BAR_STATUS_LABELS: Record<BarPrepStatus, string> = {
@@ -79,7 +80,7 @@ export type BarActionState = {
 };
 
 export function formatBarOrderNumber(orderNumber: number): string {
-  return `CMD-${orderNumber}`;
+  return formatOrderNumber(orderNumber);
 }
 
 export function formatBarAge(iso: string): string {

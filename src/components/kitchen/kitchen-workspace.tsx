@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 
 import { updateKitchenStatusAction } from "@/app/(protected)/application/cuisine/actions";
+import { usePrepTicketChime } from "@/hooks/use-prep-ticket-chime";
+import { scheduleOpsRefresh } from "@/lib/ops/schedule-refresh";
 import {
   KITCHEN_COLUMNS,
   KITCHEN_NEXT_ACTION,
@@ -53,6 +55,15 @@ export function KitchenWorkspace({
     setTickets(orders);
   }, [orders]);
 
+  const toPrepareIds = useMemo(
+    () =>
+      tickets
+        .filter((ticket) => ticket.kitchenStatus === "TO_PREPARE")
+        .map((ticket) => ticket.id),
+    [tickets],
+  );
+  usePrepTicketChime(toPrepareIds, "Nouvelle commande en cuisine");
+
   useEffect(() => {
     if (!establishmentId) return;
     const supabase = createClient();
@@ -61,7 +72,7 @@ export function KitchenWorkspace({
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
           table: "orders",
           filter: `establishment_id=eq.${establishmentId}`,
@@ -70,7 +81,6 @@ export function KitchenWorkspace({
           const row = payload.new as {
             id?: string;
             kitchen_status?: KitchenStatus | null;
-            kitchen_status_updated_at?: string | null;
             status?: string;
             payment_status?: string;
           };
@@ -79,9 +89,18 @@ export function KitchenWorkspace({
             setTickets((prev) => prev.filter((ticket) => ticket.id !== row.id));
             return;
           }
-          if (!row.kitchen_status) return;
-          router.refresh();
+          scheduleOpsRefresh(() => router.refresh());
         },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "order_items",
+          filter: `establishment_id=eq.${establishmentId}`,
+        },
+        () => scheduleOpsRefresh(() => router.refresh()),
       )
       .subscribe();
 

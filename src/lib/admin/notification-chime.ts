@@ -1,10 +1,13 @@
 /**
- * Short FasoBar notification chime (Web Audio — no asset file).
- * Soft two-tone bell, similar to a message ping.
+ * Sonnette FasoBar (Web Audio — pas de fichier).
+ * Deux notes courtes, type « ping » de message.
  */
 
 let sharedContext: AudioContext | null = null;
 let unlocked = false;
+let lastPlayedAt = 0;
+
+const CHIME_COOLDOWN_MS = 450;
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -23,13 +26,26 @@ function getAudioContext(): AudioContext | null {
   return sharedContext;
 }
 
-/** Call once after a user gesture so later chimes can autoplay. */
+function playSilentUnlock(ctx: AudioContext) {
+  try {
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+  } catch {
+    // Ignore — unlock is best-effort.
+  }
+}
+
+/** À appeler sur un geste utilisateur pour autoriser le son ensuite. */
 export function unlockNotificationAudio(): void {
   const ctx = getAudioContext();
   if (!ctx) return;
 
   void ctx.resume().then(() => {
     unlocked = true;
+    playSilentUnlock(ctx);
   });
 }
 
@@ -47,7 +63,7 @@ function tone(
   oscillator.frequency.setValueAtTime(frequency, startAt);
 
   gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(peakGain, startAt + 0.02);
+  gain.gain.exponentialRampToValueAtTime(peakGain, startAt + 0.018);
   gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
 
   oscillator.connect(gain);
@@ -57,8 +73,11 @@ function tone(
   oscillator.stop(startAt + duration + 0.02);
 }
 
-/** Plays a discreet bell ping for a new admin activity notification. */
+/** Ping discret pour une nouvelle notification / un nouveau ticket. */
 export async function playFasoBarNotificationChime(): Promise<void> {
+  const nowMs = Date.now();
+  if (nowMs - lastPlayedAt < CHIME_COOLDOWN_MS) return;
+
   const ctx = getAudioContext();
   if (!ctx) return;
 
@@ -71,12 +90,12 @@ export async function playFasoBarNotificationChime(): Promise<void> {
     }
   }
 
-  if (!unlocked && ctx.state !== "running") {
+  if (ctx.state !== "running" && !unlocked) {
     return;
   }
 
+  lastPlayedAt = nowMs;
   const now = ctx.currentTime;
-  // Two-note chime (E6 → B5), soft and short.
-  tone(ctx, 1318.5, now, 0.28, 0.09);
-  tone(ctx, 987.8, now + 0.12, 0.38, 0.07);
+  tone(ctx, 1318.5, now, 0.26, 0.14);
+  tone(ctx, 987.8, now + 0.11, 0.36, 0.11);
 }

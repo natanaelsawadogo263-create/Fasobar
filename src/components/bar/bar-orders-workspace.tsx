@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 
 import { updateBarStatusAction } from "@/app/(protected)/application/bar/actions";
+import { usePrepTicketChime } from "@/hooks/use-prep-ticket-chime";
+import { scheduleOpsRefresh } from "@/lib/ops/schedule-refresh";
 import { createClient } from "@/lib/supabase/client";
 import {
   BAR_BOARD_COLUMNS,
@@ -92,6 +94,12 @@ export function BarOrdersWorkspace({
     setTickets(orders);
   }, [orders]);
 
+  const toPrepareIds = useMemo(
+    () => tickets.filter((ticket) => ticket.barStatus === "TO_PREPARE").map((ticket) => ticket.id),
+    [tickets],
+  );
+  usePrepTicketChime(toPrepareIds, "Nouvelle commande au bar");
+
   useEffect(() => {
     if (!establishmentId) return;
     const supabase = createClient();
@@ -100,7 +108,7 @@ export function BarOrdersWorkspace({
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
           table: "orders",
           filter: `establishment_id=eq.${establishmentId}`,
@@ -109,7 +117,6 @@ export function BarOrdersWorkspace({
           const row = payload.new as {
             id?: string;
             bar_status?: BarPrepStatus | null;
-            bar_status_updated_at?: string | null;
             status?: string;
             payment_status?: string;
           };
@@ -118,9 +125,18 @@ export function BarOrdersWorkspace({
             setTickets((prev) => prev.filter((ticket) => ticket.id !== row.id));
             return;
           }
-          if (!row.bar_status) return;
-          router.refresh();
+          scheduleOpsRefresh(() => router.refresh());
         },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "order_items",
+          filter: `establishment_id=eq.${establishmentId}`,
+        },
+        () => scheduleOpsRefresh(() => router.refresh()),
       )
       .subscribe();
     return () => {

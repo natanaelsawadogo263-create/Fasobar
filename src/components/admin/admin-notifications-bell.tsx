@@ -6,6 +6,7 @@ import {
   Bell,
   Beer,
   CircleDollarSign,
+  ClipboardList,
   PackageMinus,
   PackagePlus,
   ShoppingBag,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { markAdminNotificationsReadAction } from "@/app/(protected)/application/notifications/actions";
+import { useToast } from "@/components/ui/toast";
 import {
   playFasoBarNotificationChime,
   unlockNotificationAudio,
@@ -31,6 +33,8 @@ function kindIcon(kind: AdminNotificationItem["kind"]) {
   switch (kind) {
     case "SALE":
       return ShoppingBag;
+    case "ORDER":
+      return ClipboardList;
     case "SUPPLY":
       return PackagePlus;
     case "LOSS":
@@ -59,6 +63,7 @@ function formatRelativeTime(iso: string): string {
 export function AdminNotificationsBell({
   establishmentId,
 }: AdminNotificationsBellProps) {
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AdminNotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -141,16 +146,25 @@ export function AdminNotificationsBell({
     }
 
     void loadInitial();
+
+    function onVisibility() {
+      if (document.visibilityState === "visible") {
+        void loadInitial();
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [establishmentId]);
 
   // Unlock audio after first user gesture (browser autoplay policy).
   useEffect(() => {
     const unlock = () => unlockNotificationAudio();
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
     return () => {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
@@ -200,8 +214,9 @@ export function AdminNotificationsBell({
           setItems((prev) => [nextItem, ...prev].slice(0, 40));
           if (!openRef.current) {
             setUnreadCount((count) => count + 1);
-            void playFasoBarNotificationChime();
           }
+          void playFasoBarNotificationChime();
+          toast.show(nextItem.title, "info");
         },
       )
       .subscribe();
@@ -209,7 +224,7 @@ export function AdminNotificationsBell({
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [establishmentId]);
+  }, [establishmentId, toast]);
 
   useEffect(() => {
     if (!open) return;
