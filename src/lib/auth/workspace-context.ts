@@ -35,6 +35,13 @@ type NamedEntity = {
   name: string;
 };
 
+type EstablishmentRow = NamedEntity & {
+  organization_id?: string;
+  status?: string;
+  service_scope?: string;
+  activity_code?: string | null;
+};
+
 export type WorkspaceContext = {
   userId: string;
   ownerName: string;
@@ -336,8 +343,8 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
 
   const establishment = readRelatedEntity(
     establishmentMembership.establishments as
-      | (NamedEntity & { status?: string; service_scope?: string })
-      | Array<NamedEntity & { status?: string; service_scope?: string }>
+      | EstablishmentRow
+      | EstablishmentRow[]
       | null,
   );
 
@@ -368,12 +375,10 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
   const serviceScope = await loadServiceScope(
     supabase,
     establishment.id,
-    (establishment as { service_scope?: string }).service_scope,
+    establishment.service_scope,
   );
-  const activityCode = isBusinessActivityId(
-    (establishment as { activity_code?: string | null }).activity_code,
-  )
-    ? (establishment as { activity_code: string }).activity_code
+  const activityCode = isBusinessActivityId(establishment.activity_code)
+    ? establishment.activity_code
     : null;
   const retailCashier =
     isRetailActivity(activityCode) &&
