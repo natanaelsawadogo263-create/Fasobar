@@ -15,6 +15,7 @@ import {
 
 import { markAdminNotificationsReadAction } from "@/app/(protected)/application/notifications/actions";
 import { useAdminNotificationsLive } from "@/hooks/use-admin-notifications-live";
+import { playFasoBarNotificationChime } from "@/lib/admin/notification-chime";
 import type { AdminNotificationItem } from "@/lib/admin/notification-types";
 
 type AdminNotificationsBellProps = {
@@ -79,6 +80,7 @@ export function AdminNotificationsBell({
 
   function toggleOpen() {
     live.unlock();
+    void playFasoBarNotificationChime({ force: true });
     const next = !open;
     setOpen(next);
     if (next && live.unreadCount > 0) {

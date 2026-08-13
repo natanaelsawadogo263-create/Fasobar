@@ -98,11 +98,11 @@ export function EstablishmentLiveSync({ establishmentId }: EstablishmentLiveSync
 
   useEffect(() => {
     const unlock = () => unlockNotificationAudio();
-    window.addEventListener("pointerdown", unlock);
-    window.addEventListener("keydown", unlock);
+    window.addEventListener("pointerdown", unlock, { capture: true });
+    window.addEventListener("keydown", unlock, { capture: true });
     return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
+      window.removeEventListener("pointerdown", unlock, { capture: true });
+      window.removeEventListener("keydown", unlock, { capture: true });
     };
   }, []);
 
