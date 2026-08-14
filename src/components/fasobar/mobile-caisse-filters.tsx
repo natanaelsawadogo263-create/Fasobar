@@ -5,6 +5,7 @@ import { LayoutGrid, UtensilsCrossed, Wine } from "lucide-react";
 import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";
 import type { DepartmentFilter } from "@/components/pos/constants";
+import { getCatalogFormProfile, shouldShowCatalogCategory } from "@/lib/activity/catalog";
 import { isRetailActivity } from "@/lib/activity/profile";
 import { hasBarService, hasKitchenService } from "@/lib/settings/service-scope";
 
@@ -26,6 +27,7 @@ export function MobileCaisseFilters() {
 
   const serviceScope = filters.serviceScope ?? "BOTH";
   const retail = isRetailActivity(filters.activityCode);
+  const catalog = getCatalogFormProfile(filters.activityCode);
   const departments = retail
     ? []
     : DEPARTMENTS.filter((dept) => {
@@ -35,7 +37,9 @@ export function MobileCaisseFilters() {
       });
 
   const categoryOptions = retail
-    ? filters.categories.map((category) => ({
+    ? filters.categories
+        .filter((category) => shouldShowCatalogCategory(category.name, catalog))
+        .map((category) => ({
         id: category.id,
         name: category.name,
         departmentCode: category.departmentCode,

@@ -7,6 +7,7 @@ import { LayoutGrid, PanelLeftClose, PanelLeftOpen, UtensilsCrossed, Wine } from
 import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";
 import type { DepartmentFilter } from "@/components/pos/constants";
+import { getCatalogFormProfile, shouldShowCatalogCategory } from "@/lib/activity/catalog";
 import { isRetailActivity } from "@/lib/activity/profile";
 import { hasBarService, hasKitchenService } from "@/lib/settings/service-scope";
 
@@ -31,6 +32,7 @@ export function FasoBarSidebar({ collapsed = false, onToggle }: FasoBarSidebarPr
   const filters = ctx?.caisseFilters;
   const serviceScope = filters?.serviceScope ?? "BOTH";
   const retail = isRetailActivity(filters?.activityCode);
+  const catalog = getCatalogFormProfile(filters?.activityCode);
   const departments = retail
     ? []
     : DEPARTMENTS.filter((dept) => {
@@ -57,7 +59,9 @@ export function FasoBarSidebar({ collapsed = false, onToggle }: FasoBarSidebarPr
           if (filters?.departmentFilter === "kitchen") return category.departmentCode === "KITCHEN";
           return true;
         })
-      : (filters?.categories ?? []).map((category) => ({
+      : (filters?.categories ?? [])
+          .filter((category) => shouldShowCatalogCategory(category.name, catalog))
+          .map((category) => ({
           id: category.id,
           name: category.name,
           departmentCode: category.departmentCode,

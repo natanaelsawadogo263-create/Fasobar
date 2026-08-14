@@ -57,7 +57,7 @@ export function PaymentSuccessScreen({
           <div className="grid gap-2">
             {receiptId ? (
               <Link
-                href={`/application/recus/${receiptId}?print=1&next=${encodeURIComponent("/application/caisse?fresh=1")}`}
+                href={`/application/recus/${receiptId}`}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
               >
                 <Printer className="h-4 w-4" />

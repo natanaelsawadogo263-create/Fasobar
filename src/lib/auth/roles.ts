@@ -1,3 +1,5 @@
+import { isHardwareActivity } from "@/lib/hardware/activity";
+
 export type UserSpace = "admin" | "cashier_kitchen" | "bar_manager";
 
 export const ADMIN_ROLES = new Set(["OWNER", "ADMIN", "MANAGER"]);
@@ -99,16 +101,25 @@ export function resolveUserSpace(
 export function resolveHomePathForRoles(
   organizationRole: string,
   establishmentRole: string,
+  activityCode?: string | null,
 ): string {
-  return SPACE_HOME_PATHS[resolveUserSpace(organizationRole, establishmentRole)];
+  const space = resolveUserSpace(organizationRole, establishmentRole);
+  if (space === "bar_manager" && isHardwareActivity(activityCode)) {
+    return "/application/stock";
+  }
+  return SPACE_HOME_PATHS[space];
 }
 
-/** Ouverture / fermeture / usage caisse : espace caissier uniquement (pas Admin). */
+/** Ouverture / fermeture / usage caisse. Admin quincaillerie peut aussi vendre. */
 export function canOperateCashRegister(
   organizationRole: string,
   establishmentRole: string,
+  activityCode?: string | null,
 ): boolean {
-  return resolveUserSpace(organizationRole, establishmentRole) === "cashier_kitchen";
+  const space = resolveUserSpace(organizationRole, establishmentRole);
+  if (space === "cashier_kitchen") return true;
+  if (space === "admin" && isHardwareActivity(activityCode)) return true;
+  return false;
 }
 
 export function inviteSpaceToRole(

@@ -10,6 +10,7 @@ type FasoBarCashierShellProps = {
   cashierName: string;
   establishmentId?: string;
   userId?: string;
+  adminReturnHref?: string | null;
   children: ReactNode;
 };
 
@@ -18,6 +19,7 @@ export function FasoBarCashierShell({
   cashierName,
   establishmentId,
   userId,
+  adminReturnHref = null,
   children,
 }: FasoBarCashierShellProps) {
   return (
@@ -26,6 +28,7 @@ export function FasoBarCashierShell({
       cashierName={cashierName}
       establishmentId={establishmentId}
       userId={userId}
+      adminReturnHref={adminReturnHref}
     >
       <FasoBarShell>{children}</FasoBarShell>
     </FasoBarCashierProvider>

@@ -10,6 +10,7 @@ import {
   quickCashCheckoutAction,
 } from "@/app/(protected)/application/caisse/payment-actions";
 import { FasoBarCaisseBridge } from "@/components/fasobar/fasobar-caisse-bridge";
+import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
 import { ActiveOrderPanel } from "@/components/pos/active-order-panel";
 import { OpenOrdersDrawer } from "@/components/pos/open-orders-drawer";
 import { PosToast } from "@/components/pos/pos-toast";
@@ -31,7 +32,7 @@ import {
   shouldUseDemoCart,
 } from "@/lib/caisse/demo-cart";
 import { sortCaisseProducts } from "@/lib/caisse/sort-products";
-import { isBarProductOutOfStock } from "@/lib/orders/stock-availability";
+import { isProductOutOfStock } from "@/lib/orders/stock-availability";
 import type {
   CartLine,
   CashierCategory,
@@ -142,6 +143,8 @@ export function PosWorkspace({
   const pages = getActivityPages(activityCode);
   const retail = profile.kind === "retail";
   const router = useRouter();
+  const cashierCtx = useFasoBarCashier();
+  const browseWithoutSession = Boolean(cashierCtx?.adminReturnHref);
   // Tous les produits actifs de l'établissement (créés par l'admin) — pas le catalogue démo.
   const catalogProducts = useMemo(() => {
     const sorted = sortCaisseProducts(products);
@@ -249,7 +252,7 @@ export function PosWorkspace({
   }, []);
 
   function addProduct(product: CashierProduct) {
-    if (isBarProductOutOfStock(product)) {
+    if (isProductOutOfStock(product)) {
       return;
     }
     setFlashProductId(product.id);
@@ -344,6 +347,7 @@ export function PosWorkspace({
   function submitOrder(
     targetStatus: "OPEN" | "DRAFT" | "READY_TO_PAY",
     onSuccess?: (savedOrderId: string) => void | Promise<void>,
+    onError?: () => void,
   ) {
     if (cart.length === 0) {
       showToast(pages.pos.emptyCart, "error");
@@ -367,6 +371,7 @@ export function PosWorkspace({
             setCart(snapshot);
             setOrderType(snapshotType);
           }
+          onError?.();
           showToast(result.error, "error");
           return;
         }
@@ -376,6 +381,7 @@ export function PosWorkspace({
             setCart(snapshot);
             setOrderType(snapshotType);
           }
+          onError?.();
           showToast(
             pages.retail
               ? "La vente n'a pas pu être créée. Réessayez."
@@ -400,6 +406,7 @@ export function PosWorkspace({
           setCart(snapshot);
           setOrderType(snapshotType);
         }
+        onError?.();
         showToast(
           error instanceof Error
             ? error.message
@@ -412,13 +419,10 @@ export function PosWorkspace({
     });
   }
 
-  /** Enregistre la commande, imprime l'addition, puis revient au menu caisse. */
+  /** Enregistre la commande puis ouvre la fenêtre d’impression du ticket. */
   function handlePrintAddition() {
     submitOrder("READY_TO_PAY", async (savedOrderId) => {
-      const next = encodeURIComponent("/application/caisse");
-      router.push(
-        `/application/commandes/${savedOrderId}/addition?print=1&next=${next}`,
-      );
+      router.push(`/application/caisse/addition/${savedOrderId}`);
     });
   }
 
@@ -465,7 +469,7 @@ export function PosWorkspace({
 
   function handleCheckout() {
     if (cart.length === 0) return;
-    if (!session) {
+    if (!session && !browseWithoutSession) {
       showToast("Ouvrez une session de caisse pour encaisser.", "error");
       return;
     }
@@ -480,7 +484,7 @@ export function PosWorkspace({
   }
 
   function openCheckoutForSavedOrder(order: OpenOrderListItem) {
-    if (!session) {
+    if (!session && !browseWithoutSession) {
       showToast("Ouvrez une session de caisse pour encaisser.", "error");
       return;
     }
@@ -738,7 +742,7 @@ export function PosWorkspace({
         />
       ) : null}
 
-      {!session ? (
+      {!session && !browseWithoutSession ? (
         <>
           <div
             className="pointer-events-none absolute inset-0 z-40 bg-slate-950/40 backdrop-blur-[2px]"

@@ -8,16 +8,20 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Banknote,
+  BarChart3,
   CircleDollarSign,
   ClipboardList,
   DoorClosed,
+  Package,
   PackagePlus,
+  ShoppingBag,
   ShoppingCart,
+  Store,
   TrendingDown,
   TrendingUp,
+  UtensilsCrossed,
   Wallet,
   Wine,
-  UtensilsCrossed,
 } from "lucide-react";
 
 import { getActivityProfile } from "@/lib/activity/profile";
@@ -25,6 +29,7 @@ import type {
   AdminDashboardData,
   AdminDashboardPeriod,
 } from "@/lib/admin/dashboard-queries";
+import { isHardwareActivity } from "@/lib/hardware/activity";
 import { formatPriceXof } from "@/lib/orders/constants";
 import {
   hasBarService,
@@ -51,14 +56,14 @@ function trendLabel(today: number, yesterday: number): {
 } {
   if (yesterday <= 0) {
     return {
-      text: today > 0 ? "+100 % vs hier" : "Stable vs hier",
+      text: today > 0 ? "+100 % vs hier" : "Comme hier",
       up: today > 0,
       flat: today === 0,
     };
   }
   const change = ((today - yesterday) / yesterday) * 100;
   if (Math.abs(change) < 0.05) {
-    return { text: "Stable vs hier", up: true, flat: true };
+    return { text: "Comme hier", up: true, flat: true };
   }
   return {
     text: `${change >= 0 ? "+" : ""}${change.toFixed(1).replace(".", ",")} % vs hier`,
@@ -81,14 +86,6 @@ function relativeTime(iso: string): string {
   });
 }
 
-function todayLabel(): string {
-  return new Date().toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-}
-
 function analysisTitle(period: AdminDashboardPeriod): string {
   if (period === "week") return "Analyse de la semaine";
   if (period === "month") return "Analyse du mois";
@@ -104,7 +101,7 @@ function rhythmTitle(period: AdminDashboardPeriod): string {
 function emptySalesMessage(period: AdminDashboardPeriod): string {
   if (period === "week") return "Aucune vente cette semaine.";
   if (period === "month") return "Aucune vente ce mois.";
-  return "Aucune vente aujourd'hui.";
+  return "Aucune vente pour l’instant.";
 }
 
 export function AdminDashboardWorkspace({
@@ -115,7 +112,8 @@ export function AdminDashboardWorkspace({
   const router = useRouter();
   const profile = getActivityProfile(activityCode);
   const retail = profile.kind === "retail";
-  const { kpis, salesByDept, salesSeries, analysisPeriod, analysisPeriodLabel } =
+  const hardware = isHardwareActivity(activityCode);
+  const { kpis, salesByDept, salesSeries, analysisPeriod } =
     data;
   const salesTrend = trendLabel(kpis.salesToday, kpis.salesYesterday);
   const ordersTrend = trendLabel(kpis.ordersToday, kpis.ordersYesterday);
@@ -145,19 +143,14 @@ export function AdminDashboardWorkspace({
     );
   }
 
+  const pageTitle = hardware ? "Accueil" : "Tableau de bord";
+
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col gap-2.5 overflow-hidden px-3 py-2.5 lg:gap-3 lg:px-5 lg:py-3.5">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-[18px] font-bold leading-none tracking-tight text-slate-900 lg:text-[20px]">
-            Tableau de bord
-          </h1>
-          <p className="mt-1 text-[11px] text-slate-500">
-            <span className="capitalize">{todayLabel()}</span>
-            <span className="text-slate-300"> · </span>
-            {profile.dashboardHint}
-          </p>
-        </div>
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-hidden px-3 py-2 lg:gap-3 lg:px-6 lg:py-3">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+        <h1 className="text-[20px] font-bold leading-none tracking-tight text-slate-900 lg:text-[22px]">
+          {pageTitle}
+        </h1>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white p-1 sm:h-8 sm:rounded-lg sm:p-0.5">
             {PERIOD_OPTIONS.map((option) => {
@@ -169,7 +162,7 @@ export function AdminDashboardWorkspace({
                   onClick={() => setPeriod(option.id)}
                   className={`h-9 rounded-lg px-3 text-[12px] font-semibold transition sm:h-7 sm:rounded-md sm:px-2.5 sm:text-[11px] ${
                     isActive
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-emerald-600 text-white shadow-sm"
                       : "text-slate-600 active:bg-slate-50 sm:hover:bg-slate-50"
                   }`}
                 >
@@ -178,79 +171,72 @@ export function AdminDashboardWorkspace({
               );
             })}
           </div>
-          <p className="hidden text-right text-[11px] capitalize text-slate-400 sm:block">
-            Stats · {analysisPeriodLabel}
-          </p>
+          {hardware ? (
+            <Link
+              href="/application/caisse"
+              className="inline-flex h-11 min-h-11 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm active:bg-emerald-700 sm:h-8 sm:min-h-8 sm:text-[12px]"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              Vendre
+            </Link>
+          ) : null}
         </div>
       </header>
 
-      {/* KPI mobile — bandeau horizontal */}
-      <div className="-mx-3 flex shrink-0 gap-2 overflow-x-auto px-3 pb-0.5 lg:hidden">
-        <div className="w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-l-4 border-slate-200/90 border-l-emerald-500 bg-white px-3 py-2.5 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            {retail ? "CA" : "Ventes"}
-          </p>
-          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
-            {formatPriceXof(kpis.salesToday)}
-          </p>
-          <div className="mt-0.5">
-            <TrendBadge trend={salesTrend} />
-          </div>
+      {retail ? (
+        <div className="-mx-3 flex shrink-0 gap-2 overflow-x-auto px-3 pb-0.5 lg:mx-0 lg:px-0">
+          <QuickLink href="/application/produits" icon={<Package className="h-4 w-4" />} label="Produits" />
+          <QuickLink href="/application/stock" icon={<Store className="h-4 w-4" />} label="Stock" />
+          <QuickLink href="/application/ventes" icon={<ClipboardList className="h-4 w-4" />} label="Ventes" />
         </div>
-        <div className="w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-l-4 border-slate-200/90 border-l-sky-500 bg-white px-3 py-2.5 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            {retail ? "Dépenses" : "Commandes"}
-          </p>
-          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
-            {retail ? formatPriceXof(kpis.expensesToday) : kpis.ordersToday}
-          </p>
-          <div className="mt-0.5">
-            {retail ? (
+      ) : null}
+
+      <div className="-mx-3 flex shrink-0 gap-2 overflow-x-auto px-3 pb-0.5 lg:hidden">
+        <MobileKpi
+          accent="border-l-emerald-500"
+          label={retail ? "CA" : "Ventes"}
+          value={formatPriceXof(kpis.salesToday)}
+          sub={<TrendBadge trend={salesTrend} />}
+        />
+        <MobileKpi
+          accent="border-l-sky-500"
+          label={retail ? "Dépenses" : "Commandes"}
+          value={retail ? formatPriceXof(kpis.expensesToday) : String(kpis.ordersToday)}
+          sub={
+            retail ? (
               <span className="font-medium text-slate-500">Du jour</span>
             ) : (
               <TrendBadge trend={ordersTrend} />
-            )}
-          </div>
-        </div>
-        <div className="w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-l-4 border-slate-200/90 border-l-teal-500 bg-white px-3 py-2.5 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            {retail ? "Bénéfice" : "Caisses"}
-          </p>
-          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
-            {retail
+            )
+          }
+        />
+        <MobileKpi
+          accent="border-l-teal-500"
+          label={retail ? "Bénéfice" : "Caisses"}
+          value={
+            retail
               ? formatPriceXof(kpis.profitToday)
-              : formatPriceXof(kpis.openCashBalance ?? 0)}
-          </p>
-          <p className="mt-0.5 truncate text-[10px] text-slate-400">
-            {retail
-              ? "CA − dépenses"
-              : openSessionsCount > 0
-                ? `${openSessionsCount} ouverte${openSessionsCount > 1 ? "s" : ""}`
-                : "Aucune ouverte"}
-          </p>
-        </div>
-        <div
-          className={`w-[42%] min-w-[9.5rem] shrink-0 rounded-xl border border-l-4 border-slate-200/90 bg-white px-3 py-2.5 shadow-sm ${
-            kpis.stockAlertCount > 0 ? "border-l-orange-500" : "border-l-slate-300"
-          }`}
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            Alertes
-          </p>
-          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
-            {kpis.stockAlertCount}
-          </p>
-          <Link
-            href="/application/stock"
-            className="mt-0.5 inline-block text-[10px] font-medium text-emerald-700"
-          >
-            Voir le stock
-          </Link>
-        </div>
+              : formatPriceXof(kpis.openCashBalance ?? 0)
+          }
+          sub={
+            <span className="text-slate-400">
+              {retail ? "CA − dépenses" : `${openSessionsCount} ouverte${openSessionsCount > 1 ? "s" : ""}`}
+            </span>
+          }
+        />
+        <MobileKpi
+          accent={kpis.stockAlertCount > 0 ? "border-l-orange-500" : "border-l-slate-300"}
+          label="Alertes"
+          value={String(kpis.stockAlertCount)}
+          sub={
+            <Link href="/application/stock" className="font-medium text-emerald-700">
+              Voir le stock
+            </Link>
+          }
+        />
       </div>
 
-      {/* KPI desktop */}
-      <div className="hidden shrink-0 grid-cols-2 gap-2 lg:grid lg:grid-cols-4 lg:gap-2.5">
+      <div className="hidden shrink-0 grid-cols-4 gap-3 lg:grid">
         <KpiCard
           accent="border-l-emerald-500"
           icon={<TrendingUp className="h-3.5 w-3.5" />}
@@ -283,13 +269,7 @@ export function AdminDashboardWorkspace({
         />
         <KpiCard
           accent="border-l-teal-500"
-          icon={
-            retail ? (
-              <Wallet className="h-3.5 w-3.5" />
-            ) : (
-              <Banknote className="h-3.5 w-3.5" />
-            )
-          }
+          icon={retail ? <Wallet className="h-3.5 w-3.5" /> : <Banknote className="h-3.5 w-3.5" />}
           iconClass="bg-teal-50 text-teal-700"
           label={retail ? "Bénéfice du jour" : "Solde caisses"}
           value={
@@ -298,7 +278,9 @@ export function AdminDashboardWorkspace({
               : formatPriceXof(kpis.openCashBalance ?? 0)
           }
           sub={
-            openSessionsCount > 0 ? (
+            retail ? (
+              <span className="text-slate-500">CA − dépenses</span>
+            ) : openSessionsCount > 0 ? (
               <span className="inline-flex items-center gap-1 text-slate-500">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 {openSessionsCount} ouverte{openSessionsCount > 1 ? "s" : ""}
@@ -324,26 +306,25 @@ export function AdminDashboardWorkspace({
               href="/application/stock"
               className="font-medium text-slate-600 hover:text-emerald-700 hover:underline"
             >
-              Voir le stock
+              {kpis.stockAlertCount > 0 ? "Traiter les ruptures" : "Stock à jour"}
             </Link>
           }
         />
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-2.5 overflow-y-auto lg:grid-cols-12 lg:gap-3 lg:overflow-hidden">
+      <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto pb-1 lg:grid-cols-12 lg:gap-4 lg:overflow-hidden">
         <Panel
           className="min-h-0 lg:col-span-5"
           title={profile.topProductsTitle}
-          action={
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold capitalize text-slate-500">
-              {analysisPeriodLabel} · Top {topProducts.length || 0}
-            </span>
-          }
         >
           {topProducts.length === 0 ? (
-            <EmptyState message={emptySalesMessage(analysisPeriod)} />
+            <EmptyState
+              icon={<ShoppingBag className="h-5 w-5" />}
+              message={emptySalesMessage(analysisPeriod)}
+              hint="Les meilleurs articles s’afficheront ici."
+            />
           ) : (
-            <div className="app-scroll min-h-0 flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               <ul className="space-y-0.5 px-2.5 py-1.5">
                 {topProducts.map((product, index) => {
                   const maxRevenue = topProducts[0]?.revenue || 1;
@@ -357,24 +338,24 @@ export function AdminDashboardWorkspace({
                       className="rounded-lg px-1.5 py-1.5 hover:bg-slate-50"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-100 text-[10px] font-bold text-slate-500">
+                        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-[11px] font-bold text-emerald-700">
                           {index + 1}
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline justify-between gap-2">
-                            <p className="truncate text-[12px] font-semibold text-slate-900">
+                            <p className="truncate text-[13px] font-semibold text-slate-900">
                               {product.name}
                             </p>
-                            <p className="shrink-0 text-[11px] font-bold tabular-nums text-emerald-700">
+                            <p className="shrink-0 text-[12px] font-bold tabular-nums text-emerald-700">
                               {formatPriceXof(product.revenue)}
                             </p>
                           </div>
-                          <p className="text-[10px] text-slate-500">
+                          <p className="text-[11px] text-slate-500">
                             {product.quantity} unité{product.quantity > 1 ? "s" : ""}
                           </p>
-                          <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-100">
+                          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
                             <div
-                              className="h-full rounded-full bg-emerald-500/80"
+                              className="h-full rounded-full bg-emerald-500"
                               style={{ width: `${width}%` }}
                             />
                           </div>
@@ -391,113 +372,110 @@ export function AdminDashboardWorkspace({
         <Panel
           className="min-h-0 lg:col-span-3"
           title={analysisTitle(analysisPeriod)}
-          action={
-            <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
-              {PERIOD_OPTIONS.find((o) => o.id === analysisPeriod)?.label}
-            </span>
-          }
         >
-          <div className="app-scroll min-h-0 flex-1 overflow-y-auto p-3">
-            <div className="flex min-h-full flex-col justify-between gap-3">
-              <div className="space-y-2">
-                {hasBarService(serviceScope) ? (
-                <DeptBar
-                  icon={<Wine className="h-3.5 w-3.5" />}
-                  label={retail ? profile.catalogDepartmentLabel : "Bar"}
-                  amount={salesByDept.bar}
-                  total={deptTotal}
-                  tone="bg-emerald-500"
-                />
-                ) : null}
-                {!retail && hasKitchenService(serviceScope) ? (
-                <DeptBar
-                  icon={<UtensilsCrossed className="h-3.5 w-3.5" />}
-                  label="Cuisine"
-                  amount={salesByDept.kitchen}
-                  total={deptTotal}
-                  tone="bg-sky-500"
-                />
-                ) : null}
-                {salesByDept.other > 0 ? (
-                  <DeptBar
-                    icon={<PackagePlus className="h-3.5 w-3.5" />}
-                    label="Autre"
-                    amount={salesByDept.other}
-                    total={deptTotal}
-                    tone="bg-slate-400"
-                  />
-                ) : null}
-                {deptTotal === 0 ? (
-                  <p className="text-[11px] text-slate-400">
-                    {emptySalesMessage(analysisPeriod)}
-                  </p>
-                ) : null}
-              </div>
+          {retail && !hasSeriesSales && kpis.salesToday === 0 && kpis.ordersToday === 0 ? (
+            <EmptyState
+              icon={<BarChart3 className="h-5 w-5" />}
+              message={emptySalesMessage(analysisPeriod)}
+              hint="L’analyse se remplit dès les premières ventes."
+            />
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col justify-center gap-5 overflow-hidden p-4">
+              {retail ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <MiniStat label="Ventes" value={String(kpis.ordersToday)} />
+                  <MiniStat label="CA" value={formatPriceXof(kpis.salesToday)} />
+                  <MiniStat label="Dépenses" value={formatPriceXof(kpis.expensesToday)} />
+                  <MiniStat label="Bénéfice" value={formatPriceXof(kpis.profitToday)} />
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {hasBarService(serviceScope) ? (
+                    <DeptBar
+                      icon={<Wine className="h-3.5 w-3.5" />}
+                      label="Bar"
+                      amount={salesByDept.bar}
+                      total={deptTotal}
+                      tone="bg-emerald-500"
+                    />
+                  ) : null}
+                  {hasKitchenService(serviceScope) ? (
+                    <DeptBar
+                      icon={<UtensilsCrossed className="h-3.5 w-3.5" />}
+                      label="Cuisine"
+                      amount={salesByDept.kitchen}
+                      total={deptTotal}
+                      tone="bg-sky-500"
+                    />
+                  ) : null}
+                  {salesByDept.other > 0 ? (
+                    <DeptBar
+                      icon={<PackagePlus className="h-3.5 w-3.5" />}
+                      label="Autre"
+                      amount={salesByDept.other}
+                      total={deptTotal}
+                      tone="bg-slate-400"
+                    />
+                  ) : null}
+                  {deptTotal === 0 ? (
+                    <p className="text-[12px] text-slate-400">
+                      {emptySalesMessage(analysisPeriod)}
+                    </p>
+                  ) : null}
+                </div>
+              )}
 
-              <div className="border-t border-slate-100 pt-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                  {rhythmTitle(analysisPeriod)}
-                </p>
-                {hasSeriesSales ? (
-                  <>
-                    <div className="mt-2 flex h-12 items-end gap-px">
-                      {salesSeries.values.map((value, index) => (
-                        <div
-                          key={`${salesSeries.labels[index]}-${index}`}
-                          title={`${salesSeries.labels[index]} · ${formatPriceXof(value)}`}
-                          className="min-w-0 flex-1 rounded-sm bg-emerald-500/80"
-                          style={{
-                            height: `${Math.max(value > 0 ? 10 : 3, Math.round((value / seriesMax) * 100))}%`,
-                            opacity: value > 0 ? 1 : 0.15,
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <div className="mt-1 flex justify-between text-[9px] text-slate-400">
-                      <span>{salesSeries.labels[0]}</span>
-                      <span>
-                        {
-                          salesSeries.labels[
-                            Math.floor(salesSeries.labels.length / 2)
-                          ]
-                        }
-                      </span>
-                      <span>
-                        {salesSeries.labels[salesSeries.labels.length - 1]}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <p className="mt-1.5 text-[11px] text-slate-400">
-                    Aucun pic sur cette période.
+              {hasSeriesSales ? (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                    {rhythmTitle(analysisPeriod)}
                   </p>
-                )}
-              </div>
+                  <div className="mt-2 flex h-14 items-end gap-0.5">
+                    {salesSeries.values.map((value, index) => (
+                      <div
+                        key={`${salesSeries.labels[index]}-${index}`}
+                        title={`${salesSeries.labels[index]} · ${formatPriceXof(value)}`}
+                        className="min-w-0 flex-1 rounded-sm bg-emerald-500"
+                        style={{
+                          height: `${Math.max(value > 0 ? 12 : 4, Math.round((value / seriesMax) * 100))}%`,
+                          opacity: value > 0 ? 1 : 0.12,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
+                    <span>{salesSeries.labels[0]}</span>
+                    <span>
+                      {salesSeries.labels[Math.floor(salesSeries.labels.length / 2)]}
+                    </span>
+                    <span>{salesSeries.labels[salesSeries.labels.length - 1]}</span>
+                  </div>
+                </div>
+              ) : null}
             </div>
-          </div>
+          )}
         </Panel>
 
         <Panel
           className="min-h-0 lg:col-span-4"
           title="Activité récente"
-          action={
-            <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
-              Live
-            </span>
-          }
         >
           {activity.length === 0 ? (
-            <EmptyState message="Aucune activité récente." />
+            <EmptyState
+              icon={<CircleDollarSign className="h-5 w-5" />}
+              message="Aucune activité"
+              hint="Les ventes et mouvements s’afficheront ici."
+            />
           ) : (
-            <div className="app-scroll min-h-0 flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               <ul className="space-y-0.5 px-1.5 py-1.5">
                 {activity.map((item) => (
                   <li
                     key={item.id}
-                    className="flex gap-2.5 rounded-lg px-1.5 py-1.5 hover:bg-slate-50/90"
+                    className="flex gap-2.5 rounded-lg px-1.5 py-2 hover:bg-slate-50/90"
                   >
                     <span
-                      className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                      className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
                         item.kind === "payment"
                           ? "bg-emerald-50 text-emerald-600"
                           : item.kind === "stock"
@@ -519,14 +497,14 @@ export function AdminDashboardWorkspace({
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="truncate text-[12px] font-semibold text-slate-900">
+                        <p className="truncate text-[13px] font-semibold text-slate-900">
                           {item.title}
                         </p>
                         <p className="shrink-0 text-[10px] tabular-nums text-slate-400">
                           {relativeTime(item.at)}
                         </p>
                       </div>
-                      <p className="truncate text-[11px] text-slate-500">{item.detail}</p>
+                      <p className="truncate text-[12px] text-slate-500">{item.detail}</p>
                     </div>
                   </li>
                 ))}
@@ -535,6 +513,37 @@ export function AdminDashboardWorkspace({
           )}
         </Panel>
       </div>
+    </div>
+  );
+}
+
+function QuickLink({
+  href,
+  icon,
+  label,
+}: {
+  href: string;
+  icon: ReactNode;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex h-11 min-h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-[13px] font-semibold text-slate-700 shadow-sm active:bg-slate-50 lg:h-10 lg:min-h-10"
+    >
+      <span className="text-emerald-700">{icon}</span>
+      {label}
+    </Link>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-slate-50 px-2.5 py-2">
+      <p className="text-[10px] font-medium text-slate-500">{label}</p>
+      <p className="mt-0.5 truncate text-[13px] font-bold tabular-nums text-slate-900">
+        {value}
+      </p>
     </div>
   );
 }
@@ -560,6 +569,32 @@ function TrendBadge({
   );
 }
 
+function MobileKpi({
+  accent,
+  label,
+  value,
+  sub,
+}: {
+  accent: string;
+  label: string;
+  value: string;
+  sub: ReactNode;
+}) {
+  return (
+    <div
+      className={`w-[44%] min-w-[10rem] shrink-0 rounded-2xl border border-l-4 border-slate-200/90 bg-white px-3 py-3 shadow-sm ${accent}`}
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 truncate text-[16px] font-bold tabular-nums text-slate-900">
+        {value}
+      </p>
+      <div className="mt-0.5 text-[10px]">{sub}</div>
+    </div>
+  );
+}
+
 function KpiCard({
   accent,
   icon,
@@ -577,20 +612,20 @@ function KpiCard({
 }) {
   return (
     <article
-      className={`rounded-xl border border-slate-200/90 border-l-4 bg-white px-2.5 py-2 shadow-sm ${accent}`}
+      className={`rounded-2xl border border-slate-200/90 border-l-4 bg-white px-3 py-2.5 shadow-sm ${accent}`}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2.5">
         <span
-          className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${iconClass}`}
+          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconClass}`}
         >
           {icon}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-medium text-slate-500">{label}</p>
-          <p className="truncate text-[15px] font-bold tracking-tight tabular-nums text-slate-900 lg:text-[16px]">
+          <p className="text-[11px] font-medium text-slate-500">{label}</p>
+          <p className="truncate text-[17px] font-bold tracking-tight tabular-nums text-slate-900">
             {value}
           </p>
-          <div className="mt-0.5 text-[10px]">{sub}</div>
+          <div className="mt-0.5 text-[11px]">{sub}</div>
         </div>
       </div>
     </article>
@@ -610,10 +645,10 @@ function Panel({
 }) {
   return (
     <section
-      className={`flex min-h-[220px] flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm lg:h-full lg:min-h-0 ${className}`}
+      className={`flex min-h-[240px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm lg:h-full lg:min-h-0 ${className}`}
     >
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
-        <h2 className="text-[12px] font-semibold text-slate-900">{title}</h2>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2.5">
+        <h2 className="text-[13px] font-semibold text-slate-900">{title}</h2>
         {action}
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
@@ -621,10 +656,26 @@ function Panel({
   );
 }
 
-function EmptyState({ message }: { message: string }) {
+function EmptyState({
+  message,
+  hint,
+  icon,
+}: {
+  message: string;
+  hint?: string;
+  icon?: ReactNode;
+}) {
   return (
-    <div className="flex flex-1 items-center justify-center px-3 py-6 text-center text-[11px] text-slate-400">
-      {message}
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-5 py-6 text-center">
+      {icon ? (
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-400">
+          {icon}
+        </span>
+      ) : null}
+      <p className="mt-3 text-[13px] font-semibold text-slate-700">{message}</p>
+      {hint ? (
+        <p className="mt-1 max-w-[14rem] text-[12px] leading-snug text-slate-400">{hint}</p>
+      ) : null}
     </div>
   );
 }
@@ -645,7 +696,7 @@ function DeptBar({
   const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
   return (
     <div>
-      <div className="flex items-center justify-between gap-2 text-[11px]">
+      <div className="flex items-center justify-between gap-2 text-[12px]">
         <span className="inline-flex items-center gap-1.5 font-medium text-slate-600">
           {icon}
           {label}
@@ -654,7 +705,7 @@ function DeptBar({
           {pct}% · {formatPriceXof(amount)}
         </span>
       </div>
-      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
         <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />
       </div>
     </div>

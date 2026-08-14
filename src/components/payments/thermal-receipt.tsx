@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Printer } from "lucide-react";
+import { ArrowLeft, Printer } from "lucide-react";
 
 import {
   formatPriceXof,
@@ -16,13 +16,9 @@ import type { ReceiptDetail } from "@/lib/payments/types";
 
 type ThermalReceiptProps = {
   receipt: ReceiptDetail;
-  autoPrint?: boolean;
-  /** Après fermeture de la boîte d'impression, naviguer ici (ex. /application/caisse?fresh=1). */
   returnTo?: string | null;
   activityCode?: string | null;
 };
-
-const printedReceiptIds = new Set<string>();
 
 /** Montant compact pour colonnes étroites (évite le chevauchement « F CFA »). */
 function formatReceiptCell(amount: number): string {
@@ -33,7 +29,6 @@ function formatReceiptCell(amount: number): string {
 
 export function ThermalReceipt({
   receipt,
-  autoPrint = false,
   returnTo = null,
   activityCode = null,
 }: ThermalReceiptProps) {
@@ -41,100 +36,48 @@ export function ThermalReceipt({
   const router = useRouter();
   const reference =
     receipt.tableReference ?? receipt.customerReference ?? "—";
+  const homePath = returnTo || "/application/caisse?fresh=1";
   const redirectedRef = useRef(false);
 
-  useEffect(() => {
-    if (!autoPrint) {
-      return;
-    }
-
-    function goToCaisse() {
-      if (redirectedRef.current || !returnTo) {
-        return;
-      }
-      redirectedRef.current = true;
-      router.replace(returnTo);
-    }
-
-    function handleAfterPrint() {
-      goToCaisse();
-    }
-
-    window.addEventListener("afterprint", handleAfterPrint);
-
-    const mediaQuery = window.matchMedia("print");
-    const handleMediaChange = (event: MediaQueryListEvent) => {
-      if (!event.matches) {
-        goToCaisse();
-      }
-    };
-    mediaQuery.addEventListener?.("change", handleMediaChange);
-
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      if (cancelled) {
-        return;
-      }
-      if (printedReceiptIds.has(receipt.id)) {
-        goToCaisse();
-        return;
-      }
-      printedReceiptIds.add(receipt.id);
-      printThermalTicket();
-    }, 120);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-      window.removeEventListener("afterprint", handleAfterPrint);
-      mediaQuery.removeEventListener?.("change", handleMediaChange);
-    };
-  }, [autoPrint, receipt.id, returnTo, router]);
+  function returnHome() {
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
+    router.replace(homePath);
+  }
 
   function handleManualPrint() {
-    if (printedReceiptIds.has(receipt.id)) {
-      return;
-    }
-    printedReceiptIds.add(receipt.id);
-    const homePath = returnTo || "/application/caisse?fresh=1";
-    window.addEventListener(
-      "afterprint",
-      () => {
-        router.replace(homePath);
-      },
-      { once: true },
-    );
+    window.addEventListener("afterprint", returnHome, { once: true });
     printThermalTicket();
-    window.setTimeout(() => {
-      router.replace(homePath);
-    }, 400);
   }
 
   return (
-    <div className="thermal-receipt-host relative min-h-0 w-full flex-1 basis-0">
+    <div className="thermal-receipt-host flex min-h-0 w-full flex-1 flex-col bg-slate-200">
+      <div className="no-print shrink-0 border-b border-slate-300/80 bg-white px-3 py-3">
+        <div className="mx-auto flex w-full max-w-sm flex-col gap-2">
+          <h1 className="text-center text-[17px] font-bold text-slate-900">Reçu</h1>
+          <button
+            type="button"
+            onClick={handleManualPrint}
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-[15px] font-semibold text-white active:bg-emerald-700"
+          >
+            <Printer className="h-5 w-5" />
+            Imprimer
+          </button>
+          <button
+            type="button"
+            onClick={returnHome}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-medium text-slate-600 active:bg-slate-100"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour à la caisse
+          </button>
+        </div>
+      </div>
       <div
-        className="thermal-receipt-scroll absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-contain"
+        className="thermal-receipt-scroll flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-3 py-4"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        <div className="mx-auto flex w-full max-w-[320px] flex-col items-center px-3 py-4 pb-12">
-          {!autoPrint ? (
-            <div className="no-print sticky top-0 z-10 mb-3 flex w-full justify-center bg-[#f4f6f9] py-2">
-              <button
-                type="button"
-                onClick={handleManualPrint}
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
-              >
-                <Printer className="h-4 w-4" />
-                Imprimer
-              </button>
-            </div>
-          ) : (
-            <p className="no-print mb-4 text-center text-sm text-slate-500">
-              Ouverture de l&apos;impression…
-            </p>
-          )}
-
-          <article className="thermal-receipt w-full shrink-0 bg-white p-4 text-black shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0">
+        <article className="thermal-receipt w-[80mm] max-w-full shrink-0 rounded-sm bg-white p-3 text-black shadow-md ring-1 ring-slate-300">
           <header className="thermal-receipt-header text-center">
             {receipt.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- impression thermique
@@ -282,10 +225,7 @@ export function ThermalReceipt({
             </p>
           </footer>
         </article>
-
-        {/* Espace bas : safe-area + barre mobile */}
         <div className="no-print h-8 shrink-0" aria-hidden />
-        </div>
       </div>
     </div>
   );

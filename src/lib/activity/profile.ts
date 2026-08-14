@@ -5,6 +5,7 @@ import {
   type BusinessActivityId,
 } from "@/lib/auth/activities";
 import { INVITABLE_SPACES, type UserSpace } from "@/lib/auth/roles";
+import { isHardwareActivity } from "@/lib/hardware/activity";
 import { isInvitableSpaceAllowed, type ServiceScope } from "@/lib/settings/service-scope";
 
 export type ActivityKind = "food_service" | "retail";
@@ -130,10 +131,20 @@ const RETAIL_OVERRIDES: Partial<
     clientPlaceholder: "Acheteur / immatriculation (optionnel)",
   },
   hardware: {
-    dashboardHint: "Quincaillerie : articles, stock et caisse.",
+    dashboardHint: "Ventes, stock et caisse — tout le magasin d’un coup d’œil.",
+    productNavLabel: "Produits",
+    stockNavLabel: "Stock",
+    ticketsNavLabel: "Ventes",
+    cashierNavLabel: "Vente",
+    openTicketsNavLabel: "Mes ventes",
     catalogDepartmentLabel: "Magasin",
-    cashierSpaceLabel: "Vendeur",
-    cashierSpaceDescription: "Ventes, tickets et suivi du magasin.",
+    cashierSpaceLabel: "Caisse-Vendeur",
+    cashierSpaceDescription:
+      "Vente, encaissement, session de caisse et règlements clients.",
+    adminSpaceDescription:
+      "Pilotage complet : catalogue, stock, caisses, crédits, fournisseurs et équipe.",
+    clientPlaceholder: "Client enregistré",
+    ticketTitle: "Vente en cours",
   },
   construction: {
     dashboardHint: "Matériaux, dépôt et ventes du jour.",
@@ -188,8 +199,9 @@ export function getInvitableSpacesForActivity(
 ) {
   const profile = getActivityProfile(activityCode);
   return INVITABLE_SPACES.filter((space) => {
-    if (profile.kind === "retail" && space.id === "bar_manager") {
-      return false;
+    if (space.id === "bar_manager") {
+      if (isHardwareActivity(activityCode)) return true;
+      if (profile.kind === "retail") return false;
     }
     return isInvitableSpaceAllowed(space.id, serviceScope);
   }).map((space) => {
@@ -203,6 +215,14 @@ export function getInvitableSpacesForActivity(
         description: profile.cashierSpaceDescription,
       };
     }
+    if (space.id === "bar_manager" && isHardwareActivity(activityCode)) {
+      return {
+        ...space,
+        label: "Responsable Stock",
+        description:
+          "Catalogue, stock, fournisseurs, réceptions, inventaires et dépenses d’approvisionnement.",
+      };
+    }
     return space;
   });
 }
@@ -213,6 +233,8 @@ export function displaySpaceLabel(
 ): string {
   const profile = getActivityProfile(activityCode);
   if (space === "cashier_kitchen") return profile.cashierSpaceLabel;
-  if (space === "bar_manager") return "Responsable Bar";
+  if (space === "bar_manager") {
+    return isHardwareActivity(activityCode) ? "Responsable Stock" : "Responsable Bar";
+  }
   return "Administration";
 }

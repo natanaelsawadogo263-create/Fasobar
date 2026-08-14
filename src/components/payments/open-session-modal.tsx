@@ -11,6 +11,8 @@ type OpenSessionModalProps = {
   error?: string;
   isPending?: boolean;
   cashierName?: string;
+  dismissible?: boolean;
+  onClose?: () => void;
 };
 
 export function OpenSessionModal({
@@ -18,20 +20,32 @@ export function OpenSessionModal({
   error,
   isPending = false,
   cashierName,
+  dismissible = false,
+  onClose,
 }: OpenSessionModalProps) {
   return (
     <ModalShell
       formId="open-session-form"
       title="Ouvrir la caisse"
       subtitle="Comptez le fond initial et démarrez votre session de service."
-      onClose={() => undefined}
-      dismissible={false}
+      onClose={onClose ?? (() => undefined)}
+      dismissible={dismissible}
       onSubmit={(event) => {
         event.preventDefault();
         formAction(new FormData(event.currentTarget));
       }}
       footer={
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          {dismissible && onClose ? (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={onClose}
+              className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-70"
+            >
+              Plus tard
+            </button>
+          ) : null}
           <button
             type="submit"
             disabled={isPending}

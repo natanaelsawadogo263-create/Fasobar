@@ -31,10 +31,14 @@ describe("catalogue produit par activité", () => {
     expect(shouldShowCatalogCategory("Accessoires", catalog)).toBe(true);
   });
 
-  it("n’affiche pas les rayons resto dans un supermarché", () => {
-    const catalog = getCatalogFormProfile("supermarket");
-    expect(shouldShowCatalogCategory("Bières", catalog)).toBe(false);
-    expect(shouldShowCatalogCategory("Épicerie", catalog)).toBe(true);
-    expect(catalog.showPackaging).toBe(true);
+  it("prépare le catalogue quincaillerie", () => {
+    const catalog = getCatalogFormProfile("hardware");
+    expect(catalog.suggestedCategories).toContain("Ciment");
+    expect(catalog.suggestedCategories).toContain("Visserie");
+    expect(catalog.units).toContain("TONNE");
+    expect(catalog.units).toContain("METER");
+    expect(catalog.showPackaging).toBe(false);
+    expect(shouldShowCatalogCategory("Boissons", catalog)).toBe(false);
+    expect(shouldShowCatalogCategory("Ciment", catalog)).toBe(true);
   });
 });

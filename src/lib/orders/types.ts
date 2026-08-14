@@ -16,7 +16,7 @@ export type CashierProduct = {
   departmentName: string;
   categoryId: string;
   categoryName: string;
-  /** Quantité stock bar ; null/absent = non suivi. */
+  /** Quantité stock suivie ; null/absent = non suivi (ex. plats cuisine). */
   stockQuantity?: number | null;
 };
 

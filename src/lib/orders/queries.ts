@@ -13,6 +13,18 @@ import type {
   OrderLineItem,
 } from "@/lib/orders/types";
 import type { AdminOrderFiltersInput } from "@/lib/orders/schemas";
+import {
+  getCatalogFormProfile,
+  shouldShowCatalogCategory,
+} from "@/lib/activity/catalog";
+import {
+  normalizeStockKey,
+  resolveCashierStockQuantity,
+} from "@/lib/orders/stock-availability";
+import {
+  createAdminClient,
+  isAdminClientConfigured,
+} from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function readSingle<T>(value: T | T[] | null): T | null {
@@ -27,6 +39,16 @@ async function loadLocalCatalogService() {
   return import("@/lib/local-domain/catalog-service");
 }
 
+function filterCashierCategories(
+  categories: CashierCategory[],
+  activityCode: string | null | undefined,
+): CashierCategory[] {
+  const catalog = getCatalogFormProfile(activityCode);
+  return categories.filter((category) =>
+    shouldShowCatalogCategory(category.name, catalog),
+  );
+}
+
 export async function listCashierCategories(
   workspace: WorkspaceContext,
 ): Promise<CashierCategory[]> {
@@ -34,7 +56,7 @@ export async function listCashierCategories(
     const { listLocalCashierCategories } = await loadLocalCatalogService();
     const local = listLocalCashierCategories(workspace.establishmentId);
     if (local.length > 0) {
-      return local;
+      return filterCashierCategories(local, workspace.activityCode);
     }
     // Fallback cloud si SQLite encore vide (premier démarrage sans pull).
   }
@@ -51,28 +73,34 @@ export async function listCashierCategories(
   if (error || !data) {
     if (isDesktopServerRuntime()) {
       const { listLocalCashierCategories } = await loadLocalCatalogService();
-      return listLocalCashierCategories(workspace.establishmentId);
+      return filterCashierCategories(
+        listLocalCashierCategories(workspace.establishmentId),
+        workspace.activityCode,
+      );
     }
     return [];
   }
 
-  return data.flatMap((row) => {
-    const department = readSingle(
-      row.departments as { code: string } | { code: string }[] | null,
-    );
+  return filterCashierCategories(
+    data.flatMap((row) => {
+      const department = readSingle(
+        row.departments as { code: string } | { code: string }[] | null,
+      );
 
-    if (!department) {
-      return [];
-    }
+      if (!department) {
+        return [];
+      }
 
-    return [
-      {
-        id: row.id,
-        name: row.name,
-        departmentCode: department.code,
-      },
-    ];
-  });
+      return [
+        {
+          id: row.id,
+          name: row.name,
+          departmentCode: department.code,
+        },
+      ];
+    }),
+    workspace.activityCode,
+  );
 }
 
 export async function listCashierProducts(
@@ -87,12 +115,12 @@ export async function listCashierProducts(
   }
 
   const supabase = await createClient();
+  const stockClient = isAdminClientConfigured() ? createAdminClient() : supabase;
 
-  const stockQuery = supabase
+  const stockQuery = stockClient
     .from("stock_items")
-    .select("product_id, name, current_quantity")
-    .eq("establishment_id", workspace.establishmentId)
-    .eq("active", true);
+    .select("product_id, name, current_quantity, active")
+    .eq("establishment_id", workspace.establishmentId);
 
   const { data, error } = await supabase
     .from("products")
@@ -135,7 +163,7 @@ export async function listCashierProducts(
   const qtyByProductId = new Map<string, number>();
   const qtyByName = new Map<string, number>();
   for (const item of stockRows ?? []) {
-    const qty = Number(item.current_quantity);
+    const qty = item.active === false ? 0 : Number(item.current_quantity);
     if (!Number.isFinite(qty)) continue;
     const productId = item.product_id as string | null;
     if (productId) {
@@ -145,14 +173,14 @@ export async function listCashierProducts(
         previous === undefined ? qty : Math.min(previous, qty),
       );
     }
-    const nameKey = String(item.name ?? "")
-      .trim()
-      .toLowerCase();
+    const nameKey = normalizeStockKey(String(item.name ?? ""));
     if (nameKey) {
       const previous = qtyByName.get(nameKey);
       qtyByName.set(nameKey, previous === undefined ? qty : Math.min(previous, qty));
     }
   }
+
+  const hasStockCatalog = (stockRows?.length ?? 0) > 0;
 
   return rows.flatMap((row) => {
     const department = readSingle(
@@ -168,12 +196,16 @@ export async function listCashierProducts(
     const original = (row.image_original_url as string | null | undefined) ?? null;
     const legacy = (row.image_url as string | null | undefined) ?? null;
     const name = row.name as string;
-    const stockQuantity =
-      department.code === "BAR"
-        ? (qtyByProductId.get(row.id as string) ??
-          qtyByName.get(name.trim().toLowerCase()) ??
-          null)
-        : null;
+    const stockQuantity = resolveCashierStockQuantity(
+      {
+        id: row.id as string,
+        name,
+        departmentCode: department.code,
+      },
+      qtyByProductId,
+      qtyByName,
+      hasStockCatalog,
+    );
 
     return [
       {
@@ -367,12 +399,8 @@ type OrderItemRow = {
   departments: { code: string; name: string } | { code: string; name: string }[] | null;
 };
 
-function mapOrderItem(row: OrderItemRow): OrderLineItem | null {
+function mapOrderItem(row: OrderItemRow): OrderLineItem {
   const department = readSingle(row.departments);
-
-  if (!department) {
-    return null;
-  }
 
   return {
     id: row.id,
@@ -381,8 +409,8 @@ function mapOrderItem(row: OrderItemRow): OrderLineItem | null {
     unitPrice: row.unit_price_snapshot,
     quantity: Number(row.quantity),
     lineTotal: row.line_total,
-    departmentCode: department.code,
-    departmentName: department.name,
+    departmentCode: department?.code ?? "BAR",
+    departmentName: department?.name ?? "—",
     notes: row.notes,
   };
 }
@@ -403,38 +431,59 @@ export async function getOrderById(
 
   const supabase = await createClient();
 
-  const { data: order, error: orderError } = await supabase
+  const orderSelectWithProfile =
+    "id, order_number, table_reference, customer_reference, order_type, status, payment_status, bar_status, kitchen_status, subtotal, discount_amount, total_amount, notes, created_at, updated_at, cancelled_at, cancellation_reason, profiles!orders_created_by_fkey(full_name)";
+  const orderSelectPlain =
+    "id, order_number, table_reference, customer_reference, order_type, status, payment_status, bar_status, kitchen_status, subtotal, discount_amount, total_amount, notes, created_at, updated_at, cancelled_at, cancellation_reason";
+
+  let orderResult = await supabase
     .from("orders")
-    .select(
-      "id, order_number, table_reference, customer_reference, order_type, status, payment_status, bar_status, kitchen_status, subtotal, discount_amount, total_amount, notes, created_at, updated_at, cancelled_at, cancellation_reason, profiles!orders_created_by_fkey(full_name)",
-    )
+    .select(orderSelectWithProfile)
     .eq("id", orderId)
     .eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
 
-  if (orderError || !order) {
+  if (orderResult.error) {
+    orderResult = await supabase
+      .from("orders")
+      .select(orderSelectPlain)
+      .eq("id", orderId)
+      .eq("establishment_id", workspace.establishmentId)
+      .maybeSingle();
+  }
+
+  const order = orderResult.data;
+  if (orderResult.error || !order) {
     return null;
   }
 
-  const { data: items, error: itemsError } = await supabase
+  const itemsSelectWithDept =
+    "id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total, notes, departments(code, name)";
+  const itemsSelectPlain =
+    "id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total, notes";
+
+  let itemsResult = await supabase
     .from("order_items")
-    .select(
-      "id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total, notes, departments(code, name)",
-    )
+    .select(itemsSelectWithDept)
     .eq("order_id", orderId)
     .order("created_at");
 
-  if (itemsError || !items) {
-    return null;
+  if (itemsResult.error) {
+    itemsResult = await supabase
+      .from("order_items")
+      .select(itemsSelectPlain)
+      .eq("order_id", orderId)
+      .order("created_at");
   }
 
+  const items = itemsResult.data ?? [];
+
   const profile = readSingle(
-    order.profiles as { full_name: string } | { full_name: string }[] | null,
+    (order as { profiles?: { full_name: string } | { full_name: string }[] | null })
+      .profiles ?? null,
   );
 
-  const mappedItems = items
-    .map((row) => mapOrderItem(row as OrderItemRow))
-    .filter((item): item is OrderLineItem => item !== null);
+  const mappedItems = items.map((row) => mapOrderItem(row as OrderItemRow));
 
   return {
     id: order.id,

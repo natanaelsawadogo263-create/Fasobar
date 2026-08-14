@@ -1,7 +1,10 @@
 "use server";
 
 import { mapGenericError } from "@/lib/auth/errors";
-import { requireOrderManagementMutationContext } from "@/lib/auth/workspace-context";
+import {
+  requireOrderManagementMutationContext,
+  requireOrderReadContext,
+} from "@/lib/auth/workspace-context";
 import { revalidateOrderOps } from "@/lib/ops/revalidate";
 import { getOrderById } from "@/lib/orders/queries";
 import {
@@ -359,4 +362,17 @@ export async function cancelOrderAction(
 
   revalidateOrderPages(parsed.data.orderId);
   return { success: "Commande annulée." };
+}
+
+export async function getOrderAdditionAction(orderId: string): Promise<{
+  error?: string;
+  addition?: import("@/lib/payments/types").OrderAddition;
+}> {
+  const workspace = await requireOrderReadContext();
+  const { getOrderAddition } = await import("@/lib/payments/queries");
+  const addition = await getOrderAddition(workspace, orderId);
+  if (!addition) {
+    return { error: "Addition introuvable." };
+  }
+  return { addition };
 }

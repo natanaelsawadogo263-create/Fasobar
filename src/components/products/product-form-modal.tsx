@@ -20,6 +20,7 @@ import {
   shouldShowCatalogCategory,
   type CatalogFormProfile,
 } from "@/lib/activity/catalog";
+import { isHardwareActivity } from "@/lib/hardware/activity";
 import {
   BAR_BASE_UNITS,
   BAR_PACKAGING_DEFAULT_UNITS,
@@ -33,6 +34,7 @@ import type { CategoryOption, ProductListItem, ProductPackaging } from "@/lib/pr
 import type { BarPackagingUnit, DepartmentCode, ProductUnit } from "@/lib/products/schemas";
 
 const FORM_ID = "product-form";
+const NEW_CATEGORY_VALUE = "__new__";
 
 export type ProductFormState = {
   name: string;
@@ -45,6 +47,14 @@ export type ProductFormState = {
   active: boolean;
   packagingUnit: BarPackagingUnit;
   unitsPerPack: number;
+  sku: string;
+  barcode: string;
+  purchasePrice: number;
+  wholesalePrice: number;
+  purchaseUnit: ProductUnit;
+  unitsPerPurchase: number;
+  discountMinQuantity: number;
+  discountPercent: number;
 };
 
 type ProductFormModalProps = {
@@ -65,9 +75,16 @@ type ProductFormModalProps = {
   allowedDepartments?: DepartmentCode[];
   catalogDepartmentLabel?: string;
   catalog?: CatalogFormProfile;
+  activityCode?: string | null;
 };
 
-const NEW_CATEGORY_VALUE = "__new__";
+const HARDWARE_ARRIVAL_UNITS: ProductUnit[] = [
+  "CARTON",
+  "PACK",
+  "SACHET",
+  "BUNDLE",
+  "JERRYCAN",
+];
 
 export function ProductFormModal({
   mode,
@@ -87,9 +104,11 @@ export function ProductFormModal({
   allowedDepartments,
   catalogDepartmentLabel,
   catalog: catalogProp,
+  activityCode = null,
 }: ProductFormModalProps) {
   const catalog = catalogProp ?? getCatalogFormProfile(null);
   const retail = catalog.kind === "retail";
+  const hardware = isHardwareActivity(activityCode);
   const isCreate = mode === "create";
   const isBar = formState.departmentCode === "BAR";
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -219,6 +238,15 @@ export function ProductFormModal({
             formData.set("unitsPerPack", String(formState.unitsPerPack));
           }
         }
+        if (hardware) {
+          formData.set("purchasePrice", String(formState.purchasePrice || 0));
+          formData.set("wholesalePrice", String(formState.wholesalePrice || 0));
+          formData.set("purchaseUnit", formState.purchaseUnit);
+          formData.set(
+            "unitsPerPurchase",
+            String(Math.max(1, formState.unitsPerPurchase || 1)),
+          );
+        }
         if (mode === "edit" && editingProduct) {
           formData.set("productId", editingProduct.id);
         }
@@ -248,6 +276,214 @@ export function ProductFormModal({
           <input type="hidden" name="productId" value={editingProduct.id} />
         ) : null}
 
+        {hardware ? (
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            <TextField
+              id="name"
+              name="name"
+              label="Nom"
+              required
+              placeholder={catalog.namePlaceholder}
+              value={formState.name}
+              onChange={(event) =>
+                onChange((current) => ({ ...current, name: event.target.value }))
+              }
+              className="sm:col-span-2"
+            />
+            <input type="hidden" name="departmentCode" value={formState.departmentCode} />
+
+            <SelectField
+              id="categoryId"
+              name="categoryId"
+              label="Catégorie"
+              required
+              value={formState.categoryId}
+              onChange={(event) => {
+                const value = event.target.value;
+                onChange((current) => ({ ...current, categoryId: value }));
+                if (value !== NEW_CATEGORY_VALUE) {
+                  setNewCategoryName("");
+                }
+              }}
+            >
+              <option value="">Choisir…</option>
+              {filteredCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+              <option value={NEW_CATEGORY_VALUE}>+ Nouvelle catégorie</option>
+            </SelectField>
+
+            <SelectField
+              id="unit"
+              name="unit"
+              label="Unité de vente"
+              required
+              value={formState.unit}
+              onChange={(event) =>
+                onChange((current) => ({
+                  ...current,
+                  unit: event.target.value as ProductFormState["unit"],
+                }))
+              }
+            >
+              {unitOptions.map((unit) => (
+                <option key={unit} value={unit}>
+                  {PRODUCT_UNIT_LABELS[unit]}
+                </option>
+              ))}
+            </SelectField>
+
+            <SelectField
+              id="purchaseUnit"
+              name="purchaseUnit"
+              label="Arrivage (gros)"
+              value={formState.purchaseUnit}
+              onChange={(event) =>
+                onChange((current) => ({
+                  ...current,
+                  purchaseUnit: event.target.value as ProductUnit,
+                }))
+              }
+            >
+              {HARDWARE_ARRIVAL_UNITS.map((unit) => (
+                <option key={unit} value={unit}>
+                  {PRODUCT_UNIT_LABELS[unit]}
+                </option>
+              ))}
+            </SelectField>
+
+            <NumberField
+              id="unitsPerPurchase"
+              name="unitsPerPurchase"
+              label={`Pièces dans 1 ${(PRODUCT_UNIT_LABELS[formState.purchaseUnit] ?? "colis").toLowerCase()}`}
+              min={1}
+              step={1}
+              placeholder="Ex : 20"
+              value={formState.unitsPerPurchase || ""}
+              onChange={(event) =>
+                onChange((current) => ({
+                  ...current,
+                  unitsPerPurchase:
+                    event.target.value === "" ? 0 : Number(event.target.value),
+                }))
+              }
+            />
+            {formState.unitsPerPurchase > 1 ? (
+              <p className="sm:col-span-2 -mt-1 text-[12px] font-medium text-emerald-700">
+                1 {(PRODUCT_UNIT_LABELS[formState.purchaseUnit] ?? "colis").toLowerCase()} ={" "}
+                {formState.unitsPerPurchase}{" "}
+                {(PRODUCT_UNIT_LABELS[formState.unit] ?? "pièce").toLowerCase()}
+                {formState.unitsPerPurchase > 1 ? "s" : ""}. Vous vendez à l’unité.
+              </p>
+            ) : (
+              <p className="sm:col-span-2 -mt-1 text-[11px] text-slate-500">
+                Indiquez combien de {PRODUCT_UNIT_LABELS[formState.unit]?.toLowerCase() ?? "pièces"} il y a dans le carton / sac à l’arrivée. Mettez 1 si vous recevez déjà à l’unité.
+              </p>
+            )}
+
+            {creatingCategory ? (
+              <TextField
+                id="newCategoryName"
+                name="newCategoryName"
+                label="Nom de la catégorie"
+                required
+                placeholder={
+                  catalog.suggestedCategories[0]
+                    ? `Ex : ${catalog.suggestedCategories[0]}`
+                    : "Ex : Ciment"
+                }
+                value={newCategoryName}
+                onChange={(event) => setNewCategoryName(event.target.value)}
+                className="sm:col-span-2"
+              />
+            ) : null}
+
+            <PriceField
+              id="sellingPrice"
+              name="sellingPrice"
+              label="Prix de vente"
+              placeholder="Ex : 6500"
+              value={formState.sellingPrice === 0 ? "" : formState.sellingPrice}
+              onChange={(event) =>
+                onChange((current) => ({
+                  ...current,
+                  sellingPrice: event.target.value === "" ? 0 : Number(event.target.value),
+                }))
+              }
+            />
+            <PriceField
+              id="purchasePrice"
+              name="purchasePrice"
+              label="Prix d’achat"
+              min={0}
+              placeholder="Optionnel"
+              value={formState.purchasePrice || ""}
+              onChange={(event) =>
+                onChange((current) => ({
+                  ...current,
+                  purchasePrice: Number(event.target.value) || 0,
+                }))
+              }
+            />
+            <PriceField
+              id="wholesalePrice"
+              name="wholesalePrice"
+              label="Prix gros"
+              min={0}
+              placeholder="Optionnel"
+              value={formState.wholesalePrice || ""}
+              onChange={(event) =>
+                onChange((current) => ({
+                  ...current,
+                  wholesalePrice: Number(event.target.value) || 0,
+                }))
+              }
+            />
+            <NumberField
+              id="minimumStock"
+              name="minimumStock"
+              label="Alerte stock"
+              placeholder="0"
+              value={formState.minimumStock === 0 ? "" : formState.minimumStock}
+              onChange={(event) =>
+                onChange((current) => ({
+                  ...current,
+                  minimumStock:
+                    event.target.value === "" ? 0 : Number(event.target.value),
+                }))
+              }
+            />
+
+            <div className="sm:col-span-2">
+              <ProductImageField
+                existingUrl={
+                  editingProduct?.imageUrl ??
+                  editingProduct?.imageOriginalUrl ??
+                  editingProduct?.imageOptimizedUrl
+                }
+                onAssetsChange={onImageAssetsChange}
+                compact
+              />
+            </div>
+
+            {mode === "edit" ? (
+              <div className="sm:col-span-2">
+                <ToggleField
+                  id="active"
+                  name="active"
+                  label="Article en vente"
+                  checked={formState.active}
+                  onChange={(active) => onChange((current) => ({ ...current, active }))}
+                />
+              </div>
+            ) : (
+              <input type="hidden" name="active" value={formState.active ? "on" : "off"} />
+            )}
+          </div>
+        ) : (
+          <>
         <FormSection title={retail ? "Article" : "Produit"} compact>
           <div className="grid gap-2.5 sm:grid-cols-2">
             <TextField
@@ -547,6 +783,8 @@ export function ProductFormModal({
           checked={formState.active}
           onChange={(active) => onChange((current) => ({ ...current, active }))}
         />
+          </>
+        )}
       </div>
     </ModalShell>
   );

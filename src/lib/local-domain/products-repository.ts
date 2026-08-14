@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { CashierCategory, CashierProduct } from "@/lib/orders/types";
+import { resolveCashierStockQuantity } from "@/lib/orders/stock-availability";
 import type { SqlDatabase } from "@/lib/local-db/types";
 
 export type LocalProductUpsert = {
@@ -144,25 +145,57 @@ export class LocalProductRepository {
   listCashierProducts(establishmentId: string): CashierProduct[] {
     const rows = this.db
       .prepare(
-        `SELECT id, name, selling_price, unit, image_url, department_code, department_name,
-                category_id, category_name
-         FROM local_products
-         WHERE establishment_id = ? AND active = 1
-         ORDER BY name COLLATE NOCASE`,
+        `SELECT p.id, p.name, p.selling_price, p.unit, p.image_url, p.department_code,
+                p.department_name, p.category_id, p.category_name,
+                MIN(s.quantity) AS stock_quantity
+         FROM local_products p
+         LEFT JOIN local_stock_items s
+           ON s.product_id = p.id AND s.establishment_id = p.establishment_id
+         WHERE p.establishment_id = ? AND p.active = 1
+         GROUP BY p.id
+         ORDER BY p.name COLLATE NOCASE`,
       )
       .all(establishmentId);
 
-    return rows.map((row) => ({
-      id: String(row.id),
-      name: String(row.name),
-      sellingPrice: Number(row.selling_price),
-      unit: String(row.unit),
-      imageUrl: (row.image_url as string | null) ?? null,
-      departmentCode: String(row.department_code),
-      departmentName: String(row.department_name),
-      categoryId: String(row.category_id ?? ""),
-      categoryName: String(row.category_name),
-    }));
+    const stockCount = this.db
+      .prepare(
+        "SELECT COUNT(*) AS c FROM local_stock_items WHERE establishment_id = ?",
+      )
+      .get(establishmentId);
+    const hasStockCatalog = Number(stockCount?.c ?? 0) > 0;
+
+    return rows.map((row) => {
+      const rawStock = row.stock_quantity;
+      const parsed =
+        rawStock === null || rawStock === undefined ? null : Number(rawStock);
+      const fromJoin =
+        parsed !== null && Number.isFinite(parsed) ? parsed : null;
+      const qtyByProductId = new Map<string, number>();
+      if (fromJoin !== null) {
+        qtyByProductId.set(String(row.id), fromJoin);
+      }
+      return {
+        id: String(row.id),
+        name: String(row.name),
+        sellingPrice: Number(row.selling_price),
+        unit: String(row.unit),
+        imageUrl: (row.image_url as string | null) ?? null,
+        departmentCode: String(row.department_code),
+        departmentName: String(row.department_name),
+        categoryId: String(row.category_id ?? ""),
+        categoryName: String(row.category_name),
+        stockQuantity: resolveCashierStockQuantity(
+          {
+            id: String(row.id),
+            name: String(row.name),
+            departmentCode: String(row.department_code),
+          },
+          qtyByProductId,
+          new Map(),
+          hasStockCatalog,
+        ),
+      };
+    });
   }
 
   listCashierCategories(establishmentId: string): CashierCategory[] {

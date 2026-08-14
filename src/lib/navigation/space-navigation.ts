@@ -1,5 +1,7 @@
 import { getActivityProfile, isRetailActivity } from "@/lib/activity/profile";
 import type { UserSpace } from "@/lib/auth/roles";
+import { isHardwareActivity } from "@/lib/hardware/activity";
+import type { UserSpace } from "@/lib/auth/roles";
 import {
   hasBarService,
   hasKitchenService,
@@ -68,6 +70,40 @@ export function getNavigationForSpace(
 ): NavItem[] {
   const profile = getActivityProfile(activityCode);
   const retail = profile.kind === "retail";
+  const hardware = isHardwareActivity(activityCode);
+
+  if (hardware && space === "admin") {
+    return [
+      { href: "/application/tableau-de-bord", label: "Accueil", enabled: true },
+      { href: "/application/produits", label: "Produits", enabled: true },
+      { href: "/application/stock", label: "Stock", enabled: true },
+      { href: "/application/approvisionnements", label: "Fournisseurs", enabled: true },
+      { href: "/application/ventes", label: "Ventes", enabled: true },
+      { href: "/application/caisses", label: "Caisses", enabled: true },
+      { href: "/application/depenses", label: "Dépenses", enabled: true },
+      { href: "/application/utilisateurs", label: "Utilisateurs", enabled: true },
+      { href: "/application/rapports", label: "Rapports", enabled: true },
+      { href: "/application/parametres", label: "Paramètres", enabled: true },
+    ];
+  }
+
+  if (hardware && space === "cashier_kitchen") {
+    return [
+      { href: "/application/caisse", label: "Vente", enabled: true },
+      { href: "/application/commandes-ouvertes", label: "Mes ventes", enabled: true },
+      { href: "/application/caisse/session", label: "Ma session", enabled: true },
+    ];
+  }
+
+  if (hardware && space === "bar_manager") {
+    return [
+      { href: "/application/stock", label: "Accueil", enabled: true },
+      { href: "/application/produits", label: "Produits", enabled: true },
+      { href: "/application/approvisionnements", label: "Approvisionnements", enabled: true },
+      { href: "/application/inventaires", label: "Inventaires", enabled: true },
+      { href: "/application/depenses", label: "Dépenses", enabled: true },
+    ];
+  }
 
   if (retail && space === "cashier_kitchen") {
     return [
@@ -157,6 +193,73 @@ export function isPathAllowedForSpace(
   activityCode?: string | null,
 ): boolean {
   const retail = isRetailActivity(activityCode);
+  const hardware = isHardwareActivity(activityCode);
+
+  if (hardware) {
+    if (
+      pathname.startsWith("/application/sessions-bar") ||
+      pathname.startsWith("/application/bar") ||
+      pathname.startsWith("/application/cuisine") ||
+      pathname.startsWith("/application/stock/cuisine")
+    ) {
+      return false;
+    }
+
+    if (space === "admin") {
+      return pathname.startsWith("/application");
+    }
+
+    if (space === "cashier_kitchen") {
+      if (
+        pathname.startsWith("/application/utilisateurs") ||
+        pathname.startsWith("/application/parametres") ||
+        pathname.startsWith("/application/rapports") ||
+        pathname.startsWith("/application/caisses") ||
+        pathname.startsWith("/application/ventes") ||
+        pathname.startsWith("/application/produits") ||
+        pathname.startsWith("/application/stock") ||
+        pathname.startsWith("/application/approvisionnements") ||
+        pathname.startsWith("/application/depenses") ||
+        pathname.startsWith("/application/mon-abonnement")
+      ) {
+        return false;
+      }
+      return (
+        pathname.startsWith("/application/caisse") ||
+        pathname.startsWith("/application/commandes-ouvertes") ||
+        pathname.startsWith("/application/commandes/") ||
+        pathname.startsWith("/application/encaissement") ||
+        pathname.startsWith("/application/recus") ||
+        pathname === "/application" ||
+        pathname.startsWith("/application/mode-hors-connexion")
+      );
+    }
+
+    if (space === "bar_manager") {
+      if (
+        pathname.startsWith("/application/caisse") ||
+        pathname.startsWith("/application/encaissement") ||
+        pathname.startsWith("/application/commandes-ouvertes") ||
+        pathname.startsWith("/application/utilisateurs") ||
+        pathname.startsWith("/application/parametres") ||
+        pathname.startsWith("/application/rapports") ||
+        pathname.startsWith("/application/caisses") ||
+        pathname.startsWith("/application/ventes") ||
+        pathname.startsWith("/application/mon-abonnement")
+      ) {
+        return false;
+      }
+      return (
+        pathname.startsWith("/application/stock") ||
+        pathname.startsWith("/application/produits") ||
+        pathname.startsWith("/application/approvisionnements") ||
+        pathname.startsWith("/application/inventaires") ||
+        pathname.startsWith("/application/depenses") ||
+        pathname === "/application" ||
+        pathname.startsWith("/application/mode-hors-connexion")
+      );
+    }
+  }
 
   if (retail) {
     if (

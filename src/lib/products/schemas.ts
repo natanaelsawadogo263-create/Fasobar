@@ -17,6 +17,11 @@ export const productUnitSchema = z.enum([
   "JERRYCAN",
   "CARTON",
   "BUNDLE",
+  "TONNE",
+  "METER",
+  "ROLL",
+  "BARRE",
+  "SHEET",
 ]);
 
 /** Format d'achat d'une boisson : casier, carton ou sachet. */
@@ -52,6 +57,38 @@ export const createProductSchema = productFormSchema
       return text.length > 0 ? text : undefined;
     }, z.string().min(2, "Indiquez le nom de la nouvelle catégorie.").optional()),
     catalogKind: z.enum(["food", "retail"]).optional(),
+    sku: z.preprocess((value) => {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text.length > 0 ? text : undefined;
+    }, z.string().max(64).optional()),
+    barcode: z.preprocess((value) => {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text.length > 0 ? text : undefined;
+    }, z.string().max(64).optional()),
+    purchasePrice: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().int().min(0).optional(),
+    ),
+    wholesalePrice: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().int().min(0).optional(),
+    ),
+    purchaseUnit: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      productUnitSchema.optional(),
+    ),
+    unitsPerPurchase: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().positive().optional(),
+    ),
+    discountMinQuantity: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().int().positive().optional(),
+    ),
+    discountPercent: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().min(0).max(100).optional(),
+    ),
     packagingUnit: z.preprocess(
       (value) => (value === "" || value == null ? undefined : value),
       barPackagingUnitSchema.optional(),
@@ -95,6 +132,38 @@ export const createProductSchema = productFormSchema
 
 export const updateProductSchema = productFormSchema.extend({
   productId: z.string().uuid("Produit invalide."),
+  sku: z.preprocess((value) => {
+    const text = typeof value === "string" ? value.trim() : "";
+    return text.length > 0 ? text : undefined;
+  }, z.string().max(64).optional()),
+  barcode: z.preprocess((value) => {
+    const text = typeof value === "string" ? value.trim() : "";
+    return text.length > 0 ? text : undefined;
+  }, z.string().max(64).optional()),
+  purchasePrice: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce.number().int().min(0).optional(),
+  ),
+  wholesalePrice: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce.number().int().min(0).optional(),
+  ),
+  purchaseUnit: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    productUnitSchema.optional(),
+  ),
+  unitsPerPurchase: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce.number().positive().optional(),
+  ),
+  discountMinQuantity: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce.number().int().positive().optional(),
+  ),
+  discountPercent: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce.number().min(0).max(100).optional(),
+  ),
 });
 
 export const updateProductPriceSchema = z.object({

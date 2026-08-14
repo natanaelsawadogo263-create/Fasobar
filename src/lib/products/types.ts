@@ -10,6 +10,8 @@ export type ProductListItem = {
   description: string | null;
   sellingPrice: number;
   unit: string;
+  stockUnitLabel?: string | null;
+  brandName?: string | null;
   minimumStock: number;
   active: boolean;
   /** URL d'affichage préférée (optimisée > originale > legacy). */
@@ -20,12 +22,22 @@ export type ProductListItem = {
   departmentName: string;
   categoryId: string;
   categoryName: string;
+  sku?: string | null;
+  barcode?: string | null;
+  purchasePrice?: number | null;
+  wholesalePrice?: number | null;
+  purchaseUnit?: string | null;
+  unitsPerPurchase?: number | null;
+  discountMinQuantity?: number | null;
+  discountPercent?: number | null;
 };
 
 export type CategoryOption = {
   id: string;
   name: string;
   departmentCode: string;
+  active?: boolean;
+  productCount?: number;
 };
 
 export type DepartmentOption = {

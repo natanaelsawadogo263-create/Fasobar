@@ -35,6 +35,14 @@ describe("pages métier commerce", () => {
     expect(pages.expenses.kitchenPurchase).toBe("Achats magasin");
   });
 
+  it("adapte la quincaillerie : vente, caisse-vendeur", () => {
+    const pages = getActivityPages("hardware");
+    expect(pages.retail).toBe(true);
+    expect(pages.profile.cashierSpaceLabel).toBe("Caisse-Vendeur");
+    expect(pages.pos.cartTab).toBe("Vente");
+    expect(pages.pos.productsTab).toBe("Produits");
+  });
+
   it("ne change pas l’espace restauration", () => {
     const pages = getActivityPages("restaurant");
     expect(pages.retail).toBe(false);

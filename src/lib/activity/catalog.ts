@@ -1,4 +1,6 @@
 import { getActivityProfile, isRetailActivity } from "@/lib/activity/profile";
+import { HARDWARE_CATEGORY_SUGGESTIONS } from "@/lib/hardware/constants";
+import { HARDWARE_UNITS } from "@/lib/hardware/units";
 import type { BusinessActivityId } from "@/lib/auth/activities";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";
 import type { ProductUnit } from "@/lib/products/schemas";
@@ -216,16 +218,19 @@ const RETAIL_OVERRIDES: Partial<
     suggestedCategories: ["Motos", "Voitures", "Tricycles", "Pièces", "Autre"],
   },
   hardware: {
-    namePlaceholder: "Ex : Marteau 500 g",
-    units: SHOP_UNITS,
-    suggestedCategories: [
-      "Outillage",
-      "Quincaillerie",
-      "Électricité",
-      "Plomberie",
-      "Peinture",
-      "Autre",
-    ],
+    itemNoun: "article",
+    itemNounPlural: "articles",
+    addTitle: "Ajouter un article",
+    editTitle: "Modifier l’article",
+    addButtonLabel: "Ajouter un article",
+    namePlaceholder: "Ex : Ciment 50 kg",
+    nameLabel: "Nom",
+    departmentLabel: "Magasin",
+    showReference: false,
+    showPackaging: false,
+    defaultUnit: "PIECE",
+    units: HARDWARE_UNITS,
+    suggestedCategories: [...HARDWARE_CATEGORY_SUGGESTIONS],
   },
   construction: {
     itemNoun: "matériau",

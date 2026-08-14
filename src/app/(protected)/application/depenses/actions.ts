@@ -11,7 +11,7 @@ import {
   type ExpenseArea,
 } from "@/lib/expenses/schemas";
 import type { ExpenseActionState } from "@/lib/expenses/types";
-import { createClient } from "@/lib/supabase/server";
+import { hardwarePermissions } from "@/lib/hardware/permissions";
 
 function revalidateExpensePages() {
   revalidatePath("/application/depenses");
@@ -64,7 +64,17 @@ export async function createExpenseAction(
 ): Promise<ExpenseActionState> {
   const workspace = await requireExpenseMutationContext();
 
-  const parsed = createExpenseSchema.safeParse({
+    const perms = hardwarePermissions({
+      activityCode: workspace.activityCode,
+      userSpace: workspace.userSpace,
+      organizationRole: workspace.organizationRole,
+      establishmentRole: workspace.establishmentRole,
+    });
+    if (perms.enabled && !perms.canCreateExpense) {
+      return { error: "Le Caisse-Vendeur ne peut pas enregistrer une dépense." };
+    }
+
+    const parsed = createExpenseSchema.safeParse({
     area: formData.get("area") || "CAISSE",
     category: resolveCategoryForSpace(workspace.userSpace, formData.get("category")),
     label: formData.get("label"),

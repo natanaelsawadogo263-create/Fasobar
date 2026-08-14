@@ -23,6 +23,11 @@ export const PRODUCT_UNIT_LABELS: Record<ProductUnit, string> = {
   JERRYCAN: "Bidon",
   CARTON: "Carton",
   BUNDLE: "Paquet",
+  TONNE: "Tonne",
+  METER: "Mètre",
+  ROLL: "Rouleau",
+  BARRE: "Barre",
+  SHEET: "Feuille",
 };
 
 /** Unités de stock / vente pour les boissons (exemplaires individuels). */
@@ -72,6 +77,15 @@ export function packagingDisplayName(unit: BarPackagingUnit): string {
 }
 
 export const MANAGEMENT_ROLES = new Set(["OWNER", "ADMIN", "MANAGER"]);
+
+export function formatProductUnitDisplay(
+  unit: string,
+  stockUnitLabel?: string | null,
+): string {
+  const custom = stockUnitLabel?.trim();
+  if (custom) return custom;
+  return PRODUCT_UNIT_LABELS[unit as ProductUnit] ?? unit;
+}
 
 export function formatPriceXof(amount: number): string {
   return new Intl.NumberFormat("fr-FR", {

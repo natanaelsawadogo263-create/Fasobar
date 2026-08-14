@@ -24,11 +24,26 @@ describe("profils d’activité FasoBar", () => {
     expect(isRetailActivity("pharmacy")).toBe(true);
   });
 
-  it("n’invite pas de responsable bar en commerce", () => {
-    const spaces = getInvitableSpacesForActivity("hardware", "BOTH");
+  it("n’invite pas de responsable bar en commerce classique", () => {
+    const spaces = getInvitableSpacesForActivity("pharmacy", "BOTH");
     expect(spaces.map((item) => item.id)).toEqual(["admin", "cashier_kitchen"]);
     expect(spaces.find((item) => item.id === "cashier_kitchen")?.label).toBe(
-      "Vendeur",
+      "Caissier",
+    );
+  });
+
+  it("invite un responsable stock en quincaillerie", () => {
+    const spaces = getInvitableSpacesForActivity("hardware", "BOTH");
+    expect(spaces.map((item) => item.id)).toEqual([
+      "admin",
+      "cashier_kitchen",
+      "bar_manager",
+    ]);
+    expect(spaces.find((item) => item.id === "cashier_kitchen")?.label).toBe(
+      "Caisse-Vendeur",
+    );
+    expect(spaces.find((item) => item.id === "bar_manager")?.label).toBe(
+      "Responsable Stock",
     );
   });
 

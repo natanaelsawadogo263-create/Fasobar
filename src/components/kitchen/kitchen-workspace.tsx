@@ -307,7 +307,7 @@ function KitchenOrderCard({
           </button>
         ) : null}
         <Link
-          href={`/application/commandes/${order.id}/addition?print=1`}
+          href={`/application/caisse/addition/${order.id}?from=cuisine`}
           className="inline-flex items-center justify-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
           title="Imprimer l'addition client (sans encaisser)"
         >

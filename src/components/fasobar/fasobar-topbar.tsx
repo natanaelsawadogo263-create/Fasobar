@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Lock, LogOut, Package } from "lucide-react";
+import { ArrowLeft, Lock, LogOut, Package } from "lucide-react";
 
 import { getActivityPages } from "@/lib/activity/pages";
 import { signOutAction } from "@/lib/auth/actions";
@@ -117,6 +117,18 @@ export function FasoBarTopbar() {
           >
             <Lock className="h-4 w-4" />
           </button>
+        ) : null}
+
+        {ctx?.adminReturnHref ? (
+          <Link
+            href={ctx.adminReturnHref}
+            className="inline-flex h-11 min-h-11 items-center gap-1.5 rounded-xl px-2.5 text-[12px] font-semibold text-emerald-300 active:bg-white/10 md:h-9 md:min-h-9 md:hover:bg-white/10"
+            title="Retour à l’espace admin"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Espace admin</span>
+            <span className="sm:hidden">Admin</span>
+          </Link>
         ) : null}
 
         <div className="hidden md:block">

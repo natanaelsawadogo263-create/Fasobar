@@ -21,6 +21,11 @@ import {
   getReceiptByOrderId,
 } from "@/lib/payments/queries";
 import type { PaymentActionState } from "@/lib/payments/types";
+import { isHardwareActivity, isHardwareAdminDirectSeller } from "@/lib/hardware/activity";
+import {
+  createAdminClient,
+  isAdminClientConfigured,
+} from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function revalidatePaymentPages(orderId?: string, receiptId?: string) {
@@ -140,13 +145,72 @@ export async function openCashSessionAction(
     p_opening_note: parsed.data.openingNote ?? null,
   });
 
-  if (error || !sessionId) {
-    return { error: mapRpcError(error) };
+  if (!error && sessionId) {
+    revalidateCashSessionOps();
+    revalidatePaymentPages();
+    return { success: "Caisse ouverte.", sessionId: sessionId as string };
   }
 
-  revalidateCashSessionOps();
-  revalidatePaymentPages();
-  return { success: "Caisse ouverte.", sessionId: sessionId as string };
+  const hardwareAdmin =
+    isHardwareActivity(workspace.activityCode) && workspace.userSpace === "admin";
+
+  if (
+    hardwareAdmin &&
+    isAdminClientConfigured() &&
+    (error?.message ?? "").toLowerCase().includes("permission")
+  ) {
+    const admin = createAdminClient();
+    const { data: existing } = await admin
+      .from("cash_register_sessions")
+      .select("id")
+      .eq("establishment_id", workspace.establishmentId)
+      .eq("opened_by", workspace.userId)
+      .eq("status", "OPEN")
+      .maybeSingle();
+
+    if (existing?.id) {
+      return { error: "Une session de caisse est déjà ouverte." };
+    }
+
+    const { data: created, error: insertError } = await admin
+      .from("cash_register_sessions")
+      .insert({
+        organization_id: workspace.organizationId,
+        establishment_id: workspace.establishmentId,
+        opened_by: workspace.userId,
+        status: "OPEN",
+        opening_cash_amount: parsed.data.openingCashAmount,
+        expected_cash_amount: parsed.data.openingCashAmount,
+        opening_note: parsed.data.openingNote ?? null,
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (!insertError && created?.id) {
+      revalidateCashSessionOps();
+      revalidatePaymentPages();
+      return { success: "Caisse ouverte.", sessionId: created.id };
+    }
+  }
+
+  return { error: mapRpcError(error) };
+}
+
+async function ensureImplicitAdminCashSession(): Promise<PaymentActionState | null> {
+  const workspace = await requireCashRegisterOperatorMutationContext();
+  if (!isHardwareAdminDirectSeller(workspace)) return null;
+
+  const existing = await getActiveCashSession(workspace);
+  if (existing) return null;
+
+  const formData = new FormData();
+  formData.set("openingCashAmount", "0");
+  formData.set("openingNote", "Vente admin");
+  const opened = await openCashSessionAction({}, formData);
+  if (opened.error && !opened.error.toLowerCase().includes("déjà ouverte")) {
+    return opened;
+  }
+  return null;
 }
 
 export async function closeCashSessionAction(
@@ -252,10 +316,19 @@ export async function quickCashCheckoutAction(
   }
 
   const session = await getActiveCashSession(workspace);
-  if (!session) {
+  if (!session && !isHardwareAdminDirectSeller(workspace)) {
     return {
       error: "Ouvrez une session de caisse pour encaisser en espèces.",
     };
+  }
+
+  if (!session && isHardwareAdminDirectSeller(workspace)) {
+    const ensureError = await ensureImplicitAdminCashSession();
+    if (ensureError?.error) return ensureError;
+    const created = await getActiveCashSession(workspace);
+    if (!created) {
+      return { error: "Impossible de démarrer la vente pour cet admin." };
+    }
   }
 
   const remaining = summary.remainingAmount;
@@ -315,6 +388,9 @@ export async function recordPaymentsAction(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Paiement invalide." };
   }
+
+  const ensureError = await ensureImplicitAdminCashSession();
+  if (ensureError?.error) return ensureError;
 
   const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
   if (isDesktopServerRuntime()) {

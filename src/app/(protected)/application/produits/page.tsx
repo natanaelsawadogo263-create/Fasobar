@@ -6,6 +6,7 @@ import { listProducts } from "@/lib/products/queries";
 import type { ProductStats } from "@/lib/products/types";
 import { productFiltersSchema, type ProductTab } from "@/lib/products/schemas";
 import { requireSpacePathAccess } from "@/lib/auth/workspace-context";
+import { isHardwareActivity } from "@/lib/hardware/activity";
 
 type ProduitsPageProps = {
   searchParams: Promise<{
@@ -42,12 +43,14 @@ export default async function ProduitsPage({ searchParams }: ProduitsPageProps) 
     return true;
   });
 
-  const packagingsByProductId = await listPackagingsForProducts(
-    workspace,
-    allProducts
-      .filter((product) => product.departmentCode === "BAR")
-      .map((product) => product.id),
-  );
+  const packagingsByProductId = isHardwareActivity(workspace.activityCode)
+    ? {}
+    : await listPackagingsForProducts(
+        workspace,
+        allProducts
+          .filter((product) => product.departmentCode === "BAR")
+          .map((product) => product.id),
+      );
 
   const stats: ProductStats = {
     total: allProducts.length,

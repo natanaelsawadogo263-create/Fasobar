@@ -7,9 +7,11 @@ import {
   KeyRound,
   AtSign,
   Phone,
+  Package,
   Power,
   Search,
   Shield,
+  ShoppingBag,
   Trash2,
   UserPlus,
   Users,
@@ -83,6 +85,9 @@ function displayMemberSpace(
   const profile = getActivityProfile(activityCode);
   if (profile.kind === "retail" && spaceLabel === SPACE_LABELS.cashier_kitchen) {
     return profile.cashierSpaceLabel;
+  }
+  if (spaceLabel === SPACE_LABELS.bar_manager && profile.id === "hardware") {
+    return "Responsable Stock";
   }
   return spaceLabel;
 }
@@ -210,7 +215,7 @@ export function UsersWorkspace({
         {error ? <AlertMessage message={error} /> : null}
 
         {/* Synthèse — desktop uniquement */}
-        <div className={`hidden grid-cols-2 gap-3 md:grid ${retail ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
+        <div className={`hidden grid-cols-2 gap-3 md:grid ${retail && profile.id !== "hardware" ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
           {[
             {
               label: "Actifs",
@@ -229,18 +234,22 @@ export function UsersWorkspace({
             {
               label: profile.cashierSpaceLabel,
               value: stats.cashierKitchenCount,
-              hint: "opérations",
-              icon: UtensilsCrossed,
+              hint: retail ? "ventes" : "opérations",
+              icon: retail ? ShoppingBag : UtensilsCrossed,
               tone: "bg-orange-50 text-orange-700",
             },
-            ...(retail
+            ...(retail && profile.id !== "hardware"
               ? []
               : [
                   {
-                    label: "Responsable Bar",
+                    label:
+                      profile.id === "hardware"
+                        ? "Responsable Stock"
+                        : "Responsable Bar",
                     value: stats.barManagerCount,
-                    hint: "stock boissons",
-                    icon: Wine,
+                    hint:
+                      profile.id === "hardware" ? "catalogue et stock" : "stock boissons",
+                    icon: profile.id === "hardware" ? Package : Wine,
                     tone: "bg-amber-50 text-amber-700",
                   },
                 ]),

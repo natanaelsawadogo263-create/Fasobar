@@ -22,6 +22,7 @@ export default async function ApplicationLayout({
       )}
       cashierName={workspace.ownerName}
       canRenewSubscription={workspace.organizationRole === "OWNER"}
+      activityCode={workspace.activityCode}
     >
       {children}
     </ApplicationShell>

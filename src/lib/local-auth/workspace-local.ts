@@ -69,8 +69,9 @@ export function buildWorkspaceContextFromLocalUser(
     canOperateCashRegister: canOperateCashRegister(
       organizationRole,
       establishmentRole,
+      user.activityCode ?? null,
     ),
     serviceScope: "BOTH",
-    activityCode: null,
+    activityCode: user.activityCode ?? null,
   };
 }

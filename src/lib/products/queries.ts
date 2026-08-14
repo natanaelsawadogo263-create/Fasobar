@@ -16,14 +16,25 @@ type ProductRow = {
   description: string | null;
   selling_price: number;
   unit: string;
+  stock_unit_label?: string | null;
+  brand_id?: string | null;
   minimum_stock: number;
   active: boolean;
   image_url?: string | null;
   image_original_url?: string | null;
   image_optimized_url?: string | null;
   category_id: string;
+  sku?: string | null;
+  barcode?: string | null;
+  purchase_price?: number | null;
+  wholesale_price?: number | null;
+  purchase_unit?: string | null;
+  units_per_purchase?: number | null;
+  discount_min_quantity?: number | null;
+  discount_percent?: number | null;
   departments: { code: string; name: string } | { code: string; name: string }[] | null;
   categories: { name: string } | { name: string }[] | null;
+  product_brands?: { name: string } | { name: string }[] | null;
 };
 
 function readSingle<T>(value: T | T[] | null): T | null {
@@ -53,6 +64,8 @@ function mapProduct(row: ProductRow): ProductListItem | null {
     description: row.description,
     sellingPrice: row.selling_price,
     unit: row.unit,
+    stockUnitLabel: row.stock_unit_label ?? null,
+    brandName: readSingle(row.product_brands ?? null)?.name ?? null,
     minimumStock: row.minimum_stock,
     active: row.active,
     imageOptimizedUrl: optimized,
@@ -62,6 +75,14 @@ function mapProduct(row: ProductRow): ProductListItem | null {
     departmentName: department.name,
     categoryId: row.category_id,
     categoryName: category.name,
+    sku: row.sku ?? null,
+    barcode: row.barcode ?? null,
+    purchasePrice: row.purchase_price ?? null,
+    wholesalePrice: row.wholesale_price ?? null,
+    purchaseUnit: row.purchase_unit ?? null,
+    unitsPerPurchase: row.units_per_purchase ?? null,
+    discountMinQuantity: row.discount_min_quantity ?? null,
+    discountPercent: row.discount_percent ?? null,
   };
 }
 
@@ -125,10 +146,12 @@ export async function listProducts(
 ): Promise<ProductListItem[]> {
   const supabase = await createClient();
 
-  async function runSelect(mode: "full" | "legacy" | "none") {
+  async function runSelect(mode: "catalog" | "full" | "legacy" | "none") {
     const columns =
-      mode === "full"
-        ? "id, name, slug, description, selling_price, unit, minimum_stock, active, image_url, image_original_url, image_optimized_url, category_id, department_id, departments(code, name), categories(name)"
+      mode === "catalog"
+        ? "id, name, slug, description, selling_price, unit, stock_unit_label, brand_id, minimum_stock, active, image_url, image_original_url, image_optimized_url, category_id, department_id, sku, barcode, purchase_price, wholesale_price, purchase_unit, units_per_purchase, discount_min_quantity, discount_percent, departments(code, name), categories(name), product_brands(name)"
+        : mode === "full"
+        ? "id, name, slug, description, selling_price, unit, minimum_stock, active, image_url, image_original_url, image_optimized_url, category_id, department_id, sku, barcode, purchase_price, wholesale_price, purchase_unit, units_per_purchase, discount_min_quantity, discount_percent, departments(code, name), categories(name)"
         : mode === "legacy"
           ? "id, name, slug, description, selling_price, unit, minimum_stock, active, image_url, category_id, department_id, departments(code, name), categories(name)"
           : "id, name, slug, description, selling_price, unit, minimum_stock, active, category_id, department_id, departments(code, name), categories(name)";
@@ -165,7 +188,28 @@ export async function listProducts(
     return query;
   }
 
-  let { data, error } = await runSelect("full");
+  let { data, error } = await runSelect("catalog");
+
+  if (
+    error?.message?.includes("stock_unit_label") ||
+    error?.message?.includes("brand_id") ||
+    error?.message?.includes("product_brands")
+  ) {
+    const fallback = await runSelect("full");
+    data = fallback.data;
+    error = fallback.error;
+  }
+
+  if (
+    error?.message?.includes("sku") ||
+    error?.message?.includes("barcode") ||
+    error?.message?.includes("wholesale_price") ||
+    error?.message?.includes("purchase_price")
+  ) {
+    const fallback = await runSelect("legacy");
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (
     error?.message?.includes("image_original_url") ||

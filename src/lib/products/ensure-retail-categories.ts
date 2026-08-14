@@ -2,12 +2,16 @@ import "server-only";
 
 import { cache } from "react";
 
-import { getCatalogFormProfile } from "@/lib/activity/catalog";
+import { getCatalogFormProfile, isRestaurantSeedCategory, shouldShowCatalogCategory } from "@/lib/activity/catalog";
 import { isRetailActivity } from "@/lib/activity/profile";
 import { slugifyFromName } from "@/lib/auth/slugs";
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { getDepartmentIdByCode, listCategories } from "@/lib/products/queries";
 import type { CategoryOption } from "@/lib/products/types";
+import {
+  createAdminClient,
+  isAdminClientConfigured,
+} from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const ENSURE_TTL_MS = 120_000;
@@ -28,13 +32,38 @@ export const ensureRetailCategories = cache(async function ensureRetailCategorie
   const existing = await listCategories(workspace);
   const until = ensureOkUntil.get(workspace.establishmentId) ?? 0;
   if (until > Date.now()) {
-    return existing;
+    return existing.filter((item) => shouldShowCatalogCategory(item.name, catalog));
   }
 
   const departmentId = await getDepartmentIdByCode(workspace, "BAR");
   if (!departmentId || catalog.suggestedCategories.length === 0) {
     ensureOkUntil.set(workspace.establishmentId, Date.now() + ENSURE_TTL_MS);
-    return existing;
+    return existing.filter((item) => shouldShowCatalogCategory(item.name, catalog));
+  }
+
+  const leftovers = existing.filter(
+    (item) =>
+      isRestaurantSeedCategory(item.name) &&
+      !catalog.suggestedCategories.some(
+        (name) => name.trim().toLowerCase() === item.name.trim().toLowerCase(),
+      ),
+  );
+
+  const supabase = await createClient();
+  const writeClient = isAdminClientConfigured() ? createAdminClient() : supabase;
+
+  if (leftovers.length > 0) {
+    const { error: deactivateError } = await writeClient
+      .from("categories")
+      .update({ active: false })
+      .eq("establishment_id", workspace.establishmentId)
+      .in(
+        "id",
+        leftovers.map((item) => item.id),
+      );
+    if (deactivateError) {
+      console.warn("[ensureRetailCategories] deactivate", deactivateError.message);
+    }
   }
 
   const known = new Set(existing.map((item) => item.name.trim().toLowerCase()));
@@ -44,7 +73,9 @@ export const ensureRetailCategories = cache(async function ensureRetailCategorie
 
   if (missing.length === 0) {
     ensureOkUntil.set(workspace.establishmentId, Date.now() + ENSURE_TTL_MS);
-    return existing;
+    return (await listCategories(workspace)).filter((item) =>
+      shouldShowCatalogCategory(item.name, catalog),
+    );
   }
 
   const rows = missing
@@ -64,15 +95,18 @@ export const ensureRetailCategories = cache(async function ensureRetailCategorie
 
   if (rows.length === 0) {
     ensureOkUntil.set(workspace.establishmentId, Date.now() + ENSURE_TTL_MS);
-    return existing;
+    return (await listCategories(workspace)).filter((item) =>
+      shouldShowCatalogCategory(item.name, catalog),
+    );
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.from("categories").insert(rows);
+  const { error } = await writeClient.from("categories").insert(rows);
   if (error) {
     console.warn("[ensureRetailCategories]", error.message);
   }
 
   ensureOkUntil.set(workspace.establishmentId, Date.now() + ENSURE_TTL_MS);
-  return listCategories(workspace);
+  return (await listCategories(workspace)).filter((item) =>
+    shouldShowCatalogCategory(item.name, catalog),
+  );
 });

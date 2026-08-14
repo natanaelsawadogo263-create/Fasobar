@@ -41,6 +41,7 @@ type FasoBarCashierContextValue = {
   setCaisseFilters: (filters: FasoBarCaisseFilters | null) => void;
   setOnCloseSession: (handler: (() => void) | undefined) => void;
   setOnOpenOrders: (handler: (() => void) | undefined) => void;
+  adminReturnHref?: string | null;
 };
 
 const FasoBarCashierContext = createContext<FasoBarCashierContextValue | null>(null);
@@ -50,6 +51,7 @@ type FasoBarCashierProviderProps = {
   cashierName: string;
   establishmentId?: string;
   userId?: string;
+  adminReturnHref?: string | null;
   children: ReactNode;
 };
 
@@ -58,6 +60,7 @@ export function FasoBarCashierProvider({
   cashierName,
   establishmentId,
   userId,
+  adminReturnHref = null,
   children,
 }: FasoBarCashierProviderProps) {
   const [hasSession, setHasSession] = useState(false);
@@ -160,6 +163,7 @@ export function FasoBarCashierProvider({
       setCaisseFilters,
       setOnCloseSession,
       setOnOpenOrders,
+      adminReturnHref,
     }),
     [
       establishmentName,
@@ -173,6 +177,7 @@ export function FasoBarCashierProvider({
       onOpenOrders,
       setOnCloseSession,
       setOnOpenOrders,
+      adminReturnHref,
     ],
   );
 

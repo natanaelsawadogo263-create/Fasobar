@@ -97,7 +97,7 @@ export function CashCheckoutModal({
             <div className="grid gap-2">
               {success.receiptId ? (
                 <Link
-                  href={`/application/recus/${success.receiptId}?print=1&next=${encodeURIComponent("/application/caisse?fresh=1")}`}
+                  href={`/application/recus/${success.receiptId}`}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700"
                 >
                   <Printer className="h-4 w-4" />

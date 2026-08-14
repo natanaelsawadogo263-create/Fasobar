@@ -6,7 +6,7 @@ import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { getLocalDatabase } from "@/lib/local-db/database";
 import type { SqlDatabase } from "@/lib/local-db/types";
 import { withTransaction } from "@/lib/local-db/transaction";
-import { getLocalActiveCashSession } from "@/lib/local-domain/cash-sessions";
+import { getLocalActiveCashSession, ensureLocalImplicitAdminCashSession } from "@/lib/local-domain/cash-sessions";
 import { getLocalDeviceId, moneyXof } from "@/lib/local-domain/device";
 import { nextLocalNumber } from "@/lib/local-domain/numbering";
 import { getLocalOrderById } from "@/lib/local-domain/orders-local";
@@ -120,6 +120,11 @@ export function recordLocalPayments(
     throw new Error("Permission insuffisante pour encaisser.");
   }
 
+  const hasCash = input.payments.some((p) => p.method === "CASH");
+  if (hasCash) {
+    ensureLocalImplicitAdminCashSession(workspace);
+  }
+
   const db = getLocalDatabase({ skipBackup: true });
   const deviceId = getLocalDeviceId(db);
 
@@ -172,8 +177,8 @@ export function recordLocalPayments(
     }
 
     const session = getLocalActiveCashSession(db, workspace);
-    const hasCash = input.payments.some((p) => p.method === "CASH");
-    if (hasCash && !session) {
+    const hasCashPayment = input.payments.some((p) => p.method === "CASH");
+    if (hasCashPayment && !session) {
       throw new Error("Ouvrez une session de caisse pour encaisser en espèces.");
     }
 

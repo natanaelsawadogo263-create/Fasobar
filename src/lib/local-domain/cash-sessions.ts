@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
+import { isHardwareAdminDirectSeller } from "@/lib/hardware/activity";
 import { getLocalDatabase } from "@/lib/local-db/database";
 import type { SqlDatabase } from "@/lib/local-db/types";
 import { getLocalDeviceId, moneyXof } from "@/lib/local-domain/device";
@@ -138,6 +139,39 @@ export function openLocalCashSession(
   });
 
   return { sessionId, clientMutationId };
+}
+
+/** Session silencieuse (fond 0) pour que l’admin puisse encaisser sans écran d’ouverture. */
+export function ensureLocalImplicitAdminCashSession(
+  workspace: WorkspaceContext,
+): CashSessionDetail | null {
+  if (!isHardwareAdminDirectSeller(workspace)) {
+    return getLocalActiveCashSession(
+      getLocalDatabase({ skipBackup: true }),
+      workspace,
+    );
+  }
+
+  const db = getLocalDatabase({ skipBackup: true });
+  const existing = getLocalActiveCashSession(db, workspace);
+  if (existing) return existing;
+
+  try {
+    openLocalCashSession(workspace, {
+      openingCashAmount: 0,
+      openingNote: "Vente admin",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (!message.toLowerCase().includes("déjà ouverte")) {
+      throw error;
+    }
+  }
+
+  return getLocalActiveCashSession(
+    getLocalDatabase({ skipBackup: true }),
+    workspace,
+  );
 }
 
 export function closeLocalCashSession(

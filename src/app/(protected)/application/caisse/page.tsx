@@ -1,6 +1,7 @@
 import { CashierWorkspace } from "@/components/cashier/cashier-workspace";
 import { requireCashRegisterOperatorContext } from "@/lib/auth/workspace-context";
-import { ensureCaisseCatalog } from "@/lib/caisse/ensure-catalog";
+import { isDesktopServerRuntime } from "@/lib/desktop/runtime";
+import { ensureRetailCategories } from "@/lib/products/ensure-retail-categories";
 import {
   getOrderById,
   listCashierCategories,
@@ -22,7 +23,11 @@ export default async function CaissePage({ searchParams }: CaissePageProps) {
   const params = await searchParams;
   const freshCart = params.fresh === "1";
 
-  await ensureCaisseCatalog(workspace);
+  if (isDesktopServerRuntime()) {
+    const { ensureCaisseCatalog } = await import("@/lib/caisse/ensure-catalog");
+    await ensureCaisseCatalog(workspace);
+  }
+  await ensureRetailCategories(workspace);
 
   const [categories, products, initialOrder, session] = await Promise.all([
     listCashierCategories(workspace),

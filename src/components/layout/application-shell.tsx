@@ -14,6 +14,7 @@ import { CashierSecondaryShell } from "@/components/cashier/cashier-secondary-sh
 import { FasoBarCashierShell } from "@/components/fasobar/fasobar-cashier-shell";
 import { SpaceShell } from "@/components/layout/space-shell";
 import { ToastProvider } from "@/components/ui/toast";
+import { isHardwareActivity } from "@/lib/hardware/activity";
 
 type ApplicationShellProps = {
   space: UserSpace;
@@ -26,6 +27,7 @@ type ApplicationShellProps = {
   children: ReactNode;
   cashierName?: string;
   canRenewSubscription?: boolean;
+  activityCode?: string | null;
 };
 
 function isFasoBarCashierRoute(pathname: string): boolean {
@@ -42,6 +44,14 @@ function isFasoBarCashierRoute(pathname: string): boolean {
 
 function isOrderFocusRoute(pathname: string): boolean {
   return /^\/application\/commandes\/[^/]+/.test(pathname);
+}
+
+function isThermalTicketRoute(pathname: string): boolean {
+  return (
+    pathname.startsWith("/application/caisse/addition/") ||
+    pathname.includes("/addition") ||
+    pathname.startsWith("/application/recus/")
+  );
 }
 
 function isCashierSecondaryRoute(pathname: string): boolean {
@@ -64,6 +74,7 @@ export function ApplicationShell({
   children,
   cashierName = "",
   canRenewSubscription = false,
+  activityCode = null,
 }: ApplicationShellProps) {
   const pathname = usePathname();
   const prefetch = (
@@ -76,9 +87,23 @@ export function ApplicationShell({
     </Suspense>
   );
 
+  const hardware = isHardwareActivity(activityCode);
+
   let shell: ReactNode;
 
-  if (space === "admin") {
+  if (space === "admin" && hardware && isFasoBarCashierRoute(pathname)) {
+    shell = (
+      <FasoBarCashierShell
+        establishmentId={establishmentId}
+        userId={userId}
+        establishmentName={establishmentName}
+        cashierName={cashierName}
+        adminReturnHref="/application/tableau-de-bord"
+      >
+        {children}
+      </FasoBarCashierShell>
+    );
+  } else if (space === "admin") {
     shell = (
       <AdminShell
         establishmentId={establishmentId}
@@ -88,9 +113,18 @@ export function ApplicationShell({
         adminName={cashierName || "Admin"}
         navItems={navItems}
         canRenewSubscription={canRenewSubscription}
+        activityCode={activityCode}
       >
         {children}
       </AdminShell>
+    );
+  } else if (space === "cashier_kitchen" && isThermalTicketRoute(pathname)) {
+    shell = (
+      <div className="app-shell flex h-dvh w-full max-w-full flex-col overflow-hidden bg-slate-200">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {children}
+        </main>
+      </div>
     );
   } else if (space === "cashier_kitchen" && isOrderFocusRoute(pathname)) {
     shell = (
@@ -112,6 +146,17 @@ export function ApplicationShell({
       >
         {children}
       </FasoBarCashierShell>
+    );
+  } else if (space === "bar_manager" && hardware) {
+    shell = (
+      <SpaceShell
+        space={space}
+        establishmentName={establishmentName}
+        organizationName={organizationName}
+        navItems={navItems}
+      >
+        {children}
+      </SpaceShell>
     );
   } else if (space === "bar_manager") {
     shell = (

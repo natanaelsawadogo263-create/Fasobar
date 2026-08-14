@@ -24,13 +24,15 @@ import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { useToast } from "@/components/ui/toast";
 import { ProductFormModal, type ProductFormState } from "@/components/products/product-form-modal";
+import { HardwareProductWizard } from "@/components/hardware/hardware-product-wizard";
+import { isHardwareActivity } from "@/lib/hardware/activity";
 import type { ProductImageAssets } from "@/components/products/product-image-field";
 import { resolveCatalogImageUrl } from "@/lib/fasobar/product-images";
 import {
   BAR_PACKAGING_DEFAULT_UNITS,
   formatPriceXof,
+  formatProductUnitDisplay,
   PRODUCT_TABS,
-  PRODUCT_UNIT_LABELS,
 } from "@/lib/products/constants";
 import type {
   CategoryOption,
@@ -78,6 +80,14 @@ const emptyForm: ProductFormState = {
   active: true,
   packagingUnit: "CASE",
   unitsPerPack: BAR_PACKAGING_DEFAULT_UNITS.CASE,
+  sku: "",
+  barcode: "",
+  purchasePrice: 0,
+  wholesalePrice: 0,
+  purchaseUnit: "CARTON",
+  unitsPerPurchase: 1,
+  discountMinQuantity: 0,
+  discountPercent: 0,
 };
 
 export function ProductsWorkspace({
@@ -98,6 +108,7 @@ export function ProductsWorkspace({
   const profile = getActivityProfile(activityCode);
   const catalog = getCatalogFormProfile(activityCode);
   const retail = profile.kind === "retail";
+  const hardware = isHardwareActivity(activityCode);
   const allowedDepartments = [
     ...(hasBarService(serviceScope) ? (["BAR"] as const) : []),
     ...(!retail && hasKitchenService(serviceScope) ? (["KITCHEN"] as const) : []),
@@ -184,6 +195,14 @@ export function ProductsWorkspace({
         "CASE",
       unitsPerPack:
         existingPackaging?.conversionFactor ?? BAR_PACKAGING_DEFAULT_UNITS.CASE,
+      sku: product.sku ?? "",
+      barcode: product.barcode ?? "",
+      purchasePrice: product.purchasePrice ?? 0,
+      wholesalePrice: product.wholesalePrice ?? 0,
+      purchaseUnit: (product.purchaseUnit as ProductFormState["purchaseUnit"]) || "CARTON",
+      unitsPerPurchase: product.unitsPerPurchase ?? 1,
+      discountMinQuantity: product.discountMinQuantity ?? 0,
+      discountPercent: product.discountPercent ?? 0,
     });
     resetImageAssets();
     setFormMode("edit");
@@ -314,9 +333,11 @@ export function ProductsWorkspace({
 
       <div
         className={`hidden shrink-0 gap-2.5 md:grid lg:gap-3 ${
-          !retail && hasBarService(serviceScope) && hasKitchenService(serviceScope)
-            ? "grid-cols-2 sm:grid-cols-4"
-            : "grid-cols-2 sm:grid-cols-3"
+          hardware
+            ? "grid-cols-2"
+            : !retail && hasBarService(serviceScope) && hasKitchenService(serviceScope)
+              ? "grid-cols-2 sm:grid-cols-4"
+              : "grid-cols-2 sm:grid-cols-3"
         }`}
       >
         <StatCard
@@ -326,7 +347,7 @@ export function ProductsWorkspace({
           icon={Package}
           tone="emerald"
         />
-        {hasBarService(serviceScope) ? (
+        {hasBarService(serviceScope) && !hardware ? (
           <StatCard
             title={retail ? profile.catalogDepartmentLabel : "Boissons"}
             value={String(stats.barCount)}
@@ -457,7 +478,13 @@ export function ProductsWorkspace({
                           </span>
                         </div>
                         <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                          {product.categoryName}
+                          {[
+                            product.categoryName,
+                            hardware ? product.brandName : null,
+                            formatProductUnitDisplay(product.unit, product.stockUnitLabel),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                           <span className="text-slate-300"> · </span>
                           {formatPriceXof(product.sellingPrice)}
                         </p>
@@ -494,7 +521,11 @@ export function ProductsWorkspace({
             <thead className="sticky top-0 z-10 bg-slate-50/95 text-[10px] font-semibold uppercase tracking-wide text-slate-400 backdrop-blur">
               <tr>
                 <th className="px-3.5 py-2.5 font-medium">Produit</th>
-                <th className="px-3.5 py-2.5 font-medium">Département</th>
+                {hardware ? (
+                  <th className="px-3.5 py-2.5 font-medium">Marque</th>
+                ) : (
+                  <th className="px-3.5 py-2.5 font-medium">Département</th>
+                )}
                 <th className="px-3.5 py-2.5 font-medium">Catégorie</th>
                 <th className="px-3.5 py-2.5 font-medium">Prix</th>
                 <th className="px-3.5 py-2.5 font-medium">Unité</th>
@@ -544,10 +575,14 @@ export function ProductsWorkspace({
                       </div>
                     </td>
                     <td className="px-3.5 py-2.5">
-                      <DepartmentBadge
-                        code={product.departmentCode}
-                        label={product.departmentName}
-                      />
+                      {hardware ? (
+                        <span className="text-slate-600">{product.brandName || "—"}</span>
+                      ) : (
+                        <DepartmentBadge
+                          code={product.departmentCode}
+                          label={product.departmentName}
+                        />
+                      )}
                     </td>
                     <td className="px-3.5 py-2.5 text-slate-600">{product.categoryName}</td>
                     <td className="px-3.5 py-2.5">
@@ -583,8 +618,7 @@ export function ProductsWorkspace({
                       )}
                     </td>
                     <td className="px-3.5 py-2.5 text-slate-600">
-                      {PRODUCT_UNIT_LABELS[product.unit as keyof typeof PRODUCT_UNIT_LABELS] ??
-                        product.unit}
+                      {formatProductUnitDisplay(product.unit, product.stockUnitLabel)}
                     </td>
                     <td className="px-3.5 py-2.5 tabular-nums text-slate-600">
                       {product.minimumStock}
@@ -625,7 +659,31 @@ export function ProductsWorkspace({
         </div>
       </section>
 
-      {formMode && canManage ? (
+      {formMode && canManage && hardware ? (
+        <HardwareProductWizard
+          key={editingProduct?.id ?? "create"}
+          mode={formMode}
+          productId={editingProduct?.id}
+          categories={categories.filter((category) =>
+            shouldShowCatalogCategory(category.name, catalog),
+          )}
+          initialCategoryId={
+            categories.find(
+              (category) =>
+                shouldShowCatalogCategory(category.name, catalog) &&
+                category.departmentCode === defaultDepartmentCode(serviceScope),
+            )?.id ?? ""
+          }
+          onClose={closeForm}
+          onSaved={(message) => {
+            closeForm();
+            toast.success(message);
+            refreshSoon(() => router.refresh());
+          }}
+        />
+      ) : null}
+
+      {formMode && canManage && !hardware ? (
         <ProductFormModal
           key={editingProduct?.id ?? "create"}
           mode={formMode}
@@ -649,6 +707,7 @@ export function ProductsWorkspace({
             retail ? profile.catalogDepartmentLabel : undefined
           }
           catalog={catalog}
+          activityCode={activityCode}
         />
       ) : null}
     </div>

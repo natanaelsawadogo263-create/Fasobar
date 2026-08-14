@@ -243,6 +243,14 @@ export async function createProductAction(
     active: parseCheckbox(formData.get("active")),
     packagingUnit: formData.get("packagingUnit") || undefined,
     unitsPerPack: formData.get("unitsPerPack") || undefined,
+    sku: formData.get("sku") || undefined,
+    barcode: formData.get("barcode") || undefined,
+    purchasePrice: formData.get("purchasePrice") || undefined,
+    wholesalePrice: formData.get("wholesalePrice") || undefined,
+    purchaseUnit: formData.get("purchaseUnit") || undefined,
+    unitsPerPurchase: formData.get("unitsPerPurchase") || undefined,
+    discountMinQuantity: formData.get("discountMinQuantity") || undefined,
+    discountPercent: formData.get("discountPercent") || undefined,
   });
 
   if (!parsed.success) {
@@ -341,6 +349,14 @@ export async function createProductAction(
     image_optimized_url: imageOptimizedUrl,
     created_by: workspace.userId,
     updated_by: workspace.userId,
+    sku: parsed.data.sku ?? null,
+    barcode: parsed.data.barcode ?? null,
+    purchase_price: parsed.data.purchasePrice ?? null,
+    wholesale_price: parsed.data.wholesalePrice ?? null,
+    purchase_unit: parsed.data.purchaseUnit ?? null,
+    units_per_purchase: parsed.data.unitsPerPurchase ?? null,
+    discount_min_quantity: parsed.data.discountMinQuantity ?? null,
+    discount_percent: parsed.data.discountPercent ?? null,
   };
 
   let createdId: string | null = null;
@@ -532,6 +548,14 @@ export async function updateProductAction(
     minimumStock: formData.get("minimumStock"),
     description: formData.get("description") || undefined,
     active: parseCheckbox(formData.get("active")),
+    sku: formData.get("sku") || undefined,
+    barcode: formData.get("barcode") || undefined,
+    purchasePrice: formData.get("purchasePrice") || undefined,
+    wholesalePrice: formData.get("wholesalePrice") || undefined,
+    purchaseUnit: formData.get("purchaseUnit") || undefined,
+    unitsPerPurchase: formData.get("unitsPerPurchase") || undefined,
+    discountMinQuantity: formData.get("discountMinQuantity") || undefined,
+    discountPercent: formData.get("discountPercent") || undefined,
   });
 
   if (!parsed.success) {
@@ -612,6 +636,14 @@ export async function updateProductAction(
     image_original_url: images.imageOriginalUrl,
     image_optimized_url: images.imageOptimizedUrl,
     updated_by: workspace.userId,
+    sku: parsed.data.sku ?? null,
+    barcode: parsed.data.barcode ?? null,
+    purchase_price: parsed.data.purchasePrice ?? null,
+    wholesale_price: parsed.data.wholesalePrice ?? null,
+    purchase_unit: parsed.data.purchaseUnit ?? null,
+    units_per_purchase: parsed.data.unitsPerPurchase ?? null,
+    discount_min_quantity: parsed.data.discountMinQuantity ?? null,
+    discount_percent: parsed.data.discountPercent ?? null,
   };
 
   let { error } = await writeClient

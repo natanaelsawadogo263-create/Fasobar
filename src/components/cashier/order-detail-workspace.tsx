@@ -93,7 +93,6 @@ export function OrderDetailWorkspace({
     : retail
       ? "Retour aux ventes"
       : pages.detail.backLabel;
-  const additionNext = encodeURIComponent(`/application/commandes/${order.id}`);
   const createdLabel = new Date(order.createdAt).toLocaleString("fr-FR", {
     day: "2-digit",
     month: "2-digit",
@@ -318,7 +317,7 @@ export function OrderDetailWorkspace({
 
                   {canPrintAddition ? (
                     <Link
-                      href={`/application/commandes/${order.id}/addition?print=1&next=${additionNext}`}
+                      href={`/application/caisse/addition/${order.id}`}
                       className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2.5 text-[13px] font-semibold text-amber-900 transition active:bg-amber-100 sm:h-8 sm:rounded-md sm:text-[12px] sm:hover:bg-amber-100"
                     >
                       <Printer className="h-3.5 w-3.5" strokeWidth={2} />

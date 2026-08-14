@@ -25,6 +25,7 @@ export type LocalUserRow = {
   offlineCredentialsReady: boolean;
   createdAt: string;
   updatedAt: string;
+  activityCode?: string | null;
 };
 
 /** Roster fields synced from cloud (no password material). */

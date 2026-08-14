@@ -22,6 +22,7 @@ import {
 } from "@/lib/platform/saas-gate";
 import { createClient } from "@/lib/supabase/server";
 import { isBusinessActivityId } from "@/lib/auth/activities";
+import { isHardwareActivity } from "@/lib/hardware/activity";
 import { isRetailActivity } from "@/lib/activity/profile";
 import {
   hasBarService,
@@ -360,18 +361,11 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
   const establishmentRole = establishmentMembership.role;
   const role = resolveManagementRole(organizationRole, establishmentRole);
   const userSpace = resolveUserSpace(organizationRole, establishmentRole);
-  const homePath = resolveHomePathForRoles(organizationRole, establishmentRole);
 
   const stockPermissions = resolveStockPermissions(organizationRole, establishmentRole);
   const orderPermissions = resolveOrderPermissions(organizationRole, establishmentRole);
 
   const cashierKitchenRoles = new Set(["CASHIER", "CASHIER_KITCHEN", "KITCHEN_MANAGER"]);
-  const canManageOrders =
-    orderPermissions.canManageOrders ||
-    cashierKitchenRoles.has(organizationRole) ||
-    cashierKitchenRoles.has(establishmentRole);
-
-  const operateCash = canOperateCashRegister(organizationRole, establishmentRole);
   const serviceScope = await loadServiceScope(
     supabase,
     establishment.id,
@@ -380,8 +374,25 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
   const activityCode = isBusinessActivityId(establishment.activity_code)
     ? establishment.activity_code
     : null;
+  const homePath = resolveHomePathForRoles(
+    organizationRole,
+    establishmentRole,
+    activityCode,
+  );
+  const hardware = isHardwareActivity(activityCode);
+  const canManageOrders =
+    orderPermissions.canManageOrders ||
+    cashierKitchenRoles.has(organizationRole) ||
+    cashierKitchenRoles.has(establishmentRole);
+
+  const operateCash = canOperateCashRegister(
+    organizationRole,
+    establishmentRole,
+    activityCode,
+  );
   const retailCashier =
     isRetailActivity(activityCode) &&
+    !hardware &&
     (cashierKitchenRoles.has(organizationRole) ||
       cashierKitchenRoles.has(establishmentRole));
   const canManageBarStock =
@@ -410,7 +421,9 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     mustChangePassword: Boolean(
       (profile as { must_change_password?: boolean }).must_change_password,
     ),
-    canManageProducts: MANAGEMENT_ROLES.has(role),
+    canManageProducts:
+      MANAGEMENT_ROLES.has(role) ||
+      (hardware && userSpace === "bar_manager"),
     canManageUsers: MANAGEMENT_ROLES.has(organizationRole) || organizationRole === "OWNER",
     canManageStock,
     canManageBarStock,
@@ -696,6 +709,10 @@ export async function requireBarManagerContext(): Promise<WorkspaceContext> {
   const context = await requireWorkspaceContext();
 
   if (context.userSpace !== "bar_manager") {
+    redirectDenied(context);
+  }
+
+  if (isHardwareActivity(context.activityCode)) {
     redirectDenied(context);
   }
 
