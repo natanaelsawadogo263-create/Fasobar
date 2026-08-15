@@ -375,6 +375,7 @@ export async function saveHardwareProductAction(
   };
 
   let productId = draft.productId ?? null;
+  let savedProductId: string | undefined;
 
   try {
     if (productId) {
@@ -395,7 +396,7 @@ export async function saveHardwareProductAction(
         .eq("establishment_id", workspace.establishmentId);
 
       const keepVariantIds = draft.useVariants
-        ? draft.variants.map((item) => item.id).filter(Boolean)
+        ? draft.variants.map((item) => item.id).filter((id): id is string => Boolean(id))
         : [];
       const { data: existingVariants } = await supabase
         .from("product_variants")
@@ -421,6 +422,7 @@ export async function saveHardwareProductAction(
     }
 
     if (!productId) return { error: "Produit introuvable." };
+    savedProductId = productId;
 
     if (draft.useVariants) {
       for (const variant of draft.variants) {
@@ -446,7 +448,7 @@ export async function saveHardwareProductAction(
             .insert({
               organization_id: workspace.organizationId,
               establishment_id: workspace.establishmentId,
-              product_id: productId,
+              product_id: savedProductId,
               name: variantName,
               attribute_id: variant.attributeId || null,
               attribute_value: variantName,
@@ -462,14 +464,14 @@ export async function saveHardwareProductAction(
           if (error || !data?.id) return { error: error?.message ?? "Variante impossible." };
           variantId = data.id;
         }
-        await insertUnitLevels(workspace, productId, variantId, variant.units, stockUnit);
+        await insertUnitLevels(workspace, savedProductId, variantId, variant.units, stockUnit);
       }
     } else {
-      await insertUnitLevels(workspace, productId, null, draft.units, stockUnit);
+      await insertUnitLevels(workspace, savedProductId, null, draft.units, stockUnit);
     }
 
     await ensureStockItemForBarProduct(workspace, {
-      id: productId,
+      id: savedProductId,
       name: draft.name.trim(),
       unit: mapLabelToProductUnit(stockUnit),
       minimumStock: Math.max(0, Math.round(draft.minimumStock || 0)),
@@ -484,6 +486,6 @@ export async function saveHardwareProductAction(
   revalidateCatalogOps();
   return {
     success: draft.productId ? "Article mis à jour." : "Article créé.",
-    productId,
+    productId: savedProductId,
   };
 }

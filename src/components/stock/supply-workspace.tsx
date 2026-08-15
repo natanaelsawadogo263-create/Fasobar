@@ -57,6 +57,7 @@ type SupplyWorkspaceProps = {
   periodFilter?: SupplyPeriodFilter | null;
   periodLabel?: string | null;
   periodBasePath?: string;
+  activityCode?: string | null;
 };
 
 type SupplierFormMode = "create" | "edit" | null;
@@ -93,7 +94,9 @@ export function SupplyWorkspace({
   periodFilter = null,
   periodLabel = null,
   periodBasePath = "/application/approvisionnements",
+  activityCode = null,
 }: SupplyWorkspaceProps) {
+  void activityCode;
   const router = useRouter();
   const availableDepartments = lockedDepartment
     ? [lockedDepartment]

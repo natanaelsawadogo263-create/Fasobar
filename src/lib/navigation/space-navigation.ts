@@ -1,7 +1,6 @@
 import { getActivityProfile, isRetailActivity } from "@/lib/activity/profile";
 import type { UserSpace } from "@/lib/auth/roles";
 import { isHardwareActivity } from "@/lib/hardware/activity";
-import type { UserSpace } from "@/lib/auth/roles";
 import {
   hasBarService,
   hasKitchenService,

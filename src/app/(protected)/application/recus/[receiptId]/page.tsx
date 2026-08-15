@@ -51,6 +51,8 @@ export default async function ReceiptPage({ params, searchParams }: ReceiptPageP
     notFound();
   }
 
+  const returnTo = resolveReturnTo(query.next, workspace.userSpace);
+
   return (
     <ThermalReceipt
       receipt={receipt}

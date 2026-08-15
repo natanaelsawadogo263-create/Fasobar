@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { mapGenericError } from "@/lib/auth/errors";
 import { requireExpenseMutationContext } from "@/lib/auth/workspace-context";
+import { createClient } from "@/lib/supabase/server";
 import {
   cancelExpenseSchema,
   createExpenseSchema,

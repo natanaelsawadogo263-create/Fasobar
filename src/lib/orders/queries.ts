@@ -469,11 +469,11 @@ export async function getOrderById(
     .order("created_at");
 
   if (itemsResult.error) {
-    itemsResult = await supabase
+    itemsResult = (await supabase
       .from("order_items")
       .select(itemsSelectPlain)
       .eq("order_id", orderId)
-      .order("created_at");
+      .order("created_at")) as typeof itemsResult;
   }
 
   const items = itemsResult.data ?? [];

@@ -353,7 +353,10 @@ export async function createProductAction(
     barcode: parsed.data.barcode ?? null,
     purchase_price: parsed.data.purchasePrice ?? null,
     wholesale_price: parsed.data.wholesalePrice ?? null,
-    purchase_unit: parsed.data.purchaseUnit ?? null,
+    purchase_unit:
+      "purchaseUnit" in parsed.data
+        ? ((parsed.data as { purchaseUnit?: string }).purchaseUnit ?? null)
+        : null,
     units_per_purchase: parsed.data.unitsPerPurchase ?? null,
     discount_min_quantity: parsed.data.discountMinQuantity ?? null,
     discount_percent: parsed.data.discountPercent ?? null,
@@ -640,7 +643,10 @@ export async function updateProductAction(
     barcode: parsed.data.barcode ?? null,
     purchase_price: parsed.data.purchasePrice ?? null,
     wholesale_price: parsed.data.wholesalePrice ?? null,
-    purchase_unit: parsed.data.purchaseUnit ?? null,
+    purchase_unit:
+      "purchaseUnit" in parsed.data
+        ? ((parsed.data as { purchaseUnit?: string }).purchaseUnit ?? null)
+        : null,
     units_per_purchase: parsed.data.unitsPerPurchase ?? null,
     discount_min_quantity: parsed.data.discountMinQuantity ?? null,
     discount_percent: parsed.data.discountPercent ?? null,

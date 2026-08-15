@@ -114,11 +114,8 @@ describe("offline caisse core", () => {
       items: [
         {
           productId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
-          name: "Bissap",
-          unitPrice: 500,
           quantity: 2,
           departmentCode: "BAR",
-          unit: "verre",
         },
       ],
       cashSessionId: opened.sessionId,

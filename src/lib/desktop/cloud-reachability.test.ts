@@ -67,7 +67,7 @@ describe("probeSupabaseReachable", () => {
 
   it("timeout => offline", async () => {
     const fetchImpl: ProbeFetch = vi.fn((_url, init) => {
-      return new Promise((_resolve, reject) => {
+      return new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener("abort", () => {
           reject(new DOMException("The operation was aborted.", "AbortError"));
         });
