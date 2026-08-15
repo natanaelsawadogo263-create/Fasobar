@@ -2,6 +2,7 @@ export type UsersActionState = {
   error?: string;
   success?: string;
   userId?: string;
+  loginIdentifier?: string;
 };
 
 export type TeamMemberRow = {

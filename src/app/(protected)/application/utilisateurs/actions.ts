@@ -254,6 +254,12 @@ export async function createEmployeeAccountAction(
 
     createdUserId = created.user.id;
 
+    await admin.auth.admin.updateUserById(createdUserId, {
+      email_confirm: true,
+      password: DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD,
+      ban_duration: "none",
+    });
+
     const { error: provisionError } = await supabase.rpc("provision_employee_account", {
       p_user_id: createdUserId,
       p_organization_id: workspace.organizationId,
@@ -305,6 +311,7 @@ export async function createEmployeeAccountAction(
   return {
     success: "Compte employé créé avec succès.",
     userId: createdUserId ?? undefined,
+    loginIdentifier: loginNormalized,
   };
 }
 

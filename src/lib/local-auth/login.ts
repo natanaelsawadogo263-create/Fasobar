@@ -1,6 +1,7 @@
 import "server-only";
 
-import { normalizeLoginIdentifier, resolveSupabaseAuthEmails } from "@/lib/auth/login-identifier";
+import { normalizeLoginIdentifier } from "@/lib/auth/login-identifier";
+import { resolveEmployeeSignInEmails } from "@/lib/auth/resolve-employee-sign-in";
 import { probeSupabaseReachable } from "@/lib/desktop/cloud-reachability";
 import { appendDesktopLog } from "@/lib/desktop/logger";
 import { isDesktopServerRuntime } from "@/lib/desktop/runtime";
@@ -130,7 +131,7 @@ async function authenticateOnline(
   password: string,
 ): Promise<DesktopLoginResult> {
   const supabase = await createClient();
-  const authEmails = resolveSupabaseAuthEmails(identifier);
+  const authEmails = await resolveEmployeeSignInEmails(identifier);
   let userId: string | null = null;
 
   for (const authEmail of authEmails) {

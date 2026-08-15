@@ -13,10 +13,8 @@ import {
 import { redirectAfterLogin } from "@/lib/auth/post-login";
 import { getAuthRedirectOrigin } from "@/lib/auth/redirect-origin";
 import type { AuthActionState } from "@/lib/auth/types";
-import {
-  isInternalFasoBarAuthEmail,
-  resolveSupabaseAuthEmails,
-} from "@/lib/auth/login-identifier";
+import { isInternalFasoBarAuthEmail } from "@/lib/auth/login-identifier";
+import { resolveEmployeeSignInEmails } from "@/lib/auth/resolve-employee-sign-in";
 import {
   createAdminClient,
   isAdminClientConfigured,
@@ -148,7 +146,7 @@ export async function signInAction(
 
   let authEmails: string[];
   try {
-    authEmails = resolveSupabaseAuthEmails(parsed.data.identifier);
+    authEmails = await resolveEmployeeSignInEmails(parsed.data.identifier);
   } catch {
     return { error: "Identifiant FasoBar invalide." };
   }

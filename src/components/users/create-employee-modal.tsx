@@ -103,7 +103,8 @@ export function CreateEmployeeModal({
 
       setSuccessSummary({
         fullName: form.fullName,
-        loginIdentifier: form.loginIdentifier.trim().toLowerCase(),
+        loginIdentifier:
+          result.loginIdentifier ?? form.loginIdentifier.trim().toLowerCase(),
         spaceLabel: selectedSpace?.label ?? "—",
         establishmentName: selectedEstablishment?.name ?? "—",
         temporaryPassword: DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD,
