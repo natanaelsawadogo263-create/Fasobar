@@ -8,7 +8,6 @@ import { FormField, FormSelect } from "@/components/auth/form-field";
 import { CredentialsSuccessModal } from "@/components/users/credentials-success-modal";
 import { suggestLoginIdentifierFromName } from "@/lib/auth/login-identifier";
 import { getInvitableSpacesForActivity, isRetailActivity } from "@/lib/activity/profile";
-import { INVITABLE_SPACES } from "@/lib/auth/roles";
 import type { ServiceScope } from "@/lib/settings/service-scope";
 import { DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD } from "@/lib/users/constants";
 import type { CreatedCredentialsSummary } from "@/lib/users/types";
@@ -83,7 +82,7 @@ export function CreateEmployeeModal({
     const selectedEstablishment =
       establishments.find((item) => item.id === form.establishmentId) ??
       establishments[0];
-    const selectedSpace = INVITABLE_SPACES.find((item) => item.id === form.space);
+    const selectedSpace = availableSpaces.find((item) => item.id === form.space);
 
     const formData = new FormData();
     formData.set("fullName", form.fullName);

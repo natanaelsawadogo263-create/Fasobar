@@ -49,5 +49,7 @@ describe("pages métier commerce", () => {
     expect(pages.tickets.title).toBe("Commandes");
     expect(pages.pos.cartTab).toBe("Commande");
     expect(pages.pos.additionLabel).toBe("Addition");
+    expect(pages.expenses.caisseArea).toBe("Cuisine");
+    expect(pages.expenses.barArea).toBe("Bar");
   });
 });

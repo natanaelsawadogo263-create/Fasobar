@@ -77,6 +77,8 @@ export function getActivityPages(activityCode: string | null | undefined) {
     expenses: {
       kitchenPurchase: retail ? "Achats magasin" : "Achats Cuisine",
       barArea: retail ? profile.catalogDepartmentLabel : "Bar",
+      caisseArea: retail ? "Caisse" : "Cuisine",
+      allAreas: retail ? "Toutes" : "Cuisine & Bar",
     },
     reports: {
       productsSold: retail ? `${profile.productNavLabel} vendus` : "Produits vendus",

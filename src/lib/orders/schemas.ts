@@ -64,7 +64,13 @@ export const adminOrderStatusFilterSchema = z.enum([
 
 export const adminOrderDepartmentFilterSchema = z.enum(["all", "BAR", "KITCHEN"]);
 
-export const adminOrderPeriodFilterSchema = z.enum(["all", "day", "week", "month"]);
+export const adminOrderPeriodFilterSchema = z.enum([
+  "all",
+  "day",
+  "week",
+  "month",
+  "custom",
+]);
 
 export const adminOrderFiltersSchema = z.object({
   status: adminOrderStatusFilterSchema.default("all"),

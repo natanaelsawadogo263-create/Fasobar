@@ -42,6 +42,7 @@ import {
   deactivateClientOwnerAccountAction,
   extendOrganizationTrialAction,
   purgeClientOrganizationAction,
+  purgeClientOrganizationMemberAction,
   reactivateClientOrganizationAction,
   reactivateClientOwnerAccountAction,
   reactivateMachineAction,
@@ -82,6 +83,7 @@ type ModalKind =
   | "purge"
   | "extend"
   | "revokeMachine"
+  | "purgeMember"
   | null;
 
 const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
@@ -173,6 +175,8 @@ export function PlatformClientDetailView({
   const [tab, setTab] = useState<TabId>("identity");
   const [modal, setModal] = useState<ModalKind>(null);
   const [machineId, setMachineId] = useState<string | null>(null);
+  const [purgeMemberId, setPurgeMemberId] = useState<string | null>(null);
+  const [purgeMemberName, setPurgeMemberName] = useState<string>("");
   const [reason, setReason] = useState("");
   const [extraDays, setExtraDays] = useState("7");
   const [message, setMessage] = useState<string | null>(null);
@@ -194,6 +198,8 @@ export function PlatformClientDetailView({
   function closeModal() {
     setModal(null);
     setMachineId(null);
+    setPurgeMemberId(null);
+    setPurgeMemberName("");
     setReason("");
     setExtraDays("7");
   }
@@ -287,6 +293,21 @@ export function PlatformClientDetailView({
             reason: reason || undefined,
           });
           break;
+        case "purgeMember":
+          if (!purgeMemberId) {
+            setMessage("Compte introuvable.");
+            return;
+          }
+          if (reason.trim().length < 3) {
+            setMessage("Motif obligatoire (3 caractères minimum).");
+            return;
+          }
+          result = await purgeClientOrganizationMemberAction({
+            organizationId: identity.organizationId,
+            userId: purgeMemberId,
+            reason,
+          });
+          break;
         default:
           return;
       }
@@ -312,6 +333,7 @@ export function PlatformClientDetailView({
     purge: "Supprimer définitivement",
     extend: "Prolonger l’essai",
     revokeMachine: "Révoquer la machine",
+    purgeMember: "Supprimer définitivement le compte",
   };
 
   const messageTone =
@@ -570,6 +592,7 @@ export function PlatformClientDetailView({
                       <th className={PLATFORM_TH}>Établissement</th>
                       <th className={PLATFORM_TH}>Profil</th>
                       <th className={PLATFORM_TH}>Membership</th>
+                      <th className={PLATFORM_TH}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -595,6 +618,28 @@ export function PlatformClientDetailView({
                         </td>
                         <td className={PLATFORM_TD}>
                           {entityBadge(employee.membershipStatus)}
+                        </td>
+                        <td className={PLATFORM_TD}>
+                          {employee.role === "OWNER" ? (
+                            <span className="text-[12px] text-slate-400">
+                              Propriétaire
+                            </span>
+                          ) : (
+                            <PlatformButton
+                              tone="danger"
+                              className="!px-2 !py-1 !text-[10px]"
+                              onClick={() => {
+                                setPurgeMemberId(employee.userId);
+                                setPurgeMemberName(
+                                  employee.fullName ?? employee.email ?? "ce compte",
+                                );
+                                setReason("");
+                                setModal("purgeMember");
+                              }}
+                            >
+                              Supprimer
+                            </PlatformButton>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -1046,7 +1091,8 @@ export function PlatformClientDetailView({
               <label className="mt-4 block text-[12px] font-medium text-slate-700">
                 {modal === "suspend" ||
                 modal === "delete" ||
-                modal === "deactivateOwner"
+                modal === "deactivateOwner" ||
+                modal === "purgeMember"
                   ? "Motif (obligatoire)"
                   : "Note / motif"}
                 <textarea
@@ -1055,7 +1101,9 @@ export function PlatformClientDetailView({
                   onChange={(e) => setReason(e.target.value)}
                   className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-[13px] outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                   required={
-                    modal === "suspend" || modal === "deactivateOwner"
+                    modal === "suspend" ||
+                    modal === "deactivateOwner" ||
+                    modal === "purgeMember"
                   }
                 />
               </label>
@@ -1071,6 +1119,13 @@ export function PlatformClientDetailView({
               <p className="mt-2 text-[12px] leading-relaxed text-rose-700">
                 Le compte ne pourra plus se connecter. L’accès SaaS de
                 l’organisation sera aussi suspendu.
+              </p>
+            ) : null}
+            {modal === "purgeMember" ? (
+              <p className="mt-2 text-[12px] leading-relaxed text-rose-700">
+                {purgeMemberName} sera retiré de l’organisation et ne pourra plus
+                se connecter. Le propriétaire (OWNER) ne peut pas être supprimé
+                ici.
               </p>
             ) : null}
             {modal === "restore" ? (
@@ -1093,7 +1148,8 @@ export function PlatformClientDetailView({
                   modal === "purge" ||
                   modal === "suspend" ||
                   modal === "deactivateOwner" ||
-                  modal === "delete"
+                  modal === "delete" ||
+                  modal === "purgeMember"
                     ? "danger"
                     : "primary"
                 }

@@ -143,8 +143,8 @@ describe("compatibilité anciens rôles", () => {
     expect(membershipRoleIsCashierKitchen("CASHIER")).toBe(true);
     expect(membershipRoleIsCashierKitchen("KITCHEN_MANAGER")).toBe(true);
     expect(membershipRoleIsCashierKitchen("CASHIER_KITCHEN")).toBe(true);
-    expect(roleToSpaceLabel("CASHIER")).toBe("Caisse–Cuisine");
-    expect(roleToSpaceLabel("KITCHEN_MANAGER")).toBe("Caisse–Cuisine");
+    expect(roleToSpaceLabel("CASHIER")).toBe("Cuisine");
+    expect(roleToSpaceLabel("KITCHEN_MANAGER")).toBe("Cuisine");
   });
 });
 

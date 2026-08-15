@@ -27,6 +27,7 @@ import {
   type SupplierFormState,
 } from "@/components/stock/supplier-form-modal";
 import { formatPriceXof, formatQuantity } from "@/lib/stock/constants";
+import { resolveOrderPeriodRange, toLocalIsoDate } from "@/lib/orders/period";
 import type {
   RecentSupplyEntry,
   StockListItem,
@@ -40,7 +41,7 @@ import {
 } from "@/lib/settings/service-scope";
 
 type SupplyDepartment = "BAR" | "KITCHEN";
-type SupplyPeriodFilter = "day" | "week" | "month";
+type SupplyPeriodFilter = "day" | "week" | "month" | "custom";
 
 type SupplyWorkspaceProps = {
   establishmentName: string;
@@ -55,6 +56,8 @@ type SupplyWorkspaceProps = {
   lockedDepartment?: SupplyDepartment | null;
   serviceScope?: ServiceScope;
   periodFilter?: SupplyPeriodFilter | null;
+  periodFrom?: string;
+  periodTo?: string;
   periodLabel?: string | null;
   periodBasePath?: string;
   activityCode?: string | null;
@@ -91,12 +94,16 @@ export function SupplyWorkspace({
   compact = false,
   lockedDepartment = null,
   serviceScope = "BOTH",
-  periodFilter = null,
+  periodFilter = "day",
+  periodFrom,
+  periodTo,
   periodLabel = null,
   periodBasePath = "/application/approvisionnements",
   activityCode = null,
 }: SupplyWorkspaceProps) {
+  void establishmentName;
   void activityCode;
+  void periodLabel;
   const router = useRouter();
   const availableDepartments = lockedDepartment
     ? [lockedDepartment]
@@ -120,9 +127,31 @@ export function SupplyWorkspace({
   const [deactivateTarget, setDeactivateTarget] = useState<SupplierOption | null>(null);
   const [supplierFilter, setSupplierFilter] = useState<"all" | "active" | "inactive">("all");
 
-  function applyPeriod(period: SupplyPeriodFilter) {
+  function applyPeriodFilters(next: {
+    period?: SupplyPeriodFilter;
+    from?: string;
+    to?: string;
+  }) {
     const params = new URLSearchParams();
-    params.set("period", period);
+    const nextPeriod =
+      next.period ??
+      (next.from !== undefined || next.to !== undefined
+        ? "custom"
+        : periodFilter ?? "day");
+
+    if (nextPeriod !== "custom") {
+      const range = resolveOrderPeriodRange(nextPeriod, toLocalIsoDate(new Date()));
+      params.set("period", nextPeriod);
+      if (range.from) params.set("from", range.from);
+      if (range.to) params.set("to", range.to);
+    } else {
+      params.set("period", "custom");
+      const from = next.from ?? periodFrom;
+      const to = next.to ?? periodTo;
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+    }
+
     router.push(`${periodBasePath}?${params.toString()}`);
   }
 
@@ -300,27 +329,8 @@ export function SupplyWorkspace({
                 ) : (
                   <span className="text-orange-600"> · aucun fournisseur actif</span>
                 )}
-                {periodLabel ? (
-                  <>
-                    <span className="mx-1.5 text-slate-300">·</span>
-                    <span className="capitalize">{periodLabel}</span>
-                  </>
-                ) : null}
               </>
-            ) : (
-              <>
-                Achats {SPACE_LABELS[activeDepartment].toLowerCase()} ·{" "}
-                <span className="font-medium text-slate-700">
-                  {establishmentName}
-                </span>
-                {periodLabel ? (
-                  <>
-                    <span className="mx-1.5 text-slate-300">·</span>
-                    <span className="capitalize">{periodLabel}</span>
-                  </>
-                ) : null}
-              </>
-            )}
+            ) : null}
           </p>
           <p className="mt-0.5 text-[11px] text-slate-500 sm:hidden">
             {departmentEntries.length} entrée
@@ -328,12 +338,6 @@ export function SupplyWorkspace({
             <span className="text-slate-300"> · </span>
             {activeSuppliers.length} fournisseur
             {activeSuppliers.length > 1 ? "s" : ""}
-            {periodLabel ? (
-              <>
-                <span className="text-slate-300"> · </span>
-                <span className="capitalize">{periodLabel}</span>
-              </>
-            ) : null}
           </p>
         </div>
 
@@ -373,44 +377,59 @@ export function SupplyWorkspace({
         ) : null}
       </header>
 
-      {/* Filtres : chips horizontales */}
-      {periodFilter ||
-      (!lockedDepartment && availableDepartments.length > 1) ? (
-        <div className="-mx-1 flex shrink-0 items-center gap-1.5 overflow-x-auto px-1 pb-0.5">
-          {periodFilter
-            ? PERIOD_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => applyPeriod(option.id)}
-                  className={`inline-flex h-9 shrink-0 items-center rounded-lg px-3 text-[12px] font-semibold transition sm:h-8 ${
-                    periodFilter === option.id
-                      ? "bg-emerald-600 text-white"
-                      : "bg-slate-100 text-slate-600 active:bg-slate-200"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))
-            : null}
-          {!lockedDepartment && availableDepartments.length > 1
-            ? availableDepartments.map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => setDepartmentFilter(code)}
-                  className={`inline-flex h-9 shrink-0 items-center rounded-lg px-3 text-[12px] font-semibold transition sm:h-8 ${
-                    activeDepartment === code
-                      ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
-                      : "bg-slate-100 text-slate-600 active:bg-slate-200"
-                  }`}
-                >
-                  {SPACE_LABELS[code]}
-                </button>
-              ))
-            : null}
+      {/* Filtres : période + dates, comme Dépenses */}
+      <div className="-mx-1 flex shrink-0 flex-wrap items-center gap-1.5 overflow-x-auto px-1 pb-0.5">
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5">
+          {PERIOD_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => applyPeriodFilters({ period: option.id })}
+              className={`inline-flex h-9 shrink-0 items-center rounded-md px-2.5 text-[12px] font-semibold transition sm:h-8 sm:text-[11px] ${
+                periodFilter === option.id
+                  ? "bg-emerald-600 text-white"
+                  : "text-slate-600 active:bg-slate-50 sm:hover:bg-slate-50"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
-      ) : null}
+        <label className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-500 sm:h-8">
+          Du
+          <input
+            type="date"
+            value={periodFrom ?? ""}
+            onChange={(event) => applyPeriodFilters({ from: event.target.value })}
+            className="h-7 min-w-[8.5rem] border-0 bg-transparent px-0 text-[12px] text-slate-800 outline-none"
+          />
+        </label>
+        <label className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-500 sm:h-8">
+          Au
+          <input
+            type="date"
+            value={periodTo ?? ""}
+            onChange={(event) => applyPeriodFilters({ to: event.target.value })}
+            className="h-7 min-w-[8.5rem] border-0 bg-transparent px-0 text-[12px] text-slate-800 outline-none"
+          />
+        </label>
+        {!lockedDepartment && availableDepartments.length > 1
+          ? availableDepartments.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setDepartmentFilter(code)}
+                className={`inline-flex h-9 shrink-0 items-center rounded-lg px-3 text-[12px] font-semibold transition sm:h-8 ${
+                  activeDepartment === code
+                    ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
+                    : "bg-slate-100 text-slate-600 active:bg-slate-200"
+                }`}
+              >
+                {SPACE_LABELS[code]}
+              </button>
+            ))
+          : null}
+      </div>
 
       {error ? <AlertMessage message={error} /> : null}
       {message ? (
@@ -422,50 +441,38 @@ export function SupplyWorkspace({
       ) : null}
 
       {/* KPI mobile : bandeau horizontal */}
-      <div className="-mx-1 flex shrink-0 gap-2 overflow-x-auto px-1 pb-0.5 md:hidden">
-        <div className="w-[42%] min-w-[8.5rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm">
+      <div className="-mx-1 flex shrink-0 gap-2 overflow-x-auto px-1 md:hidden">
+        <div className="w-[40%] min-w-[8rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-sm">
           <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             Fournisseurs
           </p>
-          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+          <p className="mt-0.5 truncate text-[15px] font-bold tabular-nums text-slate-900">
             {activeSuppliers.length}
           </p>
-          <p className="mt-0.5 truncate text-[10px] text-slate-400">
-            {departmentSuppliers.length} au total
-          </p>
         </div>
-        <div className="w-[42%] min-w-[8.5rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm">
+        <div className="w-[40%] min-w-[8rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-sm">
           <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             Entrées
           </p>
-          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+          <p className="mt-0.5 truncate text-[15px] font-bold tabular-nums text-slate-900">
             {departmentEntries.length}
           </p>
-          <p className="mt-0.5 truncate text-[10px] text-slate-400">
-            {periodLabel ?? "récentes"}
-          </p>
         </div>
-        <div className="w-[42%] min-w-[8.5rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm">
+        <div className="w-[40%] min-w-[8rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-sm">
           <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             Montant
           </p>
-          <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+          <p className="mt-0.5 truncate text-[15px] font-bold tabular-nums text-slate-900">
             {formatPriceXof(totalRecentCost)}
-          </p>
-          <p className="mt-0.5 truncate text-[10px] text-slate-400">
-            {periodLabel ?? "récent"}
           </p>
         </div>
         {!compact ? (
-          <div className="w-[42%] min-w-[8.5rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm">
+          <div className="w-[40%] min-w-[8rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-sm">
             <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               Articles
             </p>
-            <p className="mt-1 truncate text-[15px] font-bold tabular-nums text-slate-900">
+            <p className="mt-0.5 truncate text-[15px] font-bold tabular-nums text-slate-900">
               {departmentItems.length}
-            </p>
-            <p className="mt-0.5 truncate text-[10px] text-slate-400">
-              {SPACE_LABELS[activeDepartment]}
             </p>
           </div>
         ) : null}
@@ -473,49 +480,32 @@ export function SupplyWorkspace({
 
       {/* KPI desktop */}
       <div
-        className={`hidden shrink-0 gap-2.5 md:grid lg:gap-3 ${
+        className={`hidden shrink-0 gap-2 md:grid ${
           compact ? "grid-cols-3" : "grid-cols-2 lg:grid-cols-4"
         }`}
       >
         <StatCard
           title={compact ? "Fournisseurs" : "Fournisseurs actifs"}
           value={String(activeSuppliers.length)}
-          subtitle={
-            compact
-              ? `${departmentSuppliers.length} au total`
-              : `${departmentSuppliers.length} · ${SPACE_LABELS[activeDepartment]}`
-          }
           icon={Building2}
           tone="sky"
-          compact={compact}
         />
         <StatCard
           title={compact ? "Entrées" : "Entrées récentes"}
           value={String(departmentEntries.length)}
-          subtitle={
-            periodLabel
-              ? periodLabel
-              : compact
-                ? "récentes"
-                : "derniers achats enregistrés"
-          }
           icon={Truck}
           tone="emerald"
-          compact={compact}
         />
         <StatCard
           title={compact ? "Montant" : "Montant récent"}
           value={formatPriceXof(totalRecentCost)}
-          subtitle={periodLabel ?? (compact ? "récent" : "coût des entrées listées")}
           icon={Wallet}
           tone="amber"
-          compact={compact}
         />
         {!compact ? (
           <StatCard
             title={`Articles ${SPACE_LABELS[activeDepartment].toLowerCase()}`}
             value={String(departmentItems.length)}
-            subtitle="disponibles pour entrée"
             icon={Package}
             tone="slate"
           />
@@ -879,20 +869,11 @@ export function SupplyWorkspace({
 type StatCardProps = {
   title: string;
   value: string;
-  subtitle: string;
   icon: React.ComponentType<{ className?: string }>;
   tone: "emerald" | "amber" | "sky" | "slate";
-  compact?: boolean;
 };
 
-function StatCard({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  tone,
-  compact = false,
-}: StatCardProps) {
+function StatCard({ title, value, icon: Icon, tone }: StatCardProps) {
   const toneClasses = {
     emerald: "bg-emerald-50 text-emerald-600",
     amber: "bg-orange-50 text-orange-600",
@@ -900,45 +881,19 @@ function StatCard({
     slate: "bg-slate-100 text-slate-600",
   };
 
-  if (compact) {
-    return (
-      <article className="rounded-xl bg-white px-3 py-2.5 shadow-sm ring-1 ring-slate-200/80">
-        <div className="flex items-center gap-2.5">
-          <span
-            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${toneClasses[tone]}`}
-          >
-            <Icon className="h-3.5 w-3.5" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-              {title}
-            </p>
-            <p className="truncate text-[15px] font-bold tabular-nums text-slate-900 lg:text-[16px]">
-              {value}
-            </p>
-            <p className="truncate text-[10px] text-slate-400">{subtitle}</p>
-          </div>
-        </div>
-      </article>
-    );
-  }
-
   return (
-    <article className="rounded-xl border border-slate-200/90 bg-white px-3.5 py-3 shadow-sm">
-      <div className="flex items-start gap-3">
+    <article className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-sm">
+      <div className="flex items-center gap-2">
         <span
-          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${toneClasses[tone]}`}
+          className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${toneClasses[tone]}`}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-3.5 w-3.5" />
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-medium text-slate-500">{title}</p>
-          <p className="mt-0.5 truncate text-[16px] font-bold tracking-tight tabular-nums text-slate-900 lg:text-[17px]">
-            {value}
-          </p>
-          <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>
-        </div>
+        <p className="truncate text-[11px] font-medium uppercase tracking-wide text-slate-500">
+          {title}
+        </p>
       </div>
+      <p className="mt-1 truncate text-[16px] font-bold tabular-nums text-slate-900">{value}</p>
     </article>
   );
 }

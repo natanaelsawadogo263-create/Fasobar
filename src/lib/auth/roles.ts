@@ -19,13 +19,13 @@ export const INVITABLE_SPACES = [
   },
   {
     id: "cashier_kitchen" as const,
-    label: "Caisse–Cuisine",
-    description: "Commandes, encaissements, reçus et opérations Cuisine.",
+    label: "Cuisine",
+    description: "Commandes cuisine, préparation et opérations Cuisine.",
     role: "CASHIER_KITCHEN" as const,
   },
   {
     id: "bar_manager" as const,
-    label: "Responsable Bar",
+    label: "Bar",
     description: "Commandes boissons, stock Bar, pertes et inventaires.",
     role: "BAR_MANAGER" as const,
   },
@@ -33,8 +33,8 @@ export const INVITABLE_SPACES = [
 
 export const SPACE_LABELS: Record<UserSpace, string> = {
   admin: "Administration",
-  cashier_kitchen: "Caisse–Cuisine",
-  bar_manager: "Responsable Bar",
+  cashier_kitchen: "Cuisine",
+  bar_manager: "Bar",
 };
 
 export const SPACE_HOME_PATHS: Record<UserSpace, string> = {

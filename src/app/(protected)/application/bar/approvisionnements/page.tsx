@@ -17,15 +17,17 @@ import {
   listSuppliers,
 } from "@/lib/stock/queries";
 
-type ApprovisionnementPeriod = "day" | "week" | "month";
+type ApprovisionnementPeriod = "day" | "week" | "month" | "custom";
 
 type BarApprovisionnementsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function parsePeriod(value: string | undefined): ApprovisionnementPeriod {
-  if (value === "week" || value === "month" || value === "day") return value;
-  return "day";
+function parsePeriod(value: string | undefined, hasCustomDates: boolean): ApprovisionnementPeriod {
+  if (value === "week" || value === "month" || value === "day" || value === "custom") {
+    return value;
+  }
+  return hasCustomDates ? "custom" : "day";
 }
 
 export default async function BarApprovisionnementsPage({
@@ -45,13 +47,22 @@ export default async function BarApprovisionnementsPage({
   }
 
   const raw = await searchParams;
+  const hasCustomDates =
+    typeof raw.from === "string" || typeof raw.to === "string";
   const periodFilter = parsePeriod(
-    typeof raw.period === "string" ? raw.period : "day",
+    typeof raw.period === "string" ? raw.period : undefined,
+    hasCustomDates,
   );
-  const periodRange = resolveOrderPeriodRange(
-    periodFilter,
-    typeof raw.anchor === "string" ? raw.anchor : toLocalIsoDate(new Date()),
-  );
+  const periodRange =
+    periodFilter === "custom"
+      ? {
+          from: typeof raw.from === "string" ? raw.from : undefined,
+          to: typeof raw.to === "string" ? raw.to : undefined,
+        }
+      : resolveOrderPeriodRange(
+          periodFilter,
+          typeof raw.anchor === "string" ? raw.anchor : toLocalIsoDate(new Date()),
+        );
 
   const [{ openSession }, suppliers, stockItems, recentEntries] =
     await Promise.all([
@@ -91,8 +102,10 @@ export default async function BarApprovisionnementsPage({
         compact
         lockedDepartment="BAR"
         periodFilter={periodFilter}
+        periodFrom={periodRange.from}
+        periodTo={periodRange.to}
         periodLabel={formatOrderPeriodLabel(
-          periodFilter,
+          periodFilter === "custom" ? "day" : periodFilter,
           periodRange.from,
           periodRange.to,
         )}

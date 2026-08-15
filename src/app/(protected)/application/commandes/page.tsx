@@ -20,7 +20,12 @@ export default async function CommandesPage({ searchParams }: CommandesPageProps
   const parsed = adminOrderFiltersSchema.safeParse({
     status: typeof raw.status === "string" ? raw.status : "all",
     department: typeof raw.department === "string" ? raw.department : "all",
-    period: typeof raw.period === "string" ? raw.period : "all",
+    period:
+      typeof raw.period === "string"
+        ? raw.period
+        : typeof raw.from === "string" || typeof raw.to === "string"
+          ? "custom"
+          : "day",
     cashierId: typeof raw.cashierId === "string" ? raw.cashierId : undefined,
     from: typeof raw.from === "string" ? raw.from : undefined,
     to: typeof raw.to === "string" ? raw.to : undefined,
@@ -33,13 +38,13 @@ export default async function CommandesPage({ searchParams }: CommandesPageProps
     : {
         status: "all" as const,
         department: "all" as const,
-        period: "all" as const,
+        period: "day" as const,
         search: typeof raw.search === "string" ? raw.search : undefined,
       };
 
-  const period = baseFilters.period ?? "all";
+  const period = baseFilters.period ?? "day";
   const range =
-    period === "all"
+    period === "all" || period === "custom"
       ? { from: baseFilters.from, to: baseFilters.to }
       : resolveOrderPeriodRange(period, baseFilters.from ?? toLocalIsoDate(new Date()));
 

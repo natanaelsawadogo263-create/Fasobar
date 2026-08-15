@@ -23,7 +23,7 @@ function buildCopyText(summary: CreatedCredentialsSummary, retail: boolean): str
     "Connexion : utilisez l'identifiant FasoBar (pas un e-mail).",
     retail
       ? "Valable pour tous les comptes créés par l'admin (Admin, Caissier / Vendeur)."
-      : "Valable pour tous les comptes créés par l'admin (Admin, Caisse–Cuisine, Bar).",
+      : "Valable pour tous les comptes créés par l'admin (Admin, Cuisine, Bar).",
     "À votre première connexion, vous devrez créer un nouveau mot de passe.",
   ].join("\n");
 }
@@ -59,7 +59,7 @@ export function CredentialsSuccessModal({
           Communiquez ces identifiants à l&apos;employé
           {retail
             ? " (Admin ou Caissier / Vendeur)"
-            : " (Admin, Caisse–Cuisine ou Bar)"}
+            : " (Admin, Cuisine ou Bar)"}
           . Il se connecte avec l&apos;identifiant FasoBar, pas un e-mail.
           Déconnectez-vous du compte admin avant de tester. Le mot de passe
           devra être changé à la première connexion, puis l&apos;espace{" "}

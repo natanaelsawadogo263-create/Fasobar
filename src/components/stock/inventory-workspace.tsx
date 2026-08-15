@@ -10,6 +10,11 @@ import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { FormSelect } from "@/components/auth/form-field";
 import {
+  EXPAND_PANEL_CLASS,
+  ExpandPanelButton,
+  useExpandPanel,
+} from "@/components/ui/expand-panel";
+import {
   allowedDepartments,
   defaultDepartmentCode,
   isSingleServiceScope,
@@ -46,11 +51,12 @@ function formatSessionDate(value: string): string {
 }
 
 export function InventoryWorkspace({
-  establishmentName,
+  establishmentName: _establishmentName,
   sessions,
   canManageStock,
   serviceScope = "BOTH",
 }: InventoryWorkspaceProps) {
+  void _establishmentName;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -61,6 +67,7 @@ export function InventoryWorkspace({
   const [department, setDepartment] = useState<"BAR" | "KITCHEN">(
     defaultDepartmentCode(serviceScope),
   );
+  const { expanded, toggle: toggleExpanded } = useExpandPanel();
 
   async function handleStart() {
     const formData = new FormData();
@@ -85,10 +92,6 @@ export function InventoryWorkspace({
           <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[20px] lg:text-[22px]">
             Inventaires
           </h1>
-          <p className="mt-0.5 hidden text-[12px] text-slate-500 sm:block">
-            Établissement actif :{" "}
-            <span className="font-medium text-slate-700">{establishmentName}</span>
-          </p>
           <p className="mt-0.5 text-[11px] text-slate-500 sm:hidden">
             {sessions.length} session{sessions.length > 1 ? "s" : ""}
           </p>
@@ -116,12 +119,21 @@ export function InventoryWorkspace({
         />
       ) : null}
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
-        <div className="hidden h-11 shrink-0 items-center gap-2 border-b border-slate-100 px-3.5 sm:flex">
+      <section
+        className={
+          expanded
+            ? EXPAND_PANEL_CLASS
+            : "flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm"
+        }
+      >
+        <div className="flex h-11 shrink-0 items-center gap-2 border-b border-slate-100 px-3 sm:px-3.5">
           <h2 className="text-[13px] font-semibold text-slate-900">Sessions</h2>
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-slate-500">
             {sessions.length}
           </span>
+          <div className="ml-auto">
+            <ExpandPanelButton expanded={expanded} onToggle={toggleExpanded} />
+          </div>
         </div>
 
         <div className="app-scroll min-h-0 flex-1 overflow-auto">

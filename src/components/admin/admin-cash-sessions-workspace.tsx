@@ -1,16 +1,25 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Landmark, X } from "lucide-react";
 
 import { getAdminCashSessionDetailAction } from "@/app/(protected)/application/caisses/actions";
 import { AlertMessage } from "@/components/auth/alert-message";
+import {
+  EXPAND_PANEL_CLASS,
+  ExpandPanelButton,
+  useExpandPanel,
+} from "@/components/ui/expand-panel";
 import { formatOrderNumber, formatPriceXof } from "@/lib/orders/constants";
+import { resolveOrderPeriodRange, toLocalIsoDate } from "@/lib/orders/period";
 import { PAYMENT_METHOD_LABELS } from "@/lib/payments/constants";
 import type {
   AdminCashSessionDetail,
   AdminCashSessionListItem,
 } from "@/lib/admin/cash-sessions-queries";
+
+type CaissesPeriodFilter = "day" | "week" | "month" | "custom";
 
 type AdminCashSessionsWorkspaceProps = {
   sessions: AdminCashSessionListItem[];
@@ -18,7 +27,16 @@ type AdminCashSessionsWorkspaceProps = {
   closedCount: number;
   totalCashCollected: number;
   establishmentName: string;
+  periodFilter?: CaissesPeriodFilter;
+  periodFrom?: string;
+  periodTo?: string;
 };
+
+const PERIOD_OPTIONS: Array<{ id: Exclude<CaissesPeriodFilter, "custom">; label: string }> = [
+  { id: "day", label: "Jour" },
+  { id: "week", label: "Semaine" },
+  { id: "month", label: "Mois" },
+];
 
 const STATUS_LABELS: Record<AdminCashSessionListItem["status"], string> = {
   OPEN: "Ouverte",
@@ -53,12 +71,44 @@ export function AdminCashSessionsWorkspace({
   openCount,
   closedCount,
   totalCashCollected,
-  establishmentName,
+  establishmentName: _establishmentName,
+  periodFilter = "day",
+  periodFrom,
+  periodTo,
 }: AdminCashSessionsWorkspaceProps) {
+  void _establishmentName;
+  const router = useRouter();
+  const { expanded, toggle: toggleExpanded } = useExpandPanel();
   const [isPending, startTransition] = useTransition();
   const [detail, setDetail] = useState<AdminCashSessionDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  function applyPeriodFilters(next: {
+    period?: CaissesPeriodFilter;
+    from?: string;
+    to?: string;
+  }) {
+    const params = new URLSearchParams();
+    const nextPeriod =
+      next.period ??
+      (next.from !== undefined || next.to !== undefined ? "custom" : periodFilter);
+
+    if (nextPeriod !== "custom") {
+      const range = resolveOrderPeriodRange(nextPeriod, toLocalIsoDate(new Date()));
+      params.set("period", nextPeriod);
+      if (range.from) params.set("from", range.from);
+      if (range.to) params.set("to", range.to);
+    } else {
+      params.set("period", "custom");
+      const from = next.from ?? periodFrom;
+      const to = next.to ?? periodTo;
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+    }
+
+    router.push(`/application/caisses?${params.toString()}`);
+  }
 
   function openDetail(sessionId: string) {
     setDetailOpen(true);
@@ -85,13 +135,13 @@ export function AdminCashSessionsWorkspace({
       title: "Sessions fermées",
       shortTitle: "Fermées",
       value: String(closedCount),
-      subtitle: "clôturées",
+      subtitle: "sur la période",
     },
     {
       title: "Espèces encaissées",
       shortTitle: "Espèces",
       value: formatPriceXof(totalCashCollected),
-      subtitle: "toutes sessions affichées",
+      subtitle: "sur la période",
     },
   ];
 
@@ -102,12 +152,45 @@ export function AdminCashSessionsWorkspace({
           <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[20px] lg:text-[22px]">
             Caisses
           </h1>
-          <p className="mt-0.5 hidden text-[12px] text-slate-500 sm:block">
-            {establishmentName} · supervision lecture seule — ouverture et fermeture réservées
-            aux caissiers
-          </p>
         </div>
       </header>
+
+      <div className="-mx-1 flex shrink-0 flex-wrap items-center gap-1.5 overflow-x-auto px-1 pb-0.5">
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5">
+          {PERIOD_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => applyPeriodFilters({ period: option.id })}
+              className={`inline-flex h-9 shrink-0 items-center rounded-md px-2.5 text-[12px] font-semibold transition sm:h-8 sm:text-[11px] ${
+                periodFilter === option.id
+                  ? "bg-emerald-600 text-white"
+                  : "text-slate-600 active:bg-slate-50 sm:hover:bg-slate-50"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <label className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-500 sm:h-8">
+          Du
+          <input
+            type="date"
+            value={periodFrom ?? ""}
+            onChange={(event) => applyPeriodFilters({ from: event.target.value })}
+            className="h-7 min-w-[8.5rem] border-0 bg-transparent px-0 text-[12px] text-slate-800 outline-none"
+          />
+        </label>
+        <label className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-500 sm:h-8">
+          Au
+          <input
+            type="date"
+            value={periodTo ?? ""}
+            onChange={(event) => applyPeriodFilters({ to: event.target.value })}
+            className="h-7 min-w-[8.5rem] border-0 bg-transparent px-0 text-[12px] text-slate-800 outline-none"
+          />
+        </label>
+      </div>
 
       {/* KPI mobile : défilement horizontal */}
       <div className="-mx-3 flex shrink-0 gap-2 overflow-x-auto px-3 pb-0.5 md:hidden">
@@ -143,7 +226,22 @@ export function AdminCashSessionsWorkspace({
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+      <section
+        className={
+          expanded
+            ? EXPAND_PANEL_CLASS
+            : "flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm"
+        }
+      >
+        <div className="flex h-11 shrink-0 items-center gap-2 border-b border-slate-100 px-3">
+          <h2 className="text-[13px] font-semibold text-slate-900">Liste</h2>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-slate-500">
+            {sessions.length}
+          </span>
+          <div className="ml-auto">
+            <ExpandPanelButton expanded={expanded} onToggle={toggleExpanded} />
+          </div>
+        </div>
         {sessions.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center">
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
@@ -153,7 +251,7 @@ export function AdminCashSessionsWorkspace({
               Aucune session de caisse
             </h2>
             <p className="mt-1 max-w-sm text-[12px] text-slate-500">
-              Les sessions ouvertes et fermées par les caissiers apparaîtront ici.
+              Les sessions ouvertes et fermées des caissiers pour cette période apparaîtront ici.
             </p>
           </div>
         ) : (
@@ -287,7 +385,7 @@ export function AdminCashSessionsWorkspace({
             </table>
           </div>
         )}
-      </div>
+      </section>
 
       {detailOpen ? (
         <div

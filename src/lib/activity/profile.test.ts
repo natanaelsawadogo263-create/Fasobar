@@ -10,7 +10,7 @@ describe("profils d’activité FasoBar", () => {
   it("traite le restaurant comme restauration", () => {
     const profile = getActivityProfile("restaurant");
     expect(profile.kind).toBe("food_service");
-    expect(profile.cashierSpaceLabel).toBe("Caisse–Cuisine");
+    expect(profile.cashierSpaceLabel).toBe("Cuisine");
     expect(profile.ticketsNavLabel).toBe("Commandes");
     expect(isRetailActivity("restaurant")).toBe(false);
   });
@@ -54,6 +54,8 @@ describe("profils d’activité FasoBar", () => {
       "cashier_kitchen",
       "bar_manager",
     ]);
+    expect(spaces.find((item) => item.id === "cashier_kitchen")?.label).toBe("Cuisine");
+    expect(spaces.find((item) => item.id === "bar_manager")?.label).toBe("Bar");
   });
 
   it("retombe sur restaurant si le code est inconnu", () => {

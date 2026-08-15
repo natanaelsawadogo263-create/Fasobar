@@ -87,10 +87,11 @@ function mapSessionRow(
 /** Supervision Admin (lecture seule) de toutes les sessions de caisse de l'établissement. */
 export async function listAdminCashSessions(
   workspace: WorkspaceContext,
+  options: { from?: string; to?: string } = {},
 ): Promise<AdminCashSessionsPageData> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("cash_register_sessions")
     .select(
       "id, status, opening_cash_amount, expected_cash_amount, counted_cash_amount, cash_difference, opened_at, closed_at, opening_note, closing_note, profiles!cash_register_sessions_opened_by_fkey(full_name)",
@@ -100,11 +101,41 @@ export async function listAdminCashSessions(
     .order("opened_at", { ascending: false })
     .limit(200);
 
+  if (options.from) {
+    query = query.gte("opened_at", `${options.from}T00:00:00.000Z`);
+  }
+  if (options.to) {
+    query = query.lte("opened_at", `${options.to}T23:59:59.999Z`);
+  }
+
+  const [{ data, error }, openOutside] = await Promise.all([
+    query,
+    options.from || options.to
+      ? supabase
+          .from("cash_register_sessions")
+          .select(
+            "id, status, opening_cash_amount, expected_cash_amount, counted_cash_amount, cash_difference, opened_at, closed_at, opening_note, closing_note, profiles!cash_register_sessions_opened_by_fkey(full_name)",
+          )
+          .eq("establishment_id", workspace.establishmentId)
+          .eq("organization_id", workspace.organizationId)
+          .eq("status", "OPEN")
+          .order("opened_at", { ascending: false })
+      : Promise.resolve({ data: [] as CashSessionRow[], error: null }),
+  ]);
+
   if (error || !data) {
     return { sessions: [], openCount: 0, closedCount: 0, totalCashCollected: 0 };
   }
 
-  const sessionIds = data.map((row) => row.id);
+  const byId = new Map<string, CashSessionRow>();
+  for (const row of [...(openOutside.data ?? []), ...data] as CashSessionRow[]) {
+    byId.set(row.id, row);
+  }
+  const merged = Array.from(byId.values()).sort(
+    (a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime(),
+  );
+
+  const sessionIds = merged.map((row) => row.id);
 
   const { data: cashPayments } = await supabase
     .from("payments")
@@ -123,8 +154,8 @@ export async function listAdminCashSessions(
     );
   }
 
-  const sessions = data.map((row) =>
-    mapSessionRow(row as CashSessionRow, cashCollectedBySession),
+  const sessions = merged.map((row) =>
+    mapSessionRow(row, cashCollectedBySession),
   );
 
   return {

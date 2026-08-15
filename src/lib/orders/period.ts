@@ -42,7 +42,7 @@ export function resolveOrderPeriodRange(
   period: AdminOrderPeriodFilter,
   anchorIso?: string,
 ): { from?: string; to?: string } {
-  if (period === "all") {
+  if (period === "all" || period === "custom") {
     return { from: undefined, to: undefined };
   }
 
@@ -67,7 +67,7 @@ export function resolveOrderPeriodRange(
 }
 
 export function shiftOrderPeriodAnchor(
-  period: Exclude<AdminOrderPeriodFilter, "all">,
+  period: Exclude<AdminOrderPeriodFilter, "all" | "custom">,
   anchorIso: string,
   direction: -1 | 1,
 ): string {
@@ -92,7 +92,7 @@ export function formatOrderPeriodLabel(
   from?: string,
   to?: string,
 ): string {
-  if (period === "all" || !from || !to) return "Toutes les périodes";
+  if (period === "all" || period === "custom" || !from || !to) return "Toutes les périodes";
 
   const fromDate = parseLocalIsoDate(from);
   const toDate = parseLocalIsoDate(to);

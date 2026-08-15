@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 
 import { mapAuthError, mapGenericError } from "@/lib/auth/errors";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 import { inviteSpaceToRole } from "@/lib/auth/roles";
 import { requireAdminMutationContext } from "@/lib/auth/workspace-context";
 import { getCloudOfflineActionError } from "@/lib/desktop/require-cloud-online";
@@ -23,6 +24,114 @@ const USERS_PATH = "/application/utilisateurs";
 
 function parseCheckbox(value: FormDataEntryValue | null): boolean {
   return value === "on" || value === "true";
+}
+
+function mapEmployeePurgeError(error: unknown): string {
+  const message =
+    typeof error === "object" && error !== null && "message" in error
+      ? String((error as { message?: unknown }).message ?? "")
+      : "";
+
+  if (message.includes("propre compte")) {
+    return "Vous ne pouvez pas supprimer votre propre compte.";
+  }
+  if (message.includes("propriétaire") || message.includes("proprietaire")) {
+    return "Impossible de supprimer le compte propriétaire.";
+  }
+  if (message.includes("Permission insuffisante")) {
+    return "Permission insuffisante pour supprimer cet employé.";
+  }
+  if (message.includes("motif")) {
+    return "Le motif de suppression est obligatoire.";
+  }
+  if (message.includes("introuvable")) {
+    return "Employé introuvable dans votre organisation.";
+  }
+
+  return toUserFacingError(message) === "Erreur."
+    ? "Impossible de supprimer cet employé. Réessayez."
+    : toUserFacingError(message);
+}
+
+async function removeEmployeeMemberships(params: {
+  organizationId: string;
+  userId: string;
+}): Promise<{ error?: string }> {
+  const userClient = await createClient();
+
+  const { data: establishments, error: establishmentsError } = await userClient
+    .from("establishments")
+    .select("id")
+    .eq("organization_id", params.organizationId);
+
+  if (establishmentsError) {
+    return { error: mapEmployeePurgeError(establishmentsError) };
+  }
+
+  const establishmentIds = (establishments ?? []).map((row) => row.id);
+  const writer = isAdminClientConfigured() ? createAdminClient() : userClient;
+
+  if (establishmentIds.length > 0) {
+    const { error: establishmentMembershipError } = await writer
+      .from("establishment_memberships")
+      .delete()
+      .eq("user_id", params.userId)
+      .in("establishment_id", establishmentIds);
+
+    if (establishmentMembershipError) {
+      return { error: mapEmployeePurgeError(establishmentMembershipError) };
+    }
+  }
+
+  const { error: organizationMembershipError } = await writer
+    .from("organization_memberships")
+    .delete()
+    .eq("user_id", params.userId)
+    .eq("organization_id", params.organizationId);
+
+  if (organizationMembershipError) {
+    return { error: mapEmployeePurgeError(organizationMembershipError) };
+  }
+
+  const { data: remaining } = await writer
+    .from("organization_memberships")
+    .select("organization_id")
+    .eq("user_id", params.userId)
+    .limit(1);
+
+  if (!remaining?.length && isAdminClientConfigured()) {
+    const admin = createAdminClient();
+    await admin
+      .from("profiles")
+      .update({
+        status: "INACTIVE",
+      })
+      .eq("id", params.userId);
+  }
+
+  return {};
+}
+
+async function disableEmployeeAuth(userId: string) {
+  if (!isAdminClientConfigured()) {
+    return;
+  }
+
+  try {
+    const admin = createAdminClient();
+    const { error: deleteAuthError } = await admin.auth.admin.deleteUser(userId);
+
+    if (deleteAuthError) {
+      await admin.auth.admin.updateUserById(userId, {
+        ban_duration: "876600h",
+        email: `deleted-${userId.slice(0, 8)}@users.fasobar.app`,
+        email_confirm: true,
+        password: `${randomUUID()}-Aa1!`,
+      });
+    }
+  } catch {
+    // Memberships already removed.
+  }
 }
 
 export async function createEmployeeAccountAction(
@@ -375,38 +484,43 @@ export async function deleteEmployeeAccountAction(
     return { error: "Impossible de supprimer le compte propriétaire." };
   }
 
-  // Soft-delete métier : accès retiré, historique (commandes, paiements) conservé.
-  const { error: statusError } = await supabase.rpc("set_member_active_status", {
+  const { error: purgeError } = await supabase.rpc("purge_employee_account", {
     p_target_user_id: parsed.data.userId,
-    p_active: false,
     p_reason: parsed.data.reason,
   });
 
-  if (statusError) {
-    return { error: mapGenericError(statusError) };
-  }
+  if (purgeError) {
+    const mapped = mapEmployeePurgeError(purgeError);
+    const isBusinessRule =
+      mapped.includes("propre compte") ||
+      mapped.includes("propriétaire") ||
+      mapped.includes("Permission insuffisante") ||
+      mapped.includes("motif de suppression") ||
+      mapped.includes("introuvable");
 
-  if (isAdminClientConfigured()) {
-    try {
-      const admin = createAdminClient();
-      const { error: deleteAuthError } = await admin.auth.admin.deleteUser(
-        parsed.data.userId,
-      );
-
-      // Si des FK historiques bloquent la suppression Auth, on ban le compte.
-      if (deleteAuthError) {
-        await admin.auth.admin.updateUserById(parsed.data.userId, {
-          ban_duration: "876600h",
-        });
+    if (!isBusinessRule) {
+      const fallback = await removeEmployeeMemberships({
+        organizationId: workspace.organizationId,
+        userId: parsed.data.userId,
+      });
+      if (!fallback.error) {
+        await disableEmployeeAuth(parsed.data.userId);
+        revalidatePath(USERS_PATH);
+        return {
+          success:
+            "Employé supprimé définitivement. Il ne pourra plus se connecter.",
+        };
       }
-    } catch {
-      // Soft-delete métier déjà appliqué : ne pas faire échouer l'action.
+      return { error: fallback.error };
     }
+
+    return { error: mapped };
   }
+
+  await disableEmployeeAuth(parsed.data.userId);
 
   revalidatePath(USERS_PATH);
   return {
-    success:
-      "Compte employé supprimé (accès retiré). L'historique des ventes et commandes est conservé.",
+    success: "Employé supprimé définitivement. Il ne pourra plus se connecter.",
   };
 }

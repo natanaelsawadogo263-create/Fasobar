@@ -7,7 +7,7 @@ import { listExpenses } from "@/lib/expenses/queries";
 import { formatOrderNumber, formatPriceXof } from "@/lib/orders/constants";
 import { listAdminOrders } from "@/lib/orders/queries";
 import { ORDER_PAYMENT_STATUS_LABELS, ORDER_STATUS_LABELS } from "@/lib/orders/constants";
-import { humanizeActionCode, REPORT_TYPE_OPTIONS } from "@/lib/reports/constants";
+import { humanizeActionCode, humanizeEntityType, REPORT_TYPE_OPTIONS } from "@/lib/reports/constants";
 import type { ReportFiltersInput, ReportType } from "@/lib/reports/schemas";
 import type { ReportColumn, ReportResult, ReportRow, ReportSummaryItem } from "@/lib/reports/types";
 import { getAdminSalesData } from "@/lib/sales/queries";
@@ -568,7 +568,7 @@ async function buildActiviteUtilisateursReport(
       createdAt: row.created_at,
       actorName: profile?.full_name ?? "—",
       action: humanizeActionCode(row.action),
-      entityType: row.entity_type,
+      entityType: humanizeEntityType(row.entity_type, row.action),
     };
   });
 

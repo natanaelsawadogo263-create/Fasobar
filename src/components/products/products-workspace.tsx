@@ -23,6 +23,11 @@ import {
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { useToast } from "@/components/ui/toast";
+import {
+  EXPAND_PANEL_CLASS,
+  ExpandPanelButton,
+  useExpandPanel,
+} from "@/components/ui/expand-panel";
 import { ProductFormModal, type ProductFormState } from "@/components/products/product-form-modal";
 import { HardwareProductWizard } from "@/components/hardware/hardware-product-wizard";
 import { isHardwareActivity } from "@/lib/hardware/activity";
@@ -91,7 +96,7 @@ const emptyForm: ProductFormState = {
 };
 
 export function ProductsWorkspace({
-  establishmentName,
+  establishmentName: _establishmentName,
   products,
   categories,
   packagingsByProductId = {},
@@ -103,6 +108,7 @@ export function ProductsWorkspace({
   serviceScope = "BOTH",
   activityCode = null,
 }: ProductsWorkspaceProps) {
+  void _establishmentName;
   const router = useRouter();
   const toast = useToast();
   const profile = getActivityProfile(activityCode);
@@ -133,6 +139,7 @@ export function ProductsWorkspace({
   });
   const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
   const [rows, setRows] = useState(products);
+  const { expanded, toggle: toggleExpanded } = useExpandPanel();
 
   useEffect(() => {
     setRows(products);
@@ -309,10 +316,6 @@ export function ProductsWorkspace({
           <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[20px] lg:text-[22px]">
             {profile.productNavLabel}
           </h1>
-          <p className="mt-0.5 hidden text-[12px] text-slate-500 sm:block">
-            Établissement actif :{" "}
-            <span className="font-medium text-slate-700">{establishmentName}</span>
-          </p>
         </div>
 
         {canManage ? (
@@ -374,7 +377,13 @@ export function ProductsWorkspace({
         />
       </div>
 
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+      <section
+        className={
+          expanded
+            ? EXPAND_PANEL_CLASS
+            : "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm"
+        }
+      >
         <div className="flex shrink-0 flex-col gap-2 border-b border-slate-100 px-3 py-2 sm:gap-2.5 sm:px-3.5 sm:py-2.5 lg:flex-row lg:items-center lg:justify-between">
           <div className="-mx-1 flex min-w-0 items-center gap-1.5 overflow-x-auto px-1 pb-0.5">
             {visibleTabs.map((item) => (
@@ -433,6 +442,7 @@ export function ProductsWorkspace({
                 </option>
               ))}
             </select>
+            <ExpandPanelButton expanded={expanded} onToggle={toggleExpanded} />
           </div>
         </div>
 

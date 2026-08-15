@@ -39,10 +39,11 @@ export type AdminBarSessionDetail = AdminBarSessionListItem & {
 
 export async function listAdminBarSessions(
   workspace: WorkspaceContext,
+  options: { from?: string; to?: string } = {},
 ): Promise<AdminBarSessionsPageData> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("bar_sessions")
     .select(
       `
@@ -63,16 +64,59 @@ export async function listAdminBarSessions(
     .order("opened_at", { ascending: false })
     .limit(80);
 
+  if (options.from) {
+    query = query.gte("opened_at", `${options.from}T00:00:00.000Z`);
+  }
+  if (options.to) {
+    query = query.lte("opened_at", `${options.to}T23:59:59.999Z`);
+  }
+
+  const [{ data, error }, openOutside] = await Promise.all([
+    query,
+    options.from || options.to
+      ? supabase
+          .from("bar_sessions")
+          .select(
+            `
+      id,
+      status,
+      opened_at,
+      closed_at,
+      orders_ready_count,
+      closing_orders_served_count,
+      closing_drinks_out_qty,
+      closing_stock_entries_count,
+      closing_stock_losses_count,
+      closing_summary,
+      profiles!bar_sessions_opened_by_fkey(full_name)
+    `,
+          )
+          .eq("establishment_id", workspace.establishmentId)
+          .eq("status", "OPEN")
+          .order("opened_at", { ascending: false })
+      : Promise.resolve({ data: [] as typeof data, error: null }),
+  ]);
+
   if (error || !data) {
     // Colonnes nouvelles absentes : requête legacy
     if (error?.message?.includes("closing_")) {
-      return listAdminBarSessionsLegacy(workspace);
+      return listAdminBarSessionsLegacy(workspace, options);
     }
     console.error("[listAdminBarSessions]", error?.message);
     return { sessions: [], openCount: 0, closedCount: 0 };
   }
 
-  const sessions: AdminBarSessionListItem[] = data.map((row) => {
+  const byId = new Map<string, (typeof data)[number]>();
+  for (const row of [...(openOutside.data ?? []), ...data]) {
+    byId.set(row.id as string, row);
+  }
+  const merged = Array.from(byId.values()).sort(
+    (a, b) =>
+      new Date(b.opened_at as string).getTime() -
+      new Date(a.opened_at as string).getTime(),
+  );
+
+  const sessions: AdminBarSessionListItem[] = merged.map((row) => {
     const profile = readSingle(
       row.profiles as { full_name: string } | { full_name: string }[] | null,
     );
@@ -104,9 +148,10 @@ export async function listAdminBarSessions(
 
 async function listAdminBarSessionsLegacy(
   workspace: WorkspaceContext,
+  options: { from?: string; to?: string } = {},
 ): Promise<AdminBarSessionsPageData> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("bar_sessions")
     .select(
       `
@@ -123,6 +168,15 @@ async function listAdminBarSessionsLegacy(
     .eq("establishment_id", workspace.establishmentId)
     .order("opened_at", { ascending: false })
     .limit(80);
+
+  if (options.from) {
+    query = query.gte("opened_at", `${options.from}T00:00:00.000Z`);
+  }
+  if (options.to) {
+    query = query.lte("opened_at", `${options.to}T23:59:59.999Z`);
+  }
+
+  const { data, error } = await query;
 
   if (error || !data) {
     return { sessions: [], openCount: 0, closedCount: 0 };

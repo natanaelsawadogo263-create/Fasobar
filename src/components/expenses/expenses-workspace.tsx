@@ -13,6 +13,11 @@ import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import {
+  EXPAND_PANEL_CLASS,
+  ExpandPanelButton,
+  useExpandPanel,
+} from "@/components/ui/expand-panel";
+import {
   FormSection,
   NumberField,
   SelectField,
@@ -77,7 +82,7 @@ export function ExpensesWorkspace({
   caisseTotal,
   barTotal,
   filters,
-  establishmentName,
+  establishmentName: _establishmentName,
   lockedArea = null,
   periodFilter = null,
   periodLabel = null,
@@ -85,6 +90,7 @@ export function ExpensesWorkspace({
   serviceScope = "BOTH",
   activityCode = null,
 }: ExpensesWorkspaceProps) {
+  void _establishmentName;
   const router = useRouter();
   const pages = getActivityPages(activityCode);
   const retail = pages.retail;
@@ -100,6 +106,11 @@ export function ExpensesWorkspace({
   const [formError, setFormError] = useState<string | null>(null);
   const showBarArea = !retail && hasBarService(serviceScope);
   const showAreaChoice = !lockedArea && !retail;
+  const areaLabels: Record<ExpenseArea, string> = {
+    CAISSE: pages.expenses.caisseArea,
+    BAR: pages.expenses.barArea,
+  };
+  const { expanded, toggle: toggleExpanded } = useExpandPanel();
 
   function openCreate() {
     setSelected(null);
@@ -221,17 +232,17 @@ export function ExpensesWorkspace({
         ? []
         : [
             {
-              title: "Liées à la caisse",
+              title: areaLabels.CAISSE,
               value: formatPriceXof(caisseTotal),
-              subtitle: "service caisse",
+              subtitle: "",
             },
           ]),
       ...(showBarArea
         ? [
             {
-              title: "Liées au bar",
+              title: areaLabels.BAR,
               value: formatPriceXof(barTotal),
-              subtitle: "service bar",
+              subtitle: "",
             },
           ]
         : []),
@@ -251,6 +262,7 @@ export function ExpensesWorkspace({
     cancelledCount,
     showBarArea,
     retail,
+    areaLabels,
   ]);
 
   return (
@@ -269,15 +281,6 @@ export function ExpensesWorkspace({
           <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[20px]">
             Dépenses
           </h1>
-          <p className="mt-0.5 truncate text-[11px] text-slate-500 sm:text-[12px]">
-            {establishmentName}
-            {periodLabel ? (
-              <>
-                <span className="mx-1 text-slate-300">·</span>
-                <span className="capitalize">{periodLabel}</span>
-              </>
-            ) : null}
-          </p>
         </div>
         {canManage ? (
           <button
@@ -359,7 +362,13 @@ export function ExpensesWorkspace({
         ))}
       </div>
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+      <section
+        className={
+          expanded
+            ? EXPAND_PANEL_CLASS
+            : "flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm"
+        }
+      >
         <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-slate-100 px-2.5 py-2 sm:px-3">
           <div className="relative min-w-0 flex-1 basis-[10rem]">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
@@ -385,11 +394,11 @@ export function ExpensesWorkspace({
               }
               className="h-9 min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-[12px] sm:h-8"
             >
-              <option value="">Caisse & Bar</option>
+              <option value="">{pages.expenses.allAreas}</option>
               {AREA_OPTIONS.filter(([value]) => showBarArea || value !== "BAR").map(
-                ([value, label]) => (
+                ([value]) => (
                 <option key={value} value={value}>
-                  {label}
+                  {areaLabels[value as ExpenseArea]}
                 </option>
               ),
               )}
@@ -422,6 +431,7 @@ export function ExpensesWorkspace({
             <option value="RECORDED">Enregistrées</option>
             <option value="CANCELLED">Annulées</option>
           </select>
+          <ExpandPanelButton expanded={expanded} onToggle={toggleExpanded} />
         </div>
 
         <div className="app-scroll min-h-0 flex-1 overflow-auto">
@@ -468,7 +478,7 @@ export function ExpensesWorkspace({
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${EXPENSE_AREA_STYLES[item.area]}`}
                       >
-                        {EXPENSE_AREA_LABELS[item.area]}
+                        {areaLabels[item.area]}
                       </span>
                     ) : null}
                     <span
@@ -531,7 +541,7 @@ export function ExpensesWorkspace({
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${EXPENSE_AREA_STYLES[item.area]}`}
                         >
-                          {EXPENSE_AREA_LABELS[item.area]}
+                          {areaLabels[item.area]}
                         </span>
                       </td>
                     ) : null}
@@ -624,11 +634,9 @@ export function ExpensesWorkspace({
                     required
                   >
                     {AREA_OPTIONS.filter(([value]) => showBarArea || value !== "BAR").map(
-                      ([value, label]) => (
+                      ([value]) => (
                       <option key={value} value={value}>
-                        {label === "Caisse"
-                          ? "Caisse — dépenses liées à la caisse"
-                          : "Bar — dépenses liées au bar"}
+                        {areaLabels[value as ExpenseArea]}
                       </option>
                     ),
                     )}
@@ -638,7 +646,7 @@ export function ExpensesWorkspace({
                   <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
                     Zone :{" "}
                     <span className="font-semibold text-slate-900">
-                      {EXPENSE_AREA_LABELS[lockedArea]}
+                      {areaLabels[lockedArea]}
                     </span>
                   </p>
                 ) : null}

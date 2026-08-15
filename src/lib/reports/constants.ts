@@ -149,9 +149,68 @@ export function formatReportCell(
 }
 
 export function humanizeActionCode(action: string): string {
-  return action
-    .toLowerCase()
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  const labels: Record<string, string> = {
+    CASH_SESSION_OPENED: "Caisse ouverte",
+    CASH_SESSION_CLOSED: "Caisse fermée",
+    PAYMENT_RECORDED: "Paiement enregistré",
+    PAYMENT_VOIDED: "Paiement annulé",
+    RECEIPT_ISSUED: "Reçu émis",
+    EXPENSE_CREATED: "Dépense créée",
+    EXPENSE_UPDATED: "Dépense modifiée",
+    EXPENSE_CANCELLED: "Dépense annulée",
+    ORDER_CREATED: "Commande créée",
+    ORDER_UPDATED: "Commande mise à jour",
+    ORDER_CANCELLED: "Commande annulée",
+    BAR_SESSION_OPENED: "Session bar ouverte",
+    BAR_SESSION_CLOSED: "Session bar fermée",
+    STOCK_ENTRY_RECORDED: "Entrée de stock",
+    STOCK_LOSS_RECORDED: "Perte de stock",
+    STOCK_ADJUSTMENT_RECORDED: "Ajustement de stock",
+    INVENTORY_COMPLETED: "Inventaire clôturé",
+    PACKAGING_UPSERTED: "Conditionnement enregistré",
+    SETTINGS_UPDATED: "Paramètres mis à jour",
+    EMPLOYEE_ACCOUNT_CREATED: "Compte employé créé",
+    EMPLOYEE_MEMBERSHIPS_CREATED: "Accès employé créé",
+    TEMPORARY_PASSWORD_RESET: "Mot de passe temporaire réinitialisé",
+    PERSONAL_PASSWORD_CREATED: "Mot de passe personnel créé",
+    EMPLOYEE_CREATION_COMPENSATED: "Création employé compensée",
+    USER_DEACTIVATED: "Compte désactivé",
+    USER_REACTIVATED: "Compte réactivé",
+    PRODUCT_CREATED: "Produit créé",
+    PRODUCT_UPDATED: "Produit modifié",
+    PRODUCT_ACTIVATED: "Produit activé",
+    PRODUCT_DEACTIVATED: "Produit désactivé",
+  };
+
+  return labels[action] ?? action.replaceAll("_", " ").toLowerCase();
+}
+
+export function humanizeEntityType(entityType: string | null, action?: string): string {
+  if (action?.startsWith("CASH_SESSION")) return "Caisse";
+  if (action?.startsWith("BAR_SESSION")) return "Session bar";
+  if (action?.startsWith("EXPENSE")) return "Dépense";
+  if (action?.startsWith("ORDER")) return "Commande";
+  if (action?.startsWith("PAYMENT") || action === "RECEIPT_ISSUED") return "Paiement";
+  if (action?.startsWith("STOCK") || action === "INVENTORY_COMPLETED") return "Stock";
+  if (action?.startsWith("EMPLOYEE") || action?.startsWith("USER") || action?.includes("PASSWORD")) {
+    return "Utilisateur";
+  }
+
+  const labels: Record<string, string> = {
+    payment: "Paiement",
+    expense: "Dépense",
+    order: "Commande",
+    stock_item: "Stock",
+    stock: "Stock",
+    product: "Produit",
+    product_packaging: "Conditionnement",
+    establishment: "Établissement",
+    supplier: "Fournisseur",
+    membership: "Utilisateur",
+    cash_session: "Caisse",
+    bar_session: "Session bar",
+  };
+
+  if (!entityType) return "—";
+  return labels[entityType] ?? entityType;
 }

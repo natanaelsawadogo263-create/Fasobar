@@ -77,9 +77,10 @@ export function DeleteEmployeeModal({
         </div>
       ) : null}
 
-      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12px] text-amber-900">
-        L&apos;accès sera retiré définitivement. L&apos;historique des commandes et
-        paiements reste conservé pour la comptabilité.
+      <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] text-red-900">
+        Suppression définitive : l&apos;employé disparaît de l&apos;équipe et ne
+        pourra plus se connecter. Vous pourrez réutiliser son identifiant. Les
+        ventes déjà enregistrées restent dans l&apos;historique.
       </div>
 
       <label htmlFor="delete-reason" className="block text-sm font-medium text-slate-700">

@@ -23,15 +23,34 @@ import {
   listSuppliers,
 } from "@/lib/stock/queries";
 
-type ApprovisionnementPeriod = "day" | "week" | "month";
+type ApprovisionnementPeriod = "day" | "week" | "month" | "custom";
 
 type ApprovisionnementsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function parsePeriod(value: string | undefined): ApprovisionnementPeriod {
-  if (value === "week" || value === "month" || value === "day") return value;
-  return "day";
+function parsePeriod(value: string | undefined, hasCustomDates: boolean): ApprovisionnementPeriod {
+  if (value === "week" || value === "month" || value === "day" || value === "custom") {
+    return value;
+  }
+  return hasCustomDates ? "custom" : "day";
+}
+
+function formatCustomPeriodLabel(from?: string, to?: string): string {
+  const format = (iso: string) =>
+    new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(`${iso}T12:00:00`));
+
+  if (from && to) {
+    if (from === to) return format(from);
+    return `${format(from)} → ${format(to)}`;
+  }
+  if (from) return `Depuis ${format(from)}`;
+  if (to) return `Jusqu’au ${format(to)}`;
+  return "Période libre";
 }
 
 export default async function ApprovisionnementsPage({
@@ -61,16 +80,23 @@ export default async function ApprovisionnementsPage({
         ? defaultDepartmentCode(scope)
         : null;
 
-  const periodFilter = lockedDepartment
-    ? parsePeriod(typeof raw.period === "string" ? raw.period : "day")
-    : null;
+  const hasCustomDates =
+    typeof raw.from === "string" || typeof raw.to === "string";
+  const periodFilter = parsePeriod(
+    typeof raw.period === "string" ? raw.period : undefined,
+    hasCustomDates,
+  );
 
-  const periodRange = periodFilter
-    ? resolveOrderPeriodRange(
-        periodFilter,
-        typeof raw.anchor === "string" ? raw.anchor : toLocalIsoDate(new Date()),
-      )
-    : { from: undefined, to: undefined };
+  const periodRange =
+    periodFilter === "custom"
+      ? {
+          from: typeof raw.from === "string" ? raw.from : undefined,
+          to: typeof raw.to === "string" ? raw.to : undefined,
+        }
+      : resolveOrderPeriodRange(
+          periodFilter,
+          typeof raw.anchor === "string" ? raw.anchor : toLocalIsoDate(new Date()),
+        );
 
   const loadBar = !lockedDepartment
     ? hasBarService(scope)
@@ -119,10 +145,12 @@ export default async function ApprovisionnementsPage({
       lockedDepartment={lockedDepartment}
       serviceScope={scope}
       periodFilter={periodFilter}
+      periodFrom={periodRange.from}
+      periodTo={periodRange.to}
       periodLabel={
-        periodFilter
-          ? formatOrderPeriodLabel(periodFilter, periodRange.from, periodRange.to)
-          : null
+        periodFilter === "custom"
+          ? formatCustomPeriodLabel(periodRange.from, periodRange.to)
+          : formatOrderPeriodLabel(periodFilter, periodRange.from, periodRange.to)
       }
       periodBasePath="/application/approvisionnements"
       activityCode={workspace.activityCode}

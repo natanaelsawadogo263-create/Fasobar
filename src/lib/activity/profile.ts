@@ -40,8 +40,8 @@ const FOOD_PROFILE: Omit<ActivityProfile, "id" | "label"> = {
   openTicketsNavLabel: "Commandes ouvertes",
   ordersKpiLabel: "Commandes du jour",
   topProductsTitle: "Produits les plus vendus",
-  cashierSpaceLabel: "Caisse–Cuisine",
-  cashierSpaceDescription: "Commandes, encaissements, reçus et opérations Cuisine.",
+  cashierSpaceLabel: "Cuisine",
+  cashierSpaceDescription: "Commandes cuisine, préparation et opérations Cuisine.",
   adminSpaceDescription: "Gestion générale de l'établissement et de l'équipe.",
   catalogDepartmentLabel: "Boissons",
   clientPlaceholder: "Table / réf. (ex. T12)",
@@ -223,6 +223,13 @@ export function getInvitableSpacesForActivity(
           "Catalogue, stock, fournisseurs, réceptions, inventaires et dépenses d’approvisionnement.",
       };
     }
+    if (space.id === "bar_manager") {
+      return {
+        ...space,
+        label: "Bar",
+        description: "Commandes boissons, stock Bar, pertes et inventaires.",
+      };
+    }
     return space;
   });
 }
@@ -234,7 +241,7 @@ export function displaySpaceLabel(
   const profile = getActivityProfile(activityCode);
   if (space === "cashier_kitchen") return profile.cashierSpaceLabel;
   if (space === "bar_manager") {
-    return isHardwareActivity(activityCode) ? "Responsable Stock" : "Responsable Bar";
+    return isHardwareActivity(activityCode) ? "Responsable Stock" : "Bar";
   }
   return "Administration";
 }

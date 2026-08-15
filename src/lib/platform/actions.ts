@@ -217,6 +217,59 @@ export async function purgeClientOrganizationAction(input: {
   );
 }
 
+export async function purgeClientOrganizationMemberAction(input: {
+  organizationId: string;
+  userId: string;
+  reason: string;
+}): Promise<PlatformActionResult> {
+  const reason = input.reason.trim();
+  if (reason.length < 3) {
+    return { ok: false, error: "Le motif de suppression est obligatoire." };
+  }
+
+  const result = await callAdminRpc(
+    "purge_org_member_as_platform",
+    {
+      p_organization_id: input.organizationId,
+      p_target_user_id: input.userId,
+      p_reason: reason,
+    },
+    [
+      `/platform/clients/${input.organizationId}`,
+      "/platform/clients",
+    ],
+  );
+
+  if (!result.ok) {
+    return result;
+  }
+
+  try {
+    const { createAdminClient, isAdminClientConfigured } = await import(
+      "@/lib/supabase/admin"
+    );
+    const { randomUUID } = await import("node:crypto");
+    if (isAdminClientConfigured()) {
+      const admin = createAdminClient();
+      const { error: deleteAuthError } = await admin.auth.admin.deleteUser(
+        input.userId,
+      );
+      if (deleteAuthError) {
+        await admin.auth.admin.updateUserById(input.userId, {
+          ban_duration: "876600h",
+          email: `deleted-${input.userId.slice(0, 8)}@users.fasobar.app`,
+          email_confirm: true,
+          password: `${randomUUID()}-Aa1!`,
+        });
+      }
+    }
+  } catch {
+    // Memberships already removed.
+  }
+
+  return result;
+}
+
 export async function deactivateClientOwnerAccountAction(input: {
   organizationId: string;
   reason: string;

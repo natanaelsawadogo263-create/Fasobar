@@ -95,7 +95,7 @@ function periodPresets(): Array<{ id: string; label: string; from?: string; to?:
 }
 
 function formatShortDate(value: string): string {
-  const date = new Date(value);
+  const date = new Date(`${value}T12:00:00`);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("fr-FR", {
     day: "2-digit",
@@ -223,6 +223,9 @@ export function AdminReportsWorkspace({
 
   const periodLabel = useMemo(() => {
     if (filters.from && filters.to) {
+      if (filters.from === filters.to) {
+        return formatShortDate(filters.from);
+      }
       return `${formatShortDate(filters.from)} → ${formatShortDate(filters.to)}`;
     }
     if (filters.from) return `Depuis ${formatShortDate(filters.from)}`;
@@ -367,13 +370,9 @@ export function AdminReportsWorkspace({
           <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
             Rapports
           </h1>
-          <p className="mt-0.5 text-[12px] text-slate-500">
-            <span className="font-medium text-slate-700">{establishment.name}</span>
-            <span className="mx-1.5 text-slate-300">·</span>
-            <span className="inline-flex items-center gap-1">
-              <CalendarRange className="h-3.5 w-3.5" />
-              {periodLabel}
-            </span>
+          <p className="mt-0.5 inline-flex items-center gap-1 text-[12px] text-slate-500">
+            <CalendarRange className="h-3.5 w-3.5" />
+            {periodLabel}
           </p>
         </div>
 

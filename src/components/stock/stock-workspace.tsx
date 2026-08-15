@@ -46,6 +46,11 @@ import {
   isSingleServiceScope,
   type ServiceScope,
 } from "@/lib/settings/service-scope";
+import {
+  EXPAND_PANEL_CLASS,
+  ExpandPanelButton,
+  useExpandPanel,
+} from "@/components/ui/expand-panel";
 
 type StockWorkspaceProps = {
   establishmentName: string;
@@ -113,6 +118,7 @@ export function StockWorkspace({
   serviceScope = "BOTH",
   activityCode = null,
 }: StockWorkspaceProps) {
+  void establishmentName;
   void categories;
   void products;
   void initialTab;
@@ -149,6 +155,7 @@ export function StockWorkspace({
   const [selectedItem, setSelectedItem] = useState<StockListItem | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [searchDraft, setSearchDraft] = useState(initialSearch);
+  const { expanded, toggle: toggleExpanded } = useExpandPanel();
 
   const isFilteredView =
     Boolean(initialSearch) ||
@@ -273,14 +280,7 @@ export function StockWorkspace({
                   <span className="text-emerald-600"> · stock stable</span>
                 )}
               </>
-            ) : (
-              <>
-                Établissement actif :{" "}
-                <span className="font-medium text-slate-700">
-                  {establishmentName}
-                </span>
-              </>
-            )}
+            ) : null}
           </p>
           {/* Mobile : alerte compacte sous le titre */}
           <p className="mt-0.5 text-[11px] text-slate-500 sm:hidden">
@@ -366,15 +366,24 @@ export function StockWorkspace({
         />
       </div>
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200/80">
+      <section
+        className={
+          expanded
+            ? EXPAND_PANEL_CLASS
+            : "flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200/80"
+        }
+      >
         <div className="flex shrink-0 flex-col gap-2 border-b border-slate-100 px-3 py-2 sm:px-3.5 sm:py-2.5">
-          <div className="hidden items-center gap-2 sm:flex">
+          <div className="flex items-center gap-2">
             <h2 className="text-[13px] font-semibold text-slate-900">
               {drinksOnly ? "Inventaire" : "Articles en stock"}
             </h2>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-slate-500">
               {stockItems.length}
             </span>
+            <div className="ml-auto">
+              <ExpandPanelButton expanded={expanded} onToggle={toggleExpanded} />
+            </div>
           </div>
 
           <div className="relative">

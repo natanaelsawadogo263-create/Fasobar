@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ChevronLeft, ChevronRight, ClipboardList, Search } from "lucide-react";
+import { ClipboardList, Search } from "lucide-react";
 
 import { cancelOrderAction } from "@/app/(protected)/application/caisse/actions";
 import { refreshSoon } from "@/lib/ops/client-refresh";
@@ -11,6 +11,11 @@ import { AlertMessage } from "@/components/auth/alert-message";
 import { OrderPrepBadges } from "@/components/ops/order-prep-badges";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { ModalShell } from "@/components/ui/modal-shell";
+import {
+  EXPAND_PANEL_CLASS,
+  ExpandPanelButton,
+  useExpandPanel,
+} from "@/components/ui/expand-panel";
 import { ToggleField } from "@/components/ui/form-controls";
 import {
   DEPARTMENT_BADGE_STYLES,
@@ -23,7 +28,6 @@ import {
 } from "@/lib/orders/constants";
 import {
   resolveOrderPeriodRange,
-  shiftOrderPeriodAnchor,
   toLocalIsoDate,
 } from "@/lib/orders/period";
 import type {
@@ -59,8 +63,7 @@ const DEPARTMENT_LABELS: Record<string, string> = {
   KITCHEN: "Cuisine",
 };
 
-const PERIOD_OPTIONS: Array<{ id: AdminOrderPeriodFilter; label: string }> = [
-  { id: "all", label: "Tout" },
+const PERIOD_OPTIONS: Array<{ id: Exclude<AdminOrderPeriodFilter, "all" | "custom">; label: string }> = [
   { id: "day", label: "Jour" },
   { id: "week", label: "Semaine" },
   { id: "month", label: "Mois" },
@@ -75,15 +78,18 @@ export function AdminOrdersWorkspace({
   totalOrders,
   openCount,
   paidCount,
-  cancelledCount,
+  cancelledCount: _cancelledCount,
   totalRevenue,
   filters,
-  periodLabel,
+  periodLabel: _periodLabel,
   cashiers,
-  establishmentName,
+  establishmentName: _establishmentName,
   canManageOrders,
   serviceScope = "BOTH",
 }: AdminOrdersWorkspaceProps) {
+  void _cancelledCount;
+  void _establishmentName;
+  void _periodLabel;
   const router = useRouter();
   const departments = allowedDepartments(serviceScope);
   const singleScope = isSingleServiceScope(serviceScope);
@@ -93,37 +99,37 @@ export function AdminOrdersWorkspace({
   const [cancelReason, setCancelReason] = useState("");
   const [cancelConfirmed, setCancelConfirmed] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const { expanded, toggle: toggleExpanded } = useExpandPanel();
 
-  const activePeriod = filters.period ?? "all";
-  const anchor = filters.from ?? toLocalIsoDate(new Date());
+  const activePeriod = filters.period ?? "day";
 
-  function applyFilters(next: Partial<AdminOrderFiltersInput>) {
+  function applyFilters(
+    next: Partial<AdminOrderFiltersInput> & { period?: AdminOrderPeriodFilter },
+  ) {
     const merged = { ...filters, ...next };
     const params = new URLSearchParams();
     if (merged.status && merged.status !== "all") params.set("status", merged.status);
     if (merged.department && merged.department !== "all")
       params.set("department", merged.department);
-    if (merged.period && merged.period !== "all") params.set("period", merged.period);
     if (merged.cashierId) params.set("cashierId", merged.cashierId);
-    if (merged.from) params.set("from", merged.from);
-    if (merged.to) params.set("to", merged.to);
     if (merged.search) params.set("search", merged.search);
+
+    const nextPeriod =
+      next.period ??
+      (next.from !== undefined || next.to !== undefined ? "custom" : activePeriod);
+
+    if (nextPeriod && nextPeriod !== "custom" && nextPeriod !== "all") {
+      const range = resolveOrderPeriodRange(nextPeriod, toLocalIsoDate(new Date()));
+      params.set("period", nextPeriod);
+      if (range.from) params.set("from", range.from);
+      if (range.to) params.set("to", range.to);
+    } else {
+      params.set("period", nextPeriod === "all" ? "all" : "custom");
+      if (merged.from) params.set("from", merged.from);
+      if (merged.to) params.set("to", merged.to);
+    }
+
     router.push(`/application/commandes?${params.toString()}`);
-  }
-
-  function applyPeriod(period: AdminOrderPeriodFilter, nextAnchor = anchor) {
-    const range = resolveOrderPeriodRange(period, nextAnchor);
-    applyFilters({
-      period,
-      from: range.from,
-      to: range.to,
-    });
-  }
-
-  function shiftPeriod(direction: -1 | 1) {
-    if (activePeriod === "all") return;
-    const nextAnchor = shiftOrderPeriodAnchor(activePeriod, anchor, direction);
-    applyPeriod(activePeriod, nextAnchor);
   }
 
   function openCancelModal(order: AdminOrderListItem) {
@@ -190,13 +196,6 @@ export function AdminOrdersWorkspace({
         <h1 className="text-[18px] font-bold leading-none tracking-tight text-slate-900 lg:text-[20px]">
           Commandes
         </h1>
-        <p className="mt-0.5 text-[11px] text-slate-500">
-          <span className="sm:hidden">{periodLabel}</span>
-          <span className="hidden sm:inline">
-            {establishmentName} · {periodLabel} · {cancelledCount} annulée
-            {cancelledCount > 1 ? "s" : ""}
-          </span>
-        </p>
       </header>
 
       {/* KPI mobile */}
@@ -337,69 +336,58 @@ export function AdminOrdersWorkspace({
             </option>
           ))}
         </select>
-        <div className="inline-flex h-11 w-full items-center rounded-xl border border-slate-200 bg-white p-1 sm:h-9 sm:w-auto sm:rounded-lg sm:p-0.5">
-          {PERIOD_OPTIONS.map((option) => {
-            const isActive = activePeriod === option.id;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => applyPeriod(option.id)}
-                className={`h-9 flex-1 rounded-lg px-2.5 text-[12px] font-semibold transition sm:h-7 sm:flex-none sm:rounded-md sm:px-2 sm:text-[11px] ${
-                  isActive
-                    ? "bg-emerald-600 text-white"
-                    : "text-slate-600 active:bg-slate-50 sm:hover:bg-slate-50"
-                }`}
-              >
-                {option.label}
-              </button>
-            );
-          })}
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5">
+          {PERIOD_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => applyFilters({ period: option.id })}
+              className={`inline-flex h-9 shrink-0 items-center rounded-md px-2.5 text-[12px] font-semibold transition sm:h-8 sm:text-[11px] ${
+                activePeriod === option.id
+                  ? "bg-emerald-600 text-white"
+                  : "text-slate-600 active:bg-slate-50 sm:hover:bg-slate-50"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
-        {activePeriod !== "all" ? (
-          <div className="inline-flex h-11 w-full items-center gap-1 rounded-xl border border-slate-200 bg-white px-1 sm:h-9 sm:w-auto sm:rounded-lg">
-            <button
-              type="button"
-              onClick={() => shiftPeriod(-1)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 active:bg-slate-50 sm:h-7 sm:w-7 sm:rounded-md sm:hover:bg-slate-50 sm:hover:text-slate-800"
-              aria-label="Période précédente"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            {activePeriod === "day" ? (
-              <input
-                type="date"
-                value={anchor}
-                onChange={(event) => applyPeriod("day", event.target.value)}
-                className="h-9 min-w-0 flex-1 border-0 bg-transparent px-1 text-[13px] text-slate-800 outline-none sm:h-7 sm:min-w-[128px] sm:text-[12px]"
-              />
-            ) : activePeriod === "month" ? (
-              <input
-                type="month"
-                value={anchor.slice(0, 7)}
-                onChange={(event) =>
-                  applyPeriod("month", `${event.target.value}-01`)
-                }
-                className="h-9 min-w-0 flex-1 border-0 bg-transparent px-1 text-[13px] text-slate-800 outline-none sm:h-7 sm:min-w-[128px] sm:text-[12px]"
-              />
-            ) : (
-              <span className="min-w-0 flex-1 px-1 text-center text-[12px] font-medium capitalize text-slate-700 sm:min-w-[140px] sm:text-[11px]">
-                {periodLabel}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => shiftPeriod(1)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 active:bg-slate-50 sm:h-7 sm:w-7 sm:rounded-md sm:hover:bg-slate-50 sm:hover:text-slate-800"
-              aria-label="Période suivante"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        ) : null}
+        <label className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-500 sm:h-8">
+          Du
+          <input
+            type="date"
+            value={filters.from ?? ""}
+            onChange={(event) => applyFilters({ from: event.target.value })}
+            className="h-7 min-w-[8.5rem] border-0 bg-transparent px-0 text-[12px] text-slate-800 outline-none"
+          />
+        </label>
+        <label className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-500 sm:h-8">
+          Au
+          <input
+            type="date"
+            value={filters.to ?? ""}
+            onChange={(event) => applyFilters({ to: event.target.value })}
+            className="h-7 min-w-[8.5rem] border-0 bg-transparent px-0 text-[12px] text-slate-800 outline-none"
+          />
+        </label>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+      <section
+        className={
+          expanded
+            ? EXPAND_PANEL_CLASS
+            : "flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm"
+        }
+      >
+        <div className="flex h-11 shrink-0 items-center gap-2 border-b border-slate-100 px-3">
+          <h2 className="text-[13px] font-semibold text-slate-900">Liste</h2>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-slate-500">
+            {orders.length}
+          </span>
+          <div className="ml-auto">
+            <ExpandPanelButton expanded={expanded} onToggle={toggleExpanded} />
+          </div>
+        </div>
         {orders.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center">
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
@@ -416,7 +404,7 @@ export function AdminOrdersWorkspace({
         ) : (
           <>
             {/* Cartes mobile */}
-            <div className="app-scroll h-full space-y-2 overflow-y-auto p-2 md:hidden">
+            <div className="app-scroll min-h-0 flex-1 space-y-2 overflow-y-auto p-2 md:hidden">
               {orders.map((order) => {
                 const ref =
                   order.tableReference ?? order.customerReference ?? "—";
@@ -637,7 +625,7 @@ export function AdminOrdersWorkspace({
             </div>
           </>
         )}
-      </div>
+      </section>
 
       {cancelTarget ? (
         <ModalShell

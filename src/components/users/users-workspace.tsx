@@ -191,9 +191,6 @@ export function UsersWorkspace({
             <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
               Utilisateurs
             </h1>
-            <p className="mt-0.5 hidden text-[13px] text-slate-500 sm:block">
-              Créez les comptes employés et gérez leurs accès par espace.
-            </p>
             <p className="mt-0.5 text-[11px] text-slate-500 sm:hidden">
               {stats.activeUsers} actif{stats.activeUsers > 1 ? "s" : ""}
               <span className="text-slate-300"> · </span>
@@ -245,7 +242,7 @@ export function UsersWorkspace({
                     label:
                       profile.id === "hardware"
                         ? "Responsable Stock"
-                        : "Responsable Bar",
+                        : "Bar",
                     value: stats.barManagerCount,
                     hint:
                       profile.id === "hardware" ? "catalogue et stock" : "stock boissons",
