@@ -1,5 +1,11 @@
-/** Domain used only as Supabase Auth email for identifier-based employees. */
-export const FASOBAR_INTERNAL_AUTH_DOMAIN = "users.fasobar.internal";
+/** Domain used for new employee Auth emails (must be a real TLD — Supabase rejects .internal). */
+export const FASOBAR_INTERNAL_AUTH_DOMAIN = "users.fasobar.app";
+
+/** Legacy domain kept so existing employees can still sign in. */
+const FASOBAR_INTERNAL_AUTH_DOMAINS = [
+  FASOBAR_INTERNAL_AUTH_DOMAIN,
+  "users.fasobar.internal",
+] as const;
 
 const LOGIN_PATTERN = /^[a-z0-9][a-z0-9._-]{1,62}[a-z0-9]$|^[a-z0-9]{3,64}$/;
 
@@ -58,27 +64,36 @@ export function withLoginIdentifierSuffix(base: string, suffix: string): string 
  * Real personal emails are never derived or exposed by this helper.
  */
 export function loginIdentifierToAuthEmail(loginIdentifier: string): string {
+  return loginIdentifierToAuthEmails(loginIdentifier)[0]!;
+}
+
+export function loginIdentifierToAuthEmails(loginIdentifier: string): string[] {
   const normalized = normalizeLoginIdentifier(loginIdentifier);
   if (!normalized) {
     throw new Error("Identifiant FasoBar invalide.");
   }
-  return `${normalized}@${FASOBAR_INTERNAL_AUTH_DOMAIN}`;
+  return FASOBAR_INTERNAL_AUTH_DOMAINS.map((domain) => `${normalized}@${domain}`);
 }
 
 /**
  * Resolve what to pass to Supabase signInWithPassword.
  * - Looks like email → use as-is (legacy accounts)
- * - Otherwise → internal auth email from login_identifier
+ * - Otherwise → internal auth emails from login_identifier (current + legacy domain)
  */
 export function resolveSupabaseAuthEmail(identifierOrEmail: string): string {
+  return resolveSupabaseAuthEmails(identifierOrEmail)[0]!;
+}
+
+export function resolveSupabaseAuthEmails(identifierOrEmail: string): string[] {
   const trimmed = identifierOrEmail.trim();
   if (trimmed.includes("@")) {
-    return trimmed.toLowerCase();
+    return [trimmed.toLowerCase()];
   }
-  return loginIdentifierToAuthEmail(trimmed);
+  return loginIdentifierToAuthEmails(trimmed);
 }
 
 export function isInternalFasoBarAuthEmail(email: string | null | undefined): boolean {
   if (!email) return false;
-  return email.trim().toLowerCase().endsWith(`@${FASOBAR_INTERNAL_AUTH_DOMAIN}`);
+  const lower = email.trim().toLowerCase();
+  return FASOBAR_INTERNAL_AUTH_DOMAINS.some((domain) => lower.endsWith(`@${domain}`));
 }

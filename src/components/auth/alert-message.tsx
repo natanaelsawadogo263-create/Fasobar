@@ -90,10 +90,22 @@ function InlineAlert({
   onDismiss?: () => void;
 }) {
   const [visible, setVisible] = useState(true);
+  const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setVisible(true);
   }, [message]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const box = boxRef.current;
+    if (!box) return;
+    const frame = window.requestAnimationFrame(() => {
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+      box.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [message, visible]);
 
   if (!visible) return null;
 
@@ -114,9 +126,11 @@ function InlineAlert({
 
   return (
     <div
+      ref={boxRef}
       role="alert"
-      aria-live="polite"
-      className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${styles}`}
+      aria-live="assertive"
+      tabIndex={-1}
+      className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm outline-none ${styles}`}
     >
       <p className="min-w-0 flex-1">{message}</p>
       {dismissible ? (

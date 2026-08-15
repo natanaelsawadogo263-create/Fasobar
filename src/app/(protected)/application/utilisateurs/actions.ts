@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 
-import { mapGenericError } from "@/lib/auth/errors";
+import { mapAuthError, mapGenericError } from "@/lib/auth/errors";
 import { inviteSpaceToRole } from "@/lib/auth/roles";
 import { requireAdminMutationContext } from "@/lib/auth/workspace-context";
 import { getCloudOfflineActionError } from "@/lib/desktop/require-cloud-online";
@@ -65,7 +65,7 @@ export async function createEmployeeAccountAction(
 
   const supabase = await createClient();
   const {
-    loginIdentifierToAuthEmail,
+    loginIdentifierToAuthEmails,
     normalizeLoginIdentifier,
     withLoginIdentifierSuffix,
   } = await import("@/lib/auth/login-identifier");
@@ -104,27 +104,43 @@ export async function createEmployeeAccountAction(
     }
   }
 
-  const authEmail = loginIdentifierToAuthEmail(loginNormalized);
+  const authEmails = loginIdentifierToAuthEmails(loginNormalized);
   let createdUserId: string | null = null;
 
   try {
     const admin = createAdminClient();
-    const { data: created, error: createError } = await admin.auth.admin.createUser({
-      email: authEmail,
-      password: DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD,
-      email_confirm: true,
-      user_metadata: {
-        full_name: parsed.data.fullName,
-        login_identifier: loginNormalized,
-      },
-    });
+    let created: { user: { id: string } | null } | null = null;
+    let createError: { message: string; code?: string } | null = null;
 
-    if (createError || !created.user) {
-      if (createError?.message.toLowerCase().includes("already")) {
+    for (const authEmail of authEmails) {
+      const result = await admin.auth.admin.createUser({
+        email: authEmail,
+        password: DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD,
+        email_confirm: true,
+        user_metadata: {
+          full_name: parsed.data.fullName,
+          login_identifier: loginNormalized,
+        },
+      });
+      if (!result.error && result.data.user) {
+        created = result.data;
+        createError = null;
+        break;
+      }
+      createError = result.error;
+      const message = (result.error?.message ?? "").toLowerCase();
+      const rejectedEmail =
+        result.error?.code === "email_address_invalid" ||
+        (message.includes("email address") && message.includes("invalid"));
+      if (!rejectedEmail) break;
+    }
+
+    if (createError || !created?.user) {
+      if ((createError?.message ?? "").toLowerCase().includes("already")) {
         return { error: "Cet identifiant FasoBar est déjà utilisé." };
       }
 
-      return { error: mapGenericError(createError) };
+      return { error: mapAuthError(createError as never) };
     }
 
     createdUserId = created.user.id;

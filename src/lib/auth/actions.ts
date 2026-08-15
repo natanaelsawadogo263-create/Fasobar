@@ -15,7 +15,7 @@ import { getAuthRedirectOrigin } from "@/lib/auth/redirect-origin";
 import type { AuthActionState } from "@/lib/auth/types";
 import {
   isInternalFasoBarAuthEmail,
-  resolveSupabaseAuthEmail,
+  resolveSupabaseAuthEmails,
 } from "@/lib/auth/login-identifier";
 import {
   createAdminClient,
@@ -25,14 +25,6 @@ import { createClient } from "@/lib/supabase/server";
 
 function formDataToObject(formData: FormData): Record<string, FormDataEntryValue> {
   return Object.fromEntries(formData.entries());
-}
-
-function shouldSkipEmailConfirmation(): boolean {
-  if (process.env.AUTH_SIGNUP_SKIP_EMAIL_CONFIRM === "true") {
-    return true;
-  }
-
-  return process.env.NODE_ENV !== "production" && isAdminClientConfigured();
 }
 
 async function signUpWithoutConfirmationEmail(input: {
@@ -92,57 +84,17 @@ export async function signUpAction(
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
-  // En développement : création confirmée via Admin API (aucun e-mail envoyé).
-  if (shouldSkipEmailConfirmation()) {
-    return signUpWithoutConfirmationEmail({
-      email: parsed.data.email,
-      password: parsed.data.password,
-      fullName: parsed.data.fullName,
-    });
+  if (!isAdminClientConfigured()) {
+    return {
+      error: "Création de compte indisponible. Réessayez plus tard.",
+    };
   }
 
-  const headerStore = await headers();
-  const origin = getAuthRedirectOrigin(headerStore);
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.auth.signUp({
+  return signUpWithoutConfirmationEmail({
     email: parsed.data.email,
     password: parsed.data.password,
-    options: {
-      data: {
-        full_name: parsed.data.fullName,
-      },
-      emailRedirectTo: `${origin}/auth/callback?next=/onboarding`,
-    },
+    fullName: parsed.data.fullName,
   });
-
-  if (error) {
-    console.error("[signUp]", error.code, error.message);
-
-    // Contournement si le quota e-mail Supabase est saturé et que la clé admin est dispo.
-    const isEmailRateLimited =
-      error.code === "over_email_send_rate_limit" ||
-      error.message.toLowerCase().includes("email rate limit");
-
-    if (isEmailRateLimited && isAdminClientConfigured()) {
-      return signUpWithoutConfirmationEmail({
-        email: parsed.data.email,
-        password: parsed.data.password,
-        fullName: parsed.data.fullName,
-      });
-    }
-
-    return { error: mapAuthError(error) };
-  }
-
-  if (data.session) {
-    redirect("/onboarding");
-  }
-
-  return {
-    success:
-      "Inscription réussie. Vérifiez votre boîte e-mail pour confirmer votre compte avant de vous connecter.",
-  };
 }
 
 export async function signInAction(
@@ -194,29 +146,36 @@ export async function signInAction(
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
-  let authEmail: string;
+  let authEmails: string[];
   try {
-    authEmail = resolveSupabaseAuthEmail(parsed.data.identifier);
+    authEmails = resolveSupabaseAuthEmails(parsed.data.identifier);
   } catch {
     return { error: "Identifiant FasoBar invalide." };
   }
 
   const supabase = await createClient();
+  let lastError: Awaited<
+    ReturnType<typeof supabase.auth.signInWithPassword>
+  >["error"] = null;
+  let userId: string | null = null;
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: authEmail,
-    password: parsed.data.password,
-  });
-
-  if (error) {
-    return { error: mapAuthError(error) };
+  for (const email of authEmails) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: parsed.data.password,
+    });
+    if (!error && data.user) {
+      userId = data.user.id;
+      break;
+    }
+    lastError = error;
   }
 
-  if (!data.user) {
-    return { error: "Connexion impossible. Veuillez réessayer." };
+  if (!userId) {
+    return { error: mapAuthError(lastError) };
   }
 
-  return redirectAfterLogin(data.user.id);
+  return redirectAfterLogin(userId);
 }
 
 export async function signOutAction(): Promise<void> {

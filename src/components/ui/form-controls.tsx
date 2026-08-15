@@ -3,6 +3,10 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react
 const inputClassName =
   "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20";
 
+function scrollInvalidFieldIntoView(element: HTMLElement) {
+  element.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 const labelClassName = "block text-sm font-medium text-slate-700";
 
 type FormSectionProps = {
@@ -70,6 +74,10 @@ export function TextField({
         aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
         className={`${inputClassName}${type === "number" ? " input-no-spinner" : ""}`}
         {...props}
+        onInvalid={(event) => {
+          scrollInvalidFieldIntoView(event.currentTarget);
+          props.onInvalid?.(event);
+        }}
       />
       {hint ? (
         <p id={`${id}-hint`} className="text-xs text-slate-500">
@@ -113,6 +121,10 @@ export function SelectField({
             "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")",
         }}
         {...props}
+        onInvalid={(event) => {
+          scrollInvalidFieldIntoView(event.currentTarget);
+          props.onInvalid?.(event);
+        }}
       >
         {children}
       </select>
@@ -148,6 +160,10 @@ export function PriceField({ id, label, hint, error, className, ...props }: Pric
           aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
           className={`${inputClassName} input-no-spinner pr-16`}
           {...props}
+          onInvalid={(event) => {
+            scrollInvalidFieldIntoView(event.currentTarget);
+            props.onInvalid?.(event);
+          }}
         />
         <span
           aria-hidden="true"

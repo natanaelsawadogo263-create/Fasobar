@@ -130,7 +130,7 @@ describe("première connexion", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(resolveSupabaseAuthEmail(result.data.identifier)).toBe(
-        "awa.ouedraogo@users.fasobar.internal",
+        "awa.ouedraogo@users.fasobar.app",
       );
     }
   });

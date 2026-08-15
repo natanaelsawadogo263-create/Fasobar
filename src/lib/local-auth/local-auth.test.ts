@@ -97,10 +97,10 @@ describe("login_identifier", () => {
     expect(normalizeLoginIdentifier("Awa.Ouédraogo")).toBe("awa.ouedraogo");
     expect(suggestLoginIdentifierFromName("Awa Ouédraogo")).toBe("awa.ouedraogo");
     expect(loginIdentifierToAuthEmail("awa.ouedraogo")).toBe(
-      "awa.ouedraogo@users.fasobar.internal",
+      "awa.ouedraogo@users.fasobar.app",
     );
-    expect(resolveSupabaseAuthEmail("awa.ouedraogo")).toContain(
-      "@users.fasobar.internal",
+    expect(resolveSupabaseAuthEmail("awa.ouedraogo")).toBe(
+      "awa.ouedraogo@users.fasobar.app",
     );
     expect(resolveSupabaseAuthEmail("Legacy@Example.com")).toBe(
       "legacy@example.com",
