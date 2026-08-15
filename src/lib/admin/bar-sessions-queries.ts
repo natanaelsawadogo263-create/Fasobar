@@ -37,6 +37,20 @@ export type AdminBarSessionDetail = AdminBarSessionListItem & {
   summary: BarSessionClosingSummary | null;
 };
 
+type BarSessionListRow = {
+  id: string;
+  status: string;
+  opened_at: string;
+  closed_at: string | null;
+  orders_ready_count: number | null;
+  closing_orders_served_count?: number | null;
+  closing_drinks_out_qty?: number | null;
+  closing_stock_entries_count: number | null;
+  closing_stock_losses_count: number | null;
+  closing_summary?: unknown;
+  profiles: { full_name: string } | { full_name: string }[] | null;
+};
+
 export async function listAdminBarSessions(
   workspace: WorkspaceContext,
   options: { from?: string; to?: string } = {},
@@ -94,7 +108,7 @@ export async function listAdminBarSessions(
           .eq("establishment_id", workspace.establishmentId)
           .eq("status", "OPEN")
           .order("opened_at", { ascending: false })
-      : Promise.resolve({ data: [] as typeof data, error: null }),
+      : Promise.resolve({ data: [] as BarSessionListRow[], error: null }),
   ]);
 
   if (error || !data) {
@@ -106,28 +120,24 @@ export async function listAdminBarSessions(
     return { sessions: [], openCount: 0, closedCount: 0 };
   }
 
-  const byId = new Map<string, (typeof data)[number]>();
-  for (const row of [...(openOutside.data ?? []), ...data]) {
-    byId.set(row.id as string, row);
+  const byId = new Map<string, BarSessionListRow>();
+  for (const row of [...(openOutside.data ?? []), ...(data as BarSessionListRow[])]) {
+    byId.set(row.id, row);
   }
   const merged = Array.from(byId.values()).sort(
-    (a, b) =>
-      new Date(b.opened_at as string).getTime() -
-      new Date(a.opened_at as string).getTime(),
+    (a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime(),
   );
 
   const sessions: AdminBarSessionListItem[] = merged.map((row) => {
-    const profile = readSingle(
-      row.profiles as { full_name: string } | { full_name: string }[] | null,
-    );
+    const profile = readSingle(row.profiles);
     const summary = mapClosingSummary(row.closing_summary);
 
     return {
-      id: row.id as string,
+      id: row.id,
       status: row.status as AdminBarSessionListItem["status"],
       managerName: profile?.full_name ?? "—",
-      openedAt: row.opened_at as string,
-      closedAt: (row.closed_at as string | null) ?? null,
+      openedAt: row.opened_at,
+      closedAt: row.closed_at,
       ordersServedCount: Number(
         row.closing_orders_served_count ?? row.orders_ready_count ?? 0,
       ),
