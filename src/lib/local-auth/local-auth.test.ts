@@ -5,6 +5,7 @@ import path from "node:path";
 
 import {
   loginIdentifierToAuthEmail,
+  loginKeyFromIdentifier,
   normalizeLoginIdentifier,
   resolveSupabaseAuthEmail,
   suggestLoginIdentifierFromName,
@@ -104,6 +105,13 @@ describe("login_identifier", () => {
     );
     expect(resolveSupabaseAuthEmail("Legacy@Example.com")).toBe(
       "legacy@example.com",
+    );
+    expect(loginKeyFromIdentifier("Awa.Ouédraogo")).toEqual({
+      isEmail: false,
+      loginKey: "awa.ouedraogo",
+    });
+    expect(loginKeyFromIdentifier("awa.ouedraogo@users.fasobar.app").loginKey).toBe(
+      "awa.ouedraogo",
     );
   });
 });

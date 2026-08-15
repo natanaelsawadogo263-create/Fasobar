@@ -64,7 +64,17 @@ export async function completeFirstLoginAction(
   });
 
   if (updateError) {
-    return { error: mapAuthError(updateError) };
+    if (!isAdminClientConfigured()) {
+      return { error: mapAuthError(updateError) };
+    }
+    const admin = createAdminClient();
+    const { error: adminPasswordError } = await admin.auth.admin.updateUserById(
+      sessionUserId,
+      { password: parsed.data.password, email_confirm: true, ban_duration: "none" },
+    );
+    if (adminPasswordError) {
+      return { error: mapAuthError(adminPasswordError) };
+    }
   }
 
   try {

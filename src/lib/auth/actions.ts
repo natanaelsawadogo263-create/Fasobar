@@ -14,7 +14,7 @@ import { redirectAfterLogin } from "@/lib/auth/post-login";
 import { getAuthRedirectOrigin } from "@/lib/auth/redirect-origin";
 import type { AuthActionState } from "@/lib/auth/types";
 import { isInternalFasoBarAuthEmail } from "@/lib/auth/login-identifier";
-import { resolveEmployeeSignInEmails } from "@/lib/auth/resolve-employee-sign-in";
+import { signInEmployeeWithPassword } from "@/lib/auth/employee-sign-in";
 import {
   createAdminClient,
   isAdminClientConfigured,
@@ -144,36 +144,16 @@ export async function signInAction(
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
-  let authEmails: string[];
-  try {
-    authEmails = await resolveEmployeeSignInEmails(parsed.data.identifier);
-  } catch {
-    return { error: "Identifiant FasoBar invalide." };
+  const result = await signInEmployeeWithPassword(
+    parsed.data.identifier,
+    parsed.data.password,
+  );
+
+  if (!result.ok) {
+    return { error: mapAuthError(result.error as never) };
   }
 
-  const supabase = await createClient();
-  let lastError: Awaited<
-    ReturnType<typeof supabase.auth.signInWithPassword>
-  >["error"] = null;
-  let userId: string | null = null;
-
-  for (const email of authEmails) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password: parsed.data.password,
-    });
-    if (!error && data.user) {
-      userId = data.user.id;
-      break;
-    }
-    lastError = error;
-  }
-
-  if (!userId) {
-    return { error: mapAuthError(lastError) };
-  }
-
-  return redirectAfterLogin(userId);
+  return redirectAfterLogin(result.userId);
 }
 
 export async function signOutAction(): Promise<void> {

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { normalizeLoginIdentifier } from "@/lib/auth/login-identifier";
-import { resolveEmployeeSignInEmails } from "@/lib/auth/resolve-employee-sign-in";
+import { signInEmployeeWithPassword } from "@/lib/auth/employee-sign-in";
 import { probeSupabaseReachable } from "@/lib/desktop/cloud-reachability";
 import { appendDesktopLog } from "@/lib/desktop/logger";
 import { isDesktopServerRuntime } from "@/lib/desktop/runtime";
@@ -130,26 +130,13 @@ async function authenticateOnline(
   normalized: string,
   password: string,
 ): Promise<DesktopLoginResult> {
-  const supabase = await createClient();
-  const authEmails = await resolveEmployeeSignInEmails(identifier);
-  let userId: string | null = null;
-
-  for (const authEmail of authEmails) {
-    const { data: authData, error: authError } =
-      await supabase.auth.signInWithPassword({
-        email: authEmail,
-        password,
-      });
-    if (!authError && authData.user) {
-      userId = authData.user.id;
-      break;
-    }
-  }
-
-  if (!userId) {
+  const signIn = await signInEmployeeWithPassword(identifier, password);
+  if (!signIn.ok) {
     recordLoginAttempt(db, normalized, false, "online");
     return authFailure();
   }
+  const userId = signIn.userId;
+  const supabase = await createClient();
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")

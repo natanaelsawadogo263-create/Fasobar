@@ -6,7 +6,9 @@ import { randomUUID } from "crypto";
 import { mapAuthError, mapGenericError } from "@/lib/auth/errors";
 import { toUserFacingError } from "@/lib/errors/user-facing";
 import { inviteSpaceToRole } from "@/lib/auth/roles";
+import { createEmployeeAuthUser } from "@/lib/auth/employee-sign-in";
 import { requireAdminMutationContext } from "@/lib/auth/workspace-context";
+import { createClient } from "@/lib/supabase/server";
 import { getCloudOfflineActionError } from "@/lib/desktop/require-cloud-online";
 import { isInvitableSpaceAllowed } from "@/lib/settings/service-scope";
 import {
@@ -17,8 +19,6 @@ import {
 import { resetTemporaryPasswordSchema } from "@/lib/users/password-policy";
 import type { UsersActionState } from "@/lib/users/types";
 import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase/admin";
-import { DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD } from "@/lib/users/constants";
-import { createClient } from "@/lib/supabase/server";
 
 const USERS_PATH = "/application/utilisateurs";
 
@@ -173,11 +173,9 @@ export async function createEmployeeAccountAction(
   }
 
   const supabase = await createClient();
-  const {
-    loginIdentifierToAuthEmails,
-    normalizeLoginIdentifier,
-    withLoginIdentifierSuffix,
-  } = await import("@/lib/auth/login-identifier");
+  const { normalizeLoginIdentifier, withLoginIdentifierSuffix } = await import(
+    "@/lib/auth/login-identifier"
+  );
 
   let loginNormalized = normalizeLoginIdentifier(parsed.data.loginIdentifier);
   const role = inviteSpaceToRole(parsed.data.space);
@@ -213,52 +211,23 @@ export async function createEmployeeAccountAction(
     }
   }
 
-  const authEmails = loginIdentifierToAuthEmails(loginNormalized);
   let createdUserId: string | null = null;
 
   try {
-    const admin = createAdminClient();
-    let created: { user: { id: string } | null } | null = null;
-    let createError: { message: string; code?: string } | null = null;
+    const createdAuth = await createEmployeeAuthUser({
+      loginNormalized,
+      fullName: parsed.data.fullName,
+    });
 
-    for (const authEmail of authEmails) {
-      const result = await admin.auth.admin.createUser({
-        email: authEmail,
-        password: DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD,
-        email_confirm: true,
-        user_metadata: {
-          full_name: parsed.data.fullName,
-          login_identifier: loginNormalized,
-        },
-      });
-      if (!result.error && result.data.user) {
-        created = result.data;
-        createError = null;
-        break;
-      }
-      createError = result.error;
-      const message = (result.error?.message ?? "").toLowerCase();
-      const rejectedEmail =
-        result.error?.code === "email_address_invalid" ||
-        (message.includes("email address") && message.includes("invalid"));
-      if (!rejectedEmail) break;
-    }
-
-    if (createError || !created?.user) {
-      if ((createError?.message ?? "").toLowerCase().includes("already")) {
+    if ("error" in createdAuth) {
+      if ((createdAuth.error?.message ?? "").toLowerCase().includes("already")) {
         return { error: "Cet identifiant FasoBar est déjà utilisé." };
       }
-
-      return { error: mapAuthError(createError as never) };
+      return { error: mapAuthError(createdAuth.error as never) };
     }
 
-    createdUserId = created.user.id;
-
-    await admin.auth.admin.updateUserById(createdUserId, {
-      email_confirm: true,
-      password: DEFAULT_TEMPORARY_EMPLOYEE_PASSWORD,
-      ban_duration: "none",
-    });
+    createdUserId = createdAuth.userId;
+    const admin = createAdminClient();
 
     const { error: provisionError } = await supabase.rpc("provision_employee_account", {
       p_user_id: createdUserId,

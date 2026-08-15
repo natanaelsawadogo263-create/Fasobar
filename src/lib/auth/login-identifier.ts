@@ -97,3 +97,23 @@ export function isInternalFasoBarAuthEmail(email: string | null | undefined): bo
   const lower = email.trim().toLowerCase();
   return FASOBAR_INTERNAL_AUTH_DOMAINS.some((domain) => lower.endsWith(`@${domain}`));
 }
+
+export function loginKeyFromIdentifier(identifierOrEmail: string): {
+  isEmail: boolean;
+  loginKey: string;
+} {
+  const trimmed = identifierOrEmail.trim();
+  if (!trimmed) {
+    return { isEmail: false, loginKey: "" };
+  }
+  if (isInternalFasoBarAuthEmail(trimmed)) {
+    return {
+      isEmail: false,
+      loginKey: normalizeLoginIdentifier(trimmed.split("@")[0] ?? ""),
+    };
+  }
+  if (trimmed.includes("@")) {
+    return { isEmail: true, loginKey: trimmed.toLowerCase() };
+  }
+  return { isEmail: false, loginKey: normalizeLoginIdentifier(trimmed) };
+}
