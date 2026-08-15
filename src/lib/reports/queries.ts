@@ -7,13 +7,7 @@ import { listExpenses } from "@/lib/expenses/queries";
 import { formatOrderNumber, formatPriceXof } from "@/lib/orders/constants";
 import { listAdminOrders } from "@/lib/orders/queries";
 import { ORDER_PAYMENT_STATUS_LABELS, ORDER_STATUS_LABELS } from "@/lib/orders/constants";
-import { getActivityPages } from "@/lib/activity/pages";
-import { isRetailActivity } from "@/lib/activity/profile";
-import {
-  humanizeActionCode,
-  REPORT_TYPE_OPTIONS,
-  reportOptionsForScope,
-} from "@/lib/reports/constants";
+import { humanizeActionCode, REPORT_TYPE_OPTIONS } from "@/lib/reports/constants";
 import type { ReportFiltersInput, ReportType } from "@/lib/reports/schemas";
 import type { ReportColumn, ReportResult, ReportRow, ReportSummaryItem } from "@/lib/reports/types";
 import { getAdminSalesData } from "@/lib/sales/queries";
@@ -44,14 +38,8 @@ function buildResult(
   columns: ReportColumn[],
   rows: ReportRow[],
   summary: ReportSummaryItem[] = [],
-  workspace?: WorkspaceContext,
 ): ReportResult {
-  const scoped = workspace
-    ? reportOptionsForScope(workspace.serviceScope, workspace.activityCode).find(
-        (option) => option.id === type,
-      )
-    : null;
-  const meta = scoped ?? findTypeMeta(type);
+  const meta = findTypeMeta(type);
   return {
     type,
     title: meta.label,
@@ -66,8 +54,6 @@ async function buildVentesReport(
   workspace: WorkspaceContext,
   filters: ReportFiltersInput,
 ): Promise<ReportResult> {
-  const pages = getActivityPages(workspace.activityCode);
-  const retail = pages.retail;
   const data = await getAdminSalesData(workspace, { from: filters.from, to: filters.to });
 
   const rows: ReportRow[] = data.orders.map((order) => ({
@@ -81,25 +67,24 @@ async function buildVentesReport(
   return buildResult(
     "ventes",
     [
-      { key: "orderNumber", label: retail ? "N° ticket" : "N° commande" },
+      { key: "orderNumber", label: "N° commande" },
       { key: "paidAt", label: "Date de paiement", format: "datetime" },
-      { key: "cashierName", label: pages.sales.cashierColumn },
+      { key: "cashierName", label: "Caissier·ère" },
       { key: "itemCount", label: "Articles", format: "number" },
       { key: "totalAmount", label: "Montant", format: "currency" },
     ],
     rows,
     [
       { label: "Chiffre d'affaires", value: formatPriceXof(data.summary.totalRevenue) },
-      ...(!retail && hasBarService(workspace.serviceScope)
+      ...(hasBarService(workspace.serviceScope)
         ? [{ label: "CA Bar", value: formatPriceXof(data.summary.barRevenue) }]
         : []),
-      ...(!retail && hasKitchenService(workspace.serviceScope)
+      ...(hasKitchenService(workspace.serviceScope)
         ? [{ label: "CA Cuisine", value: formatPriceXof(data.summary.kitchenRevenue) }]
         : []),
-      { label: pages.sales.paidTitle, value: String(data.summary.paidOrderCount) },
+      { label: "Commandes payées", value: String(data.summary.paidOrderCount) },
       { label: "Panier moyen", value: formatPriceXof(data.summary.averageBasket) },
     ],
-    workspace,
   );
 }
 
@@ -125,13 +110,12 @@ async function buildCommandesReport(
     totalAmount: order.totalAmount,
   }));
 
-  const pages = getActivityPages(workspace.activityCode);
   return buildResult(
     "commandes",
     [
-      { key: "orderNumber", label: pages.retail ? "N° ticket" : "N° commande" },
+      { key: "orderNumber", label: "N° commande" },
       { key: "createdAt", label: "Créée le", format: "datetime" },
-      { key: "createdByName", label: pages.sales.cashierColumn },
+      { key: "createdByName", label: "Caissier·ère" },
       { key: "status", label: "Statut" },
       { key: "paymentStatus", label: "Paiement" },
       { key: "itemCount", label: "Articles", format: "number" },
@@ -139,14 +123,10 @@ async function buildCommandesReport(
     ],
     rows,
     [
-      {
-        label: pages.retail ? "Total tickets" : "Total commandes",
-        value: String(data.totalOrders),
-      },
+      { label: "Total commandes", value: String(data.totalOrders) },
       { label: "Payées", value: String(data.paidCount) },
       { label: "Annulées", value: String(data.cancelledCount) },
     ],
-    workspace,
   );
 }
 
@@ -163,25 +143,16 @@ async function buildProduitsVendusReport(
     revenue: product.revenue,
   }));
 
-  const pages = getActivityPages(workspace.activityCode);
   return buildResult(
     "produits_vendus",
     [
-      { key: "name", label: pages.sales.productColumn },
-      ...(pages.retail ? [] : [{ key: "departmentName", label: "Département" }]),
+      { key: "name", label: "Produit" },
+      { key: "departmentName", label: "Département" },
       { key: "quantity", label: "Quantité", format: "number" },
       { key: "revenue", label: "Chiffre d'affaires", format: "currency" },
     ],
     rows,
-    [
-      {
-        label: pages.retail
-          ? `${pages.sales.productsTab} distincts vendus`
-          : "Produits distincts vendus",
-        value: String(data.topProducts.length),
-      },
-    ],
-    workspace,
+    [{ label: "Produits distincts vendus", value: String(data.topProducts.length) }],
   );
 }
 
@@ -213,7 +184,6 @@ async function buildStockBoissonsReport(workspace: WorkspaceContext): Promise<Re
         value: String(items.filter((item) => item.status === "low" || item.status === "out").length),
       },
     ],
-    workspace,
   );
 }
 
@@ -252,14 +222,13 @@ async function buildApprovisionnementsReport(
     .filter((entry) => entry.departmentCode === "KITCHEN")
     .reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
   const totalCost = entries.reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
-  const retail = isRetailActivity(workspace.activityCode);
 
   return buildResult(
     "approvisionnements",
     [
       { key: "createdAt", label: "Date", format: "datetime" },
       { key: "stockItemName", label: "Article" },
-      ...(retail ? [] : [{ key: "departmentName", label: "Département" }]),
+      { key: "departmentName", label: "Département" },
       { key: "quantity", label: "Quantité", format: "number" },
       { key: "unit", label: "Unité" },
       { key: "totalCost", label: "Coût total", format: "currency" },
@@ -270,14 +239,13 @@ async function buildApprovisionnementsReport(
     [
       { label: "Entrées", value: String(entries.length) },
       { label: "Coût total", value: formatPriceXof(totalCost) },
-      ...(!retail && hasBarService(workspace.serviceScope)
+      ...(hasBarService(workspace.serviceScope)
         ? [{ label: "Appro Bar", value: formatPriceXof(barCost) }]
         : []),
-      ...(!retail && hasKitchenService(workspace.serviceScope)
+      ...(hasKitchenService(workspace.serviceScope)
         ? [{ label: "Appro Cuisine", value: formatPriceXof(kitchenCost) }]
         : []),
     ],
-    workspace,
   );
 }
 
@@ -319,7 +287,6 @@ async function buildPertesCasseReport(
     ],
     rows,
     [{ label: "Mouvements", value: String(entries.length) }],
-    workspace,
   );
 }
 
@@ -337,17 +304,10 @@ async function buildDepensesReport(
     { limit: 2000 },
   );
 
-  const pages = getActivityPages(workspace.activityCode);
   const rows: ReportRow[] = data.expenses.map((expense) => ({
     expenseDate: expense.expenseDate,
-    area:
-      pages.retail && expense.area === "BAR"
-        ? pages.supply.spaceLabel
-        : EXPENSE_AREA_LABELS[expense.area],
-    category:
-      pages.retail && expense.category === "KITCHEN_PURCHASE"
-        ? pages.expenses.kitchenPurchase
-        : (EXPENSE_CATEGORY_LABELS[expense.category] ?? expense.category),
+    area: EXPENSE_AREA_LABELS[expense.area],
+    category: EXPENSE_CATEGORY_LABELS[expense.category] ?? expense.category,
     label: expense.label,
     amount: expense.amount,
     status: expense.status === "CANCELLED" ? "Annulée" : "Enregistrée",
@@ -368,15 +328,10 @@ async function buildDepensesReport(
     rows,
     [
       { label: "Total actives", value: formatPriceXof(data.periodTotal) },
-      ...(isRetailActivity(workspace.activityCode)
-        ? []
-        : [
-            { label: "Dépenses Bar", value: formatPriceXof(data.barTotal) },
-            { label: "Dépenses Caisse", value: formatPriceXof(data.caisseTotal) },
-          ]),
+      { label: "Dépenses Bar", value: formatPriceXof(data.barTotal) },
+      { label: "Dépenses Caisse", value: formatPriceXof(data.caisseTotal) },
       { label: "Lignes", value: String(data.expenses.length) },
     ],
-    workspace,
   );
 }
 
@@ -393,10 +348,8 @@ async function buildBeneficesReport(
   filters: ReportFiltersInput,
 ): Promise<ReportResult> {
   const scope = workspace.serviceScope;
-  const pages = getActivityPages(workspace.activityCode);
-  const retail = pages.retail;
   const includeBar = hasBarService(scope);
-  const includeKitchen = !retail && hasKitchenService(scope);
+  const includeKitchen = hasKitchenService(scope);
 
   const [sales, expenses, barSupply, kitchenSupply] = await Promise.all([
     getAdminSalesData(workspace, { from: filters.from, to: filters.to }),
@@ -430,15 +383,12 @@ async function buildBeneficesReport(
   const sumSupply = (entries: { totalCost: number | null }[]) =>
     entries.reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
 
-  const barRevenue = retail
-    ? sales.summary.totalRevenue
-    : includeBar
-      ? sales.summary.barRevenue
-      : 0;
+  const barRevenue = includeBar ? sales.summary.barRevenue : 0;
   const kitchenRevenue = includeKitchen ? sales.summary.kitchenRevenue : 0;
   const barAppro = includeBar ? sumSupply(barSupply) : 0;
   const kitchenAppro = includeKitchen ? sumSupply(kitchenSupply) : 0;
-  const barExpenses = retail ? expenses.periodTotal : includeBar ? expenses.barTotal : 0;
+  const barExpenses = includeBar ? expenses.barTotal : 0;
+  // Cuisine : dépenses rattachées à la caisse (espace restauration).
   const kitchenExpenses = includeKitchen ? expenses.caisseTotal : 0;
 
   const barProfit = barRevenue - barAppro - barExpenses;
@@ -452,7 +402,7 @@ async function buildBeneficesReport(
   const rows: ReportRow[] = [];
   if (includeBar) {
     rows.push({
-      space: retail ? pages.supply.spaceLabel : "Bar",
+      space: "Bar",
       revenue: barRevenue,
       supplyCost: barAppro,
       expenses: barExpenses,
@@ -492,7 +442,6 @@ async function buildBeneficesReport(
       { label: "Appro total", value: formatPriceXof(totalAppro) },
       { label: "Dépenses total", value: formatPriceXof(totalExpenses) },
     ],
-    workspace,
   );
 }
 
@@ -562,7 +511,6 @@ async function buildSessionsCaisseReport(
           { label: "Sessions", value: String(filtered.length) },
           { label: "Espèces encaissées (total)", value: String(data.totalCashCollected) },
         ],
-    workspace,
   );
 }
 
@@ -611,7 +559,6 @@ async function buildActiviteUtilisateursReport(
       ],
       [],
       [{ label: "Événements", value: "0" }],
-      workspace,
     );
   }
 
@@ -635,7 +582,6 @@ async function buildActiviteUtilisateursReport(
     ],
     rows,
     [{ label: "Événements", value: String(rows.length) }],
-    workspace,
   );
 }
 
@@ -678,6 +624,6 @@ export async function getReportData(
     case "activite_utilisateurs":
       return buildActiviteUtilisateursReport(workspace, filters);
     default:
-      return buildResult(type, [], [], [], workspace);
+      return buildResult(type, [], []);
   }
 }

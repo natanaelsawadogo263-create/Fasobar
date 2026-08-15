@@ -16,7 +16,6 @@ export default async function CashSessionPage() {
     <SessionWorkspace
       session={session}
       establishmentName={workspace.establishmentName}
-      activityCode={workspace.activityCode}
     />
   );
 }

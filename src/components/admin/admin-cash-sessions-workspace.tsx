@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { Landmark, X } from "lucide-react";
 
 import { getAdminCashSessionDetailAction } from "@/app/(protected)/application/caisses/actions";
-import { getActivityPages } from "@/lib/activity/pages";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { formatOrderNumber, formatPriceXof } from "@/lib/orders/constants";
 import { PAYMENT_METHOD_LABELS } from "@/lib/payments/constants";
@@ -19,7 +18,6 @@ type AdminCashSessionsWorkspaceProps = {
   closedCount: number;
   totalCashCollected: number;
   establishmentName: string;
-  activityCode?: string | null;
 };
 
 const STATUS_LABELS: Record<AdminCashSessionListItem["status"], string> = {
@@ -56,9 +54,7 @@ export function AdminCashSessionsWorkspace({
   closedCount,
   totalCashCollected,
   establishmentName,
-  activityCode = null,
 }: AdminCashSessionsWorkspaceProps) {
-  const pages = getActivityPages(activityCode);
   const [isPending, startTransition] = useTransition();
   const [detail, setDetail] = useState<AdminCashSessionDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -107,7 +103,8 @@ export function AdminCashSessionsWorkspace({
             Caisses
           </h1>
           <p className="mt-0.5 hidden text-[12px] text-slate-500 sm:block">
-            {establishmentName} · {pages.cash.subtitle}
+            {establishmentName} · supervision lecture seule — ouverture et fermeture réservées
+            aux caissiers
           </p>
         </div>
       </header>
@@ -156,7 +153,7 @@ export function AdminCashSessionsWorkspace({
               Aucune session de caisse
             </h2>
             <p className="mt-1 max-w-sm text-[12px] text-slate-500">
-              Les sessions ouvertes et fermées par les {pages.retail ? "vendeurs" : "caissiers"} apparaîtront ici.
+              Les sessions ouvertes et fermées par les caissiers apparaîtront ici.
             </p>
           </div>
         ) : (
@@ -434,7 +431,7 @@ export function AdminCashSessionsWorkspace({
                       <table className="min-w-full text-left text-[12px]">
                         <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
                           <tr>
-                            <th className="px-3 py-2 font-semibold">{pages.cash.orderColumn}</th>
+                            <th className="px-3 py-2 font-semibold">Commande</th>
                             <th className="px-3 py-2 font-semibold">Méthode</th>
                             <th className="px-3 py-2 font-semibold">Montant</th>
                             <th className="px-3 py-2 font-semibold">Statut</th>

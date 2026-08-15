@@ -1,7 +1,4 @@
-import { redirect } from "next/navigation";
-
 import { requireAdminContext } from "@/lib/auth/workspace-context";
-import { isRetailActivity } from "@/lib/activity/profile";
 import {
   formatOrderPeriodLabel,
   resolveOrderPeriodRange,
@@ -18,12 +15,6 @@ type CommandesPageProps = {
 
 export default async function CommandesPage({ searchParams }: CommandesPageProps) {
   const workspace = await requireAdminContext();
-
-  // Commerce : l’historique des tickets se consulte dans Ventes.
-  if (isRetailActivity(workspace.activityCode)) {
-    redirect("/application/ventes");
-  }
-
   const raw = await searchParams;
 
   const parsed = adminOrderFiltersSchema.safeParse({
@@ -77,7 +68,6 @@ export default async function CommandesPage({ searchParams }: CommandesPageProps
       establishmentName={workspace.establishmentName}
       canManageOrders={workspace.canManageOrders}
       serviceScope={workspace.serviceScope}
-      activityCode={workspace.activityCode}
     />
   );
 }

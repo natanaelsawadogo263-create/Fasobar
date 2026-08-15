@@ -6,7 +6,6 @@ import { useState, useTransition } from "react";
 import { ChevronLeft, ChevronRight, ClipboardList, Search } from "lucide-react";
 
 import { cancelOrderAction } from "@/app/(protected)/application/caisse/actions";
-import { getActivityPages } from "@/lib/activity/pages";
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { OrderPrepBadges } from "@/components/ops/order-prep-badges";
@@ -53,7 +52,6 @@ type AdminOrdersWorkspaceProps = {
   establishmentName: string;
   canManageOrders: boolean;
   serviceScope?: ServiceScope;
-  activityCode?: string | null;
 };
 
 const DEPARTMENT_LABELS: Record<string, string> = {
@@ -85,12 +83,10 @@ export function AdminOrdersWorkspace({
   establishmentName,
   canManageOrders,
   serviceScope = "BOTH",
-  activityCode = null,
 }: AdminOrdersWorkspaceProps) {
   const router = useRouter();
-  const pages = getActivityPages(activityCode);
   const departments = allowedDepartments(serviceScope);
-  const singleScope = pages.retail || isSingleServiceScope(serviceScope);
+  const singleScope = isSingleServiceScope(serviceScope);
   const [, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<AdminOrderListItem | null>(null);
@@ -149,7 +145,7 @@ export function AdminOrdersWorkspace({
       }
 
       setCancelTarget(null);
-      setMessage(result.success ?? pages.detail.cancelToast);
+      setMessage(result.success ?? "Commande annulée.");
       refreshSoon(() => router.refresh());
     });
   }
@@ -192,7 +188,7 @@ export function AdminOrdersWorkspace({
     <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden px-3 py-2.5 sm:gap-2.5 sm:p-3 lg:p-3">
       <header className="shrink-0">
         <h1 className="text-[18px] font-bold leading-none tracking-tight text-slate-900 lg:text-[20px]">
-          {pages.tickets.title}
+          Commandes
         </h1>
         <p className="mt-0.5 text-[11px] text-slate-500">
           <span className="sm:hidden">{periodLabel}</span>
@@ -257,7 +253,7 @@ export function AdminOrdersWorkspace({
         <input
           type="search"
           defaultValue={filters.search ?? ""}
-          placeholder={pages.tickets.searchPlaceholder}
+          placeholder="N°, table, caissière…"
           className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-[14px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:h-9 sm:rounded-lg sm:text-[12px]"
           onKeyDown={(event) => {
             if (event.key === "Enter") {
@@ -322,7 +318,7 @@ export function AdminOrdersWorkspace({
           >
             <option value="all">Tous départements</option>
             {departments.includes("BAR") ? (
-              <option value="BAR">{pages.retail ? pages.supply.spaceLabel : "Boissons"}</option>
+              <option value="BAR">Boissons</option>
             ) : null}
             {departments.includes("KITCHEN") ? (
               <option value="KITCHEN">Cuisine</option>
@@ -334,7 +330,7 @@ export function AdminOrdersWorkspace({
           onChange={(event) => applyFilters({ cashierId: event.target.value })}
           className="h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-2.5 text-[13px] sm:h-9 sm:flex-none sm:rounded-lg sm:text-[12px]"
         >
-          <option value="">{pages.tickets.cashierFilterAll}</option>
+          <option value="">Tous caissiers</option>
           {cashiers.map((cashier) => (
             <option key={cashier.id} value={cashier.id}>
               {cashier.fullName}
@@ -410,10 +406,11 @@ export function AdminOrdersWorkspace({
               <ClipboardList className="h-6 w-6" />
             </div>
             <h2 className="mt-3 text-[15px] font-semibold text-slate-900">
-              {pages.tickets.emptyTitle}
+              Aucune commande
             </h2>
             <p className="mt-1 max-w-sm text-[12px] text-slate-500">
-              {pages.tickets.emptyDetail}
+              Ajustez les filtres pour retrouver les commandes de
+              l&apos;établissement.
             </p>
           </div>
         ) : (
@@ -474,12 +471,10 @@ export function AdminOrdersWorkspace({
                             </span>
                           ))
                         : null}
-                      {pages.retail ? null : (
-                        <OrderPrepBadges
-                          barStatus={order.barStatus}
-                          kitchenStatus={order.kitchenStatus}
-                        />
-                      )}
+                      <OrderPrepBadges
+                        barStatus={order.barStatus}
+                        kitchenStatus={order.kitchenStatus}
+                      />
                     </div>
                     <div className="mt-2.5 grid grid-cols-2 gap-2">
                       <Link
@@ -517,7 +512,7 @@ export function AdminOrdersWorkspace({
                         className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-xl border border-red-200 bg-red-50 text-[12px] font-semibold text-red-700 active:bg-red-100"
                         onClick={() => openCancelModal(order)}
                       >
-                        {pages.tickets.cancelLabel}
+                        Annuler la commande
                       </button>
                     ) : null}
                   </article>
@@ -531,11 +526,11 @@ export function AdminOrdersWorkspace({
                 <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-2.5 py-2 font-semibold">N°</th>
-                    <th className="px-2.5 py-2 font-semibold">{pages.tickets.clientColumn}</th>
+                    <th className="px-2.5 py-2 font-semibold">Table / Réf.</th>
                     {singleScope ? null : (
                       <th className="px-2.5 py-2 font-semibold">Département</th>
                     )}
-                    <th className="px-2.5 py-2 font-semibold">{pages.tickets.cashierColumn}</th>
+                    <th className="px-2.5 py-2 font-semibold">Caissier·ère</th>
                     <th className="px-2.5 py-2 font-semibold">Date</th>
                     <th className="px-2.5 py-2 font-semibold">Articles</th>
                     <th className="px-2.5 py-2 font-semibold">Total</th>
@@ -595,12 +590,10 @@ export function AdminOrdersWorkspace({
                           >
                             {ORDER_STATUS_LABELS[order.status]}
                           </span>
-                          {pages.retail ? null : (
-                            <OrderPrepBadges
-                              barStatus={order.barStatus}
-                              kitchenStatus={order.kitchenStatus}
-                            />
-                          )}
+                          <OrderPrepBadges
+                            barStatus={order.barStatus}
+                            kitchenStatus={order.kitchenStatus}
+                          />
                         </div>
                       </td>
                       <td className="px-2.5 py-1.5">
@@ -649,7 +642,7 @@ export function AdminOrdersWorkspace({
       {cancelTarget ? (
         <ModalShell
           formId="cancel-admin-order-form"
-          title={pages.tickets.cancelLabel}
+          title="Annuler la commande"
           subtitle={`${formatOrderNumber(cancelTarget.orderNumber)} — cette action est définitive.`}
           onClose={() => setCancelTarget(null)}
           onSubmit={handleCancelSubmit}
