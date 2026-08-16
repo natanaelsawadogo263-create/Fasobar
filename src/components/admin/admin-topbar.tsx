@@ -14,6 +14,9 @@ type AdminTopbarProps = {
   establishmentId: string;
   sidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
+  roleLabel?: string;
+  roleSubtitle?: string;
+  showNotifications?: boolean;
 };
 
 export function AdminTopbar({
@@ -22,6 +25,9 @@ export function AdminTopbar({
   establishmentId,
   sidebarCollapsed = false,
   onToggleSidebar,
+  roleLabel = "Admin",
+  roleSubtitle = "Administrateur",
+  showNotifications = true,
 }: AdminTopbarProps) {
   const initials =
     adminName
@@ -41,7 +47,7 @@ export function AdminTopbar({
           <p className="truncate text-[13px] font-semibold text-slate-900">
             {establishmentName}
           </p>
-          <p className="truncate text-[10px] text-slate-400">Admin</p>
+          <p className="truncate text-[10px] text-slate-400">{roleLabel}</p>
         </div>
       </div>
 
@@ -78,7 +84,9 @@ export function AdminTopbar({
         <FullscreenButton />
       </div>
 
-      <AdminNotificationsBell establishmentId={establishmentId} />
+      {showNotifications ? (
+        <AdminNotificationsBell establishmentId={establishmentId} />
+      ) : null}
 
       <form action={signOutAction} className="shrink-0">
         <button
@@ -90,8 +98,8 @@ export function AdminTopbar({
             {initials}
           </span>
           <span className="hidden leading-tight lg:block">
-            <span className="block text-[12px] font-semibold text-slate-900">Admin</span>
-            <span className="block text-[11px] text-slate-500">Administrateur</span>
+            <span className="block text-[12px] font-semibold text-slate-900">{roleLabel}</span>
+            <span className="block text-[11px] text-slate-500">{roleSubtitle}</span>
           </span>
         </button>
       </form>

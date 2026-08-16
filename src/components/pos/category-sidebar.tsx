@@ -102,6 +102,11 @@ export function CategorySidebar({
             </div>
           ) : (
             <div className="space-y-0.5">
+              <SidebarButton
+                active={categoryId === "all"}
+                label="Tous"
+                onClick={() => onCategoryChange("all")}
+              />
               {filteredCategories.map((category) => (
                 <SidebarButton
                   key={category.id}

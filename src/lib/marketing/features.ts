@@ -2,7 +2,7 @@
 export const MARKETING_FEATURES = [
   {
     title: "Caisse et ventes",
-    body: "Prenez les commandes, encaissez et clôturez la session sans papier.",
+    body: "Encaissez sur caisse tactile, imprimez le ticket ou le reçu, clôturez la session.",
   },
   {
     title: "Stock",
@@ -14,7 +14,7 @@ export const MARKETING_FEATURES = [
   },
   {
     title: "Équipe et rôles",
-    body: "Un compte par personne : admin, caisse, cuisine ou bar.",
+    body: "Un compte par personne, adapté à votre type d’établissement.",
   },
   {
     title: "Tableau de bord",

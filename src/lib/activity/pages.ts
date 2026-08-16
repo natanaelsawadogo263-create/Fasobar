@@ -12,8 +12,8 @@ export function getActivityPages(activityCode: string | null | undefined) {
     ticketNoun: retail ? "ticket" : "commande",
     ticketNounPlural: retail ? "tickets" : "commandes",
     sales: {
-      paidSubtitle: retail ? "ventes encaissées" : "commandes payées",
-      paidTitle: retail ? "Ventes encaissées" : "Commandes payées",
+      paidSubtitle: retail ? "nombre de ventes" : "commandes payées",
+      paidTitle: retail ? "Nombre de ventes" : "Commandes payées",
       paidShort: retail ? "Ventes" : "Commandes",
       basketSubtitle: retail ? "par vente" : "par commande",
       emptyDetail: retail
@@ -45,8 +45,8 @@ export function getActivityPages(activityCode: string | null | undefined) {
       cashierFilterAll: retail ? "Tous les vendeurs" : "Tous caissiers",
     },
     openTickets: {
-      title: retail ? "Tickets du jour" : "Commandes du jour",
-      emptyTitle: retail ? "Aucun ticket du jour" : "Aucune commande du jour",
+      title: retail ? "Ventes du jour" : "Commandes du jour",
+      emptyTitle: retail ? "Aucune vente du jour" : "Aucune commande du jour",
       emptyDetail: retail
         ? "Les ventes ouvertes, en attente et terminées de la journée apparaîtront ici."
         : "Les commandes ouvertes, en attente et terminées de la journée apparaîtront ici.",

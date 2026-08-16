@@ -94,6 +94,7 @@ export async function listDepartments(
   const { data, error } = await supabase
     .from("departments")
     .select("id, code, name")
+    .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
     .eq("active", true)
     .order("code");
@@ -113,6 +114,7 @@ export async function listCategories(
   const { data, error } = await supabase
     .from("categories")
     .select("id, name, departments(code)")
+    .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
     .eq("active", true)
     .order("name");
@@ -159,7 +161,8 @@ export async function listProducts(
     let query = supabase
       .from("products")
       .select(columns)
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
       .order("name");
 
     if (filters.tab === "bar" || filters.tab === "kitchen") {
@@ -252,6 +255,7 @@ export async function getProductById(
       "id, name, slug, description, selling_price, unit, minimum_stock, active, image_url, image_original_url, image_optimized_url, category_id, departments(code, name), categories(name)",
     )
     .eq("id", productId)
+    .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
 
@@ -262,7 +266,8 @@ export async function getProductById(
         "id, name, slug, description, selling_price, unit, minimum_stock, active, image_url, category_id, departments(code, name), categories(name)",
       )
       .eq("id", productId)
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
       .maybeSingle();
 
     if (legacy.error || !legacy.data) {
@@ -288,6 +293,7 @@ export async function getDepartmentIdByCode(
   const { data, error } = await supabase
     .from("departments")
     .select("id")
+    .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
     .eq("code", departmentCode)
     .maybeSingle();
@@ -310,6 +316,7 @@ export async function validateCategoryForDepartment(
     .from("categories")
     .select("id")
     .eq("id", categoryId)
+    .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
     .eq("department_id", departmentId)
     .eq("active", true)

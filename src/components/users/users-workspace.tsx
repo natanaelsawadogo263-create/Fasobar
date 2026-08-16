@@ -201,7 +201,7 @@ export function UsersWorkspace({
             type="button"
             onClick={() => setShowCreateModal(true)}
             disabled={isPending}
-            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:h-10 sm:gap-2 sm:px-4 sm:text-[13px] sm:hover:bg-emerald-500"
+            className="inline-flex h-11 min-h-11 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[13px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:px-4"
           >
             <UserPlus className="h-4 w-4" />
             <span className="sm:hidden">Créer</span>
@@ -212,7 +212,7 @@ export function UsersWorkspace({
         {error ? <AlertMessage message={error} /> : null}
 
         {/* Synthèse — desktop uniquement */}
-        <div className={`hidden grid-cols-2 gap-3 md:grid ${retail && profile.id !== "hardware" ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
+        <div className="hidden grid-cols-2 gap-3 md:grid lg:grid-cols-4">
           {[
             {
               label: "Actifs",
@@ -235,18 +235,22 @@ export function UsersWorkspace({
               icon: retail ? ShoppingBag : UtensilsCrossed,
               tone: "bg-orange-50 text-orange-700",
             },
-            ...(retail && profile.id !== "hardware"
-              ? []
+            ...(retail
+              ? [
+                  {
+                    label: profile.stockManagerLabel,
+                    value: stats.barManagerCount,
+                    hint: "catalogue et stock",
+                    icon: Package,
+                    tone: "bg-amber-50 text-amber-700",
+                  },
+                ]
               : [
                   {
-                    label:
-                      profile.id === "hardware"
-                        ? "Responsable Stock"
-                        : "Bar",
+                    label: "Bar",
                     value: stats.barManagerCount,
-                    hint:
-                      profile.id === "hardware" ? "catalogue et stock" : "stock boissons",
-                    icon: profile.id === "hardware" ? Package : Wine,
+                    hint: "stock boissons",
+                    icon: Wine,
                     tone: "bg-amber-50 text-amber-700",
                   },
                 ]),

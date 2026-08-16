@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ArrowRight, Calendar, Check, CreditCard, Gift } from "lucide-react";
+import { ArrowRight, Calendar, Check, CreditCard, Gift, Monitor } from "lucide-react";
 
 import {
   formatPriceAmountXof,
+  KIT_PLUS_YEARLY_XOF,
   PUBLIC_TRIAL_DURATION_DAYS,
   type PublicPlan,
   yearlySavingsXof,
@@ -25,6 +26,7 @@ export function PricingCards({ plans }: PricingCardsProps) {
   const savings = yearlySavingsXof(monthlyPrice, yearlyPrice);
 
   return (
+    <>
     <div className="grid items-stretch gap-6 lg:grid-cols-3 lg:gap-5">
       <PricingCard
         variant="trial"
@@ -81,6 +83,41 @@ export function PricingCards({ plans }: PricingCardsProps) {
         buttonStyle="outline-slate"
       />
     </div>
+      <article className="mt-6 rounded-2xl border border-amber-300/80 bg-gradient-to-r from-amber-50 to-white p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex gap-3">
+            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-[#07110e]">
+              <Monitor className="h-5 w-5" strokeWidth={2.25} />
+            </span>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-amber-800">
+                Kit + abonnement
+              </p>
+              <h2 className="mt-0.5 text-[18px] font-semibold text-slate-900">
+                Matériel et logiciel, prêts à encaisser
+              </h2>
+              <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-slate-600">
+                Caisse tactile, clavier, souris, imprimante thermique, installation
+                du logiciel, abonnement annuel, suivi et aide. L’abonnement
+                logiciel seul reste à {formatPriceAmountXof(yearlyPrice)} FCFA / an.
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0 text-left lg:text-right">
+            <p className="text-[32px] font-bold tabular-nums leading-none text-amber-800">
+              {formatPriceAmountXof(KIT_PLUS_YEARLY_XOF)}
+            </p>
+            <p className="mt-1 text-[13px] font-medium text-slate-600">FCFA · kit + 12 mois</p>
+            <Link
+              href="/contact"
+              className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-amber-500 px-4 text-[13px] font-semibold text-[#07110e] hover:bg-amber-400"
+            >
+              Commander le kit
+            </Link>
+          </div>
+        </div>
+      </article>
+    </>
   );
 }
 

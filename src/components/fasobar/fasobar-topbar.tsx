@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { ArrowLeft, Lock, LogOut, Package } from "lucide-react";
 
 import { getActivityPages } from "@/lib/activity/pages";
@@ -26,14 +26,14 @@ export function FasoBarTopbar() {
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-white/10 bg-[#0b1220] px-3 pt-[env(safe-area-inset-top)] text-white md:h-[3.25rem] md:gap-3 md:px-4">
       {/* Gauche : marque + établissement */}
       <div className="flex min-w-0 flex-1 items-center gap-2.5 md:flex-none md:max-w-[240px]">
-        <Link href="/application/caisse" className="shrink-0">
+        <InstantLink href="/application/caisse" className="shrink-0">
           <span className="md:hidden">
             <FasoBarLogo size="sm" tone="dark" markOnly />
           </span>
           <span className="hidden md:inline-flex">
             <FasoBarLogo size="sm" tone="dark" />
           </span>
-        </Link>
+        </InstantLink>
         <div className="hidden h-8 w-px shrink-0 bg-white/10 sm:block" aria-hidden />
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-400/90">
@@ -92,7 +92,7 @@ export function FasoBarTopbar() {
             ) : null}
           </button>
         ) : (
-          <Link
+          <InstantLink
             href="/application/commandes-ouvertes"
             className={`${iconBtn} relative`}
             title={pages.pos.openTicketsTitle}
@@ -104,7 +104,7 @@ export function FasoBarTopbar() {
                 {openCount > 99 ? "99+" : openCount}
               </span>
             ) : null}
-          </Link>
+          </InstantLink>
         )}
 
         {sessionOpen ? (
@@ -120,7 +120,7 @@ export function FasoBarTopbar() {
         ) : null}
 
         {ctx?.adminReturnHref ? (
-          <Link
+          <InstantLink
             href={ctx.adminReturnHref}
             className="inline-flex h-11 min-h-11 items-center gap-1.5 rounded-xl px-2.5 text-[12px] font-semibold text-emerald-300 active:bg-white/10 md:h-9 md:min-h-9 md:hover:bg-white/10"
             title="Retour à l’espace admin"
@@ -128,7 +128,7 @@ export function FasoBarTopbar() {
             <ArrowLeft className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">Espace admin</span>
             <span className="sm:hidden">Admin</span>
-          </Link>
+          </InstantLink>
         ) : null}
 
         <div className="hidden md:block">

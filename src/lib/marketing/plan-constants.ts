@@ -30,6 +30,9 @@ export const FALLBACK_PUBLIC_PLANS: PublicPlan[] = [
   },
 ];
 
+/** Kit matériel (caisse, clavier, souris, imprimante) + abonnement annuel. */
+export const KIT_PLUS_YEARLY_XOF = 350_000;
+
 export function formatPriceAmountXof(amount: number): string {
   return new Intl.NumberFormat("fr-FR", {
     maximumFractionDigits: 0,

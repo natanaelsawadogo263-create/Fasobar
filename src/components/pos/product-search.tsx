@@ -32,13 +32,13 @@ export const ProductSearch = forwardRef<HTMLInputElement, ProductSearchProps>(
           value={value}
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
-          placeholder={compact ? "Rechercher un produit" : "Rechercher un produit… (F2)"}
-          aria-label="Rechercher un produit (F2 ou /)"
+          placeholder={compact ? "Rechercher…" : "Rechercher un article…"}
+          aria-label="Rechercher un article"
           title="Rechercher un produit (F2 ou /)"
           className={`w-full rounded-lg outline-none transition focus:ring-2 disabled:cursor-not-allowed disabled:opacity-60 ${
             compact
-              ? "py-2 pl-8 pr-8 text-[11px] leading-none"
-              : "py-2.5 pl-10 pr-3 text-sm"
+              ? "h-11 py-2 pl-8 pr-8 text-[16px] leading-none"
+              : "h-11 py-2.5 pl-10 pr-3 text-[16px] sm:text-sm"
           } ${
             isDark
               ? "border border-slate-700/80 bg-[#111827] text-white placeholder:text-slate-500 focus:border-emerald-500 focus:ring-emerald-500/20"

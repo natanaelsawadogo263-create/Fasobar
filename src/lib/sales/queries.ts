@@ -71,7 +71,7 @@ export async function getAdminSalesData(
     .select(
       "id, order_number, total_amount, created_at, updated_at, created_by, profiles!orders_created_by_fkey(full_name)",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .eq("payment_status", "PAID")
     .order("updated_at", { ascending: false })
@@ -110,7 +110,7 @@ export async function getAdminSalesData(
     .select(
       "order_id, product_id, product_name_snapshot, quantity, line_total, department_id",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .in("order_id", orderIds);
 
   const items = (itemRows ?? []) as OrderItemRow[];

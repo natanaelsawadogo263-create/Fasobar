@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, PanelLeftClose, PanelLeftOpen, UtensilsCrossed, Wine } from "lucide-react";
 
@@ -142,12 +142,22 @@ export function FasoBarSidebar({ collapsed = false, onToggle }: FasoBarSidebarPr
           })}
         </div>
 
-        {!collapsed && categoryOptions.length > 0 ? (
+        {!collapsed && (categoryOptions.length > 0 || isCaisse) ? (
           <div className="mt-5">
             <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
               Catégories
             </p>
             <div className="space-y-0.5">
+              <SidebarItem
+                active={filters?.categoryId === "all"}
+                label="Tous"
+                onClick={
+                  filters
+                    ? () => filters.onCategoryChange("all")
+                    : undefined
+                }
+                href={!filters ? "/application/caisse?category=all" : undefined}
+              />
               {categoryOptions.map((category) => (
                 <SidebarItem
                   key={category.id}
@@ -202,9 +212,9 @@ function SidebarItem({
 
   if (href) {
     return (
-      <Link href={href} className={className} title={label} aria-label={label}>
+      <InstantLink href={href} className={className} title={label} aria-label={label} prefetch>
         {content}
-      </Link>
+      </InstantLink>
     );
   }
 

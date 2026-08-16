@@ -3,7 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
-import { isHardwareAdminDirectSeller } from "@/lib/hardware/activity";
+import { isRetailAdminDirectSeller } from "@/lib/activity/ops-model";
 import { getLocalDatabase } from "@/lib/local-db/database";
 import type { SqlDatabase } from "@/lib/local-db/types";
 import { getLocalDeviceId, moneyXof } from "@/lib/local-domain/device";
@@ -145,7 +145,7 @@ export function openLocalCashSession(
 export function ensureLocalImplicitAdminCashSession(
   workspace: WorkspaceContext,
 ): CashSessionDetail | null {
-  if (!isHardwareAdminDirectSeller(workspace)) {
+  if (!isRetailAdminDirectSeller(workspace)) {
     return getLocalActiveCashSession(
       getLocalDatabase({ skipBackup: true }),
       workspace,

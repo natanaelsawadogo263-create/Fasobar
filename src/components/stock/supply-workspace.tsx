@@ -15,23 +15,28 @@ import {
 
 import {
   createSupplierAction,
-  recordStockEntryAction,
+  deleteSupplyReceiptDraftAction,
+  getSupplyReceiptAction,
+  saveSupplyReceiptAction,
   toggleSupplierStatusAction,
   updateSupplierAction,
 } from "@/app/(protected)/application/stock/actions";
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
-import { StockEntryModal } from "@/components/stock/stock-entry-modal";
+import { SupplyReceiptModal } from "@/components/stock/supply-receipt-modal";
 import {
   SupplierFormModal,
   type SupplierFormState,
 } from "@/components/stock/supplier-form-modal";
+import { isRetailActivity } from "@/lib/activity/profile";
 import { formatPriceXof, formatQuantity } from "@/lib/stock/constants";
 import { resolveOrderPeriodRange, toLocalIsoDate } from "@/lib/orders/period";
 import type {
   RecentSupplyEntry,
   StockListItem,
   SupplierOption,
+  SupplyReceiptDetail,
+  SupplyReceiptListItem,
 } from "@/lib/stock/types";
 import type { ProductPackaging } from "@/lib/products/types";
 import {
@@ -48,6 +53,7 @@ type SupplyWorkspaceProps = {
   suppliers: SupplierOption[];
   stockItems: StockListItem[];
   recentEntries: RecentSupplyEntry[];
+  receipts?: SupplyReceiptListItem[] | null;
   packagingsByProduct?: Record<string, ProductPackaging[]>;
   canManageStock: boolean;
   /** Espace responsable bar : layout compact. */
@@ -89,6 +95,7 @@ export function SupplyWorkspace({
   suppliers,
   stockItems,
   recentEntries,
+  receipts,
   packagingsByProduct = {},
   canManageStock,
   compact = false,
@@ -102,8 +109,8 @@ export function SupplyWorkspace({
   activityCode = null,
 }: SupplyWorkspaceProps) {
   void establishmentName;
-  void activityCode;
   void periodLabel;
+  const retail = isRetailActivity(activityCode);
   const router = useRouter();
   const availableDepartments = lockedDepartment
     ? [lockedDepartment]
@@ -114,6 +121,7 @@ export function SupplyWorkspace({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showEntryModal, setShowEntryModal] = useState(false);
+  const [editingReceipt, setEditingReceipt] = useState<SupplyReceiptDetail | null>(null);
   const [supplierFormMode, setSupplierFormMode] = useState<SupplierFormMode>(null);
   const [editingSupplier, setEditingSupplier] = useState<SupplierOption | null>(null);
   const [departmentFilter, setDepartmentFilter] =
@@ -192,6 +200,24 @@ export function SupplyWorkspace({
       ),
     [departmentEntries],
   );
+  const departmentReceipts = useMemo(() => {
+    if (!receipts) return null;
+    return receipts.filter(
+      (item) =>
+        item.departmentCodes.length === 0 ||
+        item.departmentCodes.includes(activeDepartment),
+    );
+  }, [receipts, activeDepartment]);
+  const totalReceiptCost = useMemo(
+    () =>
+      (departmentReceipts ?? [])
+        .filter((item) => item.status === "VALIDATED")
+        .reduce((sum, item) => sum + item.totalAmount, 0),
+    [departmentReceipts],
+  );
+  const historyCount =
+    departmentReceipts !== null ? departmentReceipts.length : departmentEntries.length;
+  const historyTotal = departmentReceipts !== null ? totalReceiptCost : totalRecentCost;
 
   function openCreateSupplier() {
     setEditingSupplier(null);
@@ -219,16 +245,70 @@ export function SupplyWorkspace({
     setSupplierError(null);
   }
 
-  async function handleEntrySubmit(formData: FormData) {
+  async function handleReceiptSave(payload: {
+    receiptId?: string;
+    supplierId: string;
+    receivedOn: string;
+    notes?: string;
+    validate: boolean;
+    lines: Array<{
+      stockItemId: string;
+      productId: string | null;
+      unitLevelId: string | null;
+      unitName: string;
+      purchasedQuantity: number;
+      conversionFactor: number;
+      stockQuantity: number;
+      purchasePrice: number;
+      lineTotal: number;
+    }>;
+  }) {
     setEntryError(null);
     startTransition(async () => {
-      const result = await recordStockEntryAction({}, formData);
+      const result = await saveSupplyReceiptAction(payload);
       if (result.error) {
         setEntryError(result.error);
         return;
       }
-      setMessage(result.success ?? "Entrée enregistrée.");
+      setMessage(result.success ?? "Approvisionnement enregistré.");
       setShowEntryModal(false);
+      setEditingReceipt(null);
+      refreshSoon(() => router.refresh());
+    });
+  }
+
+  async function handleOpenDraft(receipt: SupplyReceiptListItem) {
+    if (receipt.status !== "DRAFT" || !canManageStock) return;
+    setEntryError(null);
+    startTransition(async () => {
+      const result = await getSupplyReceiptAction(receipt.id);
+      if (result.error || !result.receipt) {
+        setError(result.error ?? "Impossible d’ouvrir ce brouillon.");
+        return;
+      }
+      if (result.receipt.status !== "DRAFT") {
+        setError("Cet approvisionnement est déjà validé.");
+        return;
+      }
+      setEditingReceipt(result.receipt);
+      setShowEntryModal(true);
+    });
+  }
+
+  function openNewReceipt() {
+    setEditingReceipt(null);
+    setEntryError(null);
+    setShowEntryModal(true);
+  }
+
+  async function handleDeleteDraft(receiptId: string) {
+    startTransition(async () => {
+      const result = await deleteSupplyReceiptDraftAction(receiptId);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setMessage(result.success ?? "Brouillon supprimé.");
       refreshSoon(() => router.refresh());
     });
   }
@@ -333,8 +413,8 @@ export function SupplyWorkspace({
             ) : null}
           </p>
           <p className="mt-0.5 text-[11px] text-slate-500 sm:hidden">
-            {departmentEntries.length} entrée
-            {departmentEntries.length > 1 ? "s" : ""}
+            {historyCount} entrée
+            {historyCount > 1 ? "s" : ""}
             <span className="text-slate-300"> · </span>
             {activeSuppliers.length} fournisseur
             {activeSuppliers.length > 1 ? "s" : ""}
@@ -355,10 +435,7 @@ export function SupplyWorkspace({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setEntryError(null);
-                setShowEntryModal(true);
-              }}
+              onClick={openNewReceipt}
               disabled={isPending || !canCreateEntry}
               title={
                 departmentItems.length === 0
@@ -455,7 +532,7 @@ export function SupplyWorkspace({
             Entrées
           </p>
           <p className="mt-0.5 truncate text-[15px] font-bold tabular-nums text-slate-900">
-            {departmentEntries.length}
+            {historyCount}
           </p>
         </div>
         <div className="w-[40%] min-w-[8rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-sm">
@@ -463,10 +540,10 @@ export function SupplyWorkspace({
             Montant
           </p>
           <p className="mt-0.5 truncate text-[15px] font-bold tabular-nums text-slate-900">
-            {formatPriceXof(totalRecentCost)}
+            {formatPriceXof(historyTotal)}
           </p>
         </div>
-        {!compact ? (
+        {!compact && !retail ? (
           <div className="w-[40%] min-w-[8rem] shrink-0 rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-sm">
             <p className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               Articles
@@ -481,7 +558,11 @@ export function SupplyWorkspace({
       {/* KPI desktop */}
       <div
         className={`hidden shrink-0 gap-2 md:grid ${
-          compact ? "grid-cols-3" : "grid-cols-2 lg:grid-cols-4"
+          compact
+            ? "grid-cols-3"
+            : retail
+              ? "grid-cols-3"
+              : "grid-cols-2 lg:grid-cols-4"
         }`}
       >
         <StatCard
@@ -492,17 +573,17 @@ export function SupplyWorkspace({
         />
         <StatCard
           title={compact ? "Entrées" : "Entrées récentes"}
-          value={String(departmentEntries.length)}
+          value={String(historyCount)}
           icon={Truck}
           tone="emerald"
         />
         <StatCard
           title={compact ? "Montant" : "Montant récent"}
-          value={formatPriceXof(totalRecentCost)}
+          value={formatPriceXof(historyTotal)}
           icon={Wallet}
           tone="amber"
         />
-        {!compact ? (
+        {!compact && !retail ? (
           <StatCard
             title={`Articles ${SPACE_LABELS[activeDepartment].toLowerCase()}`}
             value={String(departmentItems.length)}
@@ -520,13 +601,13 @@ export function SupplyWorkspace({
                 Entrées récentes
               </h2>
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-slate-500">
-                {departmentEntries.length}
+                {historyCount}
               </span>
             </div>
           </div>
 
           <div className="app-scroll min-h-0 flex-1 overflow-auto">
-            {departmentEntries.length === 0 ? (
+            {historyCount === 0 ? (
               <div className="flex flex-col items-center px-6 py-12 text-center">
                 <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                   <Truck className="h-5 w-5" aria-hidden />
@@ -540,10 +621,7 @@ export function SupplyWorkspace({
                 {canManageStock ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      setEntryError(null);
-                      setShowEntryModal(true);
-                    }}
+                    onClick={openNewReceipt}
                     disabled={!canCreateEntry}
                     className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 text-[12px] font-semibold text-white active:bg-emerald-500 disabled:opacity-60 sm:h-9 sm:hover:bg-emerald-500"
                   >
@@ -556,7 +634,66 @@ export function SupplyWorkspace({
               <>
                 {/* Mobile : cartes */}
                 <div className="space-y-1.5 p-2 md:hidden">
-                  {departmentEntries.map((entry) => (
+                  {departmentReceipts !== null
+                    ? departmentReceipts.map((receipt) => (
+                        <article
+                          key={receipt.id}
+                          className={`rounded-xl border border-slate-200 bg-white px-3 py-2.5 ${
+                            receipt.status === "DRAFT" && canManageStock ? "cursor-pointer" : ""
+                          }`}
+                          onClick={() => {
+                            if (receipt.status === "DRAFT") void handleOpenDraft(receipt);
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-[13px] font-semibold text-slate-900">
+                                {receipt.supplierName}
+                              </p>
+                              <p className="mt-0.5 text-[11px] text-slate-500">
+                                {new Date(`${receipt.receivedOn}T12:00:00`).toLocaleDateString("fr-FR", {
+                                  day: "2-digit",
+                                  month: "short",
+                                })}
+                                <span className="text-slate-300"> · </span>
+                                {receipt.lineCount} produit{receipt.lineCount > 1 ? "s" : ""}
+                                <span className="text-slate-300"> · </span>
+                                {receipt.status === "DRAFT" ? "Brouillon" : "Validé"}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-[13px] font-bold tabular-nums text-slate-900">
+                                {formatPriceXof(receipt.totalAmount)}
+                              </p>
+                              {receipt.status === "DRAFT" && canManageStock ? (
+                                <div className="mt-1 flex flex-col items-end gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      void handleOpenDraft(receipt);
+                                    }}
+                                    className="text-[11px] font-semibold text-emerald-700"
+                                  >
+                                    Ouvrir
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleDeleteDraft(receipt.id);
+                                    }}
+                                    className="text-[11px] font-medium text-red-600"
+                                  >
+                                    Supprimer
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </article>
+                      ))
+                    : departmentEntries.map((entry) => (
                     <article
                       key={entry.id}
                       className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
@@ -600,14 +737,69 @@ export function SupplyWorkspace({
                   <thead className="sticky top-0 z-10 bg-slate-50/95 text-[10px] font-semibold uppercase tracking-wide text-slate-400 backdrop-blur">
                     <tr>
                       <th className="px-3.5 py-2.5 font-medium">Date</th>
-                      <th className="px-3.5 py-2.5 font-medium">Article</th>
                       <th className="px-3.5 py-2.5 font-medium">Fournisseur</th>
-                      <th className="px-3.5 py-2.5 font-medium">Qté</th>
+                      <th className="px-3.5 py-2.5 font-medium">Produits</th>
+                      <th className="px-3.5 py-2.5 font-medium">Statut</th>
                       <th className="px-3.5 py-2.5 text-right font-medium">Montant</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {departmentEntries.map((entry) => (
+                    {departmentReceipts !== null
+                      ? departmentReceipts.map((receipt) => (
+                          <tr
+                            key={receipt.id}
+                            className={`text-slate-700 hover:bg-slate-50/70 ${
+                              receipt.status === "DRAFT" && canManageStock ? "cursor-pointer" : ""
+                            }`}
+                            onClick={() => {
+                              if (receipt.status === "DRAFT") void handleOpenDraft(receipt);
+                            }}
+                          >
+                            <td className="whitespace-nowrap px-3.5 py-2.5 text-slate-500">
+                              {new Date(`${receipt.receivedOn}T12:00:00`).toLocaleDateString("fr-FR", {
+                                day: "2-digit",
+                                month: "short",
+                              })}
+                            </td>
+                            <td className="px-3.5 py-2.5 font-semibold text-slate-900">
+                              {receipt.supplierName}
+                            </td>
+                            <td className="px-3.5 py-2.5 tabular-nums text-slate-700">
+                              {receipt.lineCount}
+                            </td>
+                            <td className="px-3.5 py-2.5 text-slate-600">
+                              {receipt.status === "DRAFT" ? "Brouillon" : "Validé"}
+                              {receipt.status === "DRAFT" && canManageStock ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      void handleOpenDraft(receipt);
+                                    }}
+                                    className="ml-2 text-[11px] font-semibold text-emerald-700"
+                                  >
+                                    Ouvrir
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleDeleteDraft(receipt.id);
+                                    }}
+                                    className="ml-2 text-[11px] font-medium text-red-600"
+                                  >
+                                    Supprimer
+                                  </button>
+                                </>
+                              ) : null}
+                            </td>
+                            <td className="px-3.5 py-2.5 text-right font-semibold tabular-nums text-slate-900">
+                              {formatPriceXof(receipt.totalAmount)}
+                            </td>
+                          </tr>
+                        ))
+                      : departmentEntries.map((entry) => (
                       <tr
                         key={entry.id}
                         className="text-slate-700 hover:bg-slate-50/70"
@@ -790,15 +982,20 @@ export function SupplyWorkspace({
       </div>
 
       {showEntryModal && canManageStock ? (
-        <StockEntryModal
+        <SupplyReceiptModal
+          key={editingReceipt?.id ?? "new"}
           stockItems={departmentItems}
           suppliers={activeSuppliers}
           packagingsByProduct={packagingsByProduct}
+          initialDraft={editingReceipt}
           formError={entryError}
           isPending={isPending}
-          drinksOnly={activeDepartment === "BAR"}
-          onClose={() => setShowEntryModal(false)}
-          onSubmit={handleEntrySubmit}
+          onClose={() => {
+            setShowEntryModal(false);
+            setEditingReceipt(null);
+            setEntryError(null);
+          }}
+          onSave={handleReceiptSave}
         />
       ) : null}
 
@@ -812,6 +1009,7 @@ export function SupplyWorkspace({
             lockedDepartment ??
             (availableDepartments.length === 1 ? availableDepartments[0] : null)
           }
+          hideDepartment={retail}
           onClose={closeSupplierForm}
           onSubmit={handleSupplierSubmit}
           onChange={setSupplierForm}

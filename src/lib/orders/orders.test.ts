@@ -27,6 +27,27 @@ describe("order schemas", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepte deux lignes du même produit avec des unités différentes", () => {
+    const result = saveOrderSchema.safeParse({
+      orderId: "00000000-0000-4000-8000-000000000099",
+      orderType: "TAKEAWAY",
+      targetStatus: "OPEN",
+      items: [
+        {
+          productId: "00000000-0000-4000-8000-000000000001",
+          quantity: 2,
+          saleUnitId: "00000000-0000-4000-8000-0000000000aa",
+        },
+        {
+          productId: "00000000-0000-4000-8000-000000000001",
+          quantity: 1,
+          saleUnitId: "00000000-0000-4000-8000-0000000000bb",
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("refuse une commande sans article pour enregistrement", () => {
     const result = saveOrderSchema.safeParse({
       orderId: "00000000-0000-4000-8000-000000000099",

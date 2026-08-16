@@ -31,7 +31,7 @@ import {
   canManageDepartmentStock,
   formatPriceXof,
   formatQuantity,
-  PRODUCT_UNIT_LABELS,
+  formatProductUnitDisplay,
 } from "@/lib/stock/constants";
 import type { CategoryOption, ProductPackaging } from "@/lib/products/types";
 import type { StockTab } from "@/lib/stock/schemas";
@@ -42,6 +42,7 @@ import type {
   SupplierOption,
 } from "@/lib/stock/types";
 import { getActivityProfile, isRetailActivity } from "@/lib/activity/profile";
+import { isHardwareActivity } from "@/lib/hardware/activity";
 import {
   isSingleServiceScope,
   type ServiceScope,
@@ -126,16 +127,19 @@ export function StockWorkspace({
   void canManageKitchenStock;
   const router = useRouter();
   const retail = isRetailActivity(activityCode);
+  const hardware = isHardwareActivity(activityCode);
   const activity = getActivityProfile(activityCode);
   const singleScope = drinksOnly || isSingleServiceScope(serviceScope) || retail;
-  const stockTitle = retail
-    ? activity.stockNavLabel
-    : drinksOnly
-      ? "Stock boissons"
-      : serviceScope === "KITCHEN"
-        ? "Stock nourriture"
-        : "Stock";
-  const articlesKpiTitle = retail
+  const stockTitle = hardware
+    ? "Stock restant"
+    : retail
+      ? activity.stockNavLabel
+      : drinksOnly
+        ? "Stock boissons"
+        : serviceScope === "KITCHEN"
+          ? "Stock nourriture"
+          : "Stock";
+  const articlesKpiTitle = hardware || retail
     ? "Articles"
     : drinksOnly || serviceScope === "BAR"
       ? "Articles"
@@ -334,10 +338,11 @@ export function StockWorkspace({
 
       {/* KPI : desktop uniquement — trop serrés sur téléphone */}
       <div
-        className={`hidden shrink-0 grid-cols-3 md:grid ${
-          retail ? "gap-2" : "gap-2.5 lg:gap-3"
+        className={`hidden shrink-0 md:grid ${
+          hardware ? "grid-cols-2 gap-2" : retail ? "grid-cols-3 gap-2" : "grid-cols-3 gap-2.5 lg:gap-3"
         }`}
       >
+        {hardware ? null : (
         <StatCard
           title={articlesKpiTitle}
           value={articlesKpiValue}
@@ -346,6 +351,7 @@ export function StockWorkspace({
           tone="sky"
           compact={drinksOnly || retail}
         />
+        )}
         <StatCard
           title={drinksOnly ? "Alertes" : retail ? "Alertes" : "Produits en alerte"}
           value={String(stats.alertCount)}
@@ -460,9 +466,9 @@ export function StockWorkspace({
                           <StockStatusBadge status={item.status} />
                         </div>
                         <p className="mt-0.5 truncate text-[11px] text-slate-500">
-                          {formatQuantity(item.currentQuantity, item.unit)}
+                          {formatQuantity(item.currentQuantity, item.unit, item.stockUnitLabel)}
                           <span className="text-slate-300"> · </span>
-                          min {formatQuantity(item.minimumQuantity, item.unit)}
+                          min {formatQuantity(item.minimumQuantity, item.unit, item.stockUnitLabel)}
                           {item.categoryName ? (
                             <>
                               <span className="text-slate-300"> · </span>
@@ -560,10 +566,10 @@ export function StockWorkspace({
                     canManageBarStock,
                     canManageKitchenStock,
                   );
-                  const unitLabel =
-                    PRODUCT_UNIT_LABELS[
-                      item.unit as keyof typeof PRODUCT_UNIT_LABELS
-                    ] ?? item.unit;
+                  const unitLabel = formatProductUnitDisplay(
+                    item.unit,
+                    item.stockUnitLabel,
+                  );
 
                   return (
                     <tr
@@ -583,10 +589,10 @@ export function StockWorkspace({
                         </td>
                       )}
                       <td className="px-3.5 py-2.5 font-semibold tabular-nums text-slate-900">
-                        {formatQuantity(item.currentQuantity, item.unit)}
+                        {formatQuantity(item.currentQuantity, item.unit, item.stockUnitLabel)}
                       </td>
                       <td className="px-3.5 py-2.5 tabular-nums text-slate-600">
-                        {formatQuantity(item.minimumQuantity, item.unit)}
+                        {formatQuantity(item.minimumQuantity, item.unit, item.stockUnitLabel)}
                       </td>
                       {!singleScope ? (
                         <td className="px-3.5 py-2.5 text-slate-600">

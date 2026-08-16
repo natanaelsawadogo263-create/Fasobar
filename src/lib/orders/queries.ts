@@ -12,7 +12,7 @@ import type {
   OrderDetail,
   OrderLineItem,
 } from "@/lib/orders/types";
-import type { AdminOrderFiltersInput } from "@/lib/orders/schemas";
+import { formatProductUnitDisplay } from "@/lib/products/constants";
 import {
   getCatalogFormProfile,
   shouldShowCatalogCategory,
@@ -26,6 +26,7 @@ import {
   isAdminClientConfigured,
 } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { listCommerceUnitsForProducts } from "@/lib/products/packaging-queries";
 
 function readSingle<T>(value: T | T[] | null): T | null {
   if (!value) {
@@ -66,7 +67,7 @@ export async function listCashierCategories(
   const { data, error } = await supabase
     .from("categories")
     .select("id, name, departments(code)")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("active", true)
     .order("name");
 
@@ -110,7 +111,7 @@ export async function listCashierProducts(
     const { listLocalCashierProducts } = await loadLocalCatalogService();
     const local = listLocalCashierProducts(workspace.establishmentId);
     if (local.length > 0) {
-      return local;
+      return attachCashierSaleUnits(workspace, local);
     }
   }
 
@@ -120,14 +121,14 @@ export async function listCashierProducts(
   const stockQuery = stockClient
     .from("stock_items")
     .select("product_id, name, current_quantity, active")
-    .eq("establishment_id", workspace.establishmentId);
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId);
 
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, name, selling_price, unit, image_url, image_original_url, image_optimized_url, category_id, departments(code, name), categories(name)",
+      "id, name, selling_price, unit, stock_unit_label, fractionable, image_url, image_original_url, image_optimized_url, category_id, departments(code, name), categories(name)",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("active", true)
     .order("name");
 
@@ -136,14 +137,15 @@ export async function listCashierProducts(
 
   if (
     error?.message?.includes("image_original_url") ||
-    error?.message?.includes("image_optimized_url")
+    error?.message?.includes("image_optimized_url") ||
+    error?.message?.includes("fractionable")
   ) {
     const legacy = await supabase
       .from("products")
       .select(
         "id, name, selling_price, unit, image_url, category_id, departments(code, name), categories(name)",
       )
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("active", true)
       .order("name");
     rows = (legacy.data as Array<Record<string, unknown>> | null) ?? null;
@@ -155,7 +157,10 @@ export async function listCashierProducts(
   if (selectError || !rows) {
     if (isDesktopServerRuntime()) {
       const { listLocalCashierProducts } = await loadLocalCatalogService();
-      return listLocalCashierProducts(workspace.establishmentId);
+      return attachCashierSaleUnits(
+        workspace,
+        listLocalCashierProducts(workspace.establishmentId),
+      );
     }
     return [];
   }
@@ -182,7 +187,7 @@ export async function listCashierProducts(
 
   const hasStockCatalog = (stockRows?.length ?? 0) > 0;
 
-  return rows.flatMap((row) => {
+  const products = rows.flatMap((row) => {
     const department = readSingle(
       row.departments as { code: string; name: string } | { code: string; name: string }[] | null,
     );
@@ -212,16 +217,57 @@ export async function listCashierProducts(
         id: row.id as string,
         name,
         sellingPrice: row.selling_price as number,
-        unit: row.unit as string,
+        unit: formatProductUnitDisplay(
+          String(row.unit ?? ""),
+          typeof row.stock_unit_label === "string" ? row.stock_unit_label : null,
+        ),
         imageUrl: optimized ?? original ?? legacy,
         departmentCode: department.code,
         departmentName: department.name,
         categoryId: row.category_id as string,
         categoryName: category.name,
         stockQuantity,
+        fractionable: Boolean(row.fractionable),
       },
     ];
   });
+
+  const saleMap = await listCommerceUnitsForProducts(
+    workspace,
+    products.map((product) => product.id),
+    "sale",
+  );
+
+  return attachSaleUnitsFromMap(products, saleMap);
+}
+
+function attachSaleUnitsFromMap(
+  products: CashierProduct[],
+  saleMap: Awaited<ReturnType<typeof listCommerceUnitsForProducts>>,
+): CashierProduct[] {
+  return products.map((product) => {
+    const units = saleMap[product.id] ?? [];
+    const saleUnits = units.map((unit) => ({
+      id: unit.id,
+      name: unit.name,
+      price: unit.sellingPrice ?? 0,
+      factor: unit.conversionFactor || 1,
+      allowDecimal: Boolean(unit.allowDecimal),
+    }));
+    return { ...product, saleUnits };
+  });
+}
+
+async function attachCashierSaleUnits(
+  workspace: WorkspaceContext,
+  products: CashierProduct[],
+): Promise<CashierProduct[]> {
+  const saleMap = await listCommerceUnitsForProducts(
+    workspace,
+    products.map((product) => product.id),
+    "sale",
+  );
+  return attachSaleUnitsFromMap(products, saleMap);
 }
 
 export async function listOpenOrders(
@@ -255,7 +301,7 @@ export async function countCashierOpenOrders(
   const { data, error } = await supabase
     .from("orders")
     .select("status")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"])
     .neq("payment_status", "PAID")
     .limit(200);
@@ -316,7 +362,7 @@ export async function listCashierOrders(
   const activeQuery = supabase
     .from("orders")
     .select(selectClause)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"])
     .neq("payment_status", "PAID")
     .order("created_at", { ascending: false })
@@ -327,7 +373,7 @@ export async function listCashierOrders(
     ? supabase
         .from("orders")
         .select(selectClause)
-        .eq("establishment_id", workspace.establishmentId)
+        .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
         .eq("payment_status", "PAID")
         .neq("status", "CANCELLED")
         .gte("updated_at", dayStartIso)
@@ -396,6 +442,10 @@ type OrderItemRow = {
   quantity: number;
   line_total: number;
   notes: string | null;
+  unit_level_id?: string | null;
+  sale_unit_name?: string | null;
+  sale_unit_factor?: number | null;
+  stock_quantity?: number | null;
   departments: { code: string; name: string } | { code: string; name: string }[] | null;
 };
 
@@ -412,6 +462,10 @@ function mapOrderItem(row: OrderItemRow): OrderLineItem {
     departmentCode: department?.code ?? "BAR",
     departmentName: department?.name ?? "—",
     notes: row.notes,
+    saleUnitId: row.unit_level_id ?? null,
+    saleUnitName: row.sale_unit_name ?? null,
+    saleUnitFactor: row.sale_unit_factor ?? null,
+    stockQuantity: row.stock_quantity ?? null,
   };
 }
 
@@ -440,7 +494,7 @@ export async function getOrderById(
     .from("orders")
     .select(orderSelectWithProfile)
     .eq("id", orderId)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
 
   if (orderResult.error) {
@@ -448,7 +502,7 @@ export async function getOrderById(
       .from("orders")
       .select(orderSelectPlain)
       .eq("id", orderId)
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .maybeSingle();
   }
 
@@ -458,9 +512,9 @@ export async function getOrderById(
   }
 
   const itemsSelectWithDept =
-    "id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total, notes, departments(code, name)";
+    "id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total, notes, unit_level_id, sale_unit_name, sale_unit_factor, stock_quantity, departments(code, name)";
   const itemsSelectPlain =
-    "id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total, notes";
+    "id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total, notes, unit_level_id, sale_unit_name, sale_unit_factor, stock_quantity";
 
   let itemsResult = await supabase
     .from("order_items")
@@ -472,6 +526,16 @@ export async function getOrderById(
     itemsResult = (await supabase
       .from("order_items")
       .select(itemsSelectPlain)
+      .eq("order_id", orderId)
+      .order("created_at")) as typeof itemsResult;
+  }
+
+  if (itemsResult.error) {
+    const legacyDept =
+      "id, product_id, product_name_snapshot, unit_price_snapshot, quantity, line_total, notes, departments(code, name)";
+    itemsResult = (await supabase
+      .from("order_items")
+      .select(legacyDept)
       .eq("order_id", orderId)
       .order("created_at")) as typeof itemsResult;
   }
@@ -516,7 +580,7 @@ export async function listOrderCashiers(
   const { data, error } = await supabase
     .from("orders")
     .select("created_by, profiles!orders_created_by_fkey(full_name)")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .order("created_at", { ascending: false })
     .limit(500);
@@ -552,7 +616,7 @@ export async function listAdminOrders(
     .select(
       "id, order_number, table_reference, customer_reference, status, payment_status, bar_status, kitchen_status, total_amount, created_at, created_by, profiles!orders_created_by_fkey(full_name), order_items(id, departments(code)), receipts(id)",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .order("created_at", { ascending: false })
     .limit(300);

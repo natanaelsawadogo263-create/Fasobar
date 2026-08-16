@@ -25,7 +25,7 @@ export async function listAdminNotifications(
   const { data, error } = await supabase
     .from("admin_notifications")
     .select("id, kind, title, body, href, created_at")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .order("created_at", { ascending: false })
     .limit(limit);
 

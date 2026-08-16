@@ -1,5 +1,6 @@
 /** Message unique affiché à l’admin et aux employés. */
-export const USER_ERROR_MESSAGE = "Erreur.";
+export const USER_ERROR_MESSAGE =
+  "L’opération n’a pas abouti. Réessayez dans un instant.";
 
 const TECHNICAL_PATTERNS = [
   /\b(postgres|postgrest|pgrst|supabase|sqlstate)\b/i,

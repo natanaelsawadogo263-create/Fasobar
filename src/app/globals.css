@@ -360,6 +360,25 @@ html {
   animation: fb-marketing-fade 0.55s ease-out both;
 }
 
+.fb-banner-reel {
+  background: #07110e;
+}
+
+.fb-banner-frame {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  object-position: center center;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+
+.fb-banner-frame.is-active {
+  opacity: 1;
+}
+
 @keyframes fasobar-toast-in {
   from {
     opacity: 0;

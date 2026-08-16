@@ -11,6 +11,7 @@ type OpenSessionModalProps = {
   error?: string;
   isPending?: boolean;
   cashierName?: string;
+  cashierLabel?: string;
   dismissible?: boolean;
   onClose?: () => void;
 };
@@ -20,6 +21,7 @@ export function OpenSessionModal({
   error,
   isPending = false,
   cashierName,
+  cashierLabel = "Caissière connectée",
   dismissible = false,
   onClose,
 }: OpenSessionModalProps) {
@@ -62,7 +64,7 @@ export function OpenSessionModal({
             <User className="h-4 w-4" />
           </span>
           <div>
-            <p className="text-xs text-slate-500">Caissière connectée</p>
+            <p className="text-xs text-slate-500">{cashierLabel}</p>
             <p className="text-sm font-semibold text-slate-900">{cashierName}</p>
           </div>
         </div>

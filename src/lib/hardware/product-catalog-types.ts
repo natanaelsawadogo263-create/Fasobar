@@ -1,3 +1,6 @@
+import type { ProductCharacteristics } from "@/lib/catalog/characteristics";
+import type { SaleTypeId } from "@/lib/catalog/sale-types";
+
 export type HardwareBrand = {
   id: string;
   name: string;
@@ -22,6 +25,7 @@ export type HardwareUnitLevel = {
   sellable: boolean;
   purchasePrice: number;
   sellingPrice: number;
+  allowDecimal: boolean;
 };
 
 export type HardwareVariantDraft = {
@@ -30,6 +34,8 @@ export type HardwareVariantDraft = {
   attributeId: string;
   attributeValue: string;
   internalRef: string;
+  sku: string;
+  barcode: string;
   minimumStock: number;
   units: HardwareUnitLevel[];
 };
@@ -44,11 +50,16 @@ export type HardwareProductDraft = {
   newBrandName: string;
   modelName: string;
   internalRef: string;
+  sku: string;
+  barcode: string;
   description: string;
   stockUnit: string;
   customStockUnit: string;
   fractionable: boolean;
   fractionPrecision: number;
+  saleType: SaleTypeId;
+  characteristics: ProductCharacteristics;
+  initialStock: number;
   minimumStock: number;
   useVariants: boolean;
   variants: HardwareVariantDraft[];
@@ -67,6 +78,7 @@ export function emptyHardwareUnits(stockUnit: string): HardwareUnitLevel[] {
       sellable: true,
       purchasePrice: 0,
       sellingPrice: 0,
+      allowDecimal: false,
     },
   ];
 }
@@ -80,11 +92,16 @@ export function emptyHardwareDraft(categoryId = ""): HardwareProductDraft {
     newBrandName: "",
     modelName: "",
     internalRef: "",
+    sku: "",
+    barcode: "",
     description: "",
     stockUnit: "pièce",
     customStockUnit: "",
     fractionable: false,
     fractionPrecision: 0.1,
+    saleType: "UNIT",
+    characteristics: {},
+    initialStock: 0,
     minimumStock: 0,
     useVariants: false,
     variants: [],

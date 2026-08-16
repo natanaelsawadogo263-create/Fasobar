@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { usePathname } from "next/navigation";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
 import { LiveClock } from "@/components/ui/live-clock";
-import { SPACE_LABELS, type UserSpace } from "@/lib/auth/roles";
+import { type UserSpace } from "@/lib/auth/roles";
+import { displaySpaceLabel } from "@/lib/activity/profile";
 import { isHomeNavItem, type NavItem } from "@/lib/navigation/space-navigation";
 
 type SpaceSidebarProps = {
@@ -14,6 +15,7 @@ type SpaceSidebarProps = {
   establishmentName: string;
   organizationName: string;
   navItems: NavItem[];
+  activityCode?: string | null;
 };
 
 export function SpaceSidebar({
@@ -21,15 +23,17 @@ export function SpaceSidebar({
   establishmentName,
   organizationName,
   navItems,
+  activityCode = null,
 }: SpaceSidebarProps) {
   const pathname = usePathname();
+  const spaceLabel = displaySpaceLabel(space, activityCode);
 
   return (
     <aside className="flex h-full w-full flex-col overflow-hidden border-r border-emerald-100 bg-white">
       <div className="shrink-0 border-b border-emerald-50 px-5 py-4">
         <FasoBarLogo size="sm" />
         <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-          {SPACE_LABELS[space]}
+          {spaceLabel}
         </p>
         <p className="mt-2 truncate text-sm font-medium text-slate-900">{establishmentName}</p>
         <p className="truncate text-xs text-slate-500">{organizationName}</p>
@@ -40,7 +44,9 @@ export function SpaceSidebar({
         aria-label="Navigation principale"
       >
         {navItems.map((item) => {
-          const isHome = isHomeNavItem(item);
+          const isHome =
+            isHomeNavItem(item) ||
+            (space === "bar_manager" && item.href === "/application/stock");
           const isActive =
             item.href === "/application/caisse"
               ? pathname === "/application/caisse" ||
@@ -60,7 +66,7 @@ export function SpaceSidebar({
           }
 
           return (
-            <Link
+            <InstantLink
               key={item.href}
               href={item.href}
               prefetch
@@ -75,7 +81,7 @@ export function SpaceSidebar({
               }`}
             >
               {item.label}
-            </Link>
+            </InstantLink>
           );
         })}
       </nav>

@@ -14,7 +14,7 @@ import { CashierSecondaryShell } from "@/components/cashier/cashier-secondary-sh
 import { FasoBarCashierShell } from "@/components/fasobar/fasobar-cashier-shell";
 import { SpaceShell } from "@/components/layout/space-shell";
 import { ToastProvider } from "@/components/ui/toast";
-import { isHardwareActivity } from "@/lib/hardware/activity";
+import { isRetailShopOps } from "@/lib/activity/ops-model";
 
 type ApplicationShellProps = {
   space: UserSpace;
@@ -87,11 +87,11 @@ export function ApplicationShell({
     </Suspense>
   );
 
-  const hardware = isHardwareActivity(activityCode);
+  const retailShop = isRetailShopOps(activityCode);
 
   let shell: ReactNode;
 
-  if (space === "admin" && hardware && isFasoBarCashierRoute(pathname)) {
+  if (space === "admin" && retailShop && isFasoBarCashierRoute(pathname)) {
     shell = (
       <FasoBarCashierShell
         establishmentId={establishmentId}
@@ -143,20 +143,35 @@ export function ApplicationShell({
         userId={userId}
         establishmentName={establishmentName}
         cashierName={cashierName}
+        navItems={navItems}
       >
         {children}
       </FasoBarCashierShell>
     );
-  } else if (space === "bar_manager" && hardware) {
+  } else if (space === "bar_manager" && retailShop) {
     shell = (
-      <SpaceShell
-        space={space}
+      <AdminShell
+        establishmentId={establishmentId}
         establishmentName={establishmentName}
         organizationName={organizationName}
+        organizationId={organizationId}
+        adminName={cashierName || "Responsable Stock"}
         navItems={navItems}
+        canRenewSubscription={false}
+        activityCode={activityCode}
+        roleLabel="Responsable Stock"
+        roleSubtitle="Stock et approvisionnements"
+        showNotifications={false}
+        showSubscriptionBanner={false}
+        primaryHrefs={[
+          "/application/stock",
+          "/application/produits",
+          "/application/approvisionnements",
+          "/application/depenses",
+        ]}
       >
         {children}
-      </SpaceShell>
+      </AdminShell>
     );
   } else if (space === "bar_manager") {
     shell = (
@@ -177,6 +192,7 @@ export function ApplicationShell({
         establishmentName={establishmentName}
         organizationName={organizationName}
         navItems={navItems}
+        activityCode={activityCode}
       >
         {children}
       </SpaceShell>

@@ -15,6 +15,7 @@ import { listPackagingsForProducts } from "@/lib/products/packaging-queries";
 import {
   listRecentSupplyEntries,
   listSuppliers,
+  listSupplyReceipts,
 } from "@/lib/stock/queries";
 
 type ApprovisionnementPeriod = "day" | "week" | "month" | "custom";
@@ -64,7 +65,7 @@ export default async function BarApprovisionnementsPage({
           typeof raw.anchor === "string" ? raw.anchor : toLocalIsoDate(new Date()),
         );
 
-  const [{ openSession }, suppliers, stockItems, recentEntries] =
+  const [{ openSession }, suppliers, stockItems, recentEntries, receipts] =
     await Promise.all([
       getBarSessionContext(workspace),
       listSuppliers(workspace, { departmentCode: "BAR" }),
@@ -74,6 +75,11 @@ export default async function BarApprovisionnementsPage({
         from: periodRange.from,
         to: periodRange.to,
         limit: 500,
+      }),
+      listSupplyReceipts(workspace, {
+        from: periodRange.from,
+        to: periodRange.to,
+        limit: 200,
       }),
     ]);
 
@@ -97,6 +103,7 @@ export default async function BarApprovisionnementsPage({
         suppliers={suppliers}
         stockItems={stockItems}
         recentEntries={recentEntries}
+        receipts={receipts}
         packagingsByProduct={packagingsByProduct}
         canManageStock={workspace.canManageBarStock}
         compact

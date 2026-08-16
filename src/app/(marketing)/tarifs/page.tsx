@@ -19,7 +19,7 @@ export default async function TarifsPage() {
       <PageHero
         kicker="Tarifs"
         title="Simple, en francs CFA."
-        subtitle={`Essai gratuit ${PUBLIC_TRIAL_DURATION_DAYS} jours, puis un abonnement mensuel ou annuel.`}
+        subtitle={`Essai ${PUBLIC_TRIAL_DURATION_DAYS} jours. Logiciel : 10 000 F/mois ou 100 000 F/an. Kit + abonnement : 350 000 F.`}
       />
       <section className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 lg:pb-20 lg:pt-12">
         <PricingCards plans={plans} />

@@ -2,14 +2,19 @@
 
 import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { LayoutGrid, ShoppingBag } from "lucide-react";
+import { InstantLink } from "@/components/layout/instant-link";
+import { ClipboardList, LayoutGrid, ShoppingBag, Timer } from "lucide-react";
 
-import { saveOrderAction } from "@/app/(protected)/application/caisse/actions";
+import {
+  getProductSaleUnitsAction,
+  saveOrderAction,
+} from "@/app/(protected)/application/caisse/actions";
 import {
   openCashSessionAction,
   quickCashCheckoutAction,
 } from "@/app/(protected)/application/caisse/payment-actions";
 import { FasoBarCaisseBridge } from "@/components/fasobar/fasobar-caisse-bridge";
+import { StepperNumberInput } from "@/components/ui/form-controls";
 import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
 import { ActiveOrderPanel } from "@/components/pos/active-order-panel";
 import { OpenOrdersDrawer } from "@/components/pos/open-orders-drawer";
@@ -23,6 +28,14 @@ import {
 } from "@/components/payments/cash-checkout-modal";
 import { CloseSessionModal } from "@/components/payments/close-session-modal";
 import { OpenSessionModal } from "@/components/payments/open-session-modal";
+import {
+  buildCashierSaleChoices,
+  salePickerHint,
+  type CashierSaleChoice,
+  type CashierSaleKind,
+} from "@/lib/catalog/sale-choices";
+import { stockQtyFromAmount } from "@/lib/catalog/sale-stock";
+import { usesTradeCatalog } from "@/lib/activity/ops-model";
 import { formatPriceXof } from "@/lib/orders/constants";
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";
@@ -88,8 +101,10 @@ function buildCartFromOrder(order: OrderDetail): CartLine[] {
     departmentCode: item.departmentCode,
     departmentName: item.departmentName,
     unit: "",
+    saleUnitId: item.saleUnitId ?? undefined,
     notes: item.notes ?? undefined,
     available: true,
+    allowDecimal: Boolean(item.saleUnitFactor && item.saleUnitFactor !== 1) || !Number.isInteger(item.quantity),
   }));
 }
 
@@ -128,6 +143,191 @@ function resolveCategoryName(
   return CAISSE_CATEGORIES.find((category) => category.slug === categoryId)?.name ?? null;
 }
 
+function HardwareOrSalePicker({
+  product,
+  hardware,
+  saleMode,
+  weightQty,
+  detailAmount,
+  onSaleMode,
+  onQty,
+  onAmount,
+  onAdd,
+  onClose,
+}: {
+  product: CashierProduct;
+  hardware: boolean;
+  saleMode: CashierSaleKind | null;
+  weightQty: string;
+  detailAmount: string;
+  onSaleMode: (mode: CashierSaleKind | null) => void;
+  onQty: (value: string) => void;
+  onAmount: (value: string) => void;
+  onAdd: (product: CashierProduct, unit?: CashierSaleChoice, quantity?: number) => void;
+  onClose: () => void;
+}) {
+  const choices = buildCashierSaleChoices(product);
+  const unitChoice = choices.find((item) => item.kind === "unit");
+  const packChoices = choices.filter((item) => item.kind === "pack");
+  const detailChoice = choices.find((item) => item.kind === "detail");
+  const simple = hardware && packChoices.length === 0 && !detailChoice;
+  const amount = Number(detailAmount);
+  const detailQty =
+    detailChoice && amount > 0 ? stockQtyFromAmount(amount, detailChoice.price) : 0;
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 sm:items-center sm:p-4"
+      role="presentation"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        className="w-full rounded-t-2xl bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl sm:max-w-md sm:rounded-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <p className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+          {simple ? "Ajouter au ticket" : "Comment le client achète"}
+        </p>
+        <h2 className="mt-1 text-[16px] font-semibold text-slate-900">{product.name}</h2>
+        {salePickerHint(choices) ? (
+          <p className="mt-1 text-[13px] text-slate-500">{salePickerHint(choices)}</p>
+        ) : null}
+
+        {simple && unitChoice ? (
+          <div className="mt-3 grid gap-2">
+            <p className="text-[14px] font-bold text-emerald-700">{formatPriceXof(unitChoice.price)}</p>
+            <label htmlFor="pos-unit-qty" className="text-[13px] font-medium text-slate-700">
+              Quantité
+            </label>
+            <StepperNumberInput
+              id="pos-unit-qty"
+              min={1}
+              step="1"
+              inputMode="numeric"
+              value={weightQty}
+              onChange={(event) => onQty(event.target.value)}
+              inputClassName="h-12 rounded-xl border border-slate-200 px-3 text-[16px] outline-none focus:border-emerald-500"
+            />
+            <button
+              type="button"
+              className="inline-flex h-12 items-center justify-center rounded-xl bg-emerald-600 text-[14px] font-semibold text-white"
+              onClick={() => onAdd(product, unitChoice, Number(weightQty) || 1)}
+            >
+              Ajouter au panier
+            </button>
+          </div>
+        ) : (
+          <div className="mt-3 grid gap-2">
+            {choices.map((unit) => (
+              <button
+                key={`${unit.kind}-${unit.id || unit.title}`}
+                type="button"
+                className={`flex min-h-14 flex-col justify-center rounded-xl border px-4 py-2 text-left ${
+                  saleMode === unit.kind
+                    ? "border-emerald-600 bg-emerald-50"
+                    : "border-slate-200"
+                }`}
+                onClick={() => {
+                  if (unit.kind === "pack") {
+                    onAdd(product, unit, 1);
+                    return;
+                  }
+                  if (unit.kind === "unit" && !hardware) {
+                    onAdd(product, unit, 1);
+                    return;
+                  }
+                  onSaleMode(unit.kind);
+                  onQty("1");
+                  onAmount("");
+                }}
+              >
+                <span className="flex w-full items-center justify-between gap-2">
+                  <span className="text-[14px] font-semibold text-slate-900">{unit.title}</span>
+                  {unit.kind !== "detail" ? (
+                    <span className="text-[14px] font-bold tabular-nums text-emerald-700">
+                      {formatPriceXof(unit.price)}
+                    </span>
+                  ) : null}
+                </span>
+                {unit.hint ? (
+                  <span className="mt-0.5 text-[12px] text-slate-500">{unit.hint}</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {saleMode === "unit" && unitChoice && hardware ? (
+          <div className="mt-3 grid gap-2 rounded-xl bg-slate-50 p-3">
+            <label htmlFor="pos-mode-qty" className="text-[13px] font-medium text-slate-700">
+              Quantité ({unitChoice.name})
+            </label>
+            <StepperNumberInput
+              id="pos-mode-qty"
+              min={1}
+              step="1"
+              inputMode="numeric"
+              value={weightQty}
+              onChange={(event) => onQty(event.target.value)}
+              inputClassName="h-12 rounded-xl border border-slate-200 px-3 text-[16px] outline-none focus:border-emerald-500"
+            />
+            <button
+              type="button"
+              className="inline-flex h-12 items-center justify-center rounded-xl bg-emerald-600 text-[14px] font-semibold text-white"
+              onClick={() => onAdd(product, unitChoice, Number(weightQty) || 1)}
+            >
+              Ajouter
+            </button>
+          </div>
+        ) : null}
+
+        {saleMode === "detail" && detailChoice ? (
+          <div className="mt-3 grid gap-2 rounded-xl bg-slate-50 p-3">
+            <label htmlFor="pos-detail-amount" className="text-[13px] font-medium text-slate-700">
+              Montant demandé (F)
+            </label>
+            <StepperNumberInput
+              id="pos-detail-amount"
+              min={1}
+              step="1"
+              inputMode="numeric"
+              value={detailAmount}
+              onChange={(event) => onAmount(event.target.value)}
+              inputClassName="h-12 rounded-xl border border-slate-200 px-3 text-[16px] outline-none focus:border-emerald-500"
+            />
+            {detailQty > 0 ? (
+              <p className="text-[13px] leading-snug text-slate-700">
+                {formatPriceXof(amount)} / {formatPriceXof(detailChoice.price)} ={" "}
+                <strong>
+                  {detailQty} {detailChoice.name}
+                </strong>{" "}
+                retirés du stock.
+              </p>
+            ) : null}
+            <button
+              type="button"
+              disabled={!(detailQty > 0)}
+              className="inline-flex h-12 items-center justify-center rounded-xl bg-emerald-600 text-[14px] font-semibold text-white disabled:opacity-50"
+              onClick={() => onAdd(product, { ...detailChoice, allowDecimal: true }, detailQty)}
+            >
+              Ajouter
+            </button>
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 text-[13px] font-semibold text-slate-700"
+          onClick={onClose}
+        >
+          Annuler
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function PosWorkspace({
   cashierName,
   categories,
@@ -159,6 +359,7 @@ export function PosWorkspace({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
   const [isOpening, startOpenTransition] = useTransition();
+  const [isResolvingSale, startSaleResolve] = useTransition();
   const [toast, setToast] = useState<ToastState>(null);
   const [openError, setOpenError] = useState<string | undefined>();
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -167,6 +368,10 @@ export function PosWorkspace({
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState<CashCheckoutSuccess | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("products");
+  const [salePicker, setSalePicker] = useState<CashierProduct | null>(null);
+  const [saleMode, setSaleMode] = useState<CashierSaleKind | null>(null);
+  const [weightQty, setWeightQty] = useState("1");
+  const [detailAmount, setDetailAmount] = useState("");
   const [flashProductId, setFlashProductId] = useState<string | null>(null);
 
   const [orderId, setOrderId] = useState(initialOrder?.id ?? "");
@@ -251,19 +456,38 @@ export function PosWorkspace({
     setSearch(value);
   }, []);
 
-  function addProduct(product: CashierProduct) {
-    if (isProductOutOfStock(product)) {
-      return;
-    }
+  function addSaleUnit(
+    product: CashierProduct,
+    unit?: { id: string; name: string; price: number; factor: number; allowDecimal?: boolean },
+    quantity = 1,
+  ) {
+    if (isProductOutOfStock(product)) return;
+    const factor = unit?.factor ?? 1;
+    const unitId = unit?.id;
+    const unitPrice = unit?.price ?? product.sellingPrice;
+    const qty = Math.round(quantity * 1000) / 1000;
+    if (!(qty > 0)) return;
+    const unitName =
+      unit && unit.factor !== 1
+        ? `${product.name} (${unit.name})`
+        : unit?.allowDecimal && qty !== 1
+          ? `${product.name} (détail)`
+          : product.name;
     setFlashProductId(product.id);
     window.setTimeout(() => setFlashProductId(null), 180);
+    setSalePicker(null);
+    setSaleMode(null);
+    setWeightQty("1");
+    setDetailAmount("");
 
     setCart((current) => {
-      const existing = current.find((line) => line.productId === product.id);
+      const existing = current.find(
+        (line) => line.productId === product.id && (line.saleUnitId ?? "") === (unitId ?? ""),
+      );
       if (existing) {
         return current.map((line) =>
-          line.productId === product.id
-            ? { ...line, quantity: line.quantity + 1 }
+          line.productId === product.id && (line.saleUnitId ?? "") === (unitId ?? "")
+            ? { ...line, quantity: Math.round((line.quantity + qty) * 1000) / 1000 }
             : line,
         );
       }
@@ -271,37 +495,88 @@ export function PosWorkspace({
         ...current,
         {
           productId: product.id,
-          name: product.name,
-          unitPrice: product.sellingPrice,
-          quantity: 1,
+          name: unitName,
+          unitPrice,
+          quantity: qty,
           departmentCode: product.departmentCode,
           departmentName: product.departmentName,
           categoryName: product.categoryName,
-          unit: product.unit,
+          unit: unit?.name ?? product.unit,
+          saleUnitId: unitId,
+          stockFactor: factor,
+          allowDecimal: Boolean(unit?.allowDecimal),
           available: true,
         },
       ];
     });
   }
 
-  function updateQuantity(productId: string, quantity: number) {
+  function openSaleFlow(product: CashierProduct) {
+    const choices = buildCashierSaleChoices(product);
+    if (usesTradeCatalog(activityCode)) {
+      setSalePicker(product);
+      setSaleMode(null);
+      setWeightQty("1");
+      setDetailAmount("");
+      return;
+    }
+    if (choices.length > 1) {
+      setSalePicker(product);
+      setSaleMode(null);
+      setWeightQty("1");
+      return;
+    }
+    addSaleUnit(product, choices[0]);
+  }
+
+  function addProduct(product: CashierProduct) {
+    const needsUnits = !product.saleUnits || product.saleUnits.length === 0;
+    if (!needsUnits) {
+      openSaleFlow(product);
+      return;
+    }
+    startSaleResolve(async () => {
+      try {
+        const units = await getProductSaleUnitsAction(product.id);
+        const hydrated =
+          units.length > 0 ? { ...product, saleUnits: units } : { ...product, saleUnits: product.saleUnits ?? [] };
+        openSaleFlow(hydrated);
+      } catch {
+        openSaleFlow({ ...product, saleUnits: product.saleUnits ?? [] });
+      }
+    });
+  }
+
+  function lineMatches(line: CartLine, productId: string, saleUnitId?: string) {
+    return line.productId === productId && (line.saleUnitId ?? "") === (saleUnitId ?? "");
+  }
+
+  function updateQuantity(productId: string, quantity: number, saleUnitId?: string) {
     if (quantity <= 0) {
-      setCart((current) => current.filter((line) => line.productId !== productId));
+      setCart((current) =>
+        current.filter((line) => !lineMatches(line, productId, saleUnitId)),
+      );
       return;
     }
     setCart((current) =>
-      current.map((line) => (line.productId === productId ? { ...line, quantity } : line)),
+      current.map((line) =>
+        lineMatches(line, productId, saleUnitId) ? { ...line, quantity } : line,
+      ),
     );
   }
 
-  function updateNotes(productId: string, notes: string) {
+  function updateNotes(productId: string, notes: string, saleUnitId?: string) {
     setCart((current) =>
-      current.map((line) => (line.productId === productId ? { ...line, notes } : line)),
+      current.map((line) =>
+        lineMatches(line, productId, saleUnitId) ? { ...line, notes } : line,
+      ),
     );
   }
 
-  function removeLine(productId: string) {
-    setCart((current) => current.filter((line) => line.productId !== productId));
+  function removeLine(productId: string, saleUnitId?: string) {
+    setCart((current) =>
+      current.filter((line) => !lineMatches(line, productId, saleUnitId)),
+    );
   }
 
   function clearCart() {
@@ -324,6 +599,11 @@ export function PosWorkspace({
           productId: line.productId,
           quantity: line.quantity,
           notes: line.notes,
+          unitPrice: line.unitPrice,
+          productName: line.name,
+          saleUnitId: line.saleUnitId || null,
+          stockFactor: line.stockFactor,
+          unitPrice: Math.round(line.unitPrice),
         })),
       ),
     );
@@ -408,11 +688,9 @@ export function PosWorkspace({
         }
         onError?.();
         showToast(
-          error instanceof Error
-            ? error.message
-            : pages.retail
-              ? "Impossible d'enregistrer la vente. Réessayez."
-              : "Impossible d'enregistrer la commande. Réessayez.",
+          pages.retail
+            ? "Impossible d'enregistrer la vente. Réessayez."
+            : "Impossible d'enregistrer la commande. Réessayez.",
           "error",
         );
       }
@@ -441,7 +719,9 @@ export function PosWorkspace({
     if (isPending) return;
     if (cart.length > 0) {
       const confirmed = window.confirm(
-        "Le panier actuel sera vidé sans enregistrer. Continuer ?",
+        retail
+          ? "Vider le panier sans enregistrer cette vente ?"
+          : "Vider le panier sans enregistrer cette commande ?",
       );
       if (!confirmed) return;
     }
@@ -551,11 +831,7 @@ export function PosWorkspace({
         });
         refreshSoon(() => router.refresh());
       } catch (error) {
-        setCheckoutError(
-          error instanceof Error
-            ? error.message
-            : "Une erreur inattendue est survenue. Veuillez réessayer.",
-        );
+        setCheckoutError("L’encaissement n’a pas abouti. Réessayez.");
       }
     });
   }
@@ -631,6 +907,7 @@ export function PosWorkspace({
             className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
               mobileTab === "products" ? "flex" : "hidden lg:flex"
             }`}
+            aria-busy={isResolvingSale}
           >
             <ProductGrid
             title={categoryTitle}
@@ -713,6 +990,28 @@ export function PosWorkspace({
             </span>
           ) : null}
         </button>
+        <InstantLink
+          href="/application/commandes-ouvertes"
+          className="flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold text-slate-500 active:text-emerald-700"
+        >
+          <ClipboardList className="h-5 w-5" />
+          {retail ? "Ventes" : "Ouvertes"}
+        </InstantLink>
+        <InstantLink
+          href="/application/caisse/session"
+          className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold ${
+            session ? "text-slate-500 active:text-emerald-700" : "text-slate-300"
+          }`}
+          onClick={(event) => {
+            if (!session) {
+              event.preventDefault();
+              showToast("Ouvrez d’abord la caisse pour voir la session.", "info");
+            }
+          }}
+        >
+          <Timer className="h-5 w-5" />
+          Session
+        </InstantLink>
       </nav>
 
       <OpenOrdersDrawer
@@ -736,6 +1035,7 @@ export function PosWorkspace({
           isPending={isPending}
           error={checkoutError}
           success={checkoutSuccess}
+          retail={retail}
           onConfirm={handleConfirmCheckout}
           onClose={closeCheckoutModal}
           onNewOrder={handleNewOrderAfterCheckout}
@@ -753,8 +1053,28 @@ export function PosWorkspace({
             error={openError}
             isPending={isOpening}
             cashierName={cashierName}
+            cashierLabel={retail ? "Vendeur connecté" : "Caissière connectée"}
           />
         </>
+      ) : null}
+
+      {salePicker ? (
+        <HardwareOrSalePicker
+          product={salePicker}
+          hardware={usesTradeCatalog(activityCode)}
+          saleMode={saleMode}
+          weightQty={weightQty}
+          detailAmount={detailAmount}
+          onSaleMode={setSaleMode}
+          onQty={setWeightQty}
+          onAmount={setDetailAmount}
+          onAdd={addSaleUnit}
+          onClose={() => {
+            setSalePicker(null);
+            setSaleMode(null);
+            setDetailAmount("");
+          }}
+        />
       ) : null}
 
       {session && showCloseModal ? (

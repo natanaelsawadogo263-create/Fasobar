@@ -1,5 +1,6 @@
 import { ExpensesWorkspace } from "@/components/expenses/expenses-workspace";
 import { requireSpacePathAccess } from "@/lib/auth/workspace-context";
+import { isRetailShopOps } from "@/lib/activity/ops-model";
 import {
   expenseFiltersSchema,
   type ExpenseArea,
@@ -20,7 +21,9 @@ type ExpensePeriodFilter = "day" | "week" | "month" | "custom";
 
 function lockedAreaForSpace(
   space: "admin" | "cashier_kitchen" | "bar_manager",
+  activityCode?: string | null,
 ): ExpenseArea | null {
+  if (isRetailShopOps(activityCode) && space === "bar_manager") return null;
   if (space === "bar_manager") return "BAR";
   if (space === "cashier_kitchen") return "CAISSE";
   return null;
@@ -53,7 +56,7 @@ function formatCustomPeriodLabel(from?: string, to?: string): string {
 export default async function DepensesPage({ searchParams }: DepensesPageProps) {
   const workspace = await requireSpacePathAccess("/application/depenses");
   const raw = await searchParams;
-  const lockedArea = lockedAreaForSpace(workspace.userSpace);
+  const lockedArea = lockedAreaForSpace(workspace.userSpace, workspace.activityCode);
 
   const hasCustomDates =
     typeof raw.from === "string" || typeof raw.to === "string";

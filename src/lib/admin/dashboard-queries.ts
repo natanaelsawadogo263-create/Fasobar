@@ -195,6 +195,100 @@ function readSingle<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
+/** Coût d’achat des articles vendus (dernier prix d’appro par unité de stock). */
+async function sumSoldGoodsCost(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  establishmentId: string,
+  orderIds: string[],
+): Promise<number> {
+  if (orderIds.length === 0) return 0;
+
+  const withStock = await supabase
+    .from("order_items")
+    .select("product_id, quantity, stock_quantity, sale_unit_factor")
+    .in("order_id", orderIds);
+
+  type Line = {
+    product_id: string;
+    quantity: number;
+    stock_quantity?: number | null;
+    sale_unit_factor?: number | null;
+  };
+
+  let items: Line[] = (withStock.data ?? []) as Line[];
+  if (withStock.error) {
+    const fallback = await supabase
+      .from("order_items")
+      .select("product_id, quantity")
+      .in("order_id", orderIds);
+    items = (fallback.data ?? []) as Line[];
+  }
+
+  const productIds = [
+    ...new Set(items.map((item) => item.product_id).filter(Boolean)),
+  ];
+  if (productIds.length === 0) return 0;
+
+  const [{ data: stockRows }, { data: productRows }] = await Promise.all([
+    supabase
+      .from("stock_items")
+      .select("id, product_id")
+      .eq("establishment_id", establishmentId)
+      .in("product_id", productIds),
+    supabase
+      .from("products")
+      .select("id, purchase_price")
+      .eq("establishment_id", establishmentId)
+      .in("id", productIds),
+  ]);
+
+  const stockIdByProduct = new Map<string, string>();
+  for (const row of stockRows ?? []) {
+    if (row.product_id && !stockIdByProduct.has(row.product_id)) {
+      stockIdByProduct.set(row.product_id as string, row.id as string);
+    }
+  }
+
+  const stockIds = [...stockIdByProduct.values()];
+  const unitCostByStock = new Map<string, number>();
+  if (stockIds.length > 0) {
+    const { data: movements } = await supabase
+      .from("stock_movements")
+      .select("stock_item_id, unit_cost")
+      .eq("establishment_id", establishmentId)
+      .in("stock_item_id", stockIds)
+      .not("unit_cost", "is", null)
+      .order("created_at", { ascending: false });
+    for (const row of movements ?? []) {
+      if (row.unit_cost != null && !unitCostByStock.has(row.stock_item_id)) {
+        unitCostByStock.set(row.stock_item_id, Number(row.unit_cost));
+      }
+    }
+  }
+
+  const purchaseByProduct = new Map<string, number>();
+  for (const row of productRows ?? []) {
+    const price = Number(row.purchase_price ?? 0);
+    if (price > 0) purchaseByProduct.set(row.id as string, price);
+  }
+
+  let total = 0;
+  for (const item of items) {
+    const stockQty =
+      Number(item.stock_quantity) > 0
+        ? Number(item.stock_quantity)
+        : Number(item.quantity) * (Number(item.sale_unit_factor) || 1);
+    if (!(stockQty > 0)) continue;
+    const stockId = stockIdByProduct.get(item.product_id);
+    const unitCost =
+      (stockId ? unitCostByStock.get(stockId) : undefined) ??
+      purchaseByProduct.get(item.product_id) ??
+      0;
+    total += Math.round(stockQty * unitCost);
+  }
+  return total;
+}
+
 export async function getAdminDashboardData(
   workspace: WorkspaceContext,
   options: { period?: AdminDashboardPeriod } = {},
@@ -229,14 +323,14 @@ export async function getAdminDashboardData(
     supabase
       .from("orders")
       .select("id, total_amount, created_at, updated_at")
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("payment_status", "PAID")
       .gte("updated_at", todayStart)
       .lt("updated_at", tomorrowStart),
     supabase
       .from("orders")
       .select("id, total_amount")
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("payment_status", "PAID")
       .gte("updated_at", yesterdayStart)
       .lt("updated_at", todayStart),
@@ -245,7 +339,7 @@ export async function getAdminDashboardData(
       : supabase
           .from("orders")
           .select("id, total_amount, created_at, updated_at")
-          .eq("establishment_id", workspace.establishmentId)
+          .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
           .eq("payment_status", "PAID")
           .gte("updated_at", bounds.fromIso)
           .lt("updated_at", bounds.toExclusiveIso),
@@ -254,7 +348,7 @@ export async function getAdminDashboardData(
       .select(
         "id, status, opening_cash_amount, expected_cash_amount, opened_at, closed_at, profiles!cash_register_sessions_opened_by_fkey(full_name)",
       )
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("status", "OPEN")
       .order("opened_at", { ascending: false })
       .limit(10),
@@ -263,7 +357,7 @@ export async function getAdminDashboardData(
       .select(
         "id, status, opening_cash_amount, expected_cash_amount, counted_cash_amount, opened_at, closed_at, profiles!cash_register_sessions_opened_by_fkey(full_name)",
       )
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("status", "CLOSED")
       .gte("opened_at", todayStart)
       .order("opened_at", { ascending: false })
@@ -271,27 +365,27 @@ export async function getAdminDashboardData(
     supabase
       .from("payments")
       .select("id, amount_applied, received_at, method, status")
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("status", "CONFIRMED")
       .order("received_at", { ascending: false })
       .limit(8),
     supabase
       .from("stock_movements")
       .select("id, type, quantity, created_at, stock_items(name)")
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .order("created_at", { ascending: false })
       .limit(8),
     supabase
       .from("payments")
       .select("amount_applied, cash_register_session_id, cash_register_sessions!inner(status)")
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("status", "CONFIRMED")
       .eq("cash_register_sessions.status", "OPEN")
       .limit(400),
     supabase
       .from("orders")
       .select("id, status, payment_status, bar_status, kitchen_status")
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .neq("payment_status", "PAID")
       .neq("status", "CANCELLED")
       .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"])
@@ -301,7 +395,7 @@ export async function getAdminDashboardData(
       .select(
         "id, opened_at, profiles!bar_sessions_opened_by_fkey(full_name)",
       )
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("status", "OPEN")
       .order("opened_at", { ascending: false })
       .limit(1)
@@ -309,7 +403,7 @@ export async function getAdminDashboardData(
     supabase
       .from("expenses")
       .select("amount, status")
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("status", "RECORDED")
       .eq("expense_date", toLocalIsoDate(new Date())),
   ]);
@@ -329,7 +423,12 @@ export async function getAdminDashboardData(
     (sum, row) => sum + (row.amount ?? 0),
     0,
   );
-  const profitToday = salesToday - expensesToday;
+  const purchaseCostToday = await sumSoldGoodsCost(
+    supabase,
+    workspace.establishmentId,
+    paidToday.map((row) => row.id),
+  );
+  const profitToday = salesToday - purchaseCostToday - expensesToday;
 
   const openSessionRows = openSessions.data ?? [];
   const firstOpen = openSessionRows[0];

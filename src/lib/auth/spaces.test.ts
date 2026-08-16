@@ -190,9 +190,14 @@ describe("profil d’exploitation", () => {
     ).toBe(true);
   });
 
-  it("donne le stock magasin au caissier commerce", () => {
+  it("limite le caissier commerce à la vente", () => {
     const items = getNavigationForSpace("cashier_kitchen", "BAR", "pharmacy");
-    expect(items.some((item) => item.href === "/application/stock")).toBe(true);
+    expect(items.map((item) => item.href)).toEqual([
+      "/application/caisse",
+      "/application/commandes-ouvertes",
+      "/application/caisse/session",
+    ]);
+    expect(items.some((item) => item.href === "/application/stock")).toBe(false);
     expect(items.some((item) => item.href === "/application/cuisine")).toBe(false);
     expect(
       isPathAllowedForSpace(
@@ -201,13 +206,17 @@ describe("profil d’exploitation", () => {
         "BAR",
         "pharmacy",
       ),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isPathAllowedForSpace("/application/cuisine", "cashier_kitchen", "BAR", "pharmacy"),
     ).toBe(false);
     expect(
       isPathAllowedForSpace("/application/bar", "admin", "BAR", "pharmacy"),
     ).toBe(false);
+    expect(canOperateCashRegister("OWNER", "OWNER", "pharmacy")).toBe(true);
+    expect(resolveHomePathForRoles("BAR_MANAGER", "BAR_MANAGER", "pharmacy")).toBe(
+      "/application/stock",
+    );
   });
 
   it("organise la quincaillerie : vente admin, caisse restreinte, responsable stock", () => {
@@ -229,13 +238,28 @@ describe("profil d’exploitation", () => {
     ).toBe(true);
 
     const stockNav = getNavigationForSpace("bar_manager", "BOTH", "hardware");
-    expect(stockNav.some((item) => item.href === "/application/produits")).toBe(true);
+    expect(stockNav[0]?.label).toBe("Accueil");
+    expect(stockNav.map((item) => item.href)).toEqual([
+      "/application/stock",
+      "/application/produits",
+      "/application/approvisionnements",
+      "/application/depenses",
+    ]);
     expect(
       isPathAllowedForSpace("/application/caisse", "bar_manager", "BOTH", "hardware"),
     ).toBe(false);
     expect(
       isPathAllowedForSpace("/application/produits", "bar_manager", "BOTH", "hardware"),
     ).toBe(true);
+    expect(
+      isPathAllowedForSpace("/application/depenses", "bar_manager", "BOTH", "hardware"),
+    ).toBe(true);
+    expect(
+      isPathAllowedForSpace("/application/approvisionnements", "bar_manager", "BOTH", "hardware"),
+    ).toBe(true);
+    expect(
+      isPathAllowedForSpace("/application/inventaires", "bar_manager", "BOTH", "hardware"),
+    ).toBe(false);
     expect(canOperateCashRegister("OWNER", "OWNER", "hardware")).toBe(true);
     expect(canOperateCashRegister("OWNER", "OWNER")).toBe(false);
     expect(resolveHomePathForRoles("BAR_MANAGER", "BAR_MANAGER", "hardware")).toBe(

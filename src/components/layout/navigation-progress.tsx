@@ -1,5 +1,6 @@
 "use client";
 
+import { NAV_START_EVENT } from "@/components/layout/instant-link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -14,6 +15,16 @@ export function NavigationProgress() {
   const [width, setWidth] = useState(0);
   const first = useRef(true);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const begin = () => {
+      setVisible(true);
+      setWidth(22);
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
+    window.addEventListener(NAV_START_EVENT, begin);
+    return () => window.removeEventListener(NAV_START_EVENT, begin);
+  }, []);
 
   useEffect(() => {
     if (first.current) {

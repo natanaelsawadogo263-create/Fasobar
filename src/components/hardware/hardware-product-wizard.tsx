@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition, type ReactNode } from "react";
-import { Plus, Trash2, X } from "lucide-react";
+import { X } from "lucide-react";
 
 import { AlertMessage } from "@/components/auth/alert-message";
 import { ProductImageField, type ProductImageAssets } from "@/components/products/product-image-field";
@@ -10,20 +10,20 @@ import {
   PriceField,
   SelectField,
   TextField,
-  ToggleField,
 } from "@/components/ui/form-controls";
 import {
-  listHardwareCatalogMetaAction,
   loadHardwareProductDraftAction,
   saveHardwareProductAction,
 } from "@/app/(protected)/application/produits/hardware-catalog-actions";
 import type { CategoryOption } from "@/lib/products/types";
-import { HARDWARE_STOCK_UNIT_SUGGESTIONS } from "@/lib/hardware/product-catalog-constants";
+import {
+  HARDWARE_STOCK_UNIT_SUGGESTIONS,
+  HARDWARE_WHOLESALE_PACKS,
+} from "@/lib/hardware/product-catalog-constants";
+import { type SaleTypeId } from "@/lib/catalog/sale-types";
 import type {
-  HardwareBrand,
   HardwareProductDraft,
   HardwareUnitLevel,
-  HardwareVariantDraft,
 } from "@/lib/hardware/product-catalog-types";
 import { emptyHardwareDraft, emptyHardwareUnits } from "@/lib/hardware/product-catalog-types";
 
@@ -55,36 +55,44 @@ function baseSelling(units: HardwareUnitLevel[]): number {
   return units.find((unit) => unit.isBase || unit.clientId === "base")?.sellingPrice ?? 0;
 }
 
-function basePurchase(units: HardwareUnitLevel[]): number {
-  return units.find((unit) => unit.isBase || unit.clientId === "base")?.purchasePrice ?? 0;
+function inferSaleType(unit: string, fractionable: boolean, hasPacks: boolean): SaleTypeId {
+  const n = unit.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (n === "kg" || n === "kilo" || n === "gramme") return "WEIGHT";
+  if (n === "metre" || n === "m" || n === "cm") return "LENGTH";
+  if (n === "litre" || n === "l") return "VOLUME";
+  if (hasPacks) return "PACKS";
+  if (fractionable) return "UNIT";
+  return "UNIT";
 }
 
-function emptyPack(): HardwareUnitLevel {
+function emptyPack(name = "carton"): HardwareUnitLevel {
   return {
     clientId: crypto.randomUUID(),
-    name: "carton",
+    name,
     parentClientId: "base",
-    containsQty: 12,
+    containsQty: 50,
     isBase: false,
     purchasable: true,
     sellable: true,
     purchasePrice: 0,
     sellingPrice: 0,
+    allowDecimal: false,
   };
 }
 
 function pricedUnits(
   stockUnit: string,
   sellingPrice: number,
-  purchasePrice: number,
   packs: HardwareUnitLevel[],
+  allowDecimal = false,
 ): HardwareUnitLevel[] {
   const base: HardwareUnitLevel = {
     ...emptyHardwareUnits(stockUnit)[0],
-    sellable: true,
+    sellable: sellingPrice > 0,
     sellingPrice,
-    purchasable: purchasePrice > 0,
-    purchasePrice: purchasePrice > 0 ? purchasePrice : 0,
+    purchasable: true,
+    purchasePrice: 0,
+    allowDecimal,
   };
   return [
     base,
@@ -93,20 +101,11 @@ function pricedUnits(
       parentClientId: "base",
       isBase: false,
       sellable: pack.sellingPrice > 0,
-      purchasable: pack.purchasePrice > 0,
+      purchasable: true,
+      purchasePrice: 0,
+      allowDecimal: false,
     })),
   ];
-}
-
-function emptySize(stockUnit: string, packs: HardwareUnitLevel[] = []): HardwareVariantDraft {
-  return {
-    clientId: crypto.randomUUID(),
-    attributeId: "",
-    attributeValue: "",
-    internalRef: "",
-    minimumStock: 0,
-    units: pricedUnits(stockUnit, 0, 0, packs.map((pack) => ({ ...pack, clientId: crypto.randomUUID() }))),
-  };
 }
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -121,160 +120,33 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   );
 }
 
-function PacksEditor({
-  units,
-  stockUnit,
+function YesNo({
+  yes,
   onChange,
 }: {
-  units: HardwareUnitLevel[];
-  stockUnit: string;
-  onChange: (units: HardwareUnitLevel[]) => void;
+  yes: boolean;
+  onChange: (value: boolean) => void;
 }) {
-  const packs = extraPacks(units);
-  const selling = baseSelling(units);
-  const purchase = basePurchase(units);
-
-  function setPacks(nextPacks: HardwareUnitLevel[]) {
-    onChange(pricedUnits(stockUnit, selling, purchase, nextPacks));
-  }
-
   return (
-    <div className="space-y-2">
-      {packs.map((pack) => (
-        <div key={pack.clientId} className="grid gap-2 rounded-xl bg-slate-50 p-2.5">
-          <div className="flex items-start gap-2">
-            <TextField
-              id={`pack-name-${pack.clientId}`}
-              name="packName"
-              label="Nom du lot"
-              placeholder="Carton, bobine, boîte…"
-              className="min-w-0 flex-1"
-              value={pack.name}
-              onChange={(event) =>
-                setPacks(
-                  packs.map((item) =>
-                    item.clientId === pack.clientId ? { ...item, name: event.target.value } : item,
-                  ),
-                )
-              }
-            />
-            <button
-              type="button"
-              onClick={() => setPacks(packs.filter((item) => item.clientId !== pack.clientId))}
-              className="mt-6 inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500"
-              aria-label="Retirer le lot"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-          <NumberField
-            id={`pack-qty-${pack.clientId}`}
-            name="containsQty"
-            label={`Combien de « ${stockUnit} » dans ce lot`}
-            min={2}
-            value={pack.containsQty || ""}
-            onChange={(event) =>
-              setPacks(
-                packs.map((item) =>
-                  item.clientId === pack.clientId
-                    ? { ...item, containsQty: Number(event.target.value) || 0 }
-                    : item,
-                ),
-              )
-            }
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <PriceField
-              id={`pack-sell-${pack.clientId}`}
-              name="packSell"
-              label="Vente du lot"
-              value={pack.sellingPrice || ""}
-              onChange={(event) =>
-                setPacks(
-                  packs.map((item) =>
-                    item.clientId === pack.clientId
-                      ? { ...item, sellingPrice: Number(event.target.value) || 0 }
-                      : item,
-                  ),
-                )
-              }
-            />
-            <PriceField
-              id={`pack-buy-${pack.clientId}`}
-              name="packBuy"
-              label="Achat du lot"
-              value={pack.purchasePrice || ""}
-              onChange={(event) =>
-                setPacks(
-                  packs.map((item) =>
-                    item.clientId === pack.clientId
-                      ? { ...item, purchasePrice: Number(event.target.value) || 0 }
-                      : item,
-                  ),
-                )
-              }
-            />
-          </div>
-        </div>
-      ))}
+    <div className="grid grid-cols-2 gap-2">
       <button
         type="button"
-        onClick={() => setPacks([...packs, emptyPack()])}
-        className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 text-[13px] font-semibold text-slate-700"
+        onClick={() => onChange(true)}
+        className={`min-h-12 rounded-xl border text-[14px] font-semibold ${
+          yes ? "border-emerald-600 bg-emerald-50 text-emerald-900" : "border-slate-200 text-slate-700"
+        }`}
       >
-        <Plus className="h-4 w-4" />
-        Ajouter un lot
+        Oui
       </button>
-    </div>
-  );
-}
-
-function PriceAndLots({
-  units,
-  stockUnit,
-  onChange,
-}: {
-  units: HardwareUnitLevel[];
-  stockUnit: string;
-  onChange: (units: HardwareUnitLevel[]) => void;
-}) {
-  const packs = extraPacks(units);
-  const selling = baseSelling(units);
-  const purchase = basePurchase(units);
-
-  return (
-    <div className="grid gap-3">
-      <div className="grid grid-cols-2 gap-2">
-        <PriceField
-          id={`sell-${units[0]?.clientId ?? "base"}`}
-          name="sellingPrice"
-          label={`Vente / ${stockUnit}`}
-          required
-          value={selling || ""}
-          onChange={(event) =>
-            onChange(pricedUnits(stockUnit, Number(event.target.value) || 0, purchase, packs))
-          }
-        />
-        <PriceField
-          id={`buy-${units[0]?.clientId ?? "base"}`}
-          name="purchasePrice"
-          label={`Achat / ${stockUnit}`}
-          value={purchase || ""}
-          onChange={(event) =>
-            onChange(pricedUnits(stockUnit, selling, Number(event.target.value) || 0, packs))
-          }
-        />
-      </div>
-      <ToggleField
-        id={`lots-${units[0]?.clientId ?? "base"}`}
-        label="On vend aussi en lot"
-        description="Carton, bobine, boîte… en plus de l’unité."
-        checked={packs.length > 0}
-        onChange={(checked) =>
-          onChange(pricedUnits(stockUnit, selling, purchase, checked ? [emptyPack()] : []))
-        }
-      />
-      {packs.length > 0 ? <PacksEditor units={units} stockUnit={stockUnit} onChange={onChange} /> : null}
+      <button
+        type="button"
+        onClick={() => onChange(false)}
+        className={`min-h-12 rounded-xl border text-[14px] font-semibold ${
+          !yes ? "border-slate-400 bg-slate-100 text-slate-900" : "border-slate-200 text-slate-700"
+        }`}
+      >
+        Non
+      </button>
     </div>
   );
 }
@@ -290,19 +162,14 @@ export function HardwareProductWizard({
   const [draft, setDraft] = useState<HardwareProductDraft>(() =>
     emptyHardwareDraft(initialCategoryId),
   );
-  const [hasSizes, setHasSizes] = useState(false);
-  const [brands, setBrands] = useState<HardwareBrand[]>([]);
-  const [imageAssets, setImageAssets] = useState<ProductImageAssets>({ file: null });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const [imageAssets, setImageAssets] = useState<ProductImageAssets>({ file: null });
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const meta = await listHardwareCatalogMetaAction();
-      if (cancelled) return;
-      if (!meta.error) setBrands(meta.brands);
       if (mode === "edit" && productId) {
         const loaded = await loadHardwareProductDraftAction(productId);
         if (!cancelled && loaded.draft) {
@@ -312,8 +179,9 @@ export function HardwareProductWizard({
             ...next,
             stockUnit: known ? next.stockUnit : "__custom__",
             customStockUnit: known ? "" : next.customStockUnit || next.stockUnit,
+            useVariants: false,
+            variants: [],
           });
-          setHasSizes(Boolean(next.useVariants && next.variants.length > 0));
         }
         if (!cancelled && loaded.error) setError(loaded.error);
       }
@@ -330,31 +198,21 @@ export function HardwareProductWizard({
   }
 
   const stockUnit = stockUnitOf(draft);
+  const packs = extraPacks(draft.units);
+  const selling = baseSelling(draft.units);
+  const hasWholesale = packs.length > 0;
+  const pack = packs[0];
 
-  function toggleSizes(next: boolean) {
-    setHasSizes(next);
-    setError(null);
-    if (next) {
-      patch({
-        useVariants: true,
-        variants:
-          draft.variants.length > 0
-            ? draft.variants
-            : [emptySize(stockUnit, extraPacks(draft.units))],
-      });
-      return;
-    }
-    const first = draft.variants[0];
+  function setUnits(nextPacks: HardwareUnitLevel[], nextSelling = selling, detail = draft.fractionable) {
     patch({
-      useVariants: false,
-      variants: [],
-      units: first ? first.units : draft.units,
+      units: pricedUnits(stockUnit, nextSelling, nextPacks, detail),
+      fractionable: detail,
     });
   }
 
   function handleSave() {
     if (draft.name.trim().length < 2) {
-      setError("Indiquez le nom du produit.");
+      setError("Indiquez le nom du produit (ex. Ampoule LED 12 W).");
       return;
     }
     if (!draft.categoryId || draft.categoryId === "__new__") {
@@ -364,71 +222,35 @@ export function HardwareProductWizard({
       }
     }
     if (!stockUnit) {
-      setError("Indiquez comment on compte (pièce, sac, mètre…).");
+      setError("Comment comptez-vous ce produit ?");
       return;
     }
-
-    if (hasSizes) {
-      const sizes = draft.variants.filter((item) => item.attributeValue.trim());
-      if (sizes.length === 0) {
-        setError("Ajoutez au moins une taille (ex. 2,5 mm² ou 5 L).");
-        return;
-      }
-      if (sizes.some((item) => baseSelling(item.units) <= 0)) {
-        setError("Chaque taille doit avoir un prix de vente.");
-        return;
-      }
-      for (const size of sizes) {
-        for (const pack of extraPacks(size.units)) {
-          if (!pack.name.trim() || !(pack.containsQty > 1)) {
-            setError(`Lot incomplet pour « ${size.attributeValue} ».`);
-            return;
-          }
-        }
-      }
-    } else if (baseSelling(draft.units) <= 0) {
-      setError("Indiquez le prix de vente.");
+    if (selling <= 0) {
+      setError("Indiquez le prix de vente par unité.");
       return;
-    } else {
-      for (const pack of extraPacks(draft.units)) {
-        if (!pack.name.trim() || !(pack.containsQty > 1)) {
-          setError("Nommez le lot et indiquez combien d’unités il contient.");
-          return;
-        }
+    }
+    if (hasWholesale) {
+      if (!pack?.name.trim() || !(pack.containsQty > 1) || pack.sellingPrice <= 0) {
+        setError("Pour le gros : type, nombre d’unités, et prix du conditionnement.");
+        return;
       }
     }
 
     startTransition(async () => {
       const toSave: HardwareProductDraft = {
         ...draft,
-        fractionable: draft.fractionable,
-        fractionPrecision: draft.fractionable ? draft.fractionPrecision || 0.1 : draft.fractionPrecision,
-        useVariants: hasSizes,
-        variants: hasSizes
-          ? draft.variants
-              .filter((item) => item.attributeValue.trim())
-              .map((item) => ({
-                ...item,
-                units: pricedUnits(
-                  stockUnit,
-                  baseSelling(item.units),
-                  basePurchase(item.units),
-                  extraPacks(item.units),
-                ),
-              }))
-          : [],
-        units: hasSizes
-          ? emptyHardwareUnits(stockUnit)
-          : pricedUnits(
-              stockUnit,
-              baseSelling(draft.units),
-              basePurchase(draft.units),
-              extraPacks(draft.units),
-            ),
+        saleType: inferSaleType(stockUnit, draft.fractionable, hasWholesale),
+        useVariants: false,
+        variants: [],
+        fractionPrecision: draft.fractionable ? 0.1 : draft.fractionPrecision,
+        units: pricedUnits(stockUnit, selling, hasWholesale ? packs.slice(0, 1) : [], draft.fractionable),
       };
       const formData = new FormData();
       formData.set("draft", JSON.stringify(toSave));
-      if (imageAssets.file) formData.set("imageOriginal", imageAssets.file);
+      if (imageAssets.file) {
+        formData.set("imageOriginal", imageAssets.file);
+        formData.set("image", imageAssets.file);
+      }
       const result = await saveHardwareProductAction(formData);
       if (result.error) {
         setError(result.error);
@@ -446,7 +268,9 @@ export function HardwareProductWizard({
             <h2 className="truncate text-[16px] font-semibold text-slate-900">
               {mode === "create" ? "Nouveau produit" : "Modifier le produit"}
             </h2>
-            <p className="mt-0.5 text-[12px] text-slate-500">Comme au magasin : un article, ses tailles, ses prix.</p>
+            <p className="mt-0.5 text-[12px] text-slate-500">
+              Un article différent = un produit. Mettez la taille dans le nom.
+            </p>
           </div>
           <button
             type="button"
@@ -465,19 +289,16 @@ export function HardwareProductWizard({
             </div>
           ) : null}
           {loading ? (
-            <div className="space-y-3">
-              <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
-              <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
-            </div>
+            <div className="h-40 animate-pulse rounded-2xl bg-slate-100" />
           ) : (
             <div className="grid gap-3">
-              <Section title="Le produit" hint="Ce que le client voit et cherche.">
+              <Section title="Le produit">
                 <TextField
                   id="hw-name"
                   name="name"
-                  label="Nom"
+                  label="Nom du produit"
                   required
-                  placeholder="Ex : Câble électrique, Ciment 50 kg"
+                  placeholder="Ex : Ampoule LED 12 W"
                   value={draft.name}
                   onChange={(event) => patch({ name: event.target.value })}
                 />
@@ -508,50 +329,32 @@ export function HardwareProductWizard({
                     }
                   />
                 ) : null}
-                <SelectField
-                  id="hw-brand"
-                  name="brandId"
-                  label="Marque"
-                  value={draft.brandId === "__new__" ? "__new__" : draft.brandId}
-                  onChange={(event) => patch({ brandId: event.target.value, newBrandName: "" })}
-                >
-                  <option value="">Aucune</option>
-                  {brands.map((brand) => (
-                    <option key={brand.id} value={brand.id}>
-                      {brand.name}
-                    </option>
-                  ))}
-                  <option value="__new__">+ Nouvelle marque</option>
-                </SelectField>
-                {draft.brandId === "__new__" ? (
-                  <TextField
-                    id="hw-new-brand"
-                    name="newBrandName"
-                    label="Nom de la marque"
-                    placeholder="Ex : Nexans, Dangote"
-                    value={draft.newBrandName}
-                    onChange={(event) =>
-                      patch({ newBrandName: event.target.value, brandId: "__new__" })
-                    }
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium text-slate-700">Photo (facultatif)</p>
+                  <ProductImageField
+                    compact
+                    existingUrl={draft.imageUrl}
+                    onAssetsChange={setImageAssets}
                   />
-                ) : null}
-                <ProductImageField compact existingUrl={draft.imageUrl} onAssetsChange={setImageAssets} />
+                </div>
               </Section>
 
               <Section
-                title="Comment on compte"
-                hint="Pièce, sac, mètre, kilo… C’est l’unité du stock et de la caisse."
+                title="Comment comptez-vous ce produit ?"
+                hint="C’est l’unité du stock. Câble en rouleau → rouleau. Ampoule → pièce."
               >
                 <SelectField
                   id="hw-unit"
                   name="stockUnit"
-                  label="Unité"
+                  label="Unité de stock"
                   value={isKnownUnit(draft.stockUnit) ? draft.stockUnit : "__custom__"}
                   onChange={(event) => {
                     const value = event.target.value;
+                    const nextUnit = value === "__custom__" ? draft.customStockUnit || "pièce" : value;
                     patch({
                       stockUnit: value,
                       customStockUnit: value === "__custom__" ? draft.customStockUnit : "",
+                      units: pricedUnits(nextUnit, selling, packs, draft.fractionable),
                     });
                   }}
                 >
@@ -570,115 +373,113 @@ export function HardwareProductWizard({
                     placeholder="Ex : seau"
                     value={draft.customStockUnit}
                     onChange={(event) =>
-                      patch({ stockUnit: "__custom__", customStockUnit: event.target.value })
+                      patch({
+                        stockUnit: "__custom__",
+                        customStockUnit: event.target.value,
+                        units: pricedUnits(event.target.value || "pièce", selling, packs, draft.fractionable),
+                      })
                     }
                   />
                 ) : null}
-                <ToggleField
-                  id="hw-cut"
-                  label="On peut vendre une partie"
-                  description="Couper au mètre, peser au kilo, servir au litre."
-                  checked={draft.fractionable}
-                  onChange={(checked) =>
-                    patch({ fractionable: checked, fractionPrecision: checked ? 0.1 : draft.fractionPrecision })
+                <PriceField
+                  id="hw-price"
+                  name="sellingPrice"
+                  label={`Prix de vente / ${stockUnit}`}
+                  required
+                  value={selling || ""}
+                  onChange={(event) =>
+                    setUnits(packs, Number(event.target.value) || 0)
                   }
                 />
-              </Section>
-
-              <Section
-                title="Tailles et prix"
-                hint="Câble 1,5 / 2,5 mm², peinture 1 L / 5 L, PVC 20 / 25… Cochez seulement si c’est le même article."
-              >
-                <ToggleField
-                  id="hw-sizes"
-                  label="Plusieurs tailles"
-                  description="Sinon, un seul prix ci-dessous."
-                  checked={hasSizes}
-                  onChange={toggleSizes}
-                />
-
-                {hasSizes ? (
-                  <div className="space-y-2">
-                    {draft.variants.map((variant, index) => (
-                      <div key={variant.clientId} className="grid gap-3 rounded-xl border border-slate-200 p-2.5">
-                        <div className="flex items-start gap-2">
-                          <TextField
-                            id={`size-${variant.clientId}`}
-                            name="size"
-                            label={`Taille ${index + 1}`}
-                            placeholder="Ex : 2,5 mm²"
-                            className="min-w-0 flex-1"
-                            value={variant.attributeValue}
-                            onChange={(event) =>
-                              patch({
-                                variants: draft.variants.map((item) =>
-                                  item.clientId === variant.clientId
-                                    ? { ...item, attributeValue: event.target.value }
-                                    : item,
-                                ),
-                              })
-                            }
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              patch({
-                                variants: draft.variants.filter((item) => item.clientId !== variant.clientId),
-                              })
-                            }
-                            className="mt-6 inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500"
-                            aria-label="Retirer la taille"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <PriceAndLots
-                          units={variant.units}
-                          stockUnit={stockUnit}
-                          onChange={(units) =>
-                            patch({
-                              variants: draft.variants.map((item) =>
-                                item.clientId === variant.clientId ? { ...item, units } : item,
-                              ),
-                            })
-                          }
-                        />
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        patch({
-                          variants: [
-                            ...draft.variants,
-                            emptySize(stockUnit, extraPacks(draft.variants[0]?.units ?? [])),
-                          ],
-                        })
-                      }
-                      className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-[13px] font-semibold text-slate-700"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Ajouter une taille
-                    </button>
-                  </div>
-                ) : (
-                  <PriceAndLots
-                    units={draft.units}
-                    stockUnit={stockUnit}
-                    onChange={(units) => patch({ units })}
-                  />
-                )}
-              </Section>
-
-              <Section title="Alerte stock">
                 <NumberField
                   id="hw-min"
                   name="minimumStock"
-                  label="Quantité minimum"
-                  hint={`En « ${stockUnit} ». On prévient quand le stock descend trop bas.`}
+                  label="Stock minimum"
+                  hint={`On prévient quand il reste trop peu de ${stockUnit}s.`}
                   min={0}
                   value={draft.minimumStock || ""}
                   onChange={(event) => patch({ minimumStock: Number(event.target.value) || 0 })}
+                />
+                {mode === "create" ? (
+                  <NumberField
+                    id="hw-initial"
+                    name="initialStock"
+                    label="Stock actuel (facultatif)"
+                    min={0}
+                    step={draft.fractionable ? "0.1" : "1"}
+                    value={draft.initialStock || ""}
+                    onChange={(event) => patch({ initialStock: Number(event.target.value) || 0 })}
+                  />
+                ) : null}
+              </Section>
+
+              <Section
+                title="Ce produit peut-il être vendu ou acheté en gros ?"
+                hint="Ex. carton de 50 ampoules, sac de ciment…"
+              >
+                <YesNo
+                  yes={hasWholesale}
+                  onChange={(yes) => setUnits(yes ? [emptyPack("carton")] : [])}
+                />
+                {hasWholesale && pack ? (
+                  <div className="grid gap-2 rounded-xl bg-slate-50 p-2.5">
+                    <SelectField
+                      id="hw-pack-name"
+                      name="packName"
+                      label="Type de conditionnement"
+                      value={
+                        HARDWARE_WHOLESALE_PACKS.includes(
+                          pack.name as (typeof HARDWARE_WHOLESALE_PACKS)[number],
+                        )
+                          ? pack.name
+                          : "carton"
+                      }
+                      onChange={(event) =>
+                        setUnits([{ ...pack, name: event.target.value }])
+                      }
+                    >
+                      {HARDWARE_WHOLESALE_PACKS.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </SelectField>
+                    <NumberField
+                      id="hw-pack-qty"
+                      name="containsQty"
+                      label={`1 ${pack.name} contient combien de ${stockUnit}s ?`}
+                      min={2}
+                      value={pack.containsQty || ""}
+                      onChange={(event) =>
+                        setUnits([{ ...pack, containsQty: Number(event.target.value) || 0 }])
+                      }
+                    />
+                    <PriceField
+                      id="hw-pack-price"
+                      name="packSell"
+                      label={`Prix de vente du ${pack.name}`}
+                      value={pack.sellingPrice || ""}
+                      onChange={(event) =>
+                        setUnits([{ ...pack, sellingPrice: Number(event.target.value) || 0 }])
+                      }
+                    />
+                  </div>
+                ) : null}
+              </Section>
+
+              <Section
+                title="Vente au détail autorisée ?"
+                hint="Le client donne un montant (ex. 500 F) : FasoBar calcule la quantité de stock."
+              >
+                <YesNo
+                  yes={draft.fractionable}
+                  onChange={(yes) => {
+                    patch({
+                      fractionable: yes,
+                      fractionPrecision: 0.1,
+                      units: pricedUnits(stockUnit, selling, packs, yes),
+                    });
+                  }}
                 />
               </Section>
             </div>

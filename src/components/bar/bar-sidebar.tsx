@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -96,7 +96,7 @@ export function BarSidebar({ navItems }: BarSidebarProps) {
           }
 
           return (
-            <Link
+            <InstantLink
               key={item.href}
               href={item.href}
               prefetch
@@ -126,7 +126,7 @@ export function BarSidebar({ navItems }: BarSidebarProps) {
                 strokeWidth={isHome || isActive ? 2.35 : 2}
               />
               {collapsed ? null : item.label}
-            </Link>
+            </InstantLink>
           );
         })}
       </nav>

@@ -1,8 +1,8 @@
 import type { DepartmentCode } from "@/lib/products/schemas";
-import { DEPARTMENT_LABELS, MANAGEMENT_ROLES, PRODUCT_UNIT_LABELS } from "@/lib/products/constants";
+import { DEPARTMENT_LABELS, MANAGEMENT_ROLES, PRODUCT_UNIT_LABELS, formatProductUnitDisplay } from "@/lib/products/constants";
 import type { LossMovementType, StockStatus, StockTab } from "@/lib/stock/schemas";
 
-export { DEPARTMENT_LABELS, MANAGEMENT_ROLES, PRODUCT_UNIT_LABELS };
+export { DEPARTMENT_LABELS, MANAGEMENT_ROLES, PRODUCT_UNIT_LABELS, formatProductUnitDisplay };
 
 export const BAR_STOCK_ROLES = new Set(["BAR_MANAGER"]);
 export const KITCHEN_STOCK_ROLES = new Set(["KITCHEN_MANAGER", "CASHIER_KITCHEN", "CASHIER"]);
@@ -191,17 +191,20 @@ export function computeStockStatus(
   return "ok";
 }
 
-export function formatQuantity(value: number, unit?: string): string {
+export function formatQuantity(
+  value: number,
+  unit?: string,
+  stockUnitLabel?: string | null,
+): string {
   const formatted = new Intl.NumberFormat("fr-FR", {
     maximumFractionDigits: 3,
   }).format(value);
 
-  if (!unit) {
+  if (!unit && !stockUnitLabel) {
     return formatted;
   }
 
-  const unitLabel =
-    PRODUCT_UNIT_LABELS[unit as keyof typeof PRODUCT_UNIT_LABELS] ?? unit;
+  const unitLabel = formatProductUnitDisplay(unit ?? "", stockUnitLabel);
 
   return `${formatted} ${unitLabel.toLowerCase()}${value > 1 ? "s" : ""}`;
 }

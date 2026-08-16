@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Plus } from "lucide-react";
 
 import { POS_DEPARTMENT_BADGE } from "@/components/pos/constants";
+import { buildCashierSaleChoices } from "@/lib/catalog/sale-choices";
 import { formatPriceXof } from "@/lib/orders/constants";
 import { isProductOutOfStock } from "@/lib/orders/stock-availability";
 import { getProductImage } from "@/lib/fasobar/product-images";
@@ -33,6 +34,14 @@ export function ProductCard({
   const imageUrl = getProductImage(product.name, product.imageUrl);
   const outOfStock = isProductOutOfStock(product);
   const locked = Boolean(disabled || outOfStock);
+  const saleChoices = buildCashierSaleChoices(product);
+  const priceLabel =
+    saleChoices.length > 1
+      ? saleChoices
+          .filter((choice) => choice.kind !== "detail")
+          .map((choice) => (choice.kind === "pack" ? "Gros" : "Unité"))
+          .join(" · ")
+      : formatPriceXof(saleChoices[0]?.price ?? product.sellingPrice);
 
   if (variant === "list") {
     return (
@@ -61,9 +70,9 @@ export function ProductCard({
             <p className="mt-0.5 text-[9px] font-medium text-red-600">Rupture</p>
           ) : null}
         </div>
-        <p className="pos-tabular shrink-0 text-sm font-bold text-emerald-600">
-          {formatPriceXof(product.sellingPrice)}
-        </p>
+          <p className="pos-tabular shrink-0 text-sm font-bold text-emerald-600">
+            {priceLabel}
+          </p>
       </button>
     );
   }
@@ -103,8 +112,8 @@ export function ProductCard({
           {badge.label}
         </span>
         {outOfStock ? null : (
-          <span className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#DCFCE7] text-[#166534] shadow-sm">
-            <Plus className="h-3.5 w-3.5" strokeWidth={3} />
+          <span className="absolute right-2 top-2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#DCFCE7] text-[#166534] shadow-sm">
+            <Plus className="h-5 w-5" strokeWidth={3} />
           </span>
         )}
       </div>
@@ -112,7 +121,11 @@ export function ProductCard({
         <p className="line-clamp-2 text-[11px] font-bold uppercase leading-snug tracking-wide text-slate-900">
           {product.name}
         </p>
-        <p className="mt-0.5 truncate text-[10px] text-slate-500">{product.categoryName}</p>
+        <p className="mt-0.5 truncate text-[10px] text-slate-500">
+          {saleChoices.some((choice) => choice.kind === "pack" || choice.kind === "detail")
+            ? saleChoices.map((choice) => (choice.kind === "pack" ? "Gros" : choice.kind === "detail" ? "Détail" : "Unité")).join(" · ")
+            : product.categoryName}
+        </p>
         <div className="mt-1.5 flex items-end justify-between gap-2">
           {outOfStock ? (
             <span className="text-[9px] font-medium leading-none text-red-600">Rupture</span>
@@ -120,7 +133,15 @@ export function ProductCard({
             <span />
           )}
           <p className="pos-tabular text-[13px] font-bold text-emerald-600">
-            {formatPriceXof(product.sellingPrice)}
+            {saleChoices.filter((choice) => choice.kind !== "detail").length > 1
+              ? formatPriceXof(
+                  Math.min(
+                    ...saleChoices
+                      .filter((choice) => choice.kind !== "detail")
+                      .map((choice) => choice.price),
+                  ),
+                )
+              : formatPriceXof(saleChoices.find((choice) => choice.kind === "unit")?.price ?? product.sellingPrice)}
           </p>
         </div>
       </div>

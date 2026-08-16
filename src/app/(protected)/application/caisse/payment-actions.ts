@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
 
-import { mapGenericError } from "@/lib/auth/errors";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 import {
   requireCashRegisterOperatorMutationContext,
   requireOrderManagementMutationContext,
@@ -21,7 +21,7 @@ import {
   getReceiptByOrderId,
 } from "@/lib/payments/queries";
 import type { PaymentActionState } from "@/lib/payments/types";
-import { isHardwareActivity, isHardwareAdminDirectSeller } from "@/lib/hardware/activity";
+import { isRetailAdminDirectSeller, isRetailShopOps } from "@/lib/activity/ops-model";
 import {
   createAdminClient,
   isAdminClientConfigured,
@@ -57,11 +57,15 @@ function mapRpcError(error: {
   }
 
   if (message.includes("annulée")) {
-    return "Impossible d'encaisser une commande annulée.";
+    return "Impossible d'encaisser cette vente.";
   }
 
   if (message.includes("totalement payée") || message.includes("déjà totalement payée")) {
-    return "Cette commande est déjà totalement payée.";
+    return "Cette vente est déjà payée.";
+  }
+
+  if (message.includes("Stock insuffisant")) {
+    return "Stock insuffisant pour enregistrer cette vente.";
   }
 
   if (message.includes("Permission insuffisante")) {
@@ -69,11 +73,11 @@ function mapRpcError(error: {
   }
 
   if (message.includes("Could not find the function") || message.includes("schema cache")) {
-    return "Fonction de paiement indisponible. Appliquez les migrations SQL manquantes.";
+    return "Encaissement impossible pour le moment. Réessayez.";
   }
 
   if (message.includes("column") && message.includes("phone")) {
-    return "Erreur configuration base (téléphone établissement). Réappliquez la migration de correction paiement.";
+    return "Encaissement impossible pour le moment. Réessayez.";
   }
 
   if (message.includes("Authentification requise")) {
@@ -84,18 +88,8 @@ function mapRpcError(error: {
     return "Le montant à encaisser doit être strictement positif.";
   }
 
-  // Afficher le message métier PostgreSQL s'il est lisible
-  const cleaned = message
-    .replace(/^.*ERROR:\s*/i, "")
-    .replace(/\s+CONTEXT:[\s\S]*$/i, "")
-    .trim();
-
-  if (cleaned && cleaned.length > 0 && cleaned.length < 220 && !cleaned.includes("json")) {
-    return cleaned;
-  }
-
   console.error("[recordPaymentsAction]", error);
-  return mapGenericError(error);
+  return toUserFacingError(error);
 }
 
 export async function openCashSessionAction(
@@ -152,7 +146,7 @@ export async function openCashSessionAction(
   }
 
   const hardwareAdmin =
-    isHardwareActivity(workspace.activityCode) && workspace.userSpace === "admin";
+    isRetailShopOps(workspace.activityCode) && workspace.userSpace === "admin";
 
   if (
     hardwareAdmin &&
@@ -163,7 +157,7 @@ export async function openCashSessionAction(
     const { data: existing } = await admin
       .from("cash_register_sessions")
       .select("id")
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("opened_by", workspace.userId)
       .eq("status", "OPEN")
       .maybeSingle();
@@ -198,7 +192,7 @@ export async function openCashSessionAction(
 
 async function ensureImplicitAdminCashSession(): Promise<PaymentActionState | null> {
   const workspace = await requireCashRegisterOperatorMutationContext();
-  if (!isHardwareAdminDirectSeller(workspace)) return null;
+  if (!isRetailAdminDirectSeller(workspace)) return null;
 
   const existing = await getActiveCashSession(workspace);
   if (existing) return null;
@@ -297,17 +291,17 @@ export async function quickCashCheckoutAction(
   const summary = await getOrderPaymentSummary(workspace, orderId);
 
   if (!summary) {
-    return { error: "Commande introuvable." };
+    return { error: "Ticket introuvable." };
   }
 
   if (summary.status === "CANCELLED") {
-    return { error: "Impossible d'encaisser une commande annulée." };
+    return { error: "Impossible d'encaisser un ticket annulé." };
   }
 
   if (summary.paymentStatus === "PAID" || summary.remainingAmount <= 0) {
     const existing = await getReceiptByOrderId(workspace, orderId);
     return {
-      success: "Cette commande est déjà payée.",
+      success: "Déjà payé.",
       orderId,
       receiptId: existing?.id,
       fullyPaid: true,
@@ -316,18 +310,18 @@ export async function quickCashCheckoutAction(
   }
 
   const session = await getActiveCashSession(workspace);
-  if (!session && !isHardwareAdminDirectSeller(workspace)) {
+  if (!session && !isRetailAdminDirectSeller(workspace)) {
     return {
       error: "Ouvrez une session de caisse pour encaisser en espèces.",
     };
   }
 
-  if (!session && isHardwareAdminDirectSeller(workspace)) {
+  if (!session && isRetailAdminDirectSeller(workspace)) {
     const ensureError = await ensureImplicitAdminCashSession();
     if (ensureError?.error) return ensureError;
     const created = await getActiveCashSession(workspace);
     if (!created) {
-      return { error: "Impossible de démarrer la vente pour cet admin." };
+      return { error: "Impossible de démarrer la caisse. Réessayez." };
     }
   }
 

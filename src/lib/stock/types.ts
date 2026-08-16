@@ -18,6 +18,7 @@ export type StockListItem = {
   productId: string | null;
   categoryId: string | null;
   categoryName: string | null;
+  stockUnitLabel?: string | null;
   status: StockStatus;
   estimatedUnitCost: number | null;
 };
@@ -83,6 +84,40 @@ export type RecentSupplyEntry = {
   reference: string | null;
   supplierName: string | null;
   createdAt: string;
+};
+
+export type SupplyReceiptListItem = {
+  id: string;
+  supplierName: string;
+  receivedOn: string;
+  status: "DRAFT" | "VALIDATED";
+  notes: string | null;
+  totalAmount: number;
+  lineCount: number;
+  departmentCodes: Array<"BAR" | "KITCHEN">;
+  createdAt: string;
+};
+
+export type SupplyReceiptDetail = {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  receivedOn: string;
+  notes: string | null;
+  status: "DRAFT" | "VALIDATED";
+  lines: Array<{
+    stockItemId: string;
+    productId: string | null;
+    productName: string;
+    stockUnit: string;
+    unitLevelId: string | null;
+    unitName: string;
+    purchasedQuantity: number;
+    conversionFactor: number;
+    stockQuantity: number;
+    purchasePrice: number;
+    lineTotal: number;
+  }>;
 };
 
 export type StockLossEntry = {

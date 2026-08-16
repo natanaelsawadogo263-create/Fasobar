@@ -18,6 +18,14 @@ export type CashierProduct = {
   categoryName: string;
   /** Quantité stock suivie ; null/absent = non suivi (ex. plats cuisine). */
   stockQuantity?: number | null;
+  fractionable?: boolean;
+  saleUnits?: Array<{
+    id: string;
+    name: string;
+    price: number;
+    factor: number;
+    allowDecimal?: boolean;
+  }>;
 };
 
 export type CashierCategory = {
@@ -36,6 +44,10 @@ export type OrderLineItem = {
   departmentCode: string;
   departmentName: string;
   notes: string | null;
+  saleUnitId?: string | null;
+  saleUnitName?: string | null;
+  saleUnitFactor?: number | null;
+  stockQuantity?: number | null;
 };
 
 export type OrderDetail = {
@@ -104,6 +116,9 @@ export type CartLine = {
   departmentName?: string;
   categoryName?: string;
   unit: string;
+  saleUnitId?: string;
+  stockFactor?: number;
+  allowDecimal?: boolean;
   notes?: string;
   available?: boolean;
 };

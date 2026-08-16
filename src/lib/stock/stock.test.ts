@@ -13,6 +13,7 @@ import {
   stockAdjustmentSchema,
   createSupplierSchema,
   createStockItemSchema,
+  saveSupplyReceiptSchema,
   updateSupplierSchema,
 } from "@/lib/stock/schemas";
 
@@ -151,5 +152,44 @@ describe("stock helpers", () => {
 
   it("formate une quantité avec unité", () => {
     expect(formatQuantity(12, "BOTTLE")).toContain("12");
+  });
+
+  it("accepte un approvisionnement multi-produits", () => {
+    const result = saveSupplyReceiptSchema.safeParse({
+      supplierId: "00000000-0000-4000-8000-000000000099",
+      receivedOn: "2026-08-16",
+      validate: false,
+      lines: [
+        {
+          stockItemId: "00000000-0000-4000-8000-000000000001",
+          unitName: "carton",
+          purchasedQuantity: 4,
+          conversionFactor: 50,
+          stockQuantity: 200,
+          purchasePrice: 45000,
+          lineTotal: 180000,
+        },
+        {
+          stockItemId: "00000000-0000-4000-8000-000000000002",
+          unitName: "sac",
+          purchasedQuantity: 20,
+          conversionFactor: 1,
+          stockQuantity: 20,
+          purchasePrice: 6500,
+          lineTotal: 130000,
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("refuse un approvisionnement sans ligne", () => {
+    const result = saveSupplyReceiptSchema.safeParse({
+      supplierId: "00000000-0000-4000-8000-000000000099",
+      receivedOn: "2026-08-16",
+      validate: true,
+      lines: [],
+    });
+    expect(result.success).toBe(false);
   });
 });

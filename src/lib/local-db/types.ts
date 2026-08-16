@@ -1,6 +1,6 @@
 import "server-only";
 
-export const LOCAL_SCHEMA_VERSION = 5;
+export const LOCAL_SCHEMA_VERSION = 6;
 
 export type SyncOutboxStatus =
   | "PENDING"

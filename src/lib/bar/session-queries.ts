@@ -228,7 +228,7 @@ export async function getOwnOpenBarSession(
   const { data, error } = await supabase
     .from("bar_sessions")
     .select(SESSION_SELECT)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("opened_by", workspace.userId)
     .eq("status", "OPEN")
     .maybeSingle();
@@ -253,7 +253,7 @@ async function getOwnOpenBarSessionLegacy(
     .select(
       "id, status, opening_note, closing_note, orders_ready_count, closing_orders_pending_count, closing_stock_entries_count, closing_stock_entries_cost, closing_stock_losses_count, closing_stock_losses_qty, closing_low_stock_count, opened_at, closed_at, opened_by, closed_by, profiles!bar_sessions_opened_by_fkey(full_name)",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("opened_by", workspace.userId)
     .eq("status", "OPEN")
     .maybeSingle();
@@ -275,7 +275,7 @@ export async function getOpenBarSessionForEstablishment(
   const { data, error } = await supabase
     .from("bar_sessions")
     .select(SESSION_SELECT)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("status", "OPEN")
     .maybeSingle();
 
@@ -286,7 +286,7 @@ export async function getOpenBarSessionForEstablishment(
         .select(
           "id, status, opening_note, closing_note, orders_ready_count, closing_orders_pending_count, closing_stock_entries_count, closing_stock_entries_cost, closing_stock_losses_count, closing_stock_losses_qty, closing_low_stock_count, opened_at, closed_at, opened_by, closed_by, profiles!bar_sessions_opened_by_fkey(full_name)",
         )
-        .eq("establishment_id", workspace.establishmentId)
+        .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
         .eq("status", "OPEN")
         .maybeSingle();
       if (legacy.error || !legacy.data) return null;
@@ -310,7 +310,7 @@ export async function getBarSessionById(
   const { data, error } = await supabase
     .from("bar_sessions")
     .select(SESSION_SELECT)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("id", sessionId)
     .maybeSingle();
 
@@ -349,7 +349,7 @@ export async function getBarSessionShellContext(
     .select(
       "opened_at, opened_by, profiles!bar_sessions_opened_by_fkey(full_name)",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("status", "OPEN")
     .maybeSingle();
 

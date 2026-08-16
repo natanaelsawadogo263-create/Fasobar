@@ -56,7 +56,7 @@ export const ensureRetailCategories = cache(async function ensureRetailCategorie
     const { error: deactivateError } = await writeClient
       .from("categories")
       .update({ active: false })
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .in(
         "id",
         leftovers.map((item) => item.id),

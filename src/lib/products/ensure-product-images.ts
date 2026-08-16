@@ -31,7 +31,7 @@ export const ensureProductImages = cache(async function ensureProductImages(
   const { data: products, error } = await supabase
     .from("products")
     .select("id, name")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .or("image_url.is.null,image_url.eq.")
     .limit(MAX_UPDATES_PER_REQUEST);
 
@@ -68,7 +68,7 @@ export const ensureProductImages = cache(async function ensureProductImages(
           updated_at: new Date().toISOString(),
         })
         .eq("id", row.id)
-        .eq("establishment_id", workspace.establishmentId),
+        .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId),
     ),
   );
 

@@ -21,6 +21,7 @@ type CashCheckoutModalProps = {
   isPending?: boolean;
   error?: string | null;
   success?: CashCheckoutSuccess | null;
+  retail?: boolean;
   onConfirm: (amountReceived: number) => void;
   onClose: () => void;
   onNewOrder: () => void;
@@ -32,6 +33,7 @@ export function CashCheckoutModal({
   isPending = false,
   error,
   success,
+  retail = false,
   onConfirm,
   onClose,
   onNewOrder,
@@ -45,11 +47,11 @@ export function CashCheckoutModal({
   const subtitle = useMemo(() => {
     if (success) {
       return orderNumber || success.orderNumber
-        ? `Commande ${formatOrderNumber(orderNumber ?? success.orderNumber!)} payée`
+        ? `${retail ? "Ticket" : "Commande"} ${formatOrderNumber(orderNumber ?? success.orderNumber!)} payé${retail ? "" : "e"}`
         : "Paiement enregistré";
     }
-    return "Paiement en espèces uniquement";
-  }, [success, orderNumber]);
+    return "Espèces uniquement";
+  }, [success, orderNumber, retail]);
 
   if (success) {
     return (
@@ -110,7 +112,7 @@ export function CashCheckoutModal({
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 <ShoppingCart className="h-4 w-4" />
-                Nouvelle commande
+                {retail ? "Nouvelle vente" : "Nouvelle commande"}
               </button>
             </div>
           </div>
@@ -144,7 +146,7 @@ export function CashCheckoutModal({
             onClick={onClose}
             disabled={isPending}
             aria-label="Fermer"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 active:bg-slate-100 disabled:opacity-50"
           >
             <X className="h-5 w-5" />
           </button>
@@ -171,7 +173,7 @@ export function CashCheckoutModal({
               onChange={(event) => setAmountReceived(event.target.value)}
               disabled={isPending}
               autoFocus
-              className="pos-tabular w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg font-semibold text-slate-900 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring-4 disabled:opacity-60"
+              className="pos-tabular w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-[16px] font-semibold text-slate-900 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring-4 disabled:opacity-60"
             />
           </label>
 
@@ -183,7 +185,7 @@ export function CashCheckoutModal({
           </div>
         </div>
 
-        <footer className="border-t border-slate-100 bg-slate-50/80 px-5 py-4">
+        <footer className="border-t border-slate-100 bg-slate-50/80 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             disabled={!canConfirm}

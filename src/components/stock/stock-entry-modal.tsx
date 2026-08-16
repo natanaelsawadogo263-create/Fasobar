@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Package, X } from "lucide-react";
 
 import { ModalFooter } from "@/components/ui/modal-footer";
+import { StockArticleSearch } from "@/components/stock/stock-article-search";
 import {
   FormSection,
   NumberField,
@@ -12,7 +13,10 @@ import {
   SelectField,
   TextField,
 } from "@/components/ui/form-controls";
-import { BAR_PACKAGING_LABELS } from "@/lib/products/constants";
+import {
+  BAR_PACKAGING_LABELS,
+  formatProductUnitDisplay,
+} from "@/lib/products/constants";
 import type { BarPackagingUnit } from "@/lib/products/schemas";
 import type { ProductPackaging } from "@/lib/products/types";
 import {
@@ -21,6 +25,8 @@ import {
   PRODUCT_UNIT_LABELS,
 } from "@/lib/stock/constants";
 import type { SupplierOption, StockListItem } from "@/lib/stock/types";
+
+const EMPTY_PRODUCT_UNITS: ProductPackaging[] = [];
 
 function unitWord(label: string, count: number): string {
   const base = label.toLowerCase();
@@ -69,6 +75,20 @@ function packagingFormatLabel(unit: string): string {
   );
 }
 
+function purchaseUnitLabel(packaging: ProductPackaging): string {
+  const raw = packaging.name?.trim() || packaging.packagingUnit;
+  return packagingFormatLabel(raw);
+}
+
+function purchaseConversionHint(packaging: ProductPackaging): string | null {
+  const pack = purchaseUnitLabel(packaging);
+  const base = packaging.baseUnit?.trim() || "";
+  const factor = Number(packaging.conversionFactor) || 1;
+  if (factor <= 1) return null;
+  if (!base || base.toLowerCase() === pack.toLowerCase()) return null;
+  return `1 ${pack} = ${factor} ${unitWord(base, factor)}`;
+}
+
 function packagingCountLabel(unit: string, count: number): string {
   const base = packagingFormatLabel(unit).toLowerCase();
   return count > 1 ? `${base}s` : base;
@@ -106,32 +126,36 @@ export function StockEntryModal({
   const isKitchen = !drinksOnly && selectedItem?.departmentCode === "KITCHEN";
   const isBarItem = drinksOnly || selectedItem?.departmentCode === "BAR";
 
-  const packagings = useMemo(() => {
-    if (!selectedItem?.productId) return [];
-    return packagingsByProduct[selectedItem.productId] ?? [];
-  }, [packagingsByProduct, selectedItem]);
+  const productId = selectedItem?.productId;
+  const productUnits = productId
+    ? (packagingsByProduct[productId] ?? EMPTY_PRODUCT_UNITS)
+    : EMPTY_PRODUCT_UNITS;
 
-  const resolvedPackagingId = useMemo(() => {
-    if (packagings.length === 0) return "";
-    if (packagingId && packagings.some((packaging) => packaging.id === packagingId)) {
-      return packagingId;
-    }
-    return packagings[0]?.id ?? "";
-  }, [packagings, packagingId]);
+  const useCommerceUnits = productUnits.length > 0;
+  const isSimple = simpleEntry && !useCommerceUnits;
+
+  const resolvedPackagingId =
+    productUnits.length === 0
+      ? ""
+      : packagingId && productUnits.some((unit) => unit.id === packagingId)
+        ? packagingId
+        : (productUnits[0]?.id ?? "");
 
   const selectedPackaging =
-    packagings.find((packaging) => packaging.id === resolvedPackagingId) ?? null;
+    productUnits.find((unit) => unit.id === resolvedPackagingId) ?? null;
 
-  const unitKey = selectedItem?.unit;
-  const unitLabel =
-    (unitKey && unitKey in PRODUCT_UNIT_LABELS
-      ? PRODUCT_UNIT_LABELS[unitKey as keyof typeof PRODUCT_UNIT_LABELS]
-      : null) ??
-    selectedItem?.unit ??
-    "unité";
+  const unitLabel = formatProductUnitDisplay(
+    selectedItem?.unit ?? "PIECE",
+    selectedItem?.stockUnitLabel,
+  );
   const packagingFormat = selectedPackaging
-    ? packagingFormatLabel(selectedPackaging.packagingUnit)
+    ? purchaseUnitLabel(selectedPackaging)
     : null;
+  const conversionHint = selectedPackaging
+    ? purchaseConversionHint(selectedPackaging)
+    : null;
+  const stockUnitName =
+    selectedPackaging?.baseUnit?.trim() || unitLabel;
   const packCount = Number(purchasedQuantity) || 0;
   const packagingQtyLabel = selectedPackaging
     ? packagingCountLabel(selectedPackaging.packagingUnit, packCount)
@@ -182,7 +206,7 @@ export function StockEntryModal({
       return;
     }
 
-    if (isBarItem && !simpleEntry && !selectedPackaging) {
+    if (isBarItem && !isSimple && !selectedPackaging) {
       setLocalError(
         "Ce produit n'a pas de format (casier / carton / sachet). Modifiez-le dans Produits.",
       );
@@ -240,7 +264,9 @@ export function StockEntryModal({
     }
     const autoReason =
       selectedPackaging && !reason.trim()
-        ? `Entrée ${purchased} ${packagingCountLabel(selectedPackaging.packagingUnit, purchased)} (${factor} ${unitLabel.toLowerCase()}${factor > 1 ? "s" : ""} / ${packagingFormatLabel(selectedPackaging.packagingUnit).toLowerCase()})`
+        ? `Entrée ${purchased} ${packagingCountLabel(selectedPackaging.packagingUnit, purchased)}${
+            conversionHint ? ` (${conversionHint})` : ""
+          }`
         : reason.trim();
     if (autoReason) {
       formData.set("reason", autoReason);
@@ -255,7 +281,7 @@ export function StockEntryModal({
   const displayError = localError ?? formError;
   const cannotSubmit =
     activeSuppliers.length === 0 ||
-    (isBarItem && !simpleEntry && packagings.length === 0 && Boolean(selectedItem));
+    (isBarItem && !isSimple && productUnits.length === 0 && Boolean(selectedItem));
 
   if (!mounted) {
     return null;
@@ -316,7 +342,7 @@ export function StockEntryModal({
 
               {stockItems.length === 0 ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                  {simpleEntry
+                  {isSimple
                     ? "Aucun article de stock. Créez d'abord un article dans le catalogue."
                     : drinksOnly
                     ? "Aucun produit bar. Créez-en un dans Produits (avec casier, carton ou sachet)."
@@ -327,28 +353,19 @@ export function StockEntryModal({
                   <FormSection
                     title="Produit"
                     description={
-                      simpleEntry
+                      isSimple
                         ? "Choisissez l’article à réapprovisionner."
-                        : "Le conditionnement est défini à la création du produit."
+                        : "Le conditionnement (pièce, boîte, carton…) est défini sur le produit."
                     }
                   >
-                    <SelectField
-                      id="stockItemId"
-                      name="stockItemId"
-                      label="Article"
+                    <StockArticleSearch
+                      items={stockItems}
                       value={stockItemId}
-                      onChange={(event) => handleStockItemChange(event.target.value)}
-                      required
-                    >
-                      <option value="">Sélectionner un produit</option>
-                      {stockItems.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </SelectField>
+                      onChange={handleStockItemChange}
+                      label="Article"
+                    />
 
-                    {selectedItem && packagings.length === 0 && !simpleEntry ? (
+                    {selectedItem && productUnits.length === 0 && !isSimple ? (
                       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                         « {selectedItem.name} » n&apos;a pas de conditionnement (casier,
                         carton ou sachet). Ouvrez le produit dans{" "}
@@ -366,11 +383,10 @@ export function StockEntryModal({
                             {packagingFormat}
                           </p>
                           <p className="mt-0.5 text-sm text-slate-600">
-                            {selectedPackaging.conversionFactor}{" "}
-                            {unitWord(unitLabel, selectedPackaging.conversionFactor)} par{" "}
-                            {packagingFormat?.toLowerCase()}
+                            {conversionHint ??
+                              "Unité de réception — saisissez combien vous avez reçu."}
                           </p>
-                          {packagings.length > 1 ? (
+                          {productUnits.length > 1 ? (
                             <SelectField
                               id="packagingId"
                               name="packagingId"
@@ -379,13 +395,17 @@ export function StockEntryModal({
                               value={selectedPackaging.id}
                               onChange={(event) => setPackagingId(event.target.value)}
                             >
-                              {packagings.map((packaging) => (
-                                <option key={packaging.id} value={packaging.id}>
-                                  {packagingFormatLabel(packaging.packagingUnit)} ·{" "}
-                                  {packaging.conversionFactor}{" "}
-                                  {unitWord(unitLabel, packaging.conversionFactor)}
-                                </option>
-                              ))}
+                              {productUnits.map((packaging) => {
+                                const factor = Number(packaging.conversionFactor) || 1;
+                                const hint = purchaseConversionHint(packaging);
+                                const kind = factor > 1 ? "Gros" : "Unité";
+                                return (
+                                  <option key={packaging.id} value={packaging.id}>
+                                    {kind} · {purchaseUnitLabel(packaging)}
+                                    {hint ? ` · ${hint}` : ""}
+                                  </option>
+                                );
+                              })}
                             </SelectField>
                           ) : null}
                         </div>
@@ -488,8 +508,8 @@ export function StockEntryModal({
                           <div className="flex items-center justify-between gap-4 px-4 py-2.5">
                             <dt className="text-slate-500">Conditionnement</dt>
                             <dd className="font-medium text-slate-900">
-                              {packagingFormat} · {selectedPackaging.conversionFactor}{" "}
-                              {unitWord(unitLabel, selectedPackaging.conversionFactor)}
+                              {packagingFormat}
+                              {conversionHint ? ` · ${conversionHint}` : ""}
                             </dd>
                           </div>
                           <div className="flex items-center justify-between gap-4 px-4 py-2.5">
@@ -501,7 +521,8 @@ export function StockEntryModal({
                           <div className="flex items-center justify-between gap-4 px-4 py-2.5">
                             <dt className="text-slate-500">Stock ajouté</dt>
                             <dd className="font-semibold text-emerald-700">
-                              +{stockQuantity} {unitWord(unitLabel, stockQuantity)}
+                              {stockQuantity} {unitWord(stockUnitName, stockQuantity)} seront
+                              ajoutées au stock.
                             </dd>
                           </div>
                           {totalCost !== null ? (
@@ -527,23 +548,17 @@ export function StockEntryModal({
                     title="Article"
                     description="Choisissez une matière première cuisine à réapprovisionner."
                   >
-                    <SelectField
-                      id="stockItemId"
-                      name="stockItemId"
-                      label="Article de stock"
+                    <StockArticleSearch
+                      items={stockItems}
                       value={stockItemId}
-                      onChange={(event) => handleStockItemChange(event.target.value)}
-                      required
-                    >
-                      <option value="">Choisir un article</option>
-                      {stockItems.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {simpleEntry
-                            ? item.name
-                            : `${item.departmentCode === "KITCHEN" ? "Cuisine · " : "Bar · "}${item.name}`}
-                        </option>
-                      ))}
-                    </SelectField>
+                      onChange={handleStockItemChange}
+                      label="Article de stock"
+                      optionLabel={(item) =>
+                        isSimple
+                          ? item.name
+                          : `${item.departmentCode === "KITCHEN" ? "Cuisine · " : "Bar · "}${item.name}`
+                      }
+                    />
 
                     {isKitchen ? (
                       <p className="rounded-lg border border-orange-100 bg-orange-50/80 px-3 py-2 text-[12px] text-orange-950">

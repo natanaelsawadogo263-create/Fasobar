@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { FasoBarCashierProvider } from "@/components/fasobar/fasobar-cashier-context";
 import { FasoBarShell } from "@/components/fasobar/fasobar-shell";
+import type { NavItem } from "@/lib/navigation/space-navigation";
 
 type FasoBarCashierShellProps = {
   establishmentName: string;
@@ -11,6 +12,7 @@ type FasoBarCashierShellProps = {
   establishmentId?: string;
   userId?: string;
   adminReturnHref?: string | null;
+  navItems?: NavItem[];
   children: ReactNode;
 };
 
@@ -20,6 +22,7 @@ export function FasoBarCashierShell({
   establishmentId,
   userId,
   adminReturnHref = null,
+  navItems = [],
   children,
 }: FasoBarCashierShellProps) {
   return (
@@ -30,7 +33,7 @@ export function FasoBarCashierShell({
       userId={userId}
       adminReturnHref={adminReturnHref}
     >
-      <FasoBarShell>{children}</FasoBarShell>
+      <FasoBarShell navItems={navItems}>{children}</FasoBarShell>
     </FasoBarCashierProvider>
   );
 }

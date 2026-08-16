@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
@@ -81,9 +81,10 @@ export function SidebarNav({
           }
 
           return (
-            <Link
+            <InstantLink
               key={item.href}
               href={item.href}
+              prefetch
               className={`flex items-center gap-3 rounded-xl transition ${
                 isHome
                   ? isActive
@@ -96,7 +97,7 @@ export function SidebarNav({
             >
               <Icon className={isHome ? "h-5 w-5" : "h-4 w-4"} strokeWidth={isHome ? 2.4 : 2} />
               {item.label}
-            </Link>
+            </InstantLink>
           );
         })}
       </nav>

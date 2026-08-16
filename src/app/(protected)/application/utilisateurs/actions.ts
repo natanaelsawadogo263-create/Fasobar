@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 
 import { mapAuthError, mapGenericError } from "@/lib/auth/errors";
-import { toUserFacingError } from "@/lib/errors/user-facing";
+import { toUserFacingError, USER_ERROR_MESSAGE } from "@/lib/errors/user-facing";
 import { inviteSpaceToRole } from "@/lib/auth/roles";
 import { createEmployeeAuthUser } from "@/lib/auth/employee-sign-in";
 import { requireAdminMutationContext } from "@/lib/auth/workspace-context";
@@ -48,7 +48,7 @@ function mapEmployeePurgeError(error: unknown): string {
     return "Employé introuvable dans votre organisation.";
   }
 
-  return toUserFacingError(message) === "Erreur."
+  return toUserFacingError(message) === USER_ERROR_MESSAGE
     ? "Impossible de supprimer cet employé. Réessayez."
     : toUserFacingError(message);
 }

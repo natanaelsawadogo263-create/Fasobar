@@ -41,4 +41,10 @@ describe("catalogue produit par activité", () => {
     expect(shouldShowCatalogCategory("Boissons", catalog)).toBe(false);
     expect(shouldShowCatalogCategory("Ciment", catalog)).toBe(true);
   });
+
+  it("prépare le catalogue matériaux comme un dépôt", () => {
+    const catalog = getCatalogFormProfile("construction");
+    expect(catalog.units).toContain("TONNE");
+    expect(catalog.suggestedCategories).toContain("Toiture");
+  });
 });

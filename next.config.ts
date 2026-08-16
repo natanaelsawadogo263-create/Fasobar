@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
   // Navigations client : réutilise le payload RSC plus longtemps (app plus fluide).
   experimental: {
     staleTimes: {
-      dynamic: 180,
+      dynamic: 300,
       static: 600,
     },
     // Photos produit (téléphone) dépassent souvent 1 Mo en multipart.

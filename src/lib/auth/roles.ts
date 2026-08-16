@@ -1,4 +1,4 @@
-import { isHardwareActivity } from "@/lib/hardware/activity";
+import { isRetailShopOps } from "@/lib/activity/ops-model";
 
 export type UserSpace = "admin" | "cashier_kitchen" | "bar_manager";
 
@@ -104,7 +104,7 @@ export function resolveHomePathForRoles(
   activityCode?: string | null,
 ): string {
   const space = resolveUserSpace(organizationRole, establishmentRole);
-  if (space === "bar_manager" && isHardwareActivity(activityCode)) {
+  if (space === "bar_manager" && isRetailShopOps(activityCode)) {
     return "/application/stock";
   }
   return SPACE_HOME_PATHS[space];
@@ -118,7 +118,7 @@ export function canOperateCashRegister(
 ): boolean {
   const space = resolveUserSpace(organizationRole, establishmentRole);
   if (space === "cashier_kitchen") return true;
-  if (space === "admin" && isHardwareActivity(activityCode)) return true;
+  if (space === "admin" && isRetailShopOps(activityCode)) return true;
   return false;
 }
 

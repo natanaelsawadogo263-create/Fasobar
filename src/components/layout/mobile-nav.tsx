@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { usePathname } from "next/navigation";
 import {
   useEffect,
@@ -27,6 +27,7 @@ import {
   X,
   Clock3,
   Timer,
+  UtensilsCrossed,
 } from "lucide-react";
 
 import { isHomeNavItem, type NavItem } from "@/lib/navigation/space-navigation";
@@ -54,7 +55,11 @@ const NAV_ICONS: Record<
   "/application/bar/approvisionnements": Truck,
   "/application/bar/historique": Clock3,
   "/application/bar/session": Timer,
+  "/application/inventaires": ClipboardList,
   "/application/caisse": ShoppingBag,
+  "/application/caisse/session": Timer,
+  "/application/commandes-ouvertes": ClipboardList,
+  "/application/cuisine": UtensilsCrossed,
 };
 
 function shortLabel(label: string): string {
@@ -65,7 +70,10 @@ function shortLabel(label: string): string {
   if (label === "Commandes boissons") return "Commandes";
   if (label === "Stock boissons") return "Stock";
   if (label === "Commandes ouvertes") return "Ouvertes";
+  if (label === "Mes ventes") return "Ventes";
+  if (label === "Ma session") return "Session";
   if (label === "Stock Cuisine") return "Stock";
+  if (label === "Inventaires") return "Inventaire";
   return label;
 }
 
@@ -139,7 +147,7 @@ export function MobileNav({
             const Icon = NAV_ICONS[item.href] ?? Package;
             const active = isActivePath(pathname, item.href);
             return (
-              <Link
+              <InstantLink
                 key={item.href}
                 href={item.href}
                 prefetch
@@ -157,7 +165,7 @@ export function MobileNav({
                   strokeWidth={active ? 2.4 : 2}
                 />
                 <span className="max-w-full truncate">{shortLabel(item.label)}</span>
-              </Link>
+              </InstantLink>
             );
           })}
           <button
@@ -221,7 +229,7 @@ export function MobileNav({
                   const active = isActivePath(pathname, item.href);
                   const home = isHomeNavItem(item);
                   return (
-                    <Link
+                    <InstantLink
                       key={item.href}
                       href={item.href}
                       prefetch
@@ -246,7 +254,7 @@ export function MobileNav({
                       <span className="text-[11px] font-semibold leading-tight">
                         {shortLabel(item.label)}
                       </span>
-                    </Link>
+                    </InstantLink>
                   );
                 })}
               </div>

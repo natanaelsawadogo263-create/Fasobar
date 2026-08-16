@@ -1,10 +1,11 @@
 "use server";
 
-import { mapGenericError } from "@/lib/auth/errors";
 import {
+  requireCashRegisterOperatorContext,
   requireOrderManagementMutationContext,
   requireOrderReadContext,
 } from "@/lib/auth/workspace-context";
+import { listCommerceUnitsForProducts } from "@/lib/products/packaging-queries";
 import { revalidateOrderOps } from "@/lib/ops/revalidate";
 import { getOrderById } from "@/lib/orders/queries";
 import {
@@ -16,6 +17,8 @@ import {
 } from "@/lib/orders/schemas";
 import type { OrderActionState } from "@/lib/orders/types";
 import { createClient } from "@/lib/supabase/server";
+import { isRetailActivity } from "@/lib/activity/profile";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 
 function revalidateOrderPages(orderId?: string) {
   revalidateOrderOps(orderId);
@@ -32,6 +35,23 @@ function parseItemsJson(raw: FormDataEntryValue | null) {
 
   const parsed = JSON.parse(raw) as unknown;
   return cartItemSchema.array().parse(parsed);
+}
+
+export async function getProductSaleUnitsAction(productId: string) {
+  try {
+    const workspace = await requireCashRegisterOperatorContext();
+    if (!productId) return [];
+    const map = await listCommerceUnitsForProducts(workspace, [productId], "sale");
+    return (map[productId] ?? []).map((unit) => ({
+      id: unit.id,
+      name: unit.name,
+      price: unit.sellingPrice ?? 0,
+      factor: unit.conversionFactor || 1,
+      allowDecimal: Boolean(unit.allowDecimal),
+    }));
+  } catch {
+    return [];
+  }
 }
 
 function mapRpcError(error: {
@@ -60,24 +80,26 @@ function mapRpcError(error: {
     return "Session expirée. Veuillez vous reconnecter.";
   }
 
-  if (message.includes("Could not find the function") || message.includes("schema cache")) {
-    return "Fonction commande indisponible. Appliquez les migrations SQL manquantes.";
+  if (message.includes("Stock insuffisant") || message.includes("stock insuffisant")) {
+    return "Stock insuffisant pour cet article.";
   }
 
   if (message.includes("Produit introuvable")) {
-    return "Produit introuvable ou inactif.";
+    return "Cet article n’est plus en vente.";
   }
 
   if (
+    message.includes("Could not find the function") ||
+    message.includes("schema cache") ||
     message.includes("kitchen_prep_status") ||
     message.includes("kitchen_status") ||
     message.includes("CASE/WHEN")
   ) {
-    return "Enregistrement commande bloqué côté base. Appliquez la migration SQL 20260806160000_fix_save_order_items_kitchen_status.sql.";
+    return "Enregistrement impossible pour le moment. Réessayez.";
   }
 
   console.error("[saveOrderAction]", error);
-  return mapGenericError(error);
+  return toUserFacingError(error);
 }
 
 export async function saveOrderAction(
@@ -124,7 +146,7 @@ export async function saveOrderAction(
     (targetStatus === "OPEN" || targetStatus === "READY_TO_PAY") &&
     items.length === 0
   ) {
-    return { error: "Ajoutez au moins un article à la commande." };
+    return { error: "Ajoutez au moins un article." };
   }
 
   const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
@@ -152,21 +174,21 @@ export async function saveOrderAction(
       });
       scheduleOutboxPush();
       revalidateOrderPages(saved.orderId);
+      const retail = isRetailActivity(workspace.activityCode);
       const successMessages: Record<string, string> = {
-        DRAFT: "Commande enregistrée en brouillon.",
-        OPEN: "Commande enregistrée.",
-        READY_TO_PAY: "Commande mise en attente d'encaissement.",
+        DRAFT: retail ? "Vente enregistrée." : "Commande enregistrée en brouillon.",
+        OPEN: retail ? "Vente enregistrée." : "Commande enregistrée.",
+        READY_TO_PAY: retail
+          ? "Vente mise de côté. Vous pouvez encaisser plus tard."
+          : "Commande mise en attente d'encaissement.",
       };
       return {
-        success: successMessages[targetStatus] ?? "Commande enregistrée.",
+        success: successMessages[targetStatus] ?? (retail ? "Vente enregistrée." : "Commande enregistrée."),
         orderId: saved.orderId,
       };
     } catch (error) {
       return {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Impossible d'enregistrer la commande.",
+        error: toUserFacingError(error),
       };
     }
   }
@@ -219,6 +241,9 @@ export async function saveOrderAction(
       product_id: item.productId,
       quantity: item.quantity,
       notes: item.notes ?? null,
+      unit_price: item.unitPrice ?? null,
+      product_name: item.productName ?? null,
+      unit_level_id: item.saleUnitId ?? null,
     }));
 
     const { error: saveError } = await supabase.rpc("save_order_items", {
@@ -234,14 +259,17 @@ export async function saveOrderAction(
 
   revalidateOrderPages(orderId);
 
+  const retail = isRetailActivity(workspace.activityCode);
   const successMessages: Record<string, string> = {
-    DRAFT: "Commande enregistrée en brouillon.",
-    OPEN: "Commande enregistrée.",
-    READY_TO_PAY: "Commande mise en attente d'encaissement.",
+    DRAFT: retail ? "Vente enregistrée." : "Commande enregistrée en brouillon.",
+    OPEN: retail ? "Vente enregistrée." : "Commande enregistrée.",
+    READY_TO_PAY: retail
+      ? "Vente mise de côté. Vous pouvez encaisser plus tard."
+      : "Commande mise en attente d'encaissement.",
   };
 
   return {
-    success: successMessages[targetStatus] ?? "Commande enregistrée.",
+    success: successMessages[targetStatus] ?? (retail ? "Vente enregistrée." : "Commande enregistrée."),
     orderId,
   };
 }
@@ -310,6 +338,9 @@ export async function prepareOrderForPaymentAction(
     product_id: item.productId,
     quantity: item.quantity,
     notes: item.notes,
+    unit_price: item.unitPrice,
+    product_name: item.productName,
+    unit_level_id: item.saleUnitId ?? null,
   }));
 
   const { error } = await supabase.rpc("save_order_items", {

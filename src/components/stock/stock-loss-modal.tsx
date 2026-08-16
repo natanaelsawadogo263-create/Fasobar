@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { FormSection, NumberField, SelectField, TextField } from "@/components/ui/form-controls";
-import { LOSS_TYPE_LABELS, PRODUCT_UNIT_LABELS } from "@/lib/stock/constants";
+import { LOSS_TYPE_LABELS, formatProductUnitDisplay } from "@/lib/stock/constants";
 import type { LossMovementType } from "@/lib/stock/schemas";
 import type { StockListItem } from "@/lib/stock/types";
 
@@ -33,8 +33,7 @@ export function StockLossModal({
 
   const selectedItem = stockItems.find((item) => item.id === stockItemId);
   const unitLabel = selectedItem
-    ? (PRODUCT_UNIT_LABELS[selectedItem.unit as keyof typeof PRODUCT_UNIT_LABELS] ??
-      selectedItem.unit)
+    ? formatProductUnitDisplay(selectedItem.unit, selectedItem.stockUnitLabel)
     : "unité";
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {

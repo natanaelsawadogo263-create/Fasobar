@@ -13,6 +13,7 @@ import { getLocalOrderById } from "@/lib/local-domain/orders-local";
 import { calculateChange } from "@/lib/payments/constants";
 import type { PaymentMethod } from "@/lib/payments/schemas";
 import type { PaymentActionState, ReceiptDetail } from "@/lib/payments/types";
+import { applySaleStockDebits } from "@/lib/catalog/sale-stock";
 import { enqueueOutboxEvent } from "@/lib/sync/outbox";
 
 export type LocalPaymentLine = {
@@ -33,6 +34,90 @@ function paidAmountForOrder(db: SqlDatabase, orderId: string): number {
     )
     .get(orderId);
   return moneyXof(Number(row?.total ?? 0));
+}
+
+function debitLocalStockForPaidOrder(
+  db: SqlDatabase,
+  workspace: WorkspaceContext,
+  orderId: string,
+  now: string,
+  deviceId: string,
+) {
+  const orderRow = db
+    .prepare(
+      `SELECT stock_posted_at, payment_status FROM local_orders WHERE id = ?`,
+    )
+    .get(orderId);
+  if (!orderRow || String(orderRow.payment_status) !== "PAID") {
+    return;
+  }
+  if (orderRow.stock_posted_at) {
+    return;
+  }
+
+  const lines = db
+    .prepare(
+      `SELECT product_id, stock_quantity FROM local_order_items WHERE order_id = ?`,
+    )
+    .all(orderId);
+
+  const ledger = new Map<string, number>();
+  for (const line of lines) {
+    const productId = String(line.product_id);
+    if (ledger.has(productId)) continue;
+    const stock = db
+      .prepare(
+        `SELECT quantity FROM local_stock_items
+         WHERE product_id = ? AND establishment_id = ?
+         LIMIT 1`,
+      )
+      .get(productId, workspace.establishmentId);
+    if (stock) {
+      ledger.set(productId, Number(stock.quantity));
+    }
+  }
+
+  const result = applySaleStockDebits(
+    ledger,
+    lines.map((line) => ({
+      productId: String(line.product_id),
+      stockQuantity: Number(line.stock_quantity ?? 0),
+    })),
+  );
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
+
+  for (const [productId, after] of result.ledger) {
+    const before = ledger.get(productId);
+    if (before == null || before === after) continue;
+    db.prepare(
+      `UPDATE local_stock_items
+       SET quantity = ?, updated_at = ?
+       WHERE product_id = ? AND establishment_id = ?`,
+    ).run(after, now, productId, workspace.establishmentId);
+    db.prepare(
+      `INSERT INTO local_stock_movements (
+        id, cloud_id, client_mutation_id, organization_id, establishment_id,
+        product_id, quantity_delta, reason, created_at, device_id, sync_status
+      ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
+    ).run(
+      randomUUID(),
+      randomUUID(),
+      workspace.organizationId,
+      workspace.establishmentId,
+      productId,
+      after - before,
+      "SALE",
+      now,
+      deviceId,
+    );
+  }
+
+  db.prepare(`UPDATE local_orders SET stock_posted_at = ? WHERE id = ?`).run(
+    now,
+    orderId,
+  );
 }
 
 export function getLocalReceiptById(
@@ -283,6 +368,16 @@ export function recordLocalPayments(
       session?.id ?? null,
       input.orderId,
     );
+
+    if (fullyPaid) {
+      debitLocalStockForPaidOrder(
+        db,
+        workspace,
+        input.orderId,
+        now,
+        deviceId,
+      );
+    }
 
     let receiptId: string | undefined;
     let receiptPayload: ReceiptDetail | null = null;

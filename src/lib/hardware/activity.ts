@@ -1,3 +1,4 @@
+import { isRetailAdminDirectSeller } from "@/lib/activity/ops-model";
 import { isBusinessActivityId } from "@/lib/auth/activities";
 
 export function isHardwareActivity(
@@ -12,10 +13,10 @@ export function isHardwareEstablishment(
   return isBusinessActivityId(activityCode) && isHardwareActivity(activityCode);
 }
 
-/** Admin quincaillerie : vend sans écran d’ouverture de caisse ; la vente reste à son nom. */
+/** Admin magasin : vend sans écran d’ouverture de caisse ; la vente reste à son nom. */
 export function isHardwareAdminDirectSeller(actor: {
   activityCode?: string | null;
   userSpace?: string | null;
 }): boolean {
-  return isHardwareActivity(actor.activityCode) && actor.userSpace === "admin";
+  return isRetailAdminDirectSeller(actor);
 }

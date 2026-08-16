@@ -2,7 +2,7 @@ export const MARKETING_FAQ = [
   {
     question: "Qu’est-ce que FasoBar ?",
     answer:
-      "FasoBar est le logiciel pour gérer la caisse, le stock, les ventes et l’équipe d’un maquis, d’un bar ou d’un restaurant.",
+      "FasoBar est le logiciel pour gérer le stock, la caisse, les tickets, les reçus et l’équipe — boutique, pharmacie, quincaillerie, maquis ou restaurant.",
   },
   {
     question: "Comment démarrer ?",
@@ -12,12 +12,12 @@ export const MARKETING_FAQ = [
   {
     question: "Puis-je donner un accès à mes employés ?",
     answer:
-      "Oui. Chaque personne a son identifiant et un rôle : administrateur, caisse–cuisine ou bar.",
+      "Oui. Chaque personne a son identifiant et un rôle adapté à votre activité.",
   },
   {
     question: "Combien ça coûte ?",
     answer:
-      "Après l’essai, un abonnement mensuel ou annuel. Les tarifs sont affichés sur la page Tarifs.",
+      "Après l’essai : 10 000 FCFA / mois, ou 100 000 FCFA / an pour le logiciel. Le kit complet (caisse, clavier, souris, imprimante, installation, suivi) + abonnement annuel est à 350 000 FCFA.",
   },
   {
     question: "Comment vous joindre ?",

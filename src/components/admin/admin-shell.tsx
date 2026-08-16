@@ -7,7 +7,7 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminTopbar } from "@/components/admin/admin-topbar";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
-import { isHardwareActivity } from "@/lib/hardware/activity";
+import { isRetailShopOps } from "@/lib/activity/ops-model";
 import type { NavItem } from "@/lib/navigation/space-navigation";
 
 type AdminShellProps = {
@@ -20,6 +20,11 @@ type AdminShellProps = {
   canRenewSubscription?: boolean;
   activityCode?: string | null;
   children: ReactNode;
+  roleLabel?: string;
+  roleSubtitle?: string;
+  showNotifications?: boolean;
+  primaryHrefs?: string[];
+  showSubscriptionBanner?: boolean;
 };
 
 const ADMIN_PRIMARY = [
@@ -45,8 +50,16 @@ export function AdminShell({
   canRenewSubscription = false,
   activityCode = null,
   children,
+  roleLabel = "Admin",
+  roleSubtitle = "Administrateur",
+  showNotifications = true,
+  primaryHrefs,
+  showSubscriptionBanner = true,
 }: AdminShellProps) {
   const { collapsed, toggle } = useSidebarCollapsed("fasobar.admin.sidebar.collapsed");
+  const mobilePrimary =
+    primaryHrefs ??
+    (isRetailShopOps(activityCode) ? HARDWARE_ADMIN_PRIMARY : ADMIN_PRIMARY);
 
   return (
     <div className="admin-shell app-shell flex h-dvh w-full max-w-full overflow-hidden bg-[#f4f6f9]">
@@ -61,8 +74,11 @@ export function AdminShell({
           adminName={adminName}
           sidebarCollapsed={collapsed}
           onToggleSidebar={toggle}
+          roleLabel={roleLabel}
+          roleSubtitle={roleSubtitle}
+          showNotifications={showNotifications}
         />
-        {organizationId ? (
+        {organizationId && showSubscriptionBanner ? (
           <SubscriptionExpiryBannerLoader
             organizationId={organizationId}
             canRenew={canRenewSubscription}
@@ -75,9 +91,7 @@ export function AdminShell({
 
       <MobileNav
         items={navItems}
-        primaryHrefs={
-          isHardwareActivity(activityCode) ? HARDWARE_ADMIN_PRIMARY : ADMIN_PRIMARY
-        }
+        primaryHrefs={mobilePrimary}
         tone="admin"
       />
     </div>

@@ -82,7 +82,7 @@ export async function listExpenses(
     .select(
       "id, area, category, label, amount, supplier_name, expense_date, reference, note, status, cancel_reason, created_at, updated_at, profiles!expenses_created_by_fkey(full_name)",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .order("expense_date", { ascending: false })
     .order("created_at", { ascending: false })
@@ -117,7 +117,7 @@ export async function listExpenses(
       .select(
         "id, category, label, amount, supplier_name, expense_date, reference, note, status, cancel_reason, created_at, updated_at, profiles!expenses_created_by_fkey(full_name)",
       )
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("organization_id", workspace.organizationId)
       .order("expense_date", { ascending: false })
       .order("created_at", { ascending: false })

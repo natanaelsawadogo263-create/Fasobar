@@ -92,7 +92,7 @@ async function createCategoryForDepartment(
   const existing = await supabase
     .from("categories")
     .select("id")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("department_id", departmentId)
     .eq("slug", slug)
     .maybeSingle();
@@ -610,7 +610,7 @@ export async function updateProductAction(
     .from("products")
     .select("image_url, image_original_url, image_optimized_url")
     .eq("id", parsed.data.productId)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
 
   const images = await resolveProductImagesFromForm(workspace, formData, parsed.data.name, {
@@ -656,7 +656,7 @@ export async function updateProductAction(
     .from("products")
     .update(payload)
     .eq("id", parsed.data.productId)
-    .eq("establishment_id", workspace.establishmentId);
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId);
 
   if (error?.message?.includes("image_original_url") || error?.message?.includes("image_optimized_url")) {
     const {
@@ -670,7 +670,7 @@ export async function updateProductAction(
       .from("products")
       .update(legacyPayload)
       .eq("id", parsed.data.productId)
-      .eq("establishment_id", workspace.establishmentId));
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId));
   }
 
   if (error?.message?.includes("image_url")) {
@@ -687,7 +687,7 @@ export async function updateProductAction(
       .from("products")
       .update(withoutImage)
       .eq("id", parsed.data.productId)
-      .eq("establishment_id", workspace.establishmentId));
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId));
   }
 
   if (error) {
@@ -732,7 +732,7 @@ export async function updateProductPriceAction(
       updated_by: workspace.userId,
     })
     .eq("id", parsed.data.productId)
-    .eq("establishment_id", workspace.establishmentId);
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId);
 
   if (error) {
     return { error: mapProductWriteError(error) };
@@ -763,7 +763,7 @@ export async function toggleProductStatusAction(
       updated_by: workspace.userId,
     })
     .eq("id", parsed.data.productId)
-    .eq("establishment_id", workspace.establishmentId);
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId);
 
   if (error) {
     return { error: mapProductWriteError(error) };
@@ -774,7 +774,7 @@ export async function toggleProductStatusAction(
       .from("products")
       .select("id, name, unit, minimum_stock, departments(code)")
       .eq("id", parsed.data.productId)
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .maybeSingle();
 
     const department = Array.isArray(productRow?.departments)
@@ -869,7 +869,7 @@ export async function deactivatePackagingAction(
     .update({ active: false, updated_by: workspace.userId })
     .eq("id", parsed.data.packagingId)
     .eq("product_id", parsed.data.productId)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId);
 
   if (error) {

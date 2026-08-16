@@ -21,6 +21,13 @@ export const cartItemSchema = z.object({
     .number()
     .positive("La quantité doit être strictement positive."),
   notes: z.string().trim().optional(),
+  unitPrice: z.coerce.number().int().nonnegative().optional(),
+  productName: z.string().trim().optional(),
+  saleUnitId: z.preprocess(
+    (value) => (value === "" || value === undefined ? null : value),
+    z.string().uuid().nullable().optional(),
+  ),
+  stockFactor: z.coerce.number().positive().optional(),
 });
 
 export const createOrderSchema = z.object({

@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/expand-panel";
 import { ProductFormModal, type ProductFormState } from "@/components/products/product-form-modal";
 import { HardwareProductWizard } from "@/components/hardware/hardware-product-wizard";
-import { isHardwareActivity } from "@/lib/hardware/activity";
+import { usesTradeCatalog } from "@/lib/activity/ops-model";
 import type { ProductImageAssets } from "@/components/products/product-image-field";
 import { resolveCatalogImageUrl } from "@/lib/fasobar/product-images";
 import {
@@ -114,7 +114,7 @@ export function ProductsWorkspace({
   const profile = getActivityProfile(activityCode);
   const catalog = getCatalogFormProfile(activityCode);
   const retail = profile.kind === "retail";
-  const hardware = isHardwareActivity(activityCode);
+  const hardware = usesTradeCatalog(activityCode);
   const allowedDepartments = [
     ...(hasBarService(serviceScope) ? (["BAR"] as const) : []),
     ...(!retail && hasKitchenService(serviceScope) ? (["KITCHEN"] as const) : []),
@@ -669,7 +669,7 @@ export function ProductsWorkspace({
         </div>
       </section>
 
-      {formMode && canManage && hardware ? (
+      {formMode && canManage && retail ? (
         <HardwareProductWizard
           key={editingProduct?.id ?? "create"}
           mode={formMode}
@@ -693,7 +693,7 @@ export function ProductsWorkspace({
         />
       ) : null}
 
-      {formMode && canManage && !hardware ? (
+      {formMode && canManage && !retail ? (
         <ProductFormModal
           key={editingProduct?.id ?? "create"}
           mode={formMode}

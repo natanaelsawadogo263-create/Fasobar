@@ -74,7 +74,7 @@ export async function listAdminBarSessions(
       profiles!bar_sessions_opened_by_fkey(full_name)
     `,
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .order("opened_at", { ascending: false })
     .limit(80);
 
@@ -105,7 +105,7 @@ export async function listAdminBarSessions(
       profiles!bar_sessions_opened_by_fkey(full_name)
     `,
           )
-          .eq("establishment_id", workspace.establishmentId)
+          .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
           .eq("status", "OPEN")
           .order("opened_at", { ascending: false })
       : Promise.resolve({ data: [] as BarSessionListRow[], error: null }),
@@ -175,7 +175,7 @@ async function listAdminBarSessionsLegacy(
       profiles!bar_sessions_opened_by_fkey(full_name)
     `,
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .order("opened_at", { ascending: false })
     .limit(80);
 
@@ -242,7 +242,7 @@ export async function getAdminBarSessionDetail(
       closed_by_profile:profiles!bar_sessions_closed_by_fkey(full_name)
     `,
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("id", sessionId)
     .maybeSingle();
 

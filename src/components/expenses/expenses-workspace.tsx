@@ -378,7 +378,7 @@ export function ExpensesWorkspace({
               placeholder={
                 lockedArea ? "Rechercher un titre…" : "Rechercher libellé, fournisseur…"
               }
-              className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-[12px] outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 sm:h-8"
+              className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-[13px] outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 sm:h-9"
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   applyFilters({ search: (event.target as HTMLInputElement).value });

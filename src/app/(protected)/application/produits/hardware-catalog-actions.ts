@@ -2,15 +2,13 @@
 
 import { slugifyFromName } from "@/lib/auth/slugs";
 import { requireProductManagementMutationContext } from "@/lib/auth/workspace-context";
-import { isHardwareActivity } from "@/lib/hardware/activity";
-import { hardwarePermissions } from "@/lib/hardware/permissions";
+import { usesTradeCatalog } from "@/lib/activity/ops-model";
 import {
-  firstPurchasablePrice,
   firstSellablePrice,
   type PackagingNode,
   validatePackagingGraph,
 } from "@/lib/hardware/product-engine";
-import { ensureHardwareAttributes, getHardwareProductDraft, listHardwareBrands, listHardwareAttributes } from "@/lib/hardware/product-catalog-queries";
+import { getHardwareProductDraft, listHardwareBrands, listHardwareAttributes } from "@/lib/hardware/product-catalog-queries";
 import type { HardwareProductDraft, HardwareUnitLevel } from "@/lib/hardware/product-catalog-types";
 import { revalidateCatalogOps } from "@/lib/ops/revalidate";
 import { ensureStockItemForBarProduct } from "@/lib/bar/ensure-stock";
@@ -21,7 +19,7 @@ import {
   isAdminClientConfigured,
 } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { ProductUnit } from "@/lib/products/schemas";
+import { mapLabelToProductUnit } from "@/lib/catalog/stock-unit";
 
 function getWriteClient() {
   if (isAdminClientConfigured()) return createAdminClient();
@@ -30,17 +28,8 @@ function getWriteClient() {
 
 async function requireHardwareCatalog() {
   const workspace = await requireProductManagementMutationContext();
-  if (!isHardwareActivity(workspace.activityCode)) {
-    return { error: "Cette action est réservée à la quincaillerie." as const };
-  }
-  const allowed = hardwarePermissions({
-    activityCode: workspace.activityCode,
-    userSpace: workspace.userSpace,
-    organizationRole: workspace.organizationRole,
-    establishmentRole: workspace.establishmentRole,
-  }).canManageCatalog;
-  if (!allowed) {
-    return { error: "Permission insuffisante pour gérer le catalogue." as const };
+  if (!usesTradeCatalog(workspace.activityCode)) {
+    return { error: "Ce catalogue est réservé aux dépôts et pièces." as const };
   }
   return { workspace };
 }
@@ -49,22 +38,6 @@ function resolvedStockUnit(draft: HardwareProductDraft): string {
   const custom = draft.customStockUnit.trim();
   if (draft.stockUnit === "__custom__") return custom || "pièce";
   return (draft.stockUnit || custom || "pièce").trim();
-}
-
-function mapLabelToProductUnit(label: string): ProductUnit {
-  const n = label.toLowerCase();
-  if (n.includes("mètre") || n.includes("metre") || n === "m" || n === "cm") return "METER";
-  if (n.includes("kg") || n.includes("kilo") || n.includes("gramme")) return "KG";
-  if (n.includes("litre") || n === "l") return "LITER";
-  if (n.includes("sachet")) return "SACHET";
-  if (n === "sac" || n.includes("sac ")) return "PIECE";
-  if (n.includes("barre")) return "BARRE";
-  if (n.includes("feuille")) return "SHEET";
-  if (n.includes("rouleau")) return "ROLL";
-  if (n.includes("tonne")) return "TONNE";
-  if (n.includes("carton")) return "CARTON";
-  if (n.includes("pot") || n.includes("bidon")) return "JERRYCAN";
-  return "PIECE";
 }
 
 function unitsToNodes(units: HardwareUnitLevel[]): PackagingNode[] {
@@ -94,17 +67,8 @@ function validateDraft(draft: HardwareProductDraft): string | null {
       return "Indiquez une précision supérieure à 0 (ex. 0,1).";
     }
   }
-  if (draft.useVariants) {
-    if (draft.variants.length === 0) return "Ajoutez au moins une variante, ou désactivez les variantes.";
-    for (const variant of draft.variants) {
-      if (!variant.attributeValue.trim()) return "Chaque variante doit avoir une valeur.";
-      const graph = validatePackagingGraph(unitsToNodes(syncBaseName(variant.units, stockUnit)));
-      if (!graph.ok) return graph.error;
-    }
-  } else {
-    const graph = validatePackagingGraph(unitsToNodes(syncBaseName(draft.units, stockUnit)));
-    if (!graph.ok) return graph.error;
-  }
+  const graph = validatePackagingGraph(unitsToNodes(syncBaseName(draft.units, stockUnit)));
+  if (!graph.ok) return graph.error;
   return null;
 }
 
@@ -124,7 +88,7 @@ async function resolveBrandId(
     const { data: existing } = await supabase
       .from("product_brands")
       .select("id")
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .ilike("name", name)
       .maybeSingle();
     if (existing?.id) return existing.id;
@@ -177,10 +141,11 @@ async function insertUnitLevels(
         parent_id: unit.parentClientId ? clientToDb.get(unit.parentClientId) ?? null : null,
         contains_qty: unit.containsQty,
         is_base: Boolean(unit.isBase || unit.clientId === "base"),
-        purchasable: unit.purchasable,
+        purchasable: true,
         sellable: unit.sellable,
-        purchase_price: unit.purchasable ? Math.round(unit.purchasePrice || 0) : null,
+        purchase_price: null,
         selling_price: unit.sellable ? Math.round(unit.sellingPrice || 0) : null,
+        allow_decimal: Boolean(unit.allowDecimal),
         sort_order: unit.isBase ? 0 : guard,
         created_by: workspace.userId,
         updated_by: workspace.userId,
@@ -199,11 +164,8 @@ export async function listHardwareCatalogMetaAction() {
   if ("error" in gate && gate.error) return { error: gate.error, brands: [], attributes: [] };
   const workspace = "workspace" in gate ? gate.workspace : null;
   if (!workspace) return { error: "Session invalide.", brands: [], attributes: [] };
-  const [brands, attributes] = await Promise.all([
-    listHardwareBrands(workspace),
-    ensureHardwareAttributes(workspace),
-  ]);
-  return { brands, attributes };
+  const brands = await listHardwareBrands(workspace);
+  return { brands, attributes: [] };
 }
 
 export async function loadHardwareProductDraftAction(productId: string) {
@@ -333,14 +295,8 @@ export async function saveHardwareProductAction(
     imageUrl = uploaded.url;
   }
 
-  const priceNodes = unitsToNodes(
-    syncBaseName(
-      draft.useVariants ? (draft.variants[0]?.units ?? draft.units) : draft.units,
-      stockUnit,
-    ),
-  );
+  const priceNodes = unitsToNodes(syncBaseName(draft.units, stockUnit));
   const sellingPrice = firstSellablePrice(priceNodes);
-  const purchasePrice = firstPurchasablePrice(priceNodes);
   const slugBase = slugifyFromName(draft.name.trim()) || "article";
   const slug = `${slugBase}-${Date.now().toString(36)}`;
 
@@ -361,10 +317,13 @@ export async function saveHardwareProductAction(
     brand_id: brandId,
     model_name: draft.modelName.trim() || null,
     internal_ref: draft.internalRef.trim() || null,
+    sku: draft.sku.trim() || null,
+    barcode: draft.barcode.trim() || null,
     stock_unit_label: stockUnit,
     fractionable: draft.fractionable,
     fraction_precision: draft.fractionable ? draft.fractionPrecision : null,
-    purchase_price: purchasePrice || null,
+    sale_type: draft.saleType || "UNIT",
+    characteristics: draft.characteristics ?? {},
     wholesale_price: null,
     ...(imageUrl
       ? {
@@ -386,31 +345,20 @@ export async function saveHardwareProductAction(
         .from("products")
         .update({ ...updatePayload, updated_by: workspace.userId })
         .eq("id", productId)
-        .eq("establishment_id", workspace.establishmentId);
+        .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId);
       if (error) return { error: error.message };
 
       await supabase
         .from("product_unit_levels")
         .delete()
         .eq("product_id", productId)
-        .eq("establishment_id", workspace.establishmentId);
+        .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId);
 
-      const keepVariantIds = draft.useVariants
-        ? draft.variants.map((item) => item.id).filter((id): id is string => Boolean(id))
-        : [];
-      const { data: existingVariants } = await supabase
+      await supabase
         .from("product_variants")
-        .select("id")
-        .eq("product_id", productId);
-      const toDelete = (existingVariants ?? [])
-        .map((row) => row.id)
-        .filter((id) => !keepVariantIds.includes(id));
-      if (toDelete.length > 0) {
-        await supabase.from("product_variants").delete().in("id", toDelete);
-      }
-      if (!draft.useVariants) {
-        await supabase.from("product_variants").delete().eq("product_id", productId);
-      }
+        .delete()
+        .eq("product_id", productId)
+        .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId);
     } else {
       const { data, error } = await supabase
         .from("products")
@@ -424,51 +372,7 @@ export async function saveHardwareProductAction(
     if (!productId) return { error: "Produit introuvable." };
     savedProductId = productId;
 
-    if (draft.useVariants) {
-      for (const variant of draft.variants) {
-        const variantName = variant.attributeValue.trim();
-        let variantId = variant.id ?? null;
-        if (variantId) {
-          await supabase
-            .from("product_variants")
-            .update({
-              name: variantName,
-              attribute_id: variant.attributeId || null,
-              attribute_value: variantName,
-              internal_ref: variant.internalRef.trim() || null,
-              minimum_stock: Math.max(0, Math.round(variant.minimumStock || 0)),
-              selling_price: firstSellablePrice(unitsToNodes(syncBaseName(variant.units, stockUnit))),
-              updated_by: workspace.userId,
-            })
-            .eq("id", variantId)
-            .eq("establishment_id", workspace.establishmentId);
-        } else {
-          const { data, error } = await supabase
-            .from("product_variants")
-            .insert({
-              organization_id: workspace.organizationId,
-              establishment_id: workspace.establishmentId,
-              product_id: savedProductId,
-              name: variantName,
-              attribute_id: variant.attributeId || null,
-              attribute_value: variantName,
-              internal_ref: variant.internalRef.trim() || null,
-              minimum_stock: Math.max(0, Math.round(variant.minimumStock || 0)),
-              selling_price: firstSellablePrice(unitsToNodes(syncBaseName(variant.units, stockUnit))),
-              active: true,
-              created_by: workspace.userId,
-              updated_by: workspace.userId,
-            })
-            .select("id")
-            .maybeSingle();
-          if (error || !data?.id) return { error: error?.message ?? "Variante impossible." };
-          variantId = data.id;
-        }
-        await insertUnitLevels(workspace, savedProductId, variantId, variant.units, stockUnit);
-      }
-    } else {
-      await insertUnitLevels(workspace, savedProductId, null, draft.units, stockUnit);
-    }
+    await insertUnitLevels(workspace, savedProductId, null, draft.units, stockUnit);
 
     await ensureStockItemForBarProduct(workspace, {
       id: savedProductId,
@@ -477,6 +381,29 @@ export async function saveHardwareProductAction(
       minimumStock: Math.max(0, Math.round(draft.minimumStock || 0)),
       active: true,
     });
+
+    if (!draft.productId && draft.initialStock > 0) {
+      const qty = Math.round(draft.initialStock * 1000) / 1000;
+      const { data: stockRow } = await supabase
+        .from("stock_items")
+        .select("id, current_quantity")
+        .eq("product_id", savedProductId)
+        .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+        .maybeSingle();
+      if (stockRow?.id) {
+        await supabase.rpc("record_stock_entry", {
+          p_stock_item_id: stockRow.id,
+          p_movement_type: "MANUAL_ENTRY",
+          p_quantity: qty,
+          p_purchased_quantity: qty,
+          p_conversion_factor: 1,
+          p_unit_cost: null,
+          p_supplier_id: null,
+          p_reference: null,
+          p_reason: "Stock initial",
+        });
+      }
+    }
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Enregistrement impossible.",

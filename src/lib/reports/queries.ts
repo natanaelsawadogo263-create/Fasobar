@@ -533,7 +533,7 @@ async function buildActiviteUtilisateursReport(
   let query = supabase
     .from("audit_logs")
     .select("id, entity_type, entity_id, action, metadata, created_at, profiles(full_name)")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .order("created_at", { ascending: false })
     .limit(300);

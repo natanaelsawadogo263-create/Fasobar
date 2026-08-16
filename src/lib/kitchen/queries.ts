@@ -61,7 +61,7 @@ export async function listKitchenOrders(
       )
     `,
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .not("kitchen_status", "is", null)
     .neq("status", "CANCELLED")

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { FormSection, NumberField, TextField, ToggleField } from "@/components/ui/form-controls";
-import { PRODUCT_UNIT_LABELS } from "@/lib/stock/constants";
+import { formatProductUnitDisplay } from "@/lib/stock/constants";
 import type { StockListItem } from "@/lib/stock/types";
 
 type StockAdjustmentModalProps = {
@@ -25,12 +25,10 @@ export function StockAdjustmentModal({
   const [reason, setReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
 
-  const unitLabel =
-    PRODUCT_UNIT_LABELS[stockItem.unit as keyof typeof PRODUCT_UNIT_LABELS] ??
-    stockItem.unit;
-
-  const delta =
-    Math.round((Number(newQuantity) - stockItem.currentQuantity) * 1000) / 1000;
+  const unitLabel = formatProductUnitDisplay(
+    stockItem.unit,
+    stockItem.stockUnitLabel,
+  );
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,26 +52,6 @@ export function StockAdjustmentModal({
         ) : null}
 
         <input type="hidden" name="stockItemId" value={stockItem.id} />
-
-        <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p>
-            Stock actuel :{" "}
-            <span className="font-semibold">
-              {stockItem.currentQuantity} {unitLabel.toLowerCase()}
-              {stockItem.currentQuantity > 1 ? "s" : ""}
-            </span>
-          </p>
-          {delta !== 0 ? (
-            <p className="mt-1">
-              Écart après correction :{" "}
-              <span className="font-semibold">
-                {delta > 0 ? "+" : ""}
-                {delta} {unitLabel.toLowerCase()}
-                {Math.abs(delta) > 1 ? "s" : ""}
-              </span>
-            </p>
-          ) : null}
-        </div>
 
         <FormSection title="Nouvelle quantité">
           <NumberField

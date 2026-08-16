@@ -3,6 +3,8 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 
+import { cookies } from "next/headers";
+
 import {
   ADMIN_ROLES,
   resolveHomePathForRoles,
@@ -10,6 +12,13 @@ import {
   canOperateCashRegister,
   type UserSpace,
 } from "@/lib/auth/roles";
+import {
+  TENANT_COOKIE_OPTIONS,
+  TENANT_ESTABLISHMENT_COOKIE,
+  TENANT_ORGANIZATION_COOKIE,
+  assertWorkspaceTenant,
+  pickTenantScope,
+} from "@/lib/auth/tenant";
 import { isPathAllowedForSpace } from "@/lib/navigation/space-navigation";
 import { MANAGEMENT_ROLES } from "@/lib/products/constants";
 import { resolveOrderPermissions } from "@/lib/orders/constants";
@@ -22,7 +31,7 @@ import {
 } from "@/lib/platform/saas-gate";
 import { createClient } from "@/lib/supabase/server";
 import { isBusinessActivityId } from "@/lib/auth/activities";
-import { isHardwareActivity } from "@/lib/hardware/activity";
+import { isRetailShopOps } from "@/lib/activity/ops-model";
 import { isRetailActivity } from "@/lib/activity/profile";
 import {
   hasBarService,
@@ -302,7 +311,56 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     return null;
   }
 
-  const organizationMembership = pickPreferredMembership(organizationMemberships);
+  const establishmentMemberships = establishmentResult.data;
+  if (establishmentResult.error || !establishmentMemberships?.length) {
+    return null;
+  }
+
+  let preferredOrganizationId: string | null = null;
+  let preferredEstablishmentId: string | null = null;
+  try {
+    const cookieStore = await cookies();
+    preferredOrganizationId =
+      cookieStore.get(TENANT_ORGANIZATION_COOKIE)?.value ?? null;
+    preferredEstablishmentId =
+      cookieStore.get(TENANT_ESTABLISHMENT_COOKIE)?.value ?? null;
+  } catch {
+    // Server Components / tests without cookie store.
+  }
+
+  const establishmentsForScope = establishmentMemberships.flatMap((row) => {
+    const establishment = readRelatedEntity(
+      row.establishments as
+        | (NamedEntity & { organization_id?: string; status?: string })
+        | Array<NamedEntity & { organization_id?: string; status?: string }>
+        | null,
+    );
+    if (!establishment?.organization_id || establishment.status === "INACTIVE") {
+      return [];
+    }
+    return [
+      {
+        establishment_id: row.establishment_id,
+        role: row.role,
+        organization_id: establishment.organization_id,
+      },
+    ];
+  });
+
+  const tenantScope = pickTenantScope({
+    organizationMemberships,
+    establishmentMemberships: establishmentsForScope,
+    preferredOrganizationId,
+    preferredEstablishmentId,
+    pickPreferred: pickPreferredMembership,
+  });
+  if (!tenantScope) {
+    return null;
+  }
+
+  const organizationMembership = organizationMemberships.find(
+    (row) => row.organization_id === tenantScope.organizationId,
+  );
   if (!organizationMembership) {
     return null;
   }
@@ -318,11 +376,6 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     return null;
   }
 
-  const establishmentMemberships = establishmentResult.data;
-  if (establishmentResult.error || !establishmentMemberships?.length) {
-    return null;
-  }
-
   const establishmentCandidates = establishmentMemberships.filter((row) => {
     const establishment = readRelatedEntity(
       row.establishments as
@@ -331,8 +384,9 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
         | null,
     );
     return (
+      row.establishment_id === tenantScope.establishmentId &&
       establishment?.status !== "INACTIVE" &&
-      establishment?.organization_id === organizationMembership.organization_id
+      establishment?.organization_id === tenantScope.organizationId
     );
   });
 
@@ -354,6 +408,10 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
   }
 
   if (establishment.status === "INACTIVE") {
+    return null;
+  }
+
+  if (establishment.organization_id !== tenantScope.organizationId) {
     return null;
   }
 
@@ -379,7 +437,7 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     establishmentRole,
     activityCode,
   );
-  const hardware = isHardwareActivity(activityCode);
+  const retail = isRetailShopOps(activityCode);
   const canManageOrders =
     orderPermissions.canManageOrders ||
     cashierKitchenRoles.has(organizationRole) ||
@@ -390,14 +448,8 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     establishmentRole,
     activityCode,
   );
-  const retailCashier =
-    isRetailActivity(activityCode) &&
-    !hardware &&
-    (cashierKitchenRoles.has(organizationRole) ||
-      cashierKitchenRoles.has(establishmentRole));
   const canManageBarStock =
-    (stockPermissions.canManageBarStock || retailCashier) &&
-    hasBarService(serviceScope);
+    stockPermissions.canManageBarStock && hasBarService(serviceScope);
   const canManageKitchenStock =
     stockPermissions.canManageKitchenStock &&
     hasKitchenService(serviceScope) &&
@@ -423,7 +475,7 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     ),
     canManageProducts:
       MANAGEMENT_ROLES.has(role) ||
-      (hardware && userSpace === "bar_manager"),
+      (retail && userSpace === "bar_manager"),
     canManageUsers: MANAGEMENT_ROLES.has(organizationRole) || organizationRole === "OWNER",
     canManageStock,
     canManageBarStock,
@@ -435,7 +487,31 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     serviceScope,
     activityCode,
   };
+
+  assertWorkspaceTenant(context);
+  return context;
 });
+
+async function persistWorkspaceTenantCookies(
+  organizationId: string,
+  establishmentId: string,
+): Promise<void> {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(
+      TENANT_ORGANIZATION_COOKIE,
+      organizationId,
+      TENANT_COOKIE_OPTIONS,
+    );
+    cookieStore.set(
+      TENANT_ESTABLISHMENT_COOKIE,
+      establishmentId,
+      TENANT_COOKIE_OPTIONS,
+    );
+  } catch {
+    // Cookie store unavailable (tests / static).
+  }
+}
 
 export const requireAuthenticatedWorkspace = cache(
   async (): Promise<WorkspaceContext> => {
@@ -457,6 +533,10 @@ export const requireAuthenticatedWorkspace = cache(
       if (!context || !context.isActive) {
         redirect("/acces-suspendu");
       }
+      await persistWorkspaceTenantCookies(
+        context.organizationId,
+        context.establishmentId,
+      );
       return context;
     }
   }
@@ -475,6 +555,10 @@ export const requireAuthenticatedWorkspace = cache(
     redirect("/premiere-connexion");
   }
 
+  await persistWorkspaceTenantCookies(
+    context.organizationId,
+    context.establishmentId,
+  );
   return context;
 });
 
@@ -712,7 +796,7 @@ export async function requireBarManagerContext(): Promise<WorkspaceContext> {
     redirectDenied(context);
   }
 
-  if (isHardwareActivity(context.activityCode)) {
+  if (isRetailShopOps(context.activityCode)) {
     redirectDenied(context);
   }
 

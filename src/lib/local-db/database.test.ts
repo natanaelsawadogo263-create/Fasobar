@@ -57,22 +57,22 @@ describe("local sqlite database", () => {
     process.env.FASOBAR_INSTALLATION_ID = "11111111-1111-4111-8111-111111111111";
     const db = getLocalDatabase({ userDataRoot: root, skipBackup: true, force: true });
 
-    expect(getAppliedSchemaVersion(db)).toBe(5);
+    expect(getAppliedSchemaVersion(db)).toBe(6);
     expect(getJournalMode(db)).toBe("wal");
     expect(foreignKeysEnabled(db)).toBe(true);
 
     const again = applyMigrations(db, loadMigrationDefinitions());
-    expect(again).toBe(5);
+    expect(again).toBe(6);
     expect(
       db.prepare("SELECT COUNT(*) AS c FROM local_schema_migrations").get()?.c,
-    ).toBe(5);
+    ).toBe(6);
 
     const health = getLocalDbHealth();
     expect(health.ok).toBe(true);
     expect(health.installationId).toBe(
       "11111111-1111-4111-8111-111111111111",
     );
-    expect(health.schemaVersion).toBe(5);
+    expect(health.schemaVersion).toBe(6);
 
     const paths = resolveLocalDataPaths(root);
     expect(fs.existsSync(paths.databaseFile)).toBe(true);

@@ -26,6 +26,25 @@ export async function pullCatalogFromCloud(
   }
 
   const db = getLocalDatabase({ skipBackup: true });
+  const bound = db
+    .prepare(
+      "SELECT organization_id AS organizationId, establishment_id AS establishmentId FROM local_installation WHERE id = 1",
+    )
+    .get() as { organizationId?: string | null; establishmentId?: string | null } | undefined;
+  if (
+    bound?.organizationId &&
+    bound?.establishmentId &&
+    (bound.organizationId !== workspace.organizationId ||
+      bound.establishmentId !== workspace.establishmentId)
+  ) {
+    return {
+      ok: false,
+      productCount: 0,
+      error:
+        "Cette machine est déjà liée à un autre établissement. Les données ne peuvent pas être mélangées.",
+    };
+  }
+
   const repo = new LocalProductRepository(db);
 
   try {
@@ -34,6 +53,7 @@ export async function pullCatalogFromCloud(
     const { data: categories, error: catError } = await supabase
       .from("categories")
       .select("id, name, active, updated_at, departments(code)")
+      .eq("organization_id", workspace.organizationId)
       .eq("establishment_id", workspace.establishmentId);
 
     if (catError) {
@@ -45,6 +65,7 @@ export async function pullCatalogFromCloud(
       .select(
         "id, name, selling_price, unit, active, updated_at, category_id, image_url, image_original_url, image_optimized_url, departments(code, name), categories(name)",
       )
+      .eq("organization_id", workspace.organizationId)
       .eq("establishment_id", workspace.establishmentId);
 
     if (prodError) {
@@ -58,7 +79,8 @@ export async function pullCatalogFromCloud(
           .select(
             "id, name, selling_price, unit, active, updated_at, category_id, image_url, departments(code, name), categories(name)",
           )
-          .eq("establishment_id", workspace.establishmentId);
+          .eq("organization_id", workspace.organizationId)
+      .eq("establishment_id", workspace.establishmentId);
         if (legacy.error) throw new Error(legacy.error.message);
         return persistCatalog(
           db,
@@ -77,6 +99,7 @@ export async function pullCatalogFromCloud(
       .select(
         "id, product_id, packaging_unit, units_per_pack, active, updated_at",
       )
+      .eq("organization_id", workspace.organizationId)
       .eq("establishment_id", workspace.establishmentId);
 
     if (!packError && packs) {
@@ -187,10 +210,17 @@ function persistCatalog(
   // Bind installation tenant ids (nullable → set on first successful pull)
   db.prepare(
     `UPDATE local_installation
-     SET organization_id = COALESCE(organization_id, ?),
-         establishment_id = COALESCE(establishment_id, ?)
-     WHERE id = 1`,
-  ).run(workspace.organizationId, workspace.establishmentId);
+     SET organization_id = ?,
+         establishment_id = ?
+     WHERE id = 1
+       AND (organization_id IS NULL OR organization_id = ?)
+       AND (establishment_id IS NULL OR establishment_id = ?)`,
+  ).run(
+    workspace.organizationId,
+    workspace.establishmentId,
+    workspace.organizationId,
+    workspace.establishmentId,
+  );
 
   const productCount = repo.countProducts(workspace.establishmentId);
   appendDesktopLog("catalog", "info", "Catalog pulled", { productCount });

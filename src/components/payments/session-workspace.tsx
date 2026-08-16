@@ -57,8 +57,8 @@ export function SessionWorkspace({
   }
 
   return (
-    <div className="flex h-full overflow-hidden">
-      <div className="min-h-0 flex-1 overflow-y-auto p-5">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+      <div className="p-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:p-5">
         <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-slate-900">
@@ -144,14 +144,14 @@ export function SessionWorkspace({
         <div className="mt-4">
           <Link
             href="/application/caisse"
-            className="inline-flex rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="inline-flex h-11 min-h-11 items-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 active:bg-slate-50"
           >
             Retour à la caisse
           </Link>
         </div>
       </div>
 
-      <aside className="flex w-full shrink-0 flex-col border-l border-slate-200 bg-white lg:w-[360px]">
+      <aside className="flex w-full shrink-0 flex-col border-t border-slate-200 bg-white lg:h-full lg:w-[360px] lg:border-l lg:border-t-0">
         <div className="border-b border-slate-200 px-5 py-4">
           <h2 className="text-base font-bold text-slate-900">Clôture de la caisse</h2>
         </div>
@@ -217,7 +217,7 @@ export function SessionWorkspace({
             </div>
           </div>
 
-          <footer className="shrink-0 space-y-2 border-t border-slate-200 p-4">
+          <footer className="shrink-0 space-y-2 border-t border-slate-200 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <button
               type="submit"
               disabled={isPending}
@@ -228,7 +228,7 @@ export function SessionWorkspace({
             </button>
             <Link
               href="/application/caisse"
-              className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 text-[13px] font-semibold text-slate-600 active:bg-slate-50"
             >
               Annuler
             </Link>

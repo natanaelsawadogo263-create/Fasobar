@@ -3,15 +3,18 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-/** Routes admin les plus utilisées — préchargées en premier. */
+/** Écrans les plus utilisés — préchargés en premier, en parallèle. */
 const PRIORITY_PREFIXES = [
   "/application/tableau-de-bord",
+  "/application/caisse",
   "/application/produits",
   "/application/stock",
   "/application/ventes",
   "/application/commandes",
-  "/application/caisse",
+  "/application/commandes-ouvertes",
   "/application/approvisionnements",
+  "/application/depenses",
+  "/application/caisse/session",
 ];
 
 function sortByPriority(hrefs: string[]): string[] {
@@ -25,13 +28,15 @@ function sortByPriority(hrefs: string[]): string[] {
 }
 
 /**
- * Prefetch progressif hors chemin critique : idle + décalage,
- * pour ne pas saturer le réseau au premier rendu.
+ * Précharge toutes les routes de navigation dès le premier paint,
+ * pour que le clic suivant ouvre l’écran déjà en cache.
  */
 export function PrefetchRoutes({ hrefs }: { hrefs: string[] }) {
   const router = useRouter();
   const pathname = usePathname();
-  const key = hrefs.join("|");
+  const key = Array.from(new Set([...PRIORITY_PREFIXES, ...hrefs].filter(Boolean))).join(
+    "|",
+  );
   const doneRef = useRef<string>("");
 
   useEffect(() => {
@@ -44,41 +49,28 @@ export function PrefetchRoutes({ hrefs }: { hrefs: string[] }) {
     if (ordered.length === 0) return;
 
     let cancelled = false;
-    let index = 0;
-    let idleId: number | null = null;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let frame1 = 0;
+    let frame2 = 0;
 
-    const prefetchNext = () => {
-      if (cancelled || index >= ordered.length) return;
-      const href = ordered[index++];
-      try {
-        router.prefetch(href);
-      } catch {
-        // ignore
+    const run = () => {
+      if (cancelled) return;
+      for (const href of ordered) {
+        try {
+          router.prefetch(href);
+        } catch {
+          // ignore
+        }
       }
-      if (index >= ordered.length) return;
-
-      const schedule =
-        typeof window !== "undefined" && "requestIdleCallback" in window
-          ? (cb: () => void) => {
-              idleId = window.requestIdleCallback(() => cb(), { timeout: 1500 });
-            }
-          : (cb: () => void) => {
-              timeoutId = setTimeout(cb, 80);
-            };
-
-      schedule(prefetchNext);
     };
 
-    // Laisser le premier paint / hydratation passer avant de précharger.
-    timeoutId = setTimeout(prefetchNext, 120);
+    frame1 = requestAnimationFrame(() => {
+      frame2 = requestAnimationFrame(run);
+    });
 
     return () => {
       cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-      if (idleId !== null && "cancelIdleCallback" in window) {
-        window.cancelIdleCallback(idleId);
-      }
+      cancelAnimationFrame(frame1);
+      cancelAnimationFrame(frame2);
     };
   }, [router, key, pathname]);
 

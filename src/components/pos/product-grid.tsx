@@ -52,26 +52,26 @@ export function ProductGrid({
                 <option>Prix</option>
               </select>
             </label>
-            <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
+            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-0.5">
               <button
                 type="button"
                 aria-pressed={viewMode === "grid"}
                 onClick={() => setViewMode("grid")}
-                className={`inline-flex h-7 w-7 items-center justify-center rounded ${
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-lg ${
                   viewMode === "grid" ? "bg-emerald-600 text-white" : "text-slate-500"
                 }`}
               >
-                <LayoutGrid className="h-3.5 w-3.5" />
+                <LayoutGrid className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 aria-pressed={viewMode === "list"}
                 onClick={() => setViewMode("list")}
-                className={`inline-flex h-7 w-7 items-center justify-center rounded ${
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-lg ${
                   viewMode === "list" ? "bg-emerald-600 text-white" : "text-slate-500"
                 }`}
               >
-                <LayoutList className="h-3.5 w-3.5" />
+                <LayoutList className="h-4 w-4" />
               </button>
             </div>
           </div>

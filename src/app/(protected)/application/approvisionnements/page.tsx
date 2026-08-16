@@ -10,7 +10,7 @@ import {
   resolveOrderPeriodRange,
   toLocalIsoDate,
 } from "@/lib/orders/period";
-import { listPackagingsForProducts } from "@/lib/products/packaging-queries";
+import { listPackagingsForProductsMerged } from "@/lib/products/packaging-queries";
 import {
   defaultDepartmentCode,
   hasBarService,
@@ -21,6 +21,7 @@ import {
   listRecentSupplyEntries,
   listStockItems,
   listSuppliers,
+  listSupplyReceipts,
 } from "@/lib/stock/queries";
 
 type ApprovisionnementPeriod = "day" | "week" | "month" | "custom";
@@ -105,7 +106,7 @@ export default async function ApprovisionnementsPage({
     ? hasKitchenService(scope)
     : lockedDepartment === "KITCHEN";
 
-  const [suppliers, barItems, kitchenItems, recentEntries] = await Promise.all([
+  const [suppliers, barItems, kitchenItems, recentEntries, receipts] = await Promise.all([
     listSuppliers(
       workspace,
       lockedDepartment ? { departmentCode: lockedDepartment } : {},
@@ -120,13 +121,18 @@ export default async function ApprovisionnementsPage({
       to: periodRange.to,
       limit: 500,
     }),
+    listSupplyReceipts(workspace, {
+      from: periodRange.from,
+      to: periodRange.to,
+      limit: 200,
+    }),
   ]);
 
   const stockItems = [...barItems, ...kitchenItems];
   const productIds = stockItems
     .map((item) => item.productId)
     .filter((id): id is string => Boolean(id));
-  const packagingsByProduct = await listPackagingsForProducts(workspace, productIds);
+  const packagingsByProduct = await listPackagingsForProductsMerged(workspace, productIds);
 
   return (
     <SupplyWorkspace
@@ -134,6 +140,7 @@ export default async function ApprovisionnementsPage({
       suppliers={suppliers}
       stockItems={stockItems}
       recentEntries={recentEntries}
+      receipts={receipts}
       packagingsByProduct={packagingsByProduct}
       canManageStock={
         lockedDepartment === "KITCHEN"

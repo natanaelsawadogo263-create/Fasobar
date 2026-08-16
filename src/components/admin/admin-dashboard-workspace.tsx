@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import {
@@ -29,7 +29,7 @@ import type {
   AdminDashboardData,
   AdminDashboardPeriod,
 } from "@/lib/admin/dashboard-queries";
-import { isHardwareActivity } from "@/lib/hardware/activity";
+import { isRetailShopOps } from "@/lib/activity/ops-model";
 import { formatPriceXof } from "@/lib/orders/constants";
 import {
   hasBarService,
@@ -92,12 +92,6 @@ function analysisTitle(period: AdminDashboardPeriod): string {
   return "Analyse du jour";
 }
 
-function rhythmTitle(period: AdminDashboardPeriod): string {
-  if (period === "week") return "Rythme de la semaine";
-  if (period === "month") return "Rythme du mois";
-  return "Rythme du jour";
-}
-
 function emptySalesMessage(period: AdminDashboardPeriod): string {
   if (period === "week") return "Aucune vente cette semaine.";
   if (period === "month") return "Aucune vente ce mois.";
@@ -112,7 +106,7 @@ export function AdminDashboardWorkspace({
   const router = useRouter();
   const profile = getActivityProfile(activityCode);
   const retail = profile.kind === "retail";
-  const hardware = isHardwareActivity(activityCode);
+  const hardware = isRetailShopOps(activityCode);
   const { kpis, salesByDept, salesSeries, analysisPeriod } =
     data;
   const salesTrend = trendLabel(kpis.salesToday, kpis.salesYesterday);
@@ -129,7 +123,6 @@ export function AdminDashboardWorkspace({
   const topProducts = data.topProducts.slice(0, 12);
 
   const deptTotal = salesByDept.bar + salesByDept.kitchen + salesByDept.other;
-  const seriesMax = Math.max(...salesSeries.values, 1);
   const hasSeriesSales = salesSeries.values.some((value) => value > 0);
 
   function setPeriod(period: AdminDashboardPeriod) {
@@ -172,13 +165,13 @@ export function AdminDashboardWorkspace({
             })}
           </div>
           {hardware ? (
-            <Link
+            <InstantLink
               href="/application/caisse"
               className="inline-flex h-11 min-h-11 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-[13px] font-bold text-white shadow-sm active:bg-emerald-700 sm:h-8 sm:min-h-8 sm:text-[12px]"
             >
               <ShoppingBag className="h-4 w-4" />
               Vendre
-            </Link>
+            </InstantLink>
           ) : null}
         </div>
       </header>
@@ -220,7 +213,7 @@ export function AdminDashboardWorkspace({
           }
           sub={
             <span className="text-slate-400">
-              {retail ? "CA − dépenses" : `${openSessionsCount} ouverte${openSessionsCount > 1 ? "s" : ""}`}
+              {retail ? "Ventes − achat − dépenses" : `${openSessionsCount} ouverte${openSessionsCount > 1 ? "s" : ""}`}
             </span>
           }
         />
@@ -229,9 +222,9 @@ export function AdminDashboardWorkspace({
           label="Alertes"
           value={String(kpis.stockAlertCount)}
           sub={
-            <Link href="/application/stock" className="font-medium text-emerald-700">
+            <InstantLink href="/application/stock" className="font-medium text-emerald-700">
               Voir le stock
-            </Link>
+            </InstantLink>
           }
         />
       </div>
@@ -279,7 +272,7 @@ export function AdminDashboardWorkspace({
           }
           sub={
             retail ? (
-              <span className="text-slate-500">CA − dépenses</span>
+              <span className="text-slate-500">Ventes − achat − dépenses</span>
             ) : openSessionsCount > 0 ? (
               <span className="inline-flex items-center gap-1 text-slate-500">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -302,12 +295,12 @@ export function AdminDashboardWorkspace({
           label="Alertes stock"
           value={String(kpis.stockAlertCount)}
           sub={
-            <Link
+            <InstantLink
               href="/application/stock"
               className="font-medium text-slate-600 hover:text-emerald-700 hover:underline"
             >
               {kpis.stockAlertCount > 0 ? "Traiter les ruptures" : "Stock à jour"}
-            </Link>
+            </InstantLink>
           }
         />
       </div>
@@ -424,34 +417,6 @@ export function AdminDashboardWorkspace({
                   ) : null}
                 </div>
               )}
-
-              {hasSeriesSales ? (
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                    {rhythmTitle(analysisPeriod)}
-                  </p>
-                  <div className="mt-2 flex h-14 items-end gap-0.5">
-                    {salesSeries.values.map((value, index) => (
-                      <div
-                        key={`${salesSeries.labels[index]}-${index}`}
-                        title={`${salesSeries.labels[index]} · ${formatPriceXof(value)}`}
-                        className="min-w-0 flex-1 rounded-sm bg-emerald-500"
-                        style={{
-                          height: `${Math.max(value > 0 ? 12 : 4, Math.round((value / seriesMax) * 100))}%`,
-                          opacity: value > 0 ? 1 : 0.12,
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <div className="mt-1.5 flex justify-between text-[10px] text-slate-400">
-                    <span>{salesSeries.labels[0]}</span>
-                    <span>
-                      {salesSeries.labels[Math.floor(salesSeries.labels.length / 2)]}
-                    </span>
-                    <span>{salesSeries.labels[salesSeries.labels.length - 1]}</span>
-                  </div>
-                </div>
-              ) : null}
             </div>
           )}
         </Panel>
@@ -527,13 +492,13 @@ function QuickLink({
   label: string;
 }) {
   return (
-    <Link
+    <InstantLink
       href={href}
       className="inline-flex h-11 min-h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-[13px] font-semibold text-slate-700 shadow-sm active:bg-slate-50 lg:h-10 lg:min-h-10"
     >
       <span className="text-emerald-700">{icon}</span>
       {label}
-    </Link>
+    </InstantLink>
   );
 }
 

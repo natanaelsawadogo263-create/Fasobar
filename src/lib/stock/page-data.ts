@@ -2,7 +2,7 @@ import "server-only";
 
 import { listCategories } from "@/lib/products/queries";
 import { ensureBarStockItemsFromProducts } from "@/lib/bar/ensure-stock";
-import { listPackagingsForProducts } from "@/lib/products/packaging-queries";
+import { listPackagingsForProductsMerged } from "@/lib/products/packaging-queries";
 import {
   getStockStats,
   listProductsForStockLink,
@@ -145,7 +145,7 @@ export async function loadStockPageData(
     .map((item) => item.productId)
     .filter((id): id is string => Boolean(id));
 
-  const packagingsByProduct = await listPackagingsForProducts(workspace, productIds);
+  const packagingsByProduct = await listPackagingsForProductsMerged(workspace, productIds);
   const stats = await getStockStats(workspace, allStockItems);
 
   return {

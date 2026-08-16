@@ -96,7 +96,7 @@ export async function listAdminCashSessions(
     .select(
       "id, status, opening_cash_amount, expected_cash_amount, counted_cash_amount, cash_difference, opened_at, closed_at, opening_note, closing_note, profiles!cash_register_sessions_opened_by_fkey(full_name)",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .order("opened_at", { ascending: false })
     .limit(200);
@@ -116,7 +116,7 @@ export async function listAdminCashSessions(
           .select(
             "id, status, opening_cash_amount, expected_cash_amount, counted_cash_amount, cash_difference, opened_at, closed_at, opening_note, closing_note, profiles!cash_register_sessions_opened_by_fkey(full_name)",
           )
-          .eq("establishment_id", workspace.establishmentId)
+          .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
           .eq("organization_id", workspace.organizationId)
           .eq("status", "OPEN")
           .order("opened_at", { ascending: false })
@@ -179,7 +179,7 @@ export async function getAdminCashSessionDetail(
       "id, status, opening_cash_amount, expected_cash_amount, counted_cash_amount, cash_difference, opened_at, closed_at, opening_note, closing_note, profiles!cash_register_sessions_opened_by_fkey(full_name), closed_profile:profiles!cash_register_sessions_closed_by_fkey(full_name)",
     )
     .eq("id", sessionId)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .maybeSingle();
 

@@ -13,6 +13,8 @@ import type {
   StockProductOption,
   StockStats,
   SupplierOption,
+  SupplyReceiptDetail,
+  SupplyReceiptListItem,
 } from "@/lib/stock/types";
 import {
   createAdminClient,
@@ -31,8 +33,16 @@ type StockItemRow = {
   department_id: string;
   departments: { code: string; name: string } | { code: string; name: string }[] | null;
   products:
-    | { category_id: string; categories: { name: string } | { name: string }[] | null }
-    | { category_id: string; categories: { name: string } | { name: string }[] | null }[]
+    | {
+        category_id: string;
+        stock_unit_label?: string | null;
+        categories: { name: string } | { name: string }[] | null;
+      }
+    | {
+        category_id: string;
+        stock_unit_label?: string | null;
+        categories: { name: string } | { name: string }[] | null;
+      }[]
     | null;
 };
 
@@ -60,6 +70,7 @@ function mapStockItem(row: StockItemRow): StockListItem | null {
     id: row.id,
     name: row.name,
     unit: row.unit,
+    stockUnitLabel: product?.stock_unit_label ?? null,
     currentQuantity,
     minimumQuantity,
     active: row.active,
@@ -98,9 +109,9 @@ export async function listStockItems(
   let query = supabase
     .from("stock_items")
     .select(
-      "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, categories(name))",
+      "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, stock_unit_label, categories(name))",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .order("name");
 
   if (filters.tab === "bar" || filters.tab === "kitchen") {
@@ -120,14 +131,38 @@ export async function listStockItems(
 
   const { data, error } = await query;
 
-  if (error || !data) {
-    if (error) {
-      console.error("[listStockItems]", error.message);
+  let rows = data;
+  let queryError = error;
+
+  if (error?.message?.includes("stock_unit_label")) {
+    let fallback = supabase
+      .from("stock_items")
+      .select(
+        "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, categories(name))",
+      )
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+      .order("name");
+    if (filters.tab === "bar" || filters.tab === "kitchen") {
+      const departmentCode = filters.tab === "bar" ? "BAR" : "KITCHEN";
+      const departmentId = await getDepartmentIdByCode(workspace, departmentCode);
+      if (departmentId) fallback = fallback.eq("department_id", departmentId);
+    }
+    if (filters.search) {
+      fallback = fallback.ilike("name", `%${filters.search}%`);
+    }
+    const retry = await fallback;
+    rows = retry.data;
+    queryError = retry.error;
+  }
+
+  if (queryError || !rows) {
+    if (queryError) {
+      console.error("[listStockItems]", queryError.message);
     }
     return [];
   }
 
-  const items = data
+  const items = rows
     .map((row) => mapStockItem(row as StockItemRow))
     .filter((item): item is StockListItem => item !== null);
 
@@ -179,9 +214,9 @@ export async function listDashboardStockAlerts(
   const { data, error } = await supabase
     .from("stock_items")
     .select(
-      "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, categories(name))",
+      "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, stock_unit_label, categories(name))",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("active", true)
     .order("current_quantity", { ascending: true })
     .limit(200);
@@ -218,7 +253,7 @@ async function attachEstimatedCosts(
   const { data, error } = await supabase
     .from("stock_movements")
     .select("stock_item_id, unit_cost, created_at")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .in("stock_item_id", itemIds)
     .not("unit_cost", "is", null)
     .order("created_at", { ascending: false });
@@ -282,7 +317,7 @@ export async function listSuppliers(
   let query = supabase
     .from("suppliers")
     .select("id, name, phone, address, active, department_code")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .order("name");
 
   if (options.departmentCode) {
@@ -296,7 +331,7 @@ export async function listSuppliers(
     const fallback = await supabase
       .from("suppliers")
       .select("id, name, phone, address, active")
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .order("name");
     data = fallback.data?.map((row) => ({ ...row, department_code: "BAR" })) ?? null;
     error = fallback.error;
@@ -337,7 +372,7 @@ export async function listStockMovements(
     .from("stock_items")
     .select("id")
     .eq("id", stockItemId)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
 
   if (stockError || !stockItem) {
@@ -395,7 +430,7 @@ export async function listRecentSupplyEntries(
     .select(
       "id, quantity, total_cost, reference, created_at, stock_items(name, unit, departments(code, name)), suppliers(name)",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("type", "PURCHASE")
     .order("created_at", { ascending: false })
     .limit(Math.max(limit, 40));
@@ -467,6 +502,130 @@ export async function listRecentSupplyEntries(
     .slice(0, limit);
 }
 
+export async function listSupplyReceipts(
+  workspace: WorkspaceContext,
+  options: { from?: string; to?: string; limit?: number } = {},
+): Promise<SupplyReceiptListItem[] | null> {
+  const supabase = await createClient();
+  const limit = options.limit ?? 80;
+
+  let query = supabase
+    .from("supply_receipts")
+    .select(
+      "id, received_on, status, notes, total_amount, created_at, suppliers(name), supply_receipt_lines(id, stock_items(departments(code)))",
+    )
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+    .order("received_on", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (options.from) query = query.gte("received_on", options.from);
+  if (options.to) query = query.lte("received_on", options.to);
+
+  const { data, error } = await query;
+  if (error || !data) return null;
+
+  return data.map((row) => {
+    const supplier = readSingle(row.suppliers as { name: string } | { name: string }[] | null);
+    const lines =
+      (row.supply_receipt_lines as
+        | Array<{
+            id: string;
+            stock_items:
+              | { departments: { code: string } | { code: string }[] | null }
+              | Array<{ departments: { code: string } | { code: string }[] | null }>
+              | null;
+          }>
+        | null) ?? [];
+    const departmentCodes = [
+      ...new Set(
+        lines
+          .map((line) => {
+            const stockItem = readSingle(line.stock_items);
+            const department = readSingle(stockItem?.departments ?? null);
+            return department?.code;
+          })
+          .filter((code): code is "BAR" | "KITCHEN" => code === "BAR" || code === "KITCHEN"),
+      ),
+    ];
+    return {
+      id: row.id as string,
+      supplierName: supplier?.name ?? "Fournisseur",
+      receivedOn: row.received_on as string,
+      status: row.status as "DRAFT" | "VALIDATED",
+      notes: (row.notes as string | null) ?? null,
+      totalAmount: Number(row.total_amount ?? 0),
+      lineCount: lines.length,
+      departmentCodes,
+      createdAt: row.created_at as string,
+    };
+  });
+}
+
+export async function getSupplyReceiptById(
+  workspace: WorkspaceContext,
+  receiptId: string,
+): Promise<SupplyReceiptDetail | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("supply_receipts")
+    .select(
+      "id, supplier_id, received_on, notes, status, suppliers(name), supply_receipt_lines(stock_item_id, product_id, unit_level_id, unit_name, purchased_quantity, conversion_factor, stock_quantity, purchase_price, line_total, sort_order, stock_items(name, unit))",
+    )
+    .eq("id", receiptId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  const supplier = readSingle(data.suppliers as { name: string } | { name: string }[] | null);
+  const lines = (
+    (data.supply_receipt_lines as
+      | Array<{
+          stock_item_id: string;
+          product_id: string | null;
+          unit_level_id: string | null;
+          unit_name: string;
+          purchased_quantity: number;
+          conversion_factor: number;
+          stock_quantity: number;
+          purchase_price: number;
+          line_total: number;
+          sort_order: number;
+          stock_items:
+            | { name: string; unit: string }
+            | Array<{ name: string; unit: string }>
+            | null;
+        }>
+      | null) ?? []
+  ).slice().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+  return {
+    id: data.id as string,
+    supplierId: data.supplier_id as string,
+    supplierName: supplier?.name ?? "Fournisseur",
+    receivedOn: data.received_on as string,
+    notes: (data.notes as string | null) ?? null,
+    status: data.status as "DRAFT" | "VALIDATED",
+    lines: lines.map((line) => {
+      const stockItem = readSingle(line.stock_items);
+      return {
+        stockItemId: line.stock_item_id,
+        productId: line.product_id,
+        productName: stockItem?.name ?? "Produit",
+        stockUnit: stockItem?.unit ?? "unité",
+        unitLevelId: line.unit_level_id,
+        unitName: line.unit_name,
+        purchasedQuantity: Number(line.purchased_quantity),
+        conversionFactor: Number(line.conversion_factor),
+        stockQuantity: Number(line.stock_quantity),
+        purchasePrice: Number(line.purchase_price),
+        lineTotal: Number(line.line_total),
+      };
+    }),
+  };
+}
+
 export async function listStockLossEntries(
   workspace: WorkspaceContext,
   options: { from?: string; to?: string; limit?: number } = {},
@@ -479,7 +638,7 @@ export async function listStockLossEntries(
     .select(
       "id, type, quantity, reason, created_at, stock_items(name, unit, departments(name)), profiles!stock_movements_created_by_fkey(full_name)",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .in("type", ["LOSS", "BREAKAGE", "STAFF_CONSUMPTION", "GIFT"])
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -548,7 +707,7 @@ export async function listInventorySessions(
     .select(
       "id, status, started_at, completed_at, departments(code, name), profiles!inventory_sessions_started_by_fkey(full_name)",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .order("started_at", { ascending: false })
     .limit(30);
 
@@ -592,10 +751,10 @@ export async function getStockItemById(
   const { data, error } = await supabase
     .from("stock_items")
     .select(
-      "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, categories(name))",
+      "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, stock_unit_label, categories(name))",
     )
     .eq("id", stockItemId)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
 
   if (error || !data) {
@@ -643,13 +802,13 @@ export async function listProductsForStockLink(
       supabase
         .from("products")
         .select("id, name, unit, active, departments(code)")
-        .eq("establishment_id", workspace.establishmentId)
+        .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
         .eq("active", true)
         .order("name"),
       supabase
         .from("stock_items")
         .select("id, name, product_id")
-        .eq("establishment_id", workspace.establishmentId)
+        .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
         .not("product_id", "is", null),
     ]);
 
@@ -699,7 +858,7 @@ export async function validateProductForStockLink(
     .from("products")
     .select("id, department_id, establishment_id, organization_id")
     .eq("id", productId)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .eq("active", true)
     .maybeSingle();
@@ -727,7 +886,7 @@ export async function findExistingStockItemForProduct(
   const { data, error } = await supabase
     .from("stock_items")
     .select("id, name")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("product_id", productId)
     .maybeSingle();
 
@@ -748,7 +907,7 @@ export async function getSupplierById(
     .from("suppliers")
     .select("id, name, phone, address, active, department_code")
     .eq("id", supplierId)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
 
   if (error && (error.message ?? "").toLowerCase().includes("department_code")) {
@@ -756,7 +915,7 @@ export async function getSupplierById(
       .from("suppliers")
       .select("id, name, phone, address, active")
       .eq("id", supplierId)
-      .eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .maybeSingle();
     data = fallback.data
       ? { ...fallback.data, department_code: "BAR" }

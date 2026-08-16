@@ -98,6 +98,27 @@ export const toggleSupplierStatusSchema = z.object({
   confirmed: z.coerce.boolean(),
 });
 
+export const supplyReceiptLineSchema = z.object({
+  stockItemId: z.string().uuid("Article invalide."),
+  productId: z.string().uuid().nullable().optional(),
+  unitLevelId: z.string().uuid().nullable().optional(),
+  unitName: z.string().trim().min(1, "Indiquez l’unité d’achat."),
+  purchasedQuantity: z.coerce.number().positive("La quantité doit être positive."),
+  conversionFactor: z.coerce.number().positive().default(1),
+  stockQuantity: z.coerce.number().positive("La quantité stock doit être positive."),
+  purchasePrice: z.coerce.number().int().min(0, "Indiquez le prix d’achat."),
+  lineTotal: z.coerce.number().int().min(0),
+});
+
+export const saveSupplyReceiptSchema = z.object({
+  receiptId: z.string().uuid().optional(),
+  supplierId: z.string().uuid("Choisissez le fournisseur."),
+  receivedOn: z.string().trim().min(8, "Indiquez la date."),
+  notes: z.string().trim().optional(),
+  lines: z.array(supplyReceiptLineSchema).min(1, "Ajoutez au moins un produit."),
+  validate: z.coerce.boolean().default(false),
+});
+
 export const createStockItemSchema = z.object({
   name: z.string().trim().min(2, "Le nom de l'article est obligatoire."),
   departmentCode: departmentCodeSchema,

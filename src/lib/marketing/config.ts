@@ -6,6 +6,10 @@ export const FASOBAR_WHATSAPP = {
   )}`,
 } as const;
 
+export function whatsappHref(message: string): string {
+  return `https://wa.me/${FASOBAR_WHATSAPP.e164}?text=${encodeURIComponent(message)}`;
+}
+
 export const MARKETING_NAV = [
   { href: "/", label: "Accueil" },
   { href: "/tarifs", label: "Tarifs" },

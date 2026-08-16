@@ -138,3 +138,23 @@ export function firstPurchasablePrice(nodes: PackagingNode[]): number {
   );
   return priced?.purchasePrice ?? 0;
 }
+
+/** quantité (achat ou vente) × conversion vers l’unité de stock. */
+export function toStockQuantity(quantity: number, factor: number): number {
+  if (!Number.isFinite(quantity) || quantity < 0) return 0;
+  const safeFactor = Number.isFinite(factor) && factor > 0 ? factor : 1;
+  return Math.round(quantity * safeFactor * 1000) / 1000;
+}
+
+export function purchaseNodes(nodes: PackagingNode[]): PackagingNode[] {
+  const purchasable = nodes.filter((node) => node.purchasable);
+  return purchasable.length > 0 ? purchasable : nodes.filter((node) => !node.parentId);
+}
+
+export function saleNodes(nodes: PackagingNode[]): PackagingNode[] {
+  const sellable = nodes.filter(
+    (node) => node.sellable && (node.sellingPrice ?? 0) > 0,
+  );
+  if (sellable.length > 0) return sellable;
+  return nodes.filter((node) => !node.parentId);
+}

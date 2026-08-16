@@ -103,7 +103,7 @@ export async function listBarDrinkOrders(
       )
     `,
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
     .not("bar_status", "is", null)
     .neq("status", "CANCELLED")
@@ -216,7 +216,7 @@ export async function listBarHistoryMovements(
       profiles(full_name)
     `,
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("stock_items.department_id", departmentId)
     .order("created_at", { ascending: false })
     .limit(limit);

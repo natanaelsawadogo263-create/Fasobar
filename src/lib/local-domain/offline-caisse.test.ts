@@ -101,7 +101,7 @@ describe("offline caisse core", () => {
 
     const ws = workspace();
     let db = getLocalDatabase({ userDataRoot: root, skipBackup: true, force: true });
-    expect(getAppliedSchemaVersion(db)).toBe(5);
+    expect(getAppliedSchemaVersion(db)).toBe(6);
     seedProduct(db, ws);
 
     const opened = openLocalCashSession(ws, { openingCashAmount: 10000 });

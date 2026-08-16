@@ -27,19 +27,18 @@ export default async function CaissePage({ searchParams }: CaissePageProps) {
     const { ensureCaisseCatalog } = await import("@/lib/caisse/ensure-catalog");
     await ensureCaisseCatalog(workspace);
   }
-  await ensureRetailCategories(workspace);
 
-  const [categories, products, initialOrder, session] = await Promise.all([
+  const [categories, products, initialOrder, session, openOrders] = await Promise.all([
     listCashierCategories(workspace),
     listCashierProducts(workspace),
     params.order && !freshCart ? getOrderById(workspace, params.order) : Promise.resolve(null),
     getActiveCashSession(workspace),
+    listCashierOrders(workspace, {
+      includeFinalized: true,
+      sessionOpenedAt: null,
+    }),
+    ensureRetailCategories(workspace),
   ]);
-
-  const openOrders = await listCashierOrders(workspace, {
-    includeFinalized: true,
-    sessionOpenedAt: session?.openedAt ?? null,
-  });
 
   return (
     <CashierWorkspace

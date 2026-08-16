@@ -138,7 +138,7 @@ describe("syncStatus vs live probe", () => {
     getLocalDatabase({ userDataRoot: root, skipBackup: true, force: true });
     const health = getLocalDbHealth();
     expect(health.ok).toBe(true);
-    expect(health.schemaVersion).toBe(5);
+    expect(health.schemaVersion).toBe(6);
     closeLocalDatabase();
   });
 });

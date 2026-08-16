@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
@@ -27,6 +27,7 @@ const NAV_ICONS: Record<string, ComponentType<{ className?: string; strokeWidth?
   "/application/produits": Package,
   "/application/stock": Boxes,
   "/application/approvisionnements": Truck,
+  "/application/inventaires": ClipboardList,
   "/application/depenses": Wallet,
   "/application/ventes": ShoppingBag,
   "/application/commandes": ClipboardList,
@@ -64,11 +65,13 @@ export function AdminSidebar({ navItems, collapsed = false }: AdminSidebarProps)
         className={`flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pb-2 pt-1.5 ${
           collapsed ? "px-1.5" : "px-2.5 lg:px-3"
         }`}
-        aria-label="Navigation admin"
+        aria-label="Navigation"
       >
         {navItems.map((item) => {
-          const Icon = NAV_ICONS[item.href] ?? Package;
           const isHome = isHomeNavItem(item);
+          const Icon = isHome
+            ? LayoutDashboard
+            : (NAV_ICONS[item.href] ?? Package);
           const isActive =
             pathname === item.href ||
             pathname.startsWith(`${item.href}/`) ||
@@ -90,7 +93,7 @@ export function AdminSidebar({ navItems, collapsed = false }: AdminSidebarProps)
           }
 
           return (
-            <Link
+            <InstantLink
               key={item.href}
               href={item.href}
               prefetch
@@ -134,7 +137,7 @@ export function AdminSidebar({ navItems, collapsed = false }: AdminSidebarProps)
                 strokeWidth={isHome ? 2.4 : 2}
               />
               {collapsed ? null : item.label}
-            </Link>
+            </InstantLink>
           );
         })}
       </nav>

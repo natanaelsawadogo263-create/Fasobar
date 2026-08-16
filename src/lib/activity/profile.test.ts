@@ -20,15 +20,22 @@ describe("profils d’activité FasoBar", () => {
     expect(profile.kind).toBe("retail");
     expect(profile.catalogDepartmentLabel).toBe("Officine");
     expect(profile.cashierSpaceLabel).toBe("Caissier");
-    expect(profile.ticketsNavLabel).toBe("Tickets");
+    expect(profile.ticketsNavLabel).toBe("Ventes");
     expect(isRetailActivity("pharmacy")).toBe(true);
   });
 
-  it("n’invite pas de responsable bar en commerce classique", () => {
+  it("invite un responsable stock dans tout magasin", () => {
     const spaces = getInvitableSpacesForActivity("pharmacy", "BOTH");
-    expect(spaces.map((item) => item.id)).toEqual(["admin", "cashier_kitchen"]);
+    expect(spaces.map((item) => item.id)).toEqual([
+      "admin",
+      "cashier_kitchen",
+      "bar_manager",
+    ]);
     expect(spaces.find((item) => item.id === "cashier_kitchen")?.label).toBe(
       "Caissier",
+    );
+    expect(spaces.find((item) => item.id === "bar_manager")?.label).toBe(
+      "Responsable officine",
     );
   });
 

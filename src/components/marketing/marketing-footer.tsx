@@ -11,7 +11,7 @@ export function MarketingFooter() {
         <div>
           <FasoBarLogo size="sm" tone="dark" />
           <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-emerald-100/70">
-            Caisse, stock et ventes pour maquis, bars et restaurants.
+            Caisse, stock, tickets et reçus pour tout type d’établissement.
           </p>
         </div>
 

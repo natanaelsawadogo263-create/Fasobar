@@ -6,7 +6,7 @@ import { listProducts } from "@/lib/products/queries";
 import type { ProductStats } from "@/lib/products/types";
 import { productFiltersSchema, type ProductTab } from "@/lib/products/schemas";
 import { requireSpacePathAccess } from "@/lib/auth/workspace-context";
-import { isHardwareActivity } from "@/lib/hardware/activity";
+import { usesTradeCatalog } from "@/lib/activity/ops-model";
 
 type ProduitsPageProps = {
   searchParams: Promise<{
@@ -43,7 +43,7 @@ export default async function ProduitsPage({ searchParams }: ProduitsPageProps) 
     return true;
   });
 
-  const packagingsByProductId = isHardwareActivity(workspace.activityCode)
+  const packagingsByProductId = usesTradeCatalog(workspace.activityCode)
     ? {}
     : await listPackagingsForProducts(
         workspace,

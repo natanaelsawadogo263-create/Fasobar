@@ -122,11 +122,20 @@ export async function ensureStockItemForBarProduct(
   const { data: existing } = await writeClient
     .from("stock_items")
     .select("id")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("product_id", product.id)
     .maybeSingle();
 
   if (existing?.id) {
+    await writeClient
+      .from("stock_items")
+      .update({
+        name: product.name,
+        unit: product.unit,
+        minimum_quantity: product.minimumStock ?? 0,
+        active: product.active,
+      })
+      .eq("id", existing.id);
     return { id: existing.id };
   }
 

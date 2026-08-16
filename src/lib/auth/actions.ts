@@ -19,6 +19,10 @@ import {
   createAdminClient,
   isAdminClientConfigured,
 } from "@/lib/supabase/admin";
+import {
+  TENANT_ESTABLISHMENT_COOKIE,
+  TENANT_ORGANIZATION_COOKIE,
+} from "@/lib/auth/tenant";
 import { createClient } from "@/lib/supabase/server";
 
 function formDataToObject(formData: FormData): Record<string, FormDataEntryValue> {
@@ -157,6 +161,14 @@ export async function signInAction(
 }
 
 export async function signOutAction(): Promise<void> {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(TENANT_ORGANIZATION_COOKIE);
+    cookieStore.delete(TENANT_ESTABLISHMENT_COOKIE);
+  } catch {
+    // ignore
+  }
+
   const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
   if (isDesktopServerRuntime()) {
     try {

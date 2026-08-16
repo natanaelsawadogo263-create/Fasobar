@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { getActivityPages } from "@/lib/activity/pages";
 
 describe("pages métier commerce", () => {
-  it("adapte pharmacie : tickets, vente, officine", () => {
+  it("adapte pharmacie : ventes, vente, officine", () => {
     const pages = getActivityPages("pharmacy");
     expect(pages.retail).toBe(true);
-    expect(pages.tickets.title).toBe("Tickets");
+    expect(pages.tickets.title).toBe("Ventes");
     expect(pages.openTickets.newButton).toBe("Nouvelle vente");
     expect(pages.pos.cartTab).toBe("Vente");
     expect(pages.pos.additionLabel).toBe("Ticket");

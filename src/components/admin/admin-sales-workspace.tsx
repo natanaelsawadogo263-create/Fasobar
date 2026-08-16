@@ -18,7 +18,9 @@ import {
   formatHourLabel,
   formatPriceXof,
 } from "@/lib/sales/constants";
-import type { SalesFiltersInput } from "@/lib/sales/schemas";
+import { getActivityPages, isRetailActivity } from "@/lib/activity/pages";
+import { resolveOrderPeriodRange, toLocalIsoDate } from "@/lib/orders/period";
+import type { SalesFiltersInput, SalesPeriodFilter } from "@/lib/sales/schemas";
 import type { AdminSalesPageData } from "@/lib/sales/types";
 import type { OrderCashierOption } from "@/lib/orders/types";
 import {
@@ -39,6 +41,7 @@ type AdminSalesWorkspaceProps = {
   cashiers: OrderCashierOption[];
   establishmentName: string;
   serviceScope?: ServiceScope;
+  activityCode?: string | null;
 };
 
 type TabId = "produits" | "caissiers" | "heures" | "jours";
@@ -50,27 +53,53 @@ const TABS: Array<{ id: TabId; label: string; short: string }> = [
   { id: "jours", label: "Par jour", short: "Jours" },
 ];
 
+const PERIOD_OPTIONS: Array<{ id: Exclude<SalesPeriodFilter, "custom">; label: string }> = [
+  { id: "day", label: "Jour" },
+  { id: "week", label: "Semaine" },
+  { id: "month", label: "Mois" },
+];
+
 export function AdminSalesWorkspace({
   data,
   filters,
   cashiers,
   establishmentName: _establishmentName,
   serviceScope = "BOTH",
+  activityCode = null,
 }: AdminSalesWorkspaceProps) {
   void _establishmentName;
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("produits");
   const { expanded, toggle: toggleExpanded } = useExpandPanel();
+  const pages = getActivityPages(activityCode);
+  const retail = isRetailActivity(activityCode);
   const showBar = hasBarService(serviceScope);
-  const showKitchen = hasKitchenService(serviceScope);
-  const singleScope = isSingleServiceScope(serviceScope);
+  const showKitchen = hasKitchenService(serviceScope) && !retail;
+  const singleScope = isSingleServiceScope(serviceScope) || retail;
+
+  const periodFilter: SalesPeriodFilter = filters.period ?? "day";
 
   function applyFilters(next: Partial<SalesFiltersInput>) {
-    const merged = { ...filters, ...next };
     const params = new URLSearchParams();
-    if (merged.from) params.set("from", merged.from);
-    if (merged.to) params.set("to", merged.to);
-    if (merged.cashierId) params.set("cashierId", merged.cashierId);
+    const nextPeriod =
+      next.period ??
+      (next.from !== undefined || next.to !== undefined ? "custom" : periodFilter);
+
+    if (nextPeriod !== "custom") {
+      const range = resolveOrderPeriodRange(nextPeriod, toLocalIsoDate(new Date()));
+      params.set("period", nextPeriod);
+      if (range.from) params.set("from", range.from);
+      if (range.to) params.set("to", range.to);
+    } else {
+      params.set("period", "custom");
+      const from = next.from ?? filters.from;
+      const to = next.to ?? filters.to;
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+    }
+
+    const cashierId = next.cashierId !== undefined ? next.cashierId : filters.cashierId;
+    if (cashierId) params.set("cashierId", cashierId);
     router.push(`/application/ventes?${params.toString()}`);
   }
 
@@ -84,14 +113,14 @@ export function AdminSalesWorkspace({
         iconClass: "bg-emerald-50 text-emerald-600",
       },
       {
-        title: "Commandes payées",
-        shortTitle: "Commandes",
+        title: pages.sales.paidTitle,
+        shortTitle: pages.sales.paidShort,
         value: String(data.summary.paidOrderCount),
         icon: <ClipboardList className="h-3.5 w-3.5" />,
         iconClass: "bg-sky-50 text-sky-600",
       },
     ];
-    if (showBar) {
+    if (!retail && showBar) {
       items.push({
         title: singleScope ? "Ventes" : "Ventes Bar",
         shortTitle: singleScope ? "Ventes" : "Bar",
@@ -100,7 +129,7 @@ export function AdminSalesWorkspace({
         iconClass: "bg-amber-50 text-amber-700",
       });
     }
-    if (showKitchen) {
+    if (!retail && showKitchen) {
       items.push({
         title: singleScope ? "Ventes" : "Ventes Cuisine",
         shortTitle: singleScope ? "Ventes" : "Cuisine",
@@ -110,7 +139,7 @@ export function AdminSalesWorkspace({
       });
     }
     return items;
-  }, [data.summary, showBar, showKitchen, singleScope]);
+  }, [data.summary, showBar, showKitchen, singleScope, retail, pages.sales.paidTitle, pages.sales.paidShort]);
 
   function exportCsv() {
     const filenameSuffix = new Date().toISOString().slice(0, 10);
@@ -127,7 +156,7 @@ export function AdminSalesWorkspace({
     if (tab === "caissiers") {
       downloadCsv(
         `ventes-caissiers-${filenameSuffix}.csv`,
-        ["Caissier·ère", "Commandes payées", "Chiffre d'affaires"],
+        ["Caissier·ère", pages.sales.paidTitle, "Chiffre d'affaires"],
         data.byCashier.map((c) => [c.cashierName, c.orderCount, c.revenue]),
       );
       return;
@@ -152,7 +181,7 @@ export function AdminSalesWorkspace({
   }
 
   const maxHourRevenue = Math.max(1, ...data.byHour.map((h) => h.revenue));
-  const hasFilters = Boolean(filters.from || filters.to || filters.cashierId);
+  const hasFilters = Boolean(filters.cashierId) || periodFilter === "custom";
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden px-3 py-2.5 sm:gap-3 sm:p-3 lg:gap-3.5 lg:p-4">
@@ -185,29 +214,45 @@ export function AdminSalesWorkspace({
       </header>
 
       {/* Filtres */}
-      <div className="grid shrink-0 grid-cols-2 gap-2 print:hidden sm:flex sm:flex-wrap sm:items-center">
-        <label className="flex min-w-0 flex-col gap-1 text-[11px] font-medium text-slate-500 sm:flex-row sm:items-center sm:gap-1.5 sm:text-[12px]">
+      <div className="-mx-1 flex shrink-0 flex-wrap items-center gap-1.5 overflow-x-auto px-1 pb-0.5 print:hidden">
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5">
+          {PERIOD_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => applyFilters({ period: option.id })}
+              className={`inline-flex h-9 min-h-9 shrink-0 items-center rounded-md px-2.5 text-[12px] font-semibold transition sm:h-8 sm:min-h-8 sm:text-[11px] ${
+                periodFilter === option.id
+                  ? "bg-emerald-600 text-white"
+                  : "text-slate-600 active:bg-slate-50 sm:hover:bg-slate-50"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <label className="inline-flex h-9 min-h-9 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-500 sm:h-8 sm:min-h-8">
           Du
           <input
             type="date"
-            defaultValue={filters.from ?? ""}
+            value={filters.from ?? ""}
             onChange={(event) => applyFilters({ from: event.target.value })}
-            className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] sm:h-9 sm:w-auto sm:text-[12px]"
+            className="h-7 min-w-[8.5rem] border-0 bg-transparent px-0 text-[12px] text-slate-800 outline-none"
           />
         </label>
-        <label className="flex min-w-0 flex-col gap-1 text-[11px] font-medium text-slate-500 sm:flex-row sm:items-center sm:gap-1.5 sm:text-[12px]">
+        <label className="inline-flex h-9 min-h-9 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-500 sm:h-8 sm:min-h-8">
           Au
           <input
             type="date"
-            defaultValue={filters.to ?? ""}
+            value={filters.to ?? ""}
             onChange={(event) => applyFilters({ to: event.target.value })}
-            className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] sm:h-9 sm:w-auto sm:text-[12px]"
+            className="h-7 min-w-[8.5rem] border-0 bg-transparent px-0 text-[12px] text-slate-800 outline-none"
           />
         </label>
         <select
           value={filters.cashierId ?? ""}
           onChange={(event) => applyFilters({ cashierId: event.target.value })}
-          className="col-span-2 h-10 rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] sm:col-span-1 sm:h-9 sm:text-[12px]"
+          className="h-9 min-h-9 shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px] sm:h-8 sm:min-h-8"
         >
           <option value="">Tous caissiers</option>
           {cashiers.map((cashier) => (
@@ -220,7 +265,7 @@ export function AdminSalesWorkspace({
           <button
             type="button"
             onClick={() => router.push("/application/ventes")}
-            className="col-span-2 h-10 rounded-lg border border-slate-200 bg-white text-[12px] font-medium text-slate-600 active:bg-slate-50 sm:col-span-1 sm:h-9 sm:border-0 sm:px-2.5 sm:hover:text-slate-700"
+            className="h-9 min-h-9 shrink-0 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px] font-medium text-slate-600 active:bg-slate-50 sm:h-8 sm:min-h-8 sm:hover:bg-slate-50"
           >
             Réinitialiser
           </button>
@@ -245,11 +290,11 @@ export function AdminSalesWorkspace({
       </div>
 
       {/* KPI desktop */}
-      <div className="hidden shrink-0 grid-cols-2 gap-2 md:grid lg:grid-cols-4 print:grid print:grid-cols-4">
+      <div className="hidden shrink-0 flex-wrap gap-2 md:flex print:flex">
         {stats.map((stat) => (
           <div
             key={stat.title}
-            className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-sm"
+            className="w-[13.5rem] rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-sm"
           >
             <div className="flex items-center gap-2">
               <span
@@ -377,7 +422,7 @@ export function AdminSalesWorkspace({
                           {cashier.cashierName}
                         </p>
                         <p className="mt-0.5 text-[12px] text-slate-500">
-                          {cashier.orderCount} commande
+                          {cashier.orderCount} {pages.sales.orderCountLabel}
                           {cashier.orderCount > 1 ? "s" : ""}
                         </p>
                       </div>
@@ -391,7 +436,7 @@ export function AdminSalesWorkspace({
                   <thead className="sticky top-0 z-10 bg-slate-50 text-[12px] uppercase tracking-wide text-slate-500 print:static">
                     <tr>
                       <th className="px-4 py-3 font-semibold">Caissier·ère</th>
-                      <th className="px-4 py-3 font-semibold">Commandes payées</th>
+                      <th className="px-4 py-3 font-semibold">{pages.sales.paidTitle}</th>
                       <th className="px-4 py-3 font-semibold">Chiffre d&apos;affaires</th>
                     </tr>
                   </thead>

@@ -1,6 +1,5 @@
 import { getActivityProfile, isRetailActivity } from "@/lib/activity/profile";
 import type { UserSpace } from "@/lib/auth/roles";
-import { isHardwareActivity } from "@/lib/hardware/activity";
 import {
   hasBarService,
   hasKitchenService,
@@ -16,7 +15,7 @@ export type NavItem = {
 
 /** Lien d'accueil (maison) — à mettre en avant dans la navigation. */
 export function isHomeNavItem(item: Pick<NavItem, "href" | "label">): boolean {
-  if (item.label === "Tableau de bord") return true;
+  if (item.label === "Tableau de bord" || item.label === "Accueil") return true;
   return (
     item.href === "/application/tableau-de-bord" ||
     item.href === "/application/bar" ||
@@ -69,38 +68,19 @@ export function getNavigationForSpace(
 ): NavItem[] {
   const profile = getActivityProfile(activityCode);
   const retail = profile.kind === "retail";
-  const hardware = isHardwareActivity(activityCode);
 
-  if (hardware && space === "admin") {
+  if (retail && space === "admin") {
     return [
       { href: "/application/tableau-de-bord", label: "Accueil", enabled: true },
-      { href: "/application/produits", label: "Produits", enabled: true },
-      { href: "/application/stock", label: "Stock", enabled: true },
-      { href: "/application/approvisionnements", label: "Fournisseurs", enabled: true },
+      { href: "/application/produits", label: profile.productNavLabel, enabled: true },
+      { href: "/application/stock", label: profile.stockNavLabel, enabled: true },
+      { href: "/application/approvisionnements", label: "Approvisionnements", enabled: true },
       { href: "/application/ventes", label: "Ventes", enabled: true },
       { href: "/application/caisses", label: "Caisses", enabled: true },
       { href: "/application/depenses", label: "Dépenses", enabled: true },
       { href: "/application/utilisateurs", label: "Utilisateurs", enabled: true },
       { href: "/application/rapports", label: "Rapports", enabled: true },
       { href: "/application/parametres", label: "Paramètres", enabled: true },
-    ];
-  }
-
-  if (hardware && space === "cashier_kitchen") {
-    return [
-      { href: "/application/caisse", label: "Vente", enabled: true },
-      { href: "/application/commandes-ouvertes", label: "Mes ventes", enabled: true },
-      { href: "/application/caisse/session", label: "Ma session", enabled: true },
-    ];
-  }
-
-  if (hardware && space === "bar_manager") {
-    return [
-      { href: "/application/stock", label: "Accueil", enabled: true },
-      { href: "/application/produits", label: "Produits", enabled: true },
-      { href: "/application/approvisionnements", label: "Approvisionnements", enabled: true },
-      { href: "/application/inventaires", label: "Inventaires", enabled: true },
-      { href: "/application/depenses", label: "Dépenses", enabled: true },
     ];
   }
 
@@ -112,10 +92,16 @@ export function getNavigationForSpace(
         label: profile.openTicketsNavLabel,
         enabled: true,
       },
-      { href: "/application/stock", label: profile.stockNavLabel, enabled: true },
+      { href: "/application/caisse/session", label: "Ma session", enabled: true },
+    ];
+  }
+
+  if (retail && space === "bar_manager") {
+    return [
+      { href: "/application/stock", label: "Accueil", enabled: true },
+      { href: "/application/produits", label: profile.productNavLabel, enabled: true },
       { href: "/application/approvisionnements", label: "Approvisionnements", enabled: true },
       { href: "/application/depenses", label: "Dépenses", enabled: true },
-      { href: "/application/caisse/session", label: "Ma session", enabled: true },
     ];
   }
 
@@ -192,9 +178,8 @@ export function isPathAllowedForSpace(
   activityCode?: string | null,
 ): boolean {
   const retail = isRetailActivity(activityCode);
-  const hardware = isHardwareActivity(activityCode);
 
-  if (hardware) {
+  if (retail) {
     if (
       pathname.startsWith("/application/sessions-bar") ||
       pathname.startsWith("/application/bar") ||
@@ -205,6 +190,9 @@ export function isPathAllowedForSpace(
     }
 
     if (space === "admin") {
+      if (pathname === "/application/commandes") {
+        return false;
+      }
       return pathname.startsWith("/application");
     }
 
@@ -244,7 +232,8 @@ export function isPathAllowedForSpace(
         pathname.startsWith("/application/rapports") ||
         pathname.startsWith("/application/caisses") ||
         pathname.startsWith("/application/ventes") ||
-        pathname.startsWith("/application/mon-abonnement")
+        pathname.startsWith("/application/mon-abonnement") ||
+        pathname.startsWith("/application/inventaires")
       ) {
         return false;
       }
@@ -252,7 +241,6 @@ export function isPathAllowedForSpace(
         pathname.startsWith("/application/stock") ||
         pathname.startsWith("/application/produits") ||
         pathname.startsWith("/application/approvisionnements") ||
-        pathname.startsWith("/application/inventaires") ||
         pathname.startsWith("/application/depenses") ||
         pathname === "/application" ||
         pathname.startsWith("/application/mode-hors-connexion")

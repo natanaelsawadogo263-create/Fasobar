@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatConversionLabel,
   toBaseFactor,
+  toStockQuantity,
   validatePackagingGraph,
 } from "@/lib/hardware/product-engine";
 
@@ -54,5 +55,11 @@ describe("conversions multiniveaux quincaillerie", () => {
     ];
     const result = toBaseFactor(nodes, "x");
     expect(result.ok).toBe(false);
+  });
+
+  it("convertit quantité achetée ou vendue vers le stock", () => {
+    expect(toStockQuantity(10, 100)).toBe(1000);
+    expect(toStockQuantity(2, 50)).toBe(100);
+    expect(toStockQuantity(0.5, 1)).toBe(0.5);
   });
 });

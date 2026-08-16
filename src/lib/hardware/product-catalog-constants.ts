@@ -1,15 +1,30 @@
 export const HARDWARE_STOCK_UNIT_SUGGESTIONS = [
   "pièce",
-  "unité",
-  "mètre",
-  "cm",
-  "kg",
-  "gramme",
-  "litre",
+  "rouleau",
+  "carton",
+  "boîte",
+  "sachet",
   "sac",
   "pot",
+  "bidon",
+  "kg",
+  "litre",
+  "mètre",
+  "paquet",
   "barre",
-  "feuille",
+  "pack",
+  "casier",
+  "unité",
+] as const;
+
+export const HARDWARE_WHOLESALE_PACKS = [
+  "carton",
+  "boîte",
+  "sachet",
+  "pack",
+  "casier",
+  "sac",
+  "paquet",
   "rouleau",
 ] as const;
 
@@ -28,7 +43,6 @@ export const HARDWARE_ATTRIBUTE_SUGGESTIONS = [
 
 export const HARDWARE_WIZARD_STEPS = [
   { id: "info", label: "Infos" },
-  { id: "variants", label: "Variantes" },
   { id: "stock", label: "Stock" },
   { id: "packs", label: "Colis" },
   { id: "trade", label: "Prix" },

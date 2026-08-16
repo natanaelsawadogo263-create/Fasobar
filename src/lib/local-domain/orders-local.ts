@@ -14,6 +14,7 @@ import type {
   OrderLineItem,
 } from "@/lib/orders/types";
 import type { OrderStatus, OrderType } from "@/lib/orders/schemas";
+import { snapshotSaleLine } from "@/lib/catalog/sale-stock";
 import { enqueueOutboxEvent } from "@/lib/sync/outbox";
 
 export type SaveLocalOrderInput = {
@@ -28,6 +29,10 @@ export type SaveLocalOrderInput = {
     quantity: number;
     notes?: string | null;
     departmentCode?: string;
+    unitPrice?: number;
+    productName?: string;
+    saleUnitId?: string | null;
+    stockFactor?: number;
   }>;
   cashSessionId?: string | null;
 };
@@ -53,6 +58,10 @@ function loadItems(db: SqlDatabase, orderId: string): OrderLineItem[] {
       departmentCode: String(row.department_code),
       departmentName: String(row.department_code),
       notes: (row.notes as string | null) ?? null,
+      saleUnitId: (row.unit_level_id as string | null) ?? null,
+      saleUnitName: (row.sale_unit_name as string | null) ?? null,
+      saleUnitFactor: row.sale_unit_factor == null ? null : Number(row.sale_unit_factor),
+      stockQuantity: row.stock_quantity == null ? null : Number(row.stock_quantity),
     }));
 }
 
@@ -88,7 +97,12 @@ function mapOrderDetail(
 function resolveProductSnapshot(
   db: SqlDatabase,
   establishmentId: string,
-  item: { productId: string; departmentCode?: string },
+  item: {
+    productId: string;
+    departmentCode?: string;
+    unitPrice?: number;
+    productName?: string;
+  },
 ): {
   name: string;
   unitPrice: number;
@@ -107,8 +121,8 @@ function resolveProductSnapshot(
   }
 
   return {
-    name: String(product.name),
-    unitPrice: moneyXof(Number(product.selling_price)),
+    name: item.productName?.trim() || String(product.name),
+    unitPrice: moneyXof(item.unitPrice ?? Number(product.selling_price)),
     departmentCode: String(product.department_code || item.departmentCode || "BAR"),
   };
 }
@@ -365,14 +379,14 @@ export function saveLocalOrder(
     const lineRows: Array<Record<string, unknown>> = [];
     let subtotal = 0;
 
-    const preparedByProduct = new Map<string, number>();
+    const preparedByLine = new Map<string, number>();
     for (const row of db
       .prepare(
-        `SELECT product_id, prepared_quantity FROM local_order_items WHERE order_id = ?`,
+        `SELECT product_id, unit_level_id, prepared_quantity FROM local_order_items WHERE order_id = ?`,
       )
       .all(orderId)) {
-      preparedByProduct.set(
-        String(row.product_id),
+      preparedByLine.set(
+        `${row.product_id}::${row.unit_level_id ?? ""}`,
         Number(row.prepared_quantity ?? 0),
       );
     }
@@ -385,18 +399,27 @@ export function saveLocalOrder(
       if (!(quantity > 0)) {
         throw new Error("Quantité invalide.");
       }
+      const saleSnap = snapshotSaleLine({
+        productId: item.productId,
+        saleUnitId: item.saleUnitId,
+        saleUnitName: snap.name,
+        unitPrice: snap.unitPrice,
+        quantity,
+        conversionFactor: item.stockFactor ?? 1,
+      });
       const lineTotal = moneyXof(snap.unitPrice * quantity);
       subtotal += lineTotal;
       const lineId = randomUUID();
       const preparedQuantity = Math.min(
         quantity,
-        preparedByProduct.get(item.productId) ?? 0,
+        preparedByLine.get(`${item.productId}::${item.saleUnitId ?? ""}`) ?? 0,
       );
       db.prepare(
         `INSERT INTO local_order_items (
           id, order_id, product_id, product_name_snapshot, unit_price_snapshot,
-          quantity, prepared_quantity, line_total, department_code, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          quantity, prepared_quantity, line_total, department_code, notes,
+          unit_level_id, sale_unit_name, sale_unit_factor, stock_quantity
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         lineId,
         orderId,
@@ -408,6 +431,10 @@ export function saveLocalOrder(
         lineTotal,
         snap.departmentCode,
         item.notes?.trim() || null,
+        item.saleUnitId ?? null,
+        saleSnap.saleUnitName,
+        saleSnap.conversionFactor,
+        saleSnap.stockQuantity,
       );
       lineRows.push({
         id: lineId,
@@ -419,6 +446,10 @@ export function saveLocalOrder(
         line_total: lineTotal,
         department_code: snap.departmentCode,
         notes: item.notes?.trim() || null,
+        unit_level_id: item.saleUnitId ?? null,
+        sale_unit_name: saleSnap.saleUnitName,
+        sale_unit_factor: saleSnap.conversionFactor,
+        stock_quantity: saleSnap.stockQuantity,
       });
     }
 

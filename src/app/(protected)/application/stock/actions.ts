@@ -8,6 +8,8 @@ import {
 } from "@/lib/auth/workspace-context";
 import { revalidateStockOps } from "@/lib/ops/revalidate";
 import { getDepartmentIdByCode } from "@/lib/products/queries";
+import { formatProductUnitDisplay } from "@/lib/products/constants";
+import { listPackagingsForProductsMerged } from "@/lib/products/packaging-queries";
 import { canManageDepartmentStock } from "@/lib/stock/constants";
 import { isDepartmentAllowed } from "@/lib/settings/service-scope";
 import { writeAuditLogEntry } from "@/lib/stock/audit";
@@ -16,11 +18,13 @@ import {
   validateStockItemAccess,
   listStockMovements,
   getSupplierById,
+  getSupplyReceiptById,
   validateProductForStockLink,
 } from "@/lib/stock/queries";
 import {
   createStockItemSchema,
   createSupplierSchema,
+  saveSupplyReceiptSchema,
   startInventorySchema,
   stockAdjustmentSchema,
   stockEntrySchema,
@@ -28,6 +32,7 @@ import {
   toggleSupplierStatusSchema,
   updateSupplierSchema,
 } from "@/lib/stock/schemas";
+import { computeSupplyLineAmounts, resolveSupplyPurchaseMode } from "@/lib/stock/supply-lines";
 import type { StockActionState, StockMovementItem } from "@/lib/stock/types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -381,7 +386,7 @@ export async function updateSupplierAction(
       active: parsed.data.active,
     })
     .eq("id", parsed.data.supplierId)
-    .eq("establishment_id", workspace.establishmentId);
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId);
 
   if (error) {
     const message = (error.message ?? "").toLowerCase();
@@ -446,7 +451,7 @@ export async function toggleSupplierStatusAction(
     .from("suppliers")
     .update({ active: parsed.data.active })
     .eq("id", parsed.data.supplierId)
-    .eq("establishment_id", workspace.establishmentId);
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId);
 
   if (error) {
     return { error: mapGenericError(error) };
@@ -654,7 +659,7 @@ export async function startInventorySessionAction(
   const { data: stockItems, error: itemsError } = await supabase
     .from("stock_items")
     .select("id, current_quantity")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("department_id", departmentId)
     .eq("active", true);
 
@@ -695,4 +700,186 @@ export async function fetchStockMovementsAction(
 
   const movements = await listStockMovements(workspace, stockItemId);
   return { movements };
+}
+
+export async function getSupplyReceiptAction(
+  receiptId: string,
+): Promise<StockActionState & { receipt?: Awaited<ReturnType<typeof getSupplyReceiptById>> }> {
+  const workspace = await requireStockReadContext();
+  const receipt = await getSupplyReceiptById(workspace, receiptId);
+  if (!receipt) return { error: "Approvisionnement introuvable." };
+  return { receipt };
+}
+
+export async function saveSupplyReceiptAction(
+  payload: unknown,
+): Promise<StockActionState & { receiptId?: string }> {
+  const workspace = await requireStockManagementMutationContext();
+  const parsed = saveSupplyReceiptSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  const supplier = await getSupplierById(workspace, parsed.data.supplierId);
+  if (!supplier || !supplier.active) {
+    return { error: "Fournisseur invalide ou inactif." };
+  }
+
+  const uniqueItemIds = [...new Set(parsed.data.lines.map((line) => line.stockItemId))];
+  const stockItems = await Promise.all(
+    uniqueItemIds.map((stockItemId) => validateStockItemAccess(workspace, stockItemId)),
+  );
+  const stockItemById = new Map(
+    uniqueItemIds.map((stockItemId, index) => [stockItemId, stockItems[index] ?? null]),
+  );
+  for (const stockItem of stockItemById.values()) {
+    if (!stockItem) return { error: "Un article de la liste est introuvable." };
+    const permissionError = assertDepartmentPermission(workspace, stockItem.departmentCode);
+    if (permissionError) return { error: permissionError };
+  }
+
+  const productIds = [
+    ...new Set(
+      [...stockItemById.values()]
+        .map((item) => item?.productId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const packagingsByProduct = await listPackagingsForProductsMerged(workspace, productIds);
+
+  const lines = [];
+  for (const line of parsed.data.lines) {
+    const stockItem = stockItemById.get(line.stockItemId);
+    if (!stockItem) return { error: "Un article de la liste est introuvable." };
+    const stockUnit = formatProductUnitDisplay(stockItem.unit, stockItem.stockUnitLabel);
+    const packagings = stockItem.productId ? packagingsByProduct[stockItem.productId] : [];
+    const mode = resolveSupplyPurchaseMode(
+      stockUnit,
+      packagings,
+      line.unitLevelId,
+      line.unitName,
+    );
+    const amounts = computeSupplyLineAmounts({
+      quantity: line.purchasedQuantity,
+      factor: mode.factor,
+      purchasePrice: line.purchasePrice,
+    });
+    if (!(amounts.stockQuantity > 0)) {
+      return { error: `Quantité stock invalide pour « ${stockItem.name} ».` };
+    }
+    lines.push({
+      stockItem,
+      unitLevelId: mode.id || null,
+      unitName: mode.name,
+      purchasedQuantity: line.purchasedQuantity,
+      conversionFactor: mode.factor,
+      purchasePrice: line.purchasePrice,
+      ...amounts,
+    });
+  }
+
+  const totalAmount = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+  const supabase = await createClient();
+  let receiptId = parsed.data.receiptId ?? null;
+
+  if (receiptId) {
+    const { data: existing } = await supabase
+      .from("supply_receipts")
+      .select("id, status")
+      .eq("id", receiptId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+      .maybeSingle();
+    if (!existing) return { error: "Approvisionnement introuvable." };
+    if (existing.status !== "DRAFT") {
+      return { error: "Cet approvisionnement est déjà validé." };
+    }
+    const { error } = await supabase
+      .from("supply_receipts")
+      .update({
+        supplier_id: parsed.data.supplierId,
+        received_on: parsed.data.receivedOn,
+        notes: parsed.data.notes || null,
+        total_amount: totalAmount,
+        updated_by: workspace.userId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", receiptId);
+    if (error) return { error: error.message };
+    await supabase.from("supply_receipt_lines").delete().eq("receipt_id", receiptId);
+  } else {
+    const { data, error } = await supabase
+      .from("supply_receipts")
+      .insert({
+        organization_id: workspace.organizationId,
+        establishment_id: workspace.establishmentId,
+        supplier_id: parsed.data.supplierId,
+        status: "DRAFT",
+        received_on: parsed.data.receivedOn,
+        notes: parsed.data.notes || null,
+        total_amount: totalAmount,
+        created_by: workspace.userId,
+        updated_by: workspace.userId,
+      })
+      .select("id")
+      .maybeSingle();
+    if (error || !data?.id) {
+      if (error?.message?.includes("supply_receipts") || error?.code === "42P01") {
+        return { error: "Appliquez la migration des approvisionnements multi-lignes." };
+      }
+      return { error: error?.message ?? "Enregistrement impossible." };
+    }
+    receiptId = data.id;
+  }
+
+  const { error: linesError } = await supabase.from("supply_receipt_lines").insert(
+    lines.map((line, index) => ({
+      organization_id: workspace.organizationId,
+      establishment_id: workspace.establishmentId,
+      receipt_id: receiptId,
+      stock_item_id: line.stockItem.id,
+      product_id: line.stockItem.productId,
+      unit_level_id: line.unitLevelId,
+      unit_name: line.unitName,
+      purchased_quantity: line.purchasedQuantity,
+      conversion_factor: line.conversionFactor,
+      stock_quantity: line.stockQuantity,
+      purchase_price: line.purchasePrice,
+      line_total: line.lineTotal,
+      sort_order: index,
+    })),
+  );
+  if (linesError) return { error: linesError.message };
+
+  if (parsed.data.validate) {
+    const { error } = await supabase.rpc("validate_supply_receipt", {
+      p_receipt_id: receiptId,
+    });
+    if (error) {
+      return {
+        error: error.message || "Validation impossible.",
+        receiptId,
+      };
+    }
+    revalidateStockPages();
+    return { success: "Approvisionnement validé. Le stock a été mis à jour.", receiptId };
+  }
+
+  revalidateStockPages();
+  return { success: "Brouillon enregistré. Le stock n’a pas encore changé.", receiptId };
+}
+
+export async function deleteSupplyReceiptDraftAction(
+  receiptId: string,
+): Promise<StockActionState> {
+  const workspace = await requireStockManagementMutationContext();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("supply_receipts")
+    .delete()
+    .eq("id", receiptId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+    .eq("status", "DRAFT");
+  if (error) return { error: error.message };
+  revalidateStockPages();
+  return { success: "Brouillon supprimé." };
 }

@@ -78,7 +78,7 @@ export function MobileCaisseFilters() {
                 filters.onDepartmentChange(dept.id);
                 filters.onCategoryChange("all");
               }}
-              className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold transition active:scale-[0.98] ${
+              className={`inline-flex h-11 min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold transition active:scale-[0.98] ${
                 active
                   ? "bg-emerald-600 text-white shadow-sm"
                   : "bg-slate-100 text-slate-600"
@@ -93,6 +93,19 @@ export function MobileCaisseFilters() {
       ) : null}
       {categoryOptions.length > 0 ? (
         <div className="flex gap-1.5 overflow-x-auto border-t border-slate-100 px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {retail ? (
+            <button
+              type="button"
+              onClick={() => filters.onCategoryChange("all")}
+              className={`inline-flex h-11 min-h-11 shrink-0 items-center rounded-full px-3.5 text-[12px] font-semibold transition active:scale-[0.98] ${
+                filters.categoryId === "all"
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
+              }`}
+            >
+              Tous
+            </button>
+          ) : null}
           {categoryOptions.map((category) => {
             const active = filters.categoryId === category.id;
             return (
@@ -100,7 +113,7 @@ export function MobileCaisseFilters() {
                 key={category.id}
                 type="button"
                 onClick={() => filters.onCategoryChange(category.id)}
-                className={`inline-flex h-9 shrink-0 items-center rounded-full px-3 text-[11px] font-semibold transition active:scale-[0.98] ${
+                className={`inline-flex h-11 min-h-11 shrink-0 items-center rounded-full px-3.5 text-[12px] font-semibold transition active:scale-[0.98] ${
                   active
                     ? "bg-slate-900 text-white"
                     : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"

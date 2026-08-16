@@ -33,6 +33,8 @@ type SupplierFormModalProps = {
   formError: string | null;
   /** Si défini, le département est figé (ex. espace Bar). */
   lockedDepartment?: "BAR" | "KITCHEN" | null;
+  /** Commerce (quincaillerie, boutique…) : pas de Bar / Cuisine. */
+  hideDepartment?: boolean;
   onClose: () => void;
   onSubmit: (formData: FormData) => void;
   onChange: (updater: (current: SupplierFormState) => SupplierFormState) => void;
@@ -44,6 +46,7 @@ export function SupplierFormModal({
   editingSupplier,
   formError,
   lockedDepartment = null,
+  hideDepartment = false,
   onClose,
   onSubmit,
   onChange,
@@ -57,7 +60,9 @@ export function SupplierFormModal({
       title={isCreate ? "Ajouter un fournisseur" : "Modifier le fournisseur"}
       subtitle={
         isCreate
-          ? "Indiquez s'il livre le Bar ou la Cuisine."
+          ? hideDepartment
+            ? "Nom, téléphone et adresse du fournisseur."
+            : "Indiquez s'il livre le Bar ou la Cuisine."
           : "Mettez à jour les informations du fournisseur."
       }
       onClose={onClose}
@@ -85,8 +90,18 @@ export function SupplierFormModal({
 
         <FormSection title="Informations">
           <div className="grid gap-4 md:grid-cols-2">
-            {lockedDepartment ? (
-              <input type="hidden" name="departmentCode" value={lockedDepartment} />
+            {hideDepartment ? (
+              <input type="hidden" name="departmentCode" value={departmentValue} />
+            ) : lockedDepartment ? (
+              <>
+                <input type="hidden" name="departmentCode" value={lockedDepartment} />
+                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600 md:col-span-2">
+                  Espace :{" "}
+                  <span className="font-semibold text-slate-900">
+                    {SPACE_LABELS[lockedDepartment]}
+                  </span>
+                </p>
+              </>
             ) : (
               <SelectField
                 id="departmentCode"
@@ -106,14 +121,6 @@ export function SupplierFormModal({
                 <option value="KITCHEN">{SPACE_LABELS.KITCHEN}</option>
               </SelectField>
             )}
-            {lockedDepartment ? (
-              <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-600 md:col-span-2">
-                Espace :{" "}
-                <span className="font-semibold text-slate-900">
-                  {SPACE_LABELS[lockedDepartment]}
-                </span>
-              </p>
-            ) : null}
             <TextField
               id="name"
               name="name"

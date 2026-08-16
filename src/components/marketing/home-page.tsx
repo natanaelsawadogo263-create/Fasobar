@@ -9,7 +9,7 @@ import {
   Users,
 } from "lucide-react";
 
-import { ProductPreview } from "@/components/marketing/product-preview";
+import { MarketingVideoBanner } from "@/components/marketing/marketing-video-banner";
 import { MARKETING_FAQ } from "@/lib/marketing/faq";
 import { MARKETING_FEATURES } from "@/lib/marketing/features";
 
@@ -26,7 +26,7 @@ const STEPS = [
   {
     n: "1",
     title: "Créez votre établissement",
-    body: "Compte gérant, nom du maquis, et c’est parti.",
+    body: "Choisissez votre activité, donnez un nom, et c’est parti.",
   },
   {
     n: "2",
@@ -35,61 +35,22 @@ const STEPS = [
   },
   {
     n: "3",
-    title: "Encaissez et suivez",
-    body: "Caisse au quotidien, tableau de bord pour le gérant.",
+    title: "Encaissez et imprimez",
+    body: "Caisse tactile, clavier, souris, tickets, reçus thermiques, stock.",
   },
 ] as const;
 
 const TRUST = [
-  "Téléphone et ordinateur",
-  "Rôles pour l’équipe",
-  "Support WhatsApp",
+  "Caisse tactile",
+  "Clavier et souris",
+  "Imprimante thermique",
+  "Tickets et reçus",
 ] as const;
 
 export function MarketingHomePage() {
   return (
     <>
-      <section className="relative overflow-hidden bg-[#07110e] text-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.18),transparent_42%),radial-gradient(circle_at_bottom_left,rgba(251,191,36,0.08),transparent_40%)]" />
-        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:py-20">
-          <div className="fb-marketing-fade">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-amber-300">
-              FasoBar · Burkina Faso
-            </p>
-            <h1 className="mt-4 max-w-xl text-[32px] font-semibold leading-[1.12] tracking-tight sm:text-[44px]">
-              Caisse, stock et ventes. Un seul outil.
-            </h1>
-            <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-emerald-50/80 sm:text-base">
-              Le logiciel pour maquis, bars et restaurants. Prenez les
-              commandes, encaissez et suivez le stock.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                href="/inscription/activite"
-                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-emerald-500 px-5 text-[15px] font-semibold text-white transition hover:bg-emerald-400"
-              >
-                Créer mon établissement
-              </Link>
-              <Link
-                href="/tarifs"
-                className="inline-flex min-h-12 items-center justify-center rounded-xl px-5 text-[15px] font-semibold text-emerald-100/80 transition hover:text-white"
-              >
-                Voir les tarifs
-              </Link>
-            </div>
-            <p className="mt-4 text-[13px] text-emerald-100/70">
-              Déjà client ?{" "}
-              <Link
-                href="/connexion"
-                className="font-semibold text-amber-300 hover:underline"
-              >
-                Se connecter
-              </Link>
-            </p>
-          </div>
-          <ProductPreview />
-        </div>
-      </section>
+      <MarketingVideoBanner />
 
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap gap-2 px-4 py-4 sm:gap-3 sm:px-6 sm:py-5">

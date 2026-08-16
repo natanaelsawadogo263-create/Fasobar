@@ -18,9 +18,9 @@ type ActiveOrderPanelProps = {
   isPending: boolean;
   onTableChange: (value: string) => void;
   onOrderTypeChange: (type: OrderType) => void;
-  onQuantityChange: (productId: string, quantity: number) => void;
-  onNotesChange: (productId: string, notes: string) => void;
-  onRemove: (productId: string) => void;
+  onQuantityChange: (productId: string, quantity: number, saleUnitId?: string) => void;
+  onNotesChange: (productId: string, notes: string, saleUnitId?: string) => void;
+  onRemove: (productId: string, saleUnitId?: string) => void;
   onHold: () => void;
   onPrintAddition: () => void;
   onCheckout: () => void;
@@ -81,7 +81,7 @@ export function ActiveOrderPanel({
             type="button"
             onClick={onNewOrder}
             disabled={isPending}
-            className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#111827] px-2.5 text-[12px] font-semibold text-white transition hover:bg-[#1f2937] disabled:opacity-40"
+            className="inline-flex h-11 shrink-0 items-center gap-1 rounded-lg bg-[#111827] px-2.5 text-[12px] font-semibold text-white transition active:bg-[#1f2937] disabled:opacity-40"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
             Nouvelle
@@ -121,27 +121,29 @@ export function ActiveOrderPanel({
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className={`grid gap-2 ${retailMode ? "grid-cols-1" : "grid-cols-2"}`}>
+          {retailMode ? null : (
           <button
             type="button"
             disabled={actionsDisabled}
             onClick={onPrintAddition}
             title="Enregistrer et imprimer l'addition client (sans payer)"
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2 text-[12px] font-semibold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-[#e5e7eb] disabled:bg-white disabled:text-[#9ca3af]"
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2 text-[12px] font-semibold text-amber-900 transition active:bg-amber-100 disabled:cursor-not-allowed disabled:border-[#e5e7eb] disabled:bg-white disabled:text-[#9ca3af]"
           >
             <Printer className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-            {retailMode ? "Ticket" : "Addition"}
+            Addition
           </button>
+          )}
 
           <button
             type="button"
             disabled={actionsDisabled}
             onClick={onHold}
-            title="Mettre en attente d'encaissement"
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#fcd34d] bg-[#fffbeb] px-2 text-[12px] font-semibold text-[#92400e] transition hover:bg-[#fef3c7] disabled:cursor-not-allowed disabled:border-[#e5e7eb] disabled:bg-white disabled:text-[#9ca3af]"
+            title={retailMode ? "Mettre de côté pour encaisser plus tard" : "Mettre en attente d'encaissement"}
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-lg border border-[#fcd34d] bg-[#fffbeb] px-2 text-[12px] font-semibold text-[#92400e] transition active:bg-[#fef3c7] disabled:cursor-not-allowed disabled:border-[#e5e7eb] disabled:bg-white disabled:text-[#9ca3af]"
           >
             <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-            En attente
+            {retailMode ? "Mettre de côté" : "En attente"}
           </button>
         </div>
 
@@ -150,7 +152,7 @@ export function ActiveOrderPanel({
           disabled={actionsDisabled}
           onClick={onCheckout}
           title="Encaisser maintenant (F8)"
-          className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-[#059669] px-2 text-[13px] font-bold text-white transition hover:bg-[#047857] disabled:cursor-not-allowed disabled:bg-[#e5e7eb] disabled:text-[#9ca3af]"
+          className="mt-2 inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-lg bg-[#059669] px-2 text-[13px] font-bold text-white transition active:bg-[#047857] disabled:cursor-not-allowed disabled:bg-[#e5e7eb] disabled:text-[#9ca3af]"
         >
           <Banknote className="h-4 w-4 shrink-0" strokeWidth={2} />
           {isPending ? "…" : "Encaisser"}
@@ -183,14 +185,16 @@ export function ActiveOrderPanel({
             <div className="flex h-full min-h-[120px] flex-col items-center justify-center px-6 text-center">
               <p className="text-[13px] font-medium text-[#6b7280]">Aucun article</p>
               <p className="mt-1 max-w-[220px] text-[12px] leading-relaxed text-[#9ca3af]">
-                Cliquez un produit à gauche pour l&apos;ajouter ici.
+                {retailMode
+                  ? "Touchez un article pour l’ajouter."
+                  : "Touchez un produit à gauche pour l’ajouter ici."}
               </p>
             </div>
           ) : (
             <ul className="cart-snap-list h-full min-h-0 overflow-y-auto overscroll-contain">
               {cart.map((line) => (
                 <OrderItemRow
-                  key={line.productId}
+                  key={`${line.productId}::${line.saleUnitId ?? ""}`}
                   line={line}
                   onQuantityChange={onQuantityChange}
                   onNotesChange={onNotesChange}

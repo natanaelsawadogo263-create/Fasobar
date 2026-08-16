@@ -43,7 +43,7 @@ export async function getOwnOpenCashSessionMeta(
   const { data, error } = await supabase
     .from("cash_register_sessions")
     .select("opened_at")
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("opened_by", workspace.userId)
     .eq("status", "OPEN")
     .maybeSingle();
@@ -77,7 +77,7 @@ export const getActiveCashSession = cache(async function getActiveCashSession(
     .select(
       "id, status, opening_cash_amount, expected_cash_amount, counted_cash_amount, cash_difference, opening_note, closing_note, opened_at, closed_at, profiles!cash_register_sessions_opened_by_fkey(full_name)",
     )
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("opened_by", workspace.userId)
     .eq("status", "OPEN")
     .maybeSingle();
@@ -128,7 +128,7 @@ export async function getCashSessionById(
       "id, status, opening_cash_amount, expected_cash_amount, counted_cash_amount, cash_difference, opening_note, closing_note, opened_at, closed_at, profiles!cash_register_sessions_opened_by_fkey(full_name)",
     )
     .eq("id", sessionId)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
 
   if (error || !data) {
@@ -306,7 +306,7 @@ export async function getReceiptById(
     .from("receipts")
     .select("*")
     .eq("id", receiptId)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
 
   if (error || !receipt) {
@@ -396,7 +396,7 @@ export async function getReceiptByOrderId(
     .from("receipts")
     .select("id")
     .eq("order_id", orderId)
-    .eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
 
   if (error || !data) {

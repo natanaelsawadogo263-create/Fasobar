@@ -61,4 +61,6 @@ export type ProductPackaging = {
   baseUnit: string;
   conversionFactor: number;
   active: boolean;
+  sellingPrice?: number | null;
+  allowDecimal?: boolean;
 };
