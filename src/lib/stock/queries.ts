@@ -151,7 +151,7 @@ export async function listStockItems(
       fallback = fallback.ilike("name", `%${filters.search}%`);
     }
     const retry = await fallback;
-    rows = retry.data;
+    rows = retry.data as typeof data;
     queryError = retry.error;
   }
 

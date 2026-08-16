@@ -456,7 +456,7 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     !isRetailActivity(activityCode);
   const canManageStock = canManageBarStock || canManageKitchenStock;
 
-  return {
+  const context: WorkspaceContext = {
     userId,
     ownerName: profile.full_name ?? "Utilisateur",
     email: user?.email ?? "",

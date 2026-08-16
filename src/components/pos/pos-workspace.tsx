@@ -599,11 +599,10 @@ export function PosWorkspace({
           productId: line.productId,
           quantity: line.quantity,
           notes: line.notes,
-          unitPrice: line.unitPrice,
+          unitPrice: Math.round(line.unitPrice),
           productName: line.name,
           saleUnitId: line.saleUnitId || null,
           stockFactor: line.stockFactor,
-          unitPrice: Math.round(line.unitPrice),
         })),
       ),
     );

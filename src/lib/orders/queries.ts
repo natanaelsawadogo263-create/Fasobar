@@ -27,6 +27,7 @@ import {
 } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { listCommerceUnitsForProducts } from "@/lib/products/packaging-queries";
+import type { AdminOrderFiltersInput } from "@/lib/orders/schemas";
 
 function readSingle<T>(value: T | T[] | null): T | null {
   if (!value) {
@@ -616,8 +617,8 @@ export async function listAdminOrders(
     .select(
       "id, order_number, table_reference, customer_reference, status, payment_status, bar_status, kitchen_status, total_amount, created_at, created_by, profiles!orders_created_by_fkey(full_name), order_items(id, departments(code)), receipts(id)",
     )
-    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
     .order("created_at", { ascending: false })
     .limit(300);
 

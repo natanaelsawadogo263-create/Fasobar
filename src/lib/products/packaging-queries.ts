@@ -195,7 +195,10 @@ export async function listCommerceUnitsForProducts(
       .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
       .order("sort_order");
-    data = fallback.data;
+    data = (fallback.data ?? []).map((row) => ({
+      ...row,
+      variant_id: null as string | null,
+    })) as typeof data;
     error = fallback.error;
   }
   if (error || !data) return {};

@@ -340,7 +340,6 @@ export function SupplyReceiptModal({
                           setUnitId(line.unitId);
                           setQuantity(String(line.quantity));
                           setPrice(String(line.purchasePrice));
-                          setSearch(line.productName);
                         }}
                         className="inline-flex h-11 min-w-11 items-center justify-center rounded-xl px-2 text-[12px] font-medium text-slate-600"
                       >
