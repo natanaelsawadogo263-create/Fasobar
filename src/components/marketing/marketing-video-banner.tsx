@@ -60,14 +60,8 @@ export function MarketingVideoBanner() {
             Créer mon établissement
           </Link>
           <Link
-            href="/connexion"
-            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/25 bg-white/10 px-5 text-[15px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-          >
-            Se connecter
-          </Link>
-          <Link
             href="/contact"
-            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-5 text-[15px] font-semibold text-emerald-50/90 backdrop-blur-sm transition hover:bg-white/10"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-5 text-[15px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
           >
             Commander le kit
           </Link>
