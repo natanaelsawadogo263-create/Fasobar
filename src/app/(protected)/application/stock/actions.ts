@@ -780,7 +780,7 @@ export async function saveSupplyReceiptAction(
 
   const totalAmount = lines.reduce((sum, line) => sum + line.lineTotal, 0);
   const supabase = await createClient();
-  let receiptId = parsed.data.receiptId ?? null;
+  let receiptId: string | undefined = parsed.data.receiptId;
 
   if (receiptId) {
     const { data: existing } = await supabase
@@ -829,6 +829,10 @@ export async function saveSupplyReceiptAction(
       return { error: error?.message ?? "Enregistrement impossible." };
     }
     receiptId = data.id;
+  }
+
+  if (!receiptId) {
+    return { error: "Enregistrement impossible." };
   }
 
   const { error: linesError } = await supabase.from("supply_receipt_lines").insert(
