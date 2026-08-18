@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { Plus } from "lucide-react";
 
+import { ProductImageThumb } from "@/components/products/product-image-thumb";
 import { POS_DEPARTMENT_BADGE } from "@/components/pos/constants";
 import { buildCashierSaleChoices } from "@/lib/catalog/sale-choices";
 import { formatPriceXof } from "@/lib/orders/constants";
@@ -60,9 +60,11 @@ export function ProductCard({
             : "border-slate-200 bg-white shadow-sm hover:border-emerald-400 disabled:opacity-50"
         }`}
       >
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white">
-          <Image src={imageUrl} alt="" fill className="object-contain p-1" unoptimized />
-        </div>
+        <ProductImageThumb
+          src={imageUrl}
+          className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-white"
+          imageClassName="object-contain p-1"
+        />
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-bold uppercase text-slate-900">{product.name}</p>
           <p className="truncate text-[10px] text-slate-500">{product.categoryName}</p>
@@ -98,13 +100,14 @@ export function ProductCard({
       }`}
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-white">
-        <Image
+        <ProductImageThumb
           src={imageUrl}
-          alt=""
-          fill
-          className={`object-contain p-3 ${outOfStock ? "" : "transition group-hover:scale-[1.02]"}`}
+          className={`relative h-full w-full overflow-hidden bg-white ${
+            imageUrl ? "border-0" : "rounded-none border-0 border-b border-dashed border-slate-200"
+          }`}
+          imageClassName={`object-contain p-3 ${outOfStock ? "" : "transition group-hover:scale-[1.02]"}`}
           sizes="(max-width: 768px) 50vw, 20vw"
-          unoptimized
+          placeholderLabel="Image non ajoutée"
         />
         <span
           className={`absolute left-2 top-2 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${badge.className}`}

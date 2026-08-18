@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -31,6 +30,7 @@ import {
 import { ProductFormModal, type ProductFormState } from "@/components/products/product-form-modal";
 import { HardwareProductWizard } from "@/components/hardware/hardware-product-wizard";
 import { usesTradeCatalog } from "@/lib/activity/ops-model";
+import { ProductImageThumb } from "@/components/products/product-image-thumb";
 import type { ProductImageAssets } from "@/components/products/product-image-field";
 import { resolveCatalogImageUrl } from "@/lib/fasobar/product-images";
 import {
@@ -455,23 +455,18 @@ export function ProductsWorkspace({
               </p>
             ) : (
               rows.map((product) => {
-                const imageUrl = resolveCatalogImageUrl(product);
                 return (
                   <article
                     key={product.id}
                     className="rounded-xl border border-slate-200 bg-white p-2.5"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
-                        <Image
-                          src={imageUrl}
-                          alt={product.name}
-                          fill
-                          className="object-contain p-0.5"
-                          sizes="48px"
-                          unoptimized
-                        />
-                      </div>
+                      <ProductImageThumb
+                        src={resolveCatalogImageUrl(product)}
+                        alt={product.name}
+                        className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50"
+                        sizes="48px"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <p className="truncate text-[13px] font-semibold text-slate-900">
@@ -558,22 +553,15 @@ export function ProductsWorkspace({
                 </tr>
               ) : (
                 rows.map((product) => {
-                  const imageUrl = resolveCatalogImageUrl(product);
-
                   return (
                   <tr key={product.id} className="text-slate-700 hover:bg-slate-50/70">
                     <td className="px-3.5 py-2.5">
                       <div className="flex items-center gap-2.5">
-                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
-                          <Image
-                            src={imageUrl}
-                            alt={product.name}
-                            fill
-                            className="object-contain p-0.5"
-                            sizes="40px"
-                            unoptimized
-                          />
-                        </div>
+                        <ProductImageThumb
+                          src={resolveCatalogImageUrl(product)}
+                          alt={product.name}
+                          sizes="40px"
+                        />
                         <div className="min-w-0">
                           <p className="font-semibold text-slate-900">{product.name}</p>
                           {product.description ? (
@@ -669,7 +657,7 @@ export function ProductsWorkspace({
         </div>
       </section>
 
-      {formMode && canManage && retail ? (
+      {formMode && canManage && hardware ? (
         <HardwareProductWizard
           key={editingProduct?.id ?? "create"}
           mode={formMode}
@@ -693,7 +681,7 @@ export function ProductsWorkspace({
         />
       ) : null}
 
-      {formMode && canManage && !retail ? (
+      {formMode && canManage && !hardware ? (
         <ProductFormModal
           key={editingProduct?.id ?? "create"}
           mode={formMode}

@@ -22,7 +22,9 @@ describe("modèle ops magasin", () => {
     expect(usesTradeCatalog("wholesale")).toBe(true);
     expect(usesTradeCatalog("pharmacy")).toBe(false);
     expect(usesTradeCatalog("supermarket")).toBe(false);
+    expect(usesTradeCatalog("phones")).toBe(false);
     expect(usesShopCatalog("clothing")).toBe(true);
+    expect(usesShopCatalog("phones")).toBe(true);
     expect(usesShopCatalog("hardware")).toBe(false);
   });
 

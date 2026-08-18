@@ -23,7 +23,7 @@ function normalizeName(productName: string): string {
     .trim();
 }
 
-/** Image locale connue du catalogue caisse, ou null. */
+/** Image locale connue du catalogue caisse démo, ou null. */
 export function getLocalProductImage(productName: string): string | null {
   const normalized = normalizeName(productName);
 
@@ -46,6 +46,27 @@ export function getLocalProductImage(productName: string): string | null {
   return null;
 }
 
+function isDemoCatalogAsset(url: string): boolean {
+  return url.startsWith("/products/");
+}
+
+export function resolveStoredProductImageUrl(input: {
+  imageUrl?: string | null;
+  imageOptimizedUrl?: string | null;
+  imageOriginalUrl?: string | null;
+}): string | null {
+  const optimized = input.imageOptimizedUrl?.trim();
+  if (optimized && !isDemoCatalogAsset(optimized)) return optimized;
+
+  const original = input.imageOriginalUrl?.trim();
+  if (original && !isDemoCatalogAsset(original)) return original;
+
+  const legacy = input.imageUrl?.trim();
+  if (legacy && !isDemoCatalogAsset(legacy)) return legacy;
+
+  return null;
+}
+
 export function getProductImage(
   productName: string,
   storedUrl?: string | null,
@@ -53,29 +74,28 @@ export function getProductImage(
     optimizedUrl?: string | null;
     originalUrl?: string | null;
   },
-): string {
-  if (alternatives?.optimizedUrl) {
-    return alternatives.optimizedUrl;
-  }
-  if (alternatives?.originalUrl) {
-    return alternatives.originalUrl;
-  }
-  if (storedUrl) {
-    return storedUrl;
+  options?: { allowDemoFallback?: boolean },
+): string | null {
+  const stored = resolveStoredProductImageUrl({
+    imageUrl: storedUrl,
+    imageOptimizedUrl: alternatives?.optimizedUrl,
+    imageOriginalUrl: alternatives?.originalUrl,
+  });
+  if (stored) return stored;
+
+  if (options?.allowDemoFallback) {
+    return getLocalProductImage(productName) ?? DEFAULT_IMAGE;
   }
 
-  return getLocalProductImage(productName) ?? DEFAULT_IMAGE;
+  return null;
 }
 
-/** Préfère toujours l'image catalogue optimisée si disponible. */
+/** URL catalogue enregistrée uniquement — pas d'image de remplacement automatique. */
 export function resolveCatalogImageUrl(input: {
   name: string;
   imageUrl?: string | null;
   imageOptimizedUrl?: string | null;
   imageOriginalUrl?: string | null;
-}): string {
-  return getProductImage(input.name, input.imageUrl, {
-    optimizedUrl: input.imageOptimizedUrl,
-    originalUrl: input.imageOriginalUrl,
-  });
+}): string | null {
+  return resolveStoredProductImageUrl(input);
 }

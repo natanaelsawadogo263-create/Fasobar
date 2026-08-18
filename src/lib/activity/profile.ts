@@ -96,13 +96,14 @@ const RETAIL_OVERRIDES: Partial<
     stockManagerDescription: "Collections, réceptions et stock boutique.",
   },
   phones: {
-    dashboardHint: "Téléphones, accessoires, stock et ventes.",
+    dashboardHint: "Téléphones, PC, accessoires, stock et ventes.",
     catalogDepartmentLabel: "Magasin",
     cashierSpaceLabel: "Vendeur",
-    cashierSpaceDescription: "Ventes, IMEI / référence client et encaisse.",
+    cashierSpaceDescription: "Ventes high-tech, IMEI / n° de série et encaisse.",
     clientPlaceholder: "Client / IMEI (optionnel)",
     stockManagerLabel: "Responsable Stock",
-    stockManagerDescription: "Téléphones, accessoires, réceptions et traçabilité.",
+    stockManagerDescription:
+      "Téléphones, ordinateurs, PC, accessoires, réceptions et traçabilité.",
   },
   pharmacy: {
     dashboardHint: "Officine : ventes, traçabilité stock et caisse.",

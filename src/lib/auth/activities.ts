@@ -21,8 +21,8 @@ export const BUSINESS_ACTIVITIES = [
   },
   {
     id: "phones",
-    label: "Téléphones / Accessoires",
-    description: "Mobile, coques, chargeurs et high-tech.",
+    label: "Téléphones / Ordinateurs / Accessoires",
+    description: "Téléphones, ordinateurs, PC et accessoires high-tech.",
     icon: "smartphone",
   },
   {

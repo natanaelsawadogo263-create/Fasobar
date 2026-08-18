@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { isRetailShopOps } from "@/lib/activity/ops-model";
 import { getLocalProductImage } from "@/lib/fasobar/product-images";
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { createClient } from "@/lib/supabase/server";
@@ -18,6 +19,10 @@ export const ensureProductImages = cache(async function ensureProductImages(
   workspace: WorkspaceContext,
 ): Promise<void> {
   if (!workspace.establishmentId || !workspace.canManageProducts) {
+    return;
+  }
+
+  if (isRetailShopOps(workspace.activityCode)) {
     return;
   }
 

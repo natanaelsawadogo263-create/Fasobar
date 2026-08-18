@@ -30,6 +30,7 @@ export type CatalogFormProfile = {
 };
 
 const PIECE_PACK: ProductUnit[] = ["PIECE", "PACK", "CARTON", "BUNDLE"];
+const ELECTRONICS_UNITS: ProductUnit[] = ["PIECE", "PACK"];
 const SHOP_UNITS: ProductUnit[] = [
   "PIECE",
   "PACK",
@@ -39,6 +40,15 @@ const SHOP_UNITS: ProductUnit[] = [
   "CARTON",
   "BUNDLE",
 ];
+const HARDWARE_SEED_CATEGORY_NAMES = new Set(
+  [
+    ...HARDWARE_CATEGORY_SUGGESTIONS,
+    "Quincaillerie générale",
+    "Toiture",
+    "Agrégats",
+    "Matériaux",
+  ].map((name) => name.toLowerCase()),
+);
 
 const FOOD_CATALOG: CatalogFormProfile = {
   kind: "food",
@@ -121,16 +131,24 @@ const RETAIL_OVERRIDES: Partial<
     ],
   },
   phones: {
-    namePlaceholder: "Ex : Coque iPhone 13",
-    referenceLabel: "Modèle / IMEI",
-    referencePlaceholder: "Référence ou IMEI (optionnel)",
-    units: PIECE_PACK,
+    itemNoun: "article",
+    itemNounPlural: "articles",
+    addTitle: "Ajouter un article",
+    editTitle: "Modifier l’article",
+    addButtonLabel: "Ajouter un article",
+    namePlaceholder: "Ex : Samsung Galaxy A15",
+    nameLabel: "Nom de l’article",
+    referenceLabel: "Marque / modèle / IMEI",
+    referencePlaceholder: "Ex : Samsung · A15 · IMEI (optionnel)",
+    defaultUnit: "PIECE",
+    units: ELECTRONICS_UNITS,
     suggestedCategories: [
       "Téléphones",
+      "Ordinateurs",
+      "Tablettes",
       "Accessoires",
       "Écouteurs",
       "Chargeurs",
-      "Réparation",
       "Autre",
     ],
   },
@@ -312,11 +330,15 @@ export function shouldShowCatalogCategory(
   categoryName: string,
   catalog: CatalogFormProfile,
 ): boolean {
-  if (catalog.keepRestaurantCategories) return true;
-  if (!isRestaurantSeedCategory(categoryName)) return true;
-  return catalog.suggestedCategories.some(
-    (item) => item.toLowerCase() === categoryName.trim().toLowerCase(),
+  const normalized = categoryName.trim().toLowerCase();
+  const suggested = catalog.suggestedCategories.some(
+    (item) => item.toLowerCase() === normalized,
   );
+  if (suggested) return true;
+  if (catalog.keepRestaurantCategories) return true;
+  if (isRestaurantSeedCategory(categoryName)) return false;
+  if (HARDWARE_SEED_CATEGORY_NAMES.has(normalized)) return false;
+  return true;
 }
 
 export { isRetailActivity };

@@ -7,7 +7,6 @@ import { slugifyFromName } from "@/lib/auth/slugs";
 import { isRetailActivity } from "@/lib/activity/profile";
 import { requireProductManagementMutationContext } from "@/lib/auth/workspace-context";
 import { ensureStockItemForBarProduct } from "@/lib/bar/ensure-stock";
-import { getLocalProductImage } from "@/lib/fasobar/product-images";
 import { revalidateCatalogOps } from "@/lib/ops/revalidate";
 import {
   getDepartmentIdByCode,
@@ -179,7 +178,7 @@ async function resolveProductImagesFromForm(
       existing?.imageOptimizedUrl ??
       existing?.imageOriginalUrl ??
       existing?.imageUrl ??
-      getLocalProductImage(productName);
+      null;
   }
 
   if (!imageOriginalUrl && imageUrl) {
