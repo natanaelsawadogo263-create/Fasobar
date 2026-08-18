@@ -25,7 +25,6 @@ const EMPTY_DATA: AdminSalesPageData = {
   summary: {
     totalRevenue: 0,
     paidOrderCount: 0,
-    averageBasket: 0,
     barRevenue: 0,
     kitchenRevenue: 0,
     otherRevenue: 0,
@@ -134,7 +133,6 @@ export async function getAdminSalesData(
 
   const totalRevenue = orderRows.reduce((sum, row) => sum + row.total_amount, 0);
   const paidOrderCount = orderRows.length;
-  const averageBasket = paidOrderCount > 0 ? Math.round(totalRevenue / paidOrderCount) : 0;
 
   let barRevenue = 0;
   let kitchenRevenue = 0;
@@ -246,7 +244,6 @@ export async function getAdminSalesData(
     summary: {
       totalRevenue,
       paidOrderCount,
-      averageBasket,
       barRevenue,
       kitchenRevenue,
       otherRevenue,

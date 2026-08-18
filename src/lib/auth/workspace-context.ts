@@ -25,6 +25,7 @@ import { resolveOrderPermissions } from "@/lib/orders/constants";
 import { resolveStockPermissions } from "@/lib/stock/constants";
 import { membershipRoleIsCashierKitchen } from "@/lib/auth/roles";
 import { isActivePlatformAdmin } from "@/lib/platform/auth";
+import { getOpeningRedirectForOrganization } from "@/lib/platform/opening-gate";
 import {
   getSaasRedirectForUser,
   requireOrganizationBusinessAccess,
@@ -648,7 +649,16 @@ function redirectDenied(context: WorkspaceContext): never {
 }
 
 export async function requireWorkspaceContext(): Promise<WorkspaceContext> {
-  return requireAuthenticatedWorkspace();
+  const context = await requireAuthenticatedWorkspace();
+  if (!(await isActivePlatformAdmin())) {
+    const openingRedirect = await getOpeningRedirectForOrganization(
+      context.organizationId,
+    );
+    if (openingRedirect) {
+      redirect(openingRedirect);
+    }
+  }
+  return context;
 }
 
 export async function requireAdminContext(): Promise<WorkspaceContext> {

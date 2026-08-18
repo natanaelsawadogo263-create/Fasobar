@@ -1,3 +1,4 @@
+import { isRetailActivity } from "@/lib/activity/profile";
 import type { ReportType } from "@/lib/reports/schemas";
 import type { ReportColumnFormat } from "@/lib/reports/types";
 import {
@@ -64,12 +65,25 @@ export const REPORT_TYPE_OPTIONS: Array<{
   },
 ];
 
-export function reportOptionsForScope(scope: ServiceScope) {
+export function reportOptionsForScope(
+  scope: ServiceScope,
+  activityCode?: string | null,
+) {
+  const retail = isRetailActivity(activityCode);
+
   return REPORT_TYPE_OPTIONS.filter((option) => {
-    if (option.id === "stock_boissons") return hasBarService(scope);
+    if (option.id === "stock_boissons") {
+      return !retail && hasBarService(scope);
+    }
     return true;
   }).map((option) => {
     if (option.id === "benefices") {
+      if (retail) {
+        return {
+          ...option,
+          description: "CA, approvisionnements, dépenses et bénéfice net du magasin.",
+        };
+      }
       if (scope === "BAR") {
         return {
           ...option,
@@ -90,6 +104,9 @@ export function reportOptionsForScope(scope: ServiceScope) {
       };
     }
     if (option.id === "approvisionnements") {
+      if (retail) {
+        return { ...option, description: "Entrées de stock (achats) du magasin." };
+      }
       if (scope === "BAR") {
         return { ...option, description: "Entrées de stock (achats) boissons." };
       }

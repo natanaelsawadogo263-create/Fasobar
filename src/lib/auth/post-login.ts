@@ -13,6 +13,7 @@ import {
   getSaasRedirectForUser,
   refreshAndGetOrganizationSaasAccess,
 } from "@/lib/platform/saas-gate";
+import { getOpeningRedirectForOrganization } from "@/lib/platform/opening-gate";
 import { profileRequiresPasswordChange } from "@/lib/users/queries";
 import { createClient } from "@/lib/supabase/server";
 
@@ -62,6 +63,13 @@ export async function resolvePostLoginRedirect(userId: string): Promise<string> 
 
   if (!context) {
     return "/onboarding";
+  }
+
+  const openingRedirect = await getOpeningRedirectForOrganization(
+    context.organizationId,
+  );
+  if (openingRedirect) {
+    return openingRedirect;
   }
 
   await refreshAndGetOrganizationSaasAccess(context.organizationId);

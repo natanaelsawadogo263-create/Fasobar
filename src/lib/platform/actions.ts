@@ -506,3 +506,27 @@ export async function getProofSignedUrlAction(input: {
   }
   return { ok: true, url: result.url };
 }
+
+export async function approveEstablishmentOpeningAction(input: {
+  organizationId: string;
+}): Promise<PlatformActionResult> {
+  return callAdminRpc(
+    "approve_establishment_opening",
+    { p_organization_id: input.organizationId },
+    ["/platform/demandes-etablissement", "/platform", "/platform/clients"],
+  );
+}
+
+export async function rejectEstablishmentOpeningAction(input: {
+  organizationId: string;
+  reason?: string;
+}): Promise<PlatformActionResult> {
+  return callAdminRpc(
+    "reject_establishment_opening",
+    {
+      p_organization_id: input.organizationId,
+      p_reason: input.reason?.trim() || null,
+    },
+    ["/platform/demandes-etablissement", "/platform", "/platform/clients"],
+  );
+}

@@ -4,6 +4,7 @@ import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getWorkspaceContext } from "@/lib/auth/workspace-context";
 import { canOwnerAccessSubscriptionZone } from "@/lib/platform/access";
 import { isActivePlatformAdmin } from "@/lib/platform/auth";
+import { getOpeningRedirectForOrganization } from "@/lib/platform/opening-gate";
 import { refreshAndGetOrganizationSaasAccess } from "@/lib/platform/saas-gate";
 
 export default async function AbonnementLayout({
@@ -22,6 +23,13 @@ export default async function AbonnementLayout({
 
   if (workspace.organizationRole !== "OWNER") {
     redirect("/acces-saas-bloque");
+  }
+
+  const openingRedirect = await getOpeningRedirectForOrganization(
+    workspace.organizationId,
+  );
+  if (openingRedirect) {
+    redirect(openingRedirect);
   }
 
   const access = await refreshAndGetOrganizationSaasAccess(

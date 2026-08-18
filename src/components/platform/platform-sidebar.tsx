@@ -1,26 +1,37 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
+  Building2,
   CreditCard,
-  FileText,
   LayoutDashboard,
   MonitorSmartphone,
   Settings,
   Shield,
   Users,
+  Wallet,
 } from "lucide-react";
 
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
-import { isHomeNavItem } from "@/lib/navigation/space-navigation";
-import type { PlatformNavItem } from "@/lib/platform/navigation";
+import {
+  PLATFORM_NAV_SECTIONS,
+  badgeCountForItem,
+  totalPendingActions,
+  type PlatformNavBadges,
+  type PlatformNavItem,
+  type PlatformNavSection,
+} from "@/lib/platform/navigation";
 
-const NAV_ICONS: Record<string, ComponentType<{ className?: string; strokeWidth?: number }>> = {
+const NAV_ICONS: Record<
+  string,
+  ComponentType<{ className?: string; strokeWidth?: number }>
+> = {
   "/platform": LayoutDashboard,
+  "/platform/demandes-etablissement": Building2,
+  "/platform/demandes-abonnement": Wallet,
   "/platform/clients": Users,
-  "/platform/demandes-abonnement": FileText,
   "/platform/abonnements": CreditCard,
   "/platform/machines": MonitorSmartphone,
   "/platform/super-admins": Shield,
@@ -28,92 +39,168 @@ const NAV_ICONS: Record<string, ComponentType<{ className?: string; strokeWidth?
 };
 
 type PlatformSidebarProps = {
-  navItems: PlatformNavItem[];
+  badges: PlatformNavBadges;
 };
 
-export function PlatformSidebar({ navItems }: PlatformSidebarProps) {
-  const pathname = usePathname();
+function NavBadge({ count, urgent = false }: { count: number; urgent?: boolean }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className={`ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+        urgent
+          ? "bg-amber-400 text-amber-950"
+          : "bg-white/10 text-slate-200"
+      }`}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
+function NavLink({
+  item,
+  badges,
+  pathname,
+  urgentSection = false,
+}: {
+  item: PlatformNavItem;
+  badges: PlatformNavBadges;
+  pathname: string;
+  urgentSection?: boolean;
+}) {
+  const Icon = NAV_ICONS[item.href] ?? LayoutDashboard;
+  const isActive =
+    item.href === "/platform"
+      ? pathname === "/platform"
+      : pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const badge = badgeCountForItem(item, badges);
+
+  if (!item.enabled) {
+    return (
+      <span
+        title="Bientôt disponible"
+        className="flex cursor-not-allowed items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-slate-600"
+      >
+        <Icon className="h-[15px] w-[15px] shrink-0 opacity-40" />
+        <span className="truncate">{item.label}</span>
+      </span>
+    );
+  }
 
   return (
-    <aside className="flex h-full w-[232px] shrink-0 flex-col border-r border-white/5 bg-[#0a101c] text-slate-300 lg:w-[260px]">
-      <div className="flex shrink-0 items-center gap-3 px-5 py-5">
+    <InstantLink
+      href={item.href}
+      prefetch
+      className={`group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition ${
+        isActive
+          ? "bg-white/[0.09] font-semibold text-white ring-1 ring-white/10"
+          : "font-medium text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
+      }`}
+    >
+      {isActive ? (
+        <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-emerald-400" />
+      ) : null}
+      <Icon
+        className={`h-[15px] w-[15px] shrink-0 ${
+          isActive
+            ? "text-emerald-400"
+            : "text-slate-500 group-hover:text-slate-300"
+        }`}
+        strokeWidth={isActive ? 2.3 : 2}
+      />
+      <span className="min-w-0 truncate">{item.label}</span>
+      <NavBadge count={badge} urgent={urgentSection && badge > 0} />
+    </InstantLink>
+  );
+}
+
+function NavSection({
+  section,
+  badges,
+  pathname,
+  urgent = false,
+}: {
+  section: PlatformNavSection;
+  badges: PlatformNavBadges;
+  pathname: string;
+  urgent?: boolean;
+}) {
+  return (
+    <div>
+      <p className="mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+        {section.label}
+      </p>
+      <div className="flex flex-col gap-0.5">
+        {section.items.map((item) => (
+          <NavLink
+            key={item.href}
+            item={item}
+            badges={badges}
+            pathname={pathname}
+            urgentSection={urgent}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function PlatformSidebar({ badges }: PlatformSidebarProps) {
+  const pathname = usePathname();
+  const pendingTotal = totalPendingActions(badges);
+
+  const pilotage = PLATFORM_NAV_SECTIONS.find((s) => s.id === "pilotage")!;
+  const queue = PLATFORM_NAV_SECTIONS.find((s) => s.id === "queue")!;
+  const portfolio = PLATFORM_NAV_SECTIONS.find((s) => s.id === "portfolio")!;
+  const platform = PLATFORM_NAV_SECTIONS.find((s) => s.id === "platform")!;
+
+  return (
+    <aside className="flex h-full w-[240px] shrink-0 flex-col border-r border-white/[0.06] bg-[#0b1220] text-slate-300 lg:w-[252px]">
+      <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
         <FasoBarLogo size="sm" tone="dark" />
+        <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+          Admin
+        </span>
       </div>
 
-      <div className="px-5 pb-3">
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-400/90">
-            Control plane
-          </p>
-          <p className="mt-0.5 text-[12px] text-slate-400">
-            Super Admin FasoBar
-          </p>
+      {pendingTotal > 0 ? (
+        <div className="shrink-0 border-b border-amber-500/15 bg-amber-500/[0.07] px-3 py-2.5">
+          <InstantLink
+            href="/platform/demandes-etablissement"
+            prefetch
+            className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 transition hover:bg-amber-500/10"
+          >
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-400/90">
+                Priorité
+              </p>
+              <p className="truncate text-[12px] font-medium text-amber-50">
+                {pendingTotal} action{pendingTotal > 1 ? "s" : ""} en attente
+              </p>
+            </div>
+            <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-amber-400 text-[11px] font-bold text-amber-950">
+              {pendingTotal > 99 ? "99+" : pendingTotal}
+            </span>
+          </InstantLink>
         </div>
-      </div>
+      ) : null}
 
       <nav
-        className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-3"
-        aria-label="Navigation plateforme"
+        className="app-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2.5 py-3"
+        aria-label="Navigation Super Admin"
       >
-        {navItems.map((item) => {
-          const Icon = NAV_ICONS[item.href] ?? LayoutDashboard;
-          const isHome = isHomeNavItem(item);
-          const isActive =
-            item.href === "/platform"
-              ? pathname === "/platform"
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-          if (!item.enabled) {
-            return (
-              <span
-                key={item.href}
-                title="Bientôt disponible"
-                className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] text-slate-600"
-              >
-                <Icon className="h-4 w-4 shrink-0 opacity-40" />
-                <span className="truncate">{item.label}</span>
-              </span>
-            );
-          }
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`group relative flex items-center gap-3 rounded-xl transition ${
-                isHome
-                  ? isActive
-                    ? "mb-1.5 bg-emerald-600 px-3 py-3 text-[14px] font-bold text-white shadow-md shadow-emerald-950/40"
-                    : "mb-1.5 bg-emerald-500/15 px-3 py-3 text-[14px] font-semibold text-emerald-300 ring-1 ring-emerald-500/25 hover:bg-emerald-500/25"
-                  : isActive
-                    ? "bg-emerald-500/10 px-3 py-2.5 text-[13px] font-semibold text-white shadow-[inset_0_0_0_1px_rgba(16,185,129,0.18)]"
-                    : "px-3 py-2.5 text-[13px] text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
-              }`}
-            >
-              {isActive && !isHome ? (
-                <span className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-emerald-400" />
-              ) : null}
-              <Icon
-                className={`shrink-0 transition ${
-                  isHome
-                    ? `h-[18px] w-[18px] ${isActive ? "text-white" : "text-emerald-400"}`
-                    : `h-4 w-4 ${
-                        isActive
-                          ? "text-emerald-400"
-                          : "text-slate-500 group-hover:text-slate-300"
-                      }`
-                }`}
-                strokeWidth={isHome ? 2.4 : 2}
-              />
-              <span className="truncate">{item.label}</span>
-            </Link>
-          );
-        })}
+        <NavSection section={pilotage} badges={badges} pathname={pathname} />
+        <NavSection section={queue} badges={badges} pathname={pathname} urgent />
+        <div className="h-px bg-white/[0.06]" />
+        <NavSection section={portfolio} badges={badges} pathname={pathname} />
+        <NavSection section={platform} badges={badges} pathname={pathname} />
       </nav>
 
-      <div className="shrink-0 border-t border-white/10 px-5 py-4 text-[11px] leading-relaxed text-slate-500">
-        <p className="font-medium text-slate-400">FasoBar Platform</p>
-        <p>Gouvernance SaaS · © {new Date().getFullYear()}</p>
+      <div className="shrink-0 border-t border-white/[0.06] px-4 py-3">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-600">
+          FasoBar Platform
+        </p>
+        <p className="mt-0.5 text-[11px] text-slate-500">© {new Date().getFullYear()}</p>
       </div>
     </aside>
   );

@@ -10,6 +10,7 @@ export const PROTECTED_PREFIXES = [
   "/premiere-connexion",
   "/platform",
   "/abonnement",
+  "/attente-validation",
   "/acces-saas-bloque",
   "/acces-refuse",
   "/acces-suspendu",

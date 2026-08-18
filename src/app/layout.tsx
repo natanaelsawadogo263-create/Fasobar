@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { AuthEmailLinkHandler } from "@/components/auth/auth-email-link-handler";
+import { PwaServiceWorkerRegister } from "@/components/pwa/pwa-service-worker-register";
 import { ToastProvider } from "@/components/ui/toast";
 
 import "./globals.css";
@@ -58,6 +59,7 @@ export default function RootLayout({
       <body className="min-h-full">
         <ToastProvider>
           <AuthEmailLinkHandler />
+          <PwaServiceWorkerRegister />
           {children}
         </ToastProvider>
       </body>

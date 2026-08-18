@@ -6,6 +6,7 @@ import {
   listPlatformExpiryAlerts,
   type PlatformExpiryAlert,
 } from "@/lib/platform/expiry-alerts-queries";
+import { countPendingEstablishmentOpeningRequests } from "@/lib/platform/opening-requests-queries";
 import { SUBSCRIPTION_EXPIRY_WARNING_DAYS } from "@/lib/platform/access";
 
 export type PlatformClientSummary = {
@@ -27,6 +28,7 @@ export type PlatformDashboardData = {
   activeClients: number;
   suspendedClients: number;
   pendingRequests: number;
+  pendingOpeningRequests: number;
   paymentsThisMonth: number;
   revenueThisMonthXof: number;
   activeMachines: number;
@@ -51,6 +53,7 @@ export async function getPlatformDashboardData(): Promise<PlatformDashboardData>
     activeClients: 0,
     suspendedClients: 0,
     pendingRequests: 0,
+    pendingOpeningRequests: 0,
     paymentsThisMonth: 0,
     revenueThisMonthXof: 0,
     activeMachines: 0,
@@ -77,6 +80,7 @@ export async function getPlatformDashboardData(): Promise<PlatformDashboardData>
       paymentsResult,
       machinesResult,
       expiryAlerts,
+      pendingOpeningRequests,
     ] = await Promise.all([
       supabase
         .from("organization_platform_states")
@@ -111,6 +115,7 @@ export async function getPlatformDashboardData(): Promise<PlatformDashboardData>
         .select("id, status")
         .eq("status", "ACTIVE"),
       listPlatformExpiryAlerts(),
+      countPendingEstablishmentOpeningRequests(),
     ]);
 
     const firstError =
@@ -195,6 +200,7 @@ export async function getPlatformDashboardData(): Promise<PlatformDashboardData>
       pendingRequests: requestsResult.error
         ? 0
         : (requestsResult.data ?? []).length,
+      pendingOpeningRequests,
       paymentsThisMonth: payments.length,
       revenueThisMonthXof,
       activeMachines: machinesResult.error

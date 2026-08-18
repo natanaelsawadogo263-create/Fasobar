@@ -13,5 +13,6 @@ export function whatsappHref(message: string): string {
 export const MARKETING_NAV = [
   { href: "/", label: "Accueil" },
   { href: "/tarifs", label: "Tarifs" },
+  { href: "/telecharger", label: "Installer" },
   { href: "/contact", label: "Contact" },
 ] as const;

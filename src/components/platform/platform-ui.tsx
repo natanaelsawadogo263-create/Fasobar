@@ -45,6 +45,7 @@ export function PlatformPageHeader({
   actions,
   filters,
   alert,
+  embedded = false,
 }: {
   title: string;
   description?: string;
@@ -52,27 +53,41 @@ export function PlatformPageHeader({
   actions?: ReactNode;
   filters?: ReactNode;
   alert?: ReactNode;
+  /** Masque le titre — déjà affiché dans la topbar plateforme. */
+  embedded?: boolean;
 }) {
+  const showTitleBlock = !embedded || description || meta;
+
   return (
-    <div className="shrink-0 border-b border-slate-200/80 bg-white/70 px-4 py-4 backdrop-blur-sm lg:px-6">
+    <div className="shrink-0 border-b border-slate-200/80 bg-white/70 px-4 py-3 backdrop-blur-sm lg:px-6 lg:py-4">
       {alert}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <h2 className="text-[17px] font-semibold tracking-tight text-slate-900">
-            {title}
-          </h2>
-          {description ? (
-            <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-slate-500">
-              {description}
-            </p>
+      {showTitleBlock || actions ? (
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          {showTitleBlock ? (
+            <div className="min-w-0">
+              {!embedded ? (
+                <h2 className="text-[17px] font-semibold tracking-tight text-slate-900">
+                  {title}
+                </h2>
+              ) : null}
+              {description ? (
+                <p
+                  className={`max-w-2xl text-[13px] leading-relaxed text-slate-500 ${
+                    embedded ? "" : "mt-1"
+                  }`}
+                >
+                  {description}
+                </p>
+              ) : null}
+              {meta ? <div className={embedded ? "mt-2" : "mt-2"}>{meta}</div> : null}
+            </div>
           ) : null}
-          {meta ? <div className="mt-2">{meta}</div> : null}
+          {actions ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+          ) : null}
         </div>
-        {actions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
-        ) : null}
-      </div>
-      {filters ? <div className="mt-4">{filters}</div> : null}
+      ) : null}
+      {filters ? <div className="mt-3 lg:mt-4">{filters}</div> : null}
     </div>
   );
 }

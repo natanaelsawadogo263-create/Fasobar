@@ -6,7 +6,6 @@ import {
   Calendar,
   CreditCard,
   Lock,
-  TrendingUp,
   User,
   Wallet,
 } from "lucide-react";
@@ -94,7 +93,7 @@ export function SessionWorkspace({
           />
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard label="Montant théorique" value={formatPriceXof(theoreticalAmount)} large />
           <MetricCard
             label="Reçu aujourd'hui"
@@ -103,11 +102,6 @@ export function SessionWorkspace({
           />
           <MetricCard label={pages.session.ticketsLabel} value="—" sub="Voir le détail" />
           <MetricCard label="Paiements partiels" value="—" />
-          <MetricCard
-            icon={<TrendingUp className="h-4 w-4 text-emerald-600" />}
-            label="Panier moyen"
-            value="—"
-          />
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">

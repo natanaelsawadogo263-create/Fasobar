@@ -9,6 +9,7 @@ import { AlertMessage } from "@/components/auth/alert-message";
 import { FormField } from "@/components/auth/form-field";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
+import { FasoBarInstallButton } from "@/components/pwa/fasobar-install-button";
 
 const initialState: AuthActionState = {};
 
@@ -149,6 +150,10 @@ export function SignInForm({
             >
               Créer un établissement
             </Link>
+            <FasoBarInstallButton
+              variant="outline"
+              className="mt-3 w-full"
+            />
           </div>
         ) : null}
       </div>

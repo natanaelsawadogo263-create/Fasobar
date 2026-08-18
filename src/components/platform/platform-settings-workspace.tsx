@@ -81,8 +81,8 @@ export function PlatformSettingsWorkspace({
   return (
     <PlatformPage>
       <PlatformPageHeader
+        embedded
         title="Paramètres plateforme"
-        description="Configurez le paiement, l’essai, les formules, les licences et la suppression des comptes."
         meta={
           <div className="flex flex-wrap gap-2">
             <PlatformMetaChip>

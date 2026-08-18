@@ -1,6 +1,7 @@
 import { PlatformShell } from "@/components/platform/platform-shell";
 import { requirePlatformAdmin } from "@/lib/platform/auth";
 import { listPlatformExpiryAlerts } from "@/lib/platform/expiry-alerts-queries";
+import { getPlatformNavBadges } from "@/lib/platform/nav-badges";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function PlatformLayout({
@@ -11,9 +12,10 @@ export default async function PlatformLayout({
   const user = await requirePlatformAdmin();
   const supabase = await createClient();
 
-  const [{ data: profile }, expiry] = await Promise.all([
+  const [{ data: profile }, expiry, navBadges] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
     listPlatformExpiryAlerts(),
+    getPlatformNavBadges(),
   ]);
 
   return (
@@ -22,6 +24,7 @@ export default async function PlatformLayout({
       adminName={profile?.full_name}
       expiryAlerts={expiry.alerts}
       warningDaysBeforeExpiry={expiry.warningDays}
+      navBadges={navBadges}
     >
       {children}
     </PlatformShell>

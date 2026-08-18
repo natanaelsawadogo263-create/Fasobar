@@ -23,6 +23,7 @@ export function MarketingFooter() {
             <FooterLink href="/">Accueil</FooterLink>
             <FooterLink href="/tarifs">Tarifs</FooterLink>
             <FooterLink href="/contact">Contact</FooterLink>
+            <FooterLink href="/telecharger">Installer l’app</FooterLink>
             <FooterLink href="/connexion">Se connecter</FooterLink>
           </div>
         </div>

@@ -2,10 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import {
   ArrowLeft,
   Building2,
+  ChevronDown,
   Clock3,
   CreditCard,
   HardDrive,
@@ -28,7 +35,6 @@ import {
   PlatformEmptyState,
   PlatformMetaChip,
   PlatformPage,
-  PlatformPageHeader,
   PlatformPanel,
   PlatformTableScroll,
   formatPlatformDate,
@@ -162,6 +168,39 @@ function Field({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+function clientInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
+}
+
+function tabCount(
+  id: TabId,
+  counts: {
+    establishments: number;
+    employees: number;
+    machines: number;
+    licenses: number;
+    payments: number;
+  },
+) {
+  switch (id) {
+    case "establishments":
+      return counts.establishments;
+    case "employees":
+      return counts.employees;
+    case "machines":
+      return counts.machines;
+    case "licenses":
+      return counts.licenses;
+    case "payments":
+      return counts.payments;
+    default:
+      return null;
+  }
+}
+
 type PlatformClientDetailProps = {
   detail: PlatformClientDetail;
   error?: string | null;
@@ -180,6 +219,8 @@ export function PlatformClientDetailView({
   const [reason, setReason] = useState("");
   const [extraDays, setExtraDays] = useState("7");
   const [message, setMessage] = useState<string | null>(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
 
   const {
@@ -342,180 +383,284 @@ export function PlatformClientDetailView({
       ? "success"
       : "error";
 
+  const displayName =
+    identity.ownerName ?? identity.organizationName ?? "Client sans nom";
+  const tabCounts = {
+    establishments: establishments.length,
+    employees: employees.length,
+    machines: machines.length,
+    licenses: licenses.length,
+    payments: payments.length,
+  };
+
+  const hasSensitiveActions =
+    identity.ownerProfileStatus !== "INACTIVE" ||
+    (access.status !== "SUSPENDED" && access.status !== "PENDING_DELETION") ||
+    access.status === "PENDING_DELETION";
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+    function onPointerDown(event: MouseEvent) {
+      if (
+        actionsRef.current &&
+        !actionsRef.current.contains(event.target as Node)
+      ) {
+        setActionsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [actionsOpen]);
+
+  function openModal(kind: Exclude<ModalKind, null>) {
+    setActionsOpen(false);
+    setModal(kind);
+  }
+
   return (
     <PlatformPage>
-      <PlatformPageHeader
-        alert={
-          <>
+      <div className="shrink-0 border-b border-slate-200/80 bg-white/80 backdrop-blur-sm">
+        {(error || message) && (
+          <div className="space-y-2 px-4 pt-3 lg:px-6">
             {error ? (
               <PlatformAlert tone="error">
                 Impossible de charger la fiche : {error}
               </PlatformAlert>
             ) : null}
             {message ? (
-              <PlatformAlert tone={messageTone}>
-                {message}
-              </PlatformAlert>
-            ) : null}
-            <Link
-              href="/platform/clients"
-              className="mb-3 inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-500 transition hover:text-emerald-700"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Retour aux clients
-            </Link>
-          </>
-        }
-        title={identity.ownerName ?? "OWNER non renseigné"}
-        description={`${identity.organizationName}${
-          identity.ownerEmail ? ` · ${identity.ownerEmail}` : ""
-        }`}
-        meta={
-          <div className="flex flex-wrap items-center gap-2">
-            <PlatformStatusBadge status={identity.accessStatus} />
-            <PlatformMetaChip>
-              {establishments.length} établissement
-              {establishments.length > 1 ? "s" : ""}
-            </PlatformMetaChip>
-            <PlatformMetaChip>
-              {employees.length} employé{employees.length > 1 ? "s" : ""}
-            </PlatformMetaChip>
-            <PlatformMetaChip>
-              {machines.length} machine{machines.length > 1 ? "s" : ""}
-            </PlatformMetaChip>
-            {trial?.endsAt ? (
-              <PlatformMetaChip>
-                Fin d’essai {formatPlatformDate(trial.endsAt)}
-              </PlatformMetaChip>
+              <PlatformAlert tone={messageTone}>{message}</PlatformAlert>
             ) : null}
           </div>
-        }
-        actions={
-          <>
-            {identity.ownerProfileStatus !== "INACTIVE" ? (
-              <PlatformButton
-                tone="danger"
-                onClick={() => setModal("deactivateOwner")}
-              >
-                Désactiver le compte
-              </PlatformButton>
-            ) : (
-              <PlatformButton
-                tone="success"
-                onClick={() => setModal("reactivateOwner")}
-              >
-                Réactiver le compte
-              </PlatformButton>
-            )}
-            {access.status !== "SUSPENDED" &&
-            access.status !== "PENDING_DELETION" ? (
-              <PlatformButton tone="danger" onClick={() => setModal("suspend")}>
-                Suspendre SaaS
-              </PlatformButton>
-            ) : null}
-            {access.status === "SUSPENDED" ? (
-              <PlatformButton
-                tone="success"
-                onClick={() => setModal("reactivate")}
-              >
-                Réactiver SaaS
-              </PlatformButton>
-            ) : null}
-            {access.status !== "PENDING_DELETION" ? (
-              <PlatformButton tone="danger" onClick={() => setModal("delete")}>
-                Planifier suppression
-              </PlatformButton>
-            ) : (
-              <>
-                <PlatformButton
-                  tone="secondary"
-                  onClick={() => setModal("restore")}
-                >
-                  Restaurer
-                </PlatformButton>
-                <PlatformButton tone="danger" onClick={() => setModal("purge")}>
-                  Supprimer définitivement
-                </PlatformButton>
-              </>
-            )}
-            {trial ? (
-              <PlatformButton
-                tone="secondary"
-                onClick={() => setModal("extend")}
-              >
-                Prolonger l’essai (jours)
-              </PlatformButton>
-            ) : null}
-          </>
-        }
-        filters={
-          <div className="flex gap-1 overflow-x-auto pb-0.5">
+        )}
+
+        <div className="px-4 py-3 lg:px-6 lg:py-4">
+          <Link
+            href="/platform/clients"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-500 transition hover:text-emerald-700"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Retour aux clients
+          </Link>
+
+          <div className="mt-3 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm lg:p-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[13px] font-bold text-emerald-800 ring-1 ring-emerald-100">
+                    {clientInitials(displayName)}
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="truncate text-[18px] font-semibold tracking-tight text-slate-900">
+                      {displayName}
+                    </h1>
+                    <p className="mt-0.5 truncate text-[13px] text-slate-500">
+                      {identity.organizationName}
+                      {identity.ownerEmail ? (
+                        <>
+                          <span className="mx-1.5 text-slate-300">·</span>
+                          {identity.ownerEmail}
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <PlatformStatusBadge status={identity.accessStatus} />
+                  <PlatformMetaChip>
+                    {establishments.length} établissement
+                    {establishments.length > 1 ? "s" : ""}
+                  </PlatformMetaChip>
+                  <PlatformMetaChip>
+                    {employees.length} employé
+                    {employees.length > 1 ? "s" : ""}
+                  </PlatformMetaChip>
+                  <PlatformMetaChip>
+                    {machines.length} machine
+                    {machines.length > 1 ? "s" : ""}
+                  </PlatformMetaChip>
+                  {trial?.endsAt ? (
+                    <PlatformMetaChip>
+                      Fin d’essai {formatPlatformDate(trial.endsAt)}
+                    </PlatformMetaChip>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
+                {trial ? (
+                  <PlatformButton
+                    tone="primary"
+                    onClick={() => setModal("extend")}
+                  >
+                    Prolonger l’essai
+                  </PlatformButton>
+                ) : null}
+                {identity.ownerProfileStatus === "INACTIVE" ? (
+                  <PlatformButton
+                    tone="success"
+                    onClick={() => setModal("reactivateOwner")}
+                  >
+                    Réactiver le compte
+                  </PlatformButton>
+                ) : null}
+                {access.status === "SUSPENDED" ? (
+                  <PlatformButton
+                    tone="success"
+                    onClick={() => setModal("reactivate")}
+                  >
+                    Réactiver SaaS
+                  </PlatformButton>
+                ) : null}
+                {access.status === "PENDING_DELETION" ? (
+                  <PlatformButton
+                    tone="secondary"
+                    onClick={() => setModal("restore")}
+                  >
+                    Restaurer
+                  </PlatformButton>
+                ) : null}
+
+                {hasSensitiveActions ? (
+                  <div ref={actionsRef} className="relative">
+                    <PlatformButton
+                      tone="secondary"
+                      onClick={() => setActionsOpen((open) => !open)}
+                      className="gap-1.5"
+                    >
+                      Actions
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 transition ${actionsOpen ? "rotate-180" : ""}`}
+                      />
+                    </PlatformButton>
+                    {actionsOpen ? (
+                      <div className="absolute right-0 z-20 mt-1.5 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-slate-900/5">
+                        {identity.ownerProfileStatus !== "INACTIVE" ? (
+                          <button
+                            type="button"
+                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50"
+                            onClick={() => openModal("deactivateOwner")}
+                          >
+                            Désactiver le compte
+                          </button>
+                        ) : null}
+                        {access.status !== "SUSPENDED" &&
+                        access.status !== "PENDING_DELETION" ? (
+                          <button
+                            type="button"
+                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50"
+                            onClick={() => openModal("suspend")}
+                          >
+                            Suspendre SaaS
+                          </button>
+                        ) : null}
+                        {access.status !== "PENDING_DELETION" ? (
+                          <button
+                            type="button"
+                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50"
+                            onClick={() => openModal("delete")}
+                          >
+                            Planifier suppression
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50"
+                            onClick={() => openModal("purge")}
+                          >
+                            Supprimer définitivement
+                          </button>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100 px-4 lg:px-6">
+          <div className="-mb-px flex gap-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {TABS.map((item) => {
               const Icon = item.icon;
               const active = tab === item.id;
+              const count = tabCount(item.id, tabCounts);
               return (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setTab(item.id)}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-[12px] font-semibold transition ${
+                  className={`inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-[12px] font-semibold transition ${
                     active
-                      ? "bg-white text-emerald-800 shadow-sm ring-1 ring-slate-200"
-                      : "text-slate-600 hover:bg-white/80 hover:text-slate-900"
+                      ? "border-emerald-600 text-emerald-800"
+                      : "border-transparent text-slate-500 hover:border-slate-200 hover:text-slate-800"
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   {item.label}
-                  {item.id === "establishments" ? (
-                    <span className="tabular-nums text-slate-400">
-                      {establishments.length}
-                    </span>
-                  ) : null}
-                  {item.id === "employees" ? (
-                    <span className="tabular-nums text-slate-400">
-                      {employees.length}
-                    </span>
-                  ) : null}
-                  {item.id === "machines" ? (
-                    <span className="tabular-nums text-slate-400">
-                      {machines.length}
+                  {count != null ? (
+                    <span
+                      className={`tabular-nums text-[11px] ${active ? "text-emerald-600" : "text-slate-400"}`}
+                    >
+                      {count}
                     </span>
                   ) : null}
                 </button>
               );
             })}
           </div>
-        }
-      />
+        </div>
+      </div>
 
       <PlatformBody className="flex flex-col">
         {tab === "identity" ? (
-          <PlatformPanel
-            className="h-full min-h-0"
-            title="Identité du client"
-            description="Coordonnées du OWNER et de l’organisation."
-          >
+          <PlatformPanel className="h-full min-h-0" title="Identité">
             <PlatformTableScroll>
-              <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 lg:p-5">
-                <Field
-                  label="OWNER principal"
-                  value={identity.ownerName ?? "Non renseigné"}
-                />
-                <Field label="E-mail" value={identity.ownerEmail ?? "—"} />
-                <Field label="Téléphone" value={identity.ownerPhone ?? "—"} />
-                <Field
-                  label="Compte Admin"
-                  value={entityBadge(identity.ownerProfileStatus ?? "INACTIVE")}
-                />
-                <Field label="Organisation" value={identity.organizationName} />
-                <Field
-                  label="Date de création"
-                  value={formatPlatformDate(identity.organizationCreatedAt)}
-                />
-                <Field
-                  label="État SaaS actuel"
-                  value={<PlatformStatusBadge status={identity.accessStatus} />}
-                />
+              <div className="grid gap-6 p-4 lg:grid-cols-2 lg:p-5">
+                <section>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                    Propriétaire
+                  </h3>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <Field
+                      label="Nom"
+                      value={identity.ownerName ?? "Non renseigné"}
+                    />
+                    <Field label="E-mail" value={identity.ownerEmail ?? "—"} />
+                    <Field
+                      label="Téléphone"
+                      value={identity.ownerPhone ?? "—"}
+                    />
+                    <Field
+                      label="Compte Admin"
+                      value={entityBadge(
+                        identity.ownerProfileStatus ?? "INACTIVE",
+                      )}
+                    />
+                  </div>
+                </section>
+                <section>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                    Organisation
+                  </h3>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <Field
+                      label="Raison sociale"
+                      value={identity.organizationName}
+                    />
+                    <Field
+                      label="Date de création"
+                      value={formatPlatformDate(identity.organizationCreatedAt)}
+                    />
+                    <Field
+                      label="État SaaS"
+                      value={
+                        <PlatformStatusBadge status={identity.accessStatus} />
+                      }
+                    />
+                  </div>
+                </section>
               </div>
             </PlatformTableScroll>
           </PlatformPanel>
@@ -525,7 +670,6 @@ export function PlatformClientDetailView({
           <PlatformPanel
             className="h-full min-h-0"
             title="Établissements"
-            description="Sites rattachés à cette organisation."
           >
             {establishments.length === 0 ? (
               <PlatformEmptyState title="Aucun établissement pour ce client." />
@@ -576,7 +720,6 @@ export function PlatformClientDetailView({
           <PlatformPanel
             className="h-full min-h-0"
             title="Employés"
-            description="Membres et profils liés à l’organisation."
           >
             {employees.length === 0 ? (
               <PlatformEmptyState title="Aucun employé rattaché à cette organisation." />
@@ -654,7 +797,6 @@ export function PlatformClientDetailView({
           <PlatformPanel
             className="h-full min-h-0"
             title="Essai"
-            description="Période d’essai et historique des prolongations."
           >
             <PlatformTableScroll>
               {!trial ? (
@@ -742,7 +884,6 @@ export function PlatformClientDetailView({
           <PlatformPanel
             className="h-full min-h-0"
             title="Abonnement"
-            description="Formule et période de facturation courantes."
           >
             <PlatformTableScroll>
               {!subscription ? (
@@ -786,7 +927,6 @@ export function PlatformClientDetailView({
           <PlatformPanel
             className="h-full min-h-0"
             title="Machines"
-            description="Appareils enregistrés et contrôle d’accès."
           >
             {machines.length === 0 ? (
               <PlatformEmptyState title="Aucune machine enregistrée." />
@@ -875,7 +1015,6 @@ export function PlatformClientDetailView({
           <PlatformPanel
             className="h-full min-h-0"
             title="Licences"
-            description="Licences émises pour ce client."
           >
             {licenses.length === 0 ? (
               <PlatformEmptyState title="Aucune licence." />
@@ -924,7 +1063,6 @@ export function PlatformClientDetailView({
           <PlatformPanel
             className="h-full min-h-0"
             title="Paiements plateforme"
-            description="Paiements confirmés liés à ce client."
           >
             {payments.length === 0 ? (
               <PlatformEmptyState title="Aucun paiement confirmé." />
@@ -965,7 +1103,6 @@ export function PlatformClientDetailView({
           <PlatformPanel
             className="h-full min-h-0"
             title="Journal d’audit"
-            description="Événements plateforme concernant ce client."
           >
             {auditEvents.length === 0 ? (
               <PlatformEmptyState title="Aucun événement d’audit." />
@@ -1006,7 +1143,6 @@ export function PlatformClientDetailView({
           <PlatformPanel
             className="h-full min-h-0"
             title="Accès plateforme"
-            description="État SaaS, historique et fenêtre de suppression."
           >
             <PlatformTableScroll>
               <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 lg:p-5">

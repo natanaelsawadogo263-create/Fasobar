@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
+import { FasoBarInstallButton } from "@/components/pwa/fasobar-install-button";
 import { MARKETING_NAV } from "@/lib/marketing/config";
 
 export function MarketingHeader() {
@@ -50,6 +51,7 @@ export function MarketingHeader() {
         </nav>
 
         <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2">
+          <FasoBarInstallButton variant="header" className="hidden sm:inline-flex" />
           <Link
             href="/connexion"
             className="inline-flex h-11 min-h-11 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/10 px-3 text-[13px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 sm:border-0 sm:bg-transparent sm:px-3 sm:hover:bg-white/5"
@@ -88,6 +90,7 @@ export function MarketingHeader() {
                 {item.label}
               </Link>
             ))}
+            <FasoBarInstallButton variant="ghost" className="mt-2 w-full" />
           </nav>
         </div>
       ) : null}

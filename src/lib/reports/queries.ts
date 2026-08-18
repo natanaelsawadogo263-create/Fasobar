@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isRetailActivity } from "@/lib/activity/profile";
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { listAdminCashSessions } from "@/lib/admin/cash-sessions-queries";
 import { EXPENSE_AREA_LABELS, EXPENSE_CATEGORY_LABELS } from "@/lib/expenses/constants";
@@ -76,14 +77,14 @@ async function buildVentesReport(
     rows,
     [
       { label: "Chiffre d'affaires", value: formatPriceXof(data.summary.totalRevenue) },
-      ...(hasBarService(workspace.serviceScope)
+      ...(!isRetailActivity(workspace.activityCode) && hasBarService(workspace.serviceScope)
         ? [{ label: "CA Bar", value: formatPriceXof(data.summary.barRevenue) }]
         : []),
-      ...(hasKitchenService(workspace.serviceScope)
+      ...(!isRetailActivity(workspace.activityCode) &&
+      hasKitchenService(workspace.serviceScope)
         ? [{ label: "CA Cuisine", value: formatPriceXof(data.summary.kitchenRevenue) }]
         : []),
       { label: "Commandes payées", value: String(data.summary.paidOrderCount) },
-      { label: "Panier moyen", value: formatPriceXof(data.summary.averageBasket) },
     ],
   );
 }
@@ -223,26 +224,30 @@ async function buildApprovisionnementsReport(
     .reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
   const totalCost = entries.reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
 
+  const retail = isRetailActivity(workspace.activityCode);
+  const columns: ReportColumn[] = [
+    { key: "createdAt", label: "Date", format: "datetime" },
+    { key: "stockItemName", label: "Article" },
+    ...(!retail ? [{ key: "departmentName", label: "Département" } as ReportColumn] : []),
+    { key: "quantity", label: "Quantité", format: "number" },
+    { key: "unit", label: "Unité" },
+    { key: "totalCost", label: "Coût total", format: "currency" },
+    { key: "supplierName", label: "Fournisseur" },
+    { key: "reference", label: "Référence" },
+  ];
+
   return buildResult(
     "approvisionnements",
-    [
-      { key: "createdAt", label: "Date", format: "datetime" },
-      { key: "stockItemName", label: "Article" },
-      { key: "departmentName", label: "Département" },
-      { key: "quantity", label: "Quantité", format: "number" },
-      { key: "unit", label: "Unité" },
-      { key: "totalCost", label: "Coût total", format: "currency" },
-      { key: "supplierName", label: "Fournisseur" },
-      { key: "reference", label: "Référence" },
-    ],
+    columns,
     rows,
     [
       { label: "Entrées", value: String(entries.length) },
       { label: "Coût total", value: formatPriceXof(totalCost) },
-      ...(hasBarService(workspace.serviceScope)
+      ...(!isRetailActivity(workspace.activityCode) && hasBarService(workspace.serviceScope)
         ? [{ label: "Appro Bar", value: formatPriceXof(barCost) }]
         : []),
-      ...(hasKitchenService(workspace.serviceScope)
+      ...(!isRetailActivity(workspace.activityCode) &&
+      hasKitchenService(workspace.serviceScope)
         ? [{ label: "Appro Cuisine", value: formatPriceXof(kitchenCost) }]
         : []),
     ],
@@ -304,6 +309,8 @@ async function buildDepensesReport(
     { limit: 2000 },
   );
 
+  const retail = isRetailActivity(workspace.activityCode);
+
   const rows: ReportRow[] = data.expenses.map((expense) => ({
     expenseDate: expense.expenseDate,
     area: EXPENSE_AREA_LABELS[expense.area],
@@ -318,7 +325,7 @@ async function buildDepensesReport(
     "depenses",
     [
       { key: "expenseDate", label: "Date", format: "date" },
-      { key: "area", label: "Espace" },
+      ...(!retail ? [{ key: "area", label: "Espace" } as const] : []),
       { key: "category", label: "Catégorie" },
       { key: "label", label: "Titre" },
       { key: "amount", label: "Montant", format: "currency" },
@@ -328,8 +335,12 @@ async function buildDepensesReport(
     rows,
     [
       { label: "Total actives", value: formatPriceXof(data.periodTotal) },
-      { label: "Dépenses Bar", value: formatPriceXof(data.barTotal) },
-      { label: "Dépenses Caisse", value: formatPriceXof(data.caisseTotal) },
+      ...(!retail
+        ? [
+            { label: "Dépenses Bar", value: formatPriceXof(data.barTotal) },
+            { label: "Dépenses Caisse", value: formatPriceXof(data.caisseTotal) },
+          ]
+        : []),
       { label: "Lignes", value: String(data.expenses.length) },
     ],
   );
@@ -347,11 +358,12 @@ async function buildBeneficesReport(
   workspace: WorkspaceContext,
   filters: ReportFiltersInput,
 ): Promise<ReportResult> {
+  const retail = isRetailActivity(workspace.activityCode);
   const scope = workspace.serviceScope;
-  const includeBar = hasBarService(scope);
-  const includeKitchen = hasKitchenService(scope);
+  const includeBar = !retail && hasBarService(scope);
+  const includeKitchen = !retail && hasKitchenService(scope);
 
-  const [sales, expenses, barSupply, kitchenSupply] = await Promise.all([
+  const [sales, expenses, barSupply, kitchenSupply, retailSupply] = await Promise.all([
     getAdminSalesData(workspace, { from: filters.from, to: filters.to }),
     listExpenses(
       workspace,
@@ -378,10 +390,50 @@ async function buildBeneficesReport(
           limit: 2000,
         })
       : Promise.resolve([]),
+    retail
+      ? listRecentSupplyEntries(workspace, {
+          from: filters.from,
+          to: filters.to,
+          limit: 2000,
+        })
+      : Promise.resolve([]),
   ]);
 
   const sumSupply = (entries: { totalCost: number | null }[]) =>
     entries.reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
+
+  if (retail) {
+    const totalRevenue = sales.summary.totalRevenue;
+    const totalAppro = sumSupply(retailSupply);
+    const totalExpenses = expenses.periodTotal;
+    const totalProfit = totalRevenue - totalAppro - totalExpenses;
+
+    return buildResult(
+      "benefices",
+      [
+        { key: "space", label: "Espace" },
+        { key: "revenue", label: "Chiffre d'affaires", format: "currency" },
+        { key: "supplyCost", label: "Approvisionnements", format: "currency" },
+        { key: "expenses", label: "Dépenses", format: "currency" },
+        { key: "profit", label: "Bénéfice net", format: "currency" },
+      ],
+      [
+        {
+          space: "Total",
+          revenue: totalRevenue,
+          supplyCost: totalAppro,
+          expenses: totalExpenses,
+          profit: totalProfit,
+        },
+      ],
+      [
+        { label: "Bénéfice net total", value: formatPriceXof(totalProfit) },
+        { label: "CA total", value: formatPriceXof(totalRevenue) },
+        { label: "Appro total", value: formatPriceXof(totalAppro) },
+        { label: "Dépenses total", value: formatPriceXof(totalExpenses) },
+      ],
+    );
+  }
 
   const barRevenue = includeBar ? sales.summary.barRevenue : 0;
   const kitchenRevenue = includeKitchen ? sales.summary.kitchenRevenue : 0;
@@ -594,7 +646,10 @@ export async function getReportData(
   type: ReportType,
   filters: ReportFiltersInput = {},
 ): Promise<ReportResult> {
-  if (type === "stock_boissons" && !hasBarService(workspace.serviceScope)) {
+  if (
+    type === "stock_boissons" &&
+    (isRetailActivity(workspace.activityCode) || !hasBarService(workspace.serviceScope))
+  ) {
     return buildVentesReport(workspace, filters);
   }
 

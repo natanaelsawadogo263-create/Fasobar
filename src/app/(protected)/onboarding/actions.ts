@@ -112,5 +112,5 @@ export async function bootstrapOrganizationAction(
       .eq("id", establishmentId);
   }
 
-  redirect("/abonnement");
+  redirect("/attente-validation");
 }

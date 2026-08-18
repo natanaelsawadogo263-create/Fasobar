@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
+import { FasoBarInstallButton } from "@/components/pwa/fasobar-install-button";
 
 const FRAMES = [
   "/brand/banner/01-stock.png",
@@ -59,6 +60,10 @@ export function MarketingVideoBanner() {
           >
             Créer mon établissement
           </Link>
+          <FasoBarInstallButton
+            variant="secondary"
+            className="min-h-12 px-5 text-[15px] shadow-lg shadow-emerald-900/20"
+          />
           <Link
             href="/contact"
             className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-5 text-[15px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"

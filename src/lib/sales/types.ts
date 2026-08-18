@@ -1,7 +1,6 @@
 export type SalesSummary = {
   totalRevenue: number;
   paidOrderCount: number;
-  averageBasket: number;
   barRevenue: number;
   kitchenRevenue: number;
   otherRevenue: number;
