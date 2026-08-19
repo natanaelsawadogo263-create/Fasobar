@@ -9,6 +9,7 @@ import {
   OPS_ORDER_PATHS,
   OPS_PAYMENT_PATHS,
   OPS_STOCK_PATHS,
+  OPS_PUMP_SESSION_PATHS,
 } from "@/lib/ops/paths";
 
 function revalidateMany(paths: readonly string[]) {
@@ -56,4 +57,9 @@ export function revalidateBarSessionOps() {
 /** Ouverture / fermeture caisse. */
 export function revalidateCashSessionOps() {
   revalidateMany(OPS_CASH_SESSION_PATHS);
+}
+
+/** Ouverture / fermeture session pompiste (stations gaz). */
+export function revalidatePumpSessionOps() {
+  revalidateMany(OPS_PUMP_SESSION_PATHS);
 }

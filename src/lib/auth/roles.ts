@@ -104,6 +104,14 @@ export function resolveHomePathForRoles(
   activityCode?: string | null,
 ): string {
   const space = resolveUserSpace(organizationRole, establishmentRole);
+  if (activityCode === "gas_station") {
+    if (space === "cashier_kitchen") {
+      return "/application/station/pompiste/session";
+    }
+    if (space === "admin" || space === "bar_manager") {
+      return "/application/station";
+    }
+  }
   if (space === "bar_manager" && isRetailShopOps(activityCode)) {
     return "/application/stock";
   }

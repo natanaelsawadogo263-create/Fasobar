@@ -15,6 +15,14 @@ const PRIORITY_PREFIXES = [
   "/application/approvisionnements",
   "/application/depenses",
   "/application/caisse/session",
+  "/application/caisse/session",
+  "/application/station",
+  "/application/station/employes",
+  "/application/station/sessions",
+  "/application/station/bilans",
+  "/application/station/parametres",
+  "/application/station/pompiste",
+  "/application/station/pompiste/session",
 ];
 
 function sortByPriority(hrefs: string[]): string[] {

@@ -27,7 +27,12 @@ export function buildWorkspaceContextFromLocalUser(
     : establishmentRole || "MEMBER";
 
   const userSpace = resolveUserSpace(organizationRole, establishmentRole);
-  const homePath = resolveHomePathForRoles(organizationRole, establishmentRole);
+  const activityCode = user.activityCode ?? null;
+  const homePath = resolveHomePathForRoles(
+    organizationRole,
+    establishmentRole,
+    activityCode,
+  );
   const stockPermissions = resolveStockPermissions(
     organizationRole,
     establishmentRole,

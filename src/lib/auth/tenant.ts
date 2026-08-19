@@ -94,12 +94,11 @@ export function sameTenant(
 }
 
 /** Filtre obligatoire : org + établissement. */
-export function applyTenantFilter<
-  T extends {
-    eq: (column: string, value: string) => T;
-  },
->(query: T, workspace: TenantIds): T {
-  return query
-    .eq("organization_id", workspace.organizationId)
-    .eq("establishment_id", workspace.establishmentId);
+export function applyTenantFilter<T>(query: T, workspace: TenantIds): T {
+  const builder = query as {
+    eq: (column: string, value: string) => unknown;
+  };
+  builder.eq("organization_id", workspace.organizationId);
+  builder.eq("establishment_id", workspace.establishmentId);
+  return query;
 }

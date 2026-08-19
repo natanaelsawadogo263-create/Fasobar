@@ -671,6 +671,24 @@ export async function requireAdminContext(): Promise<WorkspaceContext> {
   return context;
 }
 
+/** Admin station-service : espace admin ou responsable station. */
+export async function requireGasStationAdminContext(): Promise<WorkspaceContext> {
+  const context = await requireWorkspaceContext();
+
+  if (context.activityCode !== "gas_station") {
+    if (isAdminWorkspace(context)) {
+      redirect(context.homePath || "/application/tableau-de-bord");
+    }
+    redirect("/application/acces-refuse");
+  }
+
+  if (context.userSpace !== "admin" && context.userSpace !== "bar_manager") {
+    redirectDenied(context);
+  }
+
+  return context;
+}
+
 export async function requireAdminMutationContext(): Promise<WorkspaceContext> {
   return withMutationAccess(await requireAdminContext());
 }
@@ -752,6 +770,25 @@ export async function requireOrderManagementContext(): Promise<WorkspaceContext>
 
 export async function requireOrderManagementMutationContext(): Promise<WorkspaceContext> {
   return withMutationAccess(await requireOrderManagementContext());
+}
+
+export async function requireGasStationAdminMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireGasStationAdminContext());
+}
+
+/** Pompiste station-service (cashier_kitchen + gas_station). */
+export async function requireGasStationOperatorContext(): Promise<WorkspaceContext> {
+  const context = await requireCashRegisterOperatorContext();
+
+  if (context.activityCode !== "gas_station") {
+    redirectDenied(context);
+  }
+
+  return context;
+}
+
+export async function requireGasStationOperatorMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireGasStationOperatorContext());
 }
 
 /** Ouverture / fermeture / utilisation opérationnelle de la caisse (pas Admin). */

@@ -15,12 +15,18 @@ export type NavItem = {
 
 /** Lien d'accueil (maison) — à mettre en avant dans la navigation. */
 export function isHomeNavItem(item: Pick<NavItem, "href" | "label">): boolean {
-  if (item.label === "Tableau de bord" || item.label === "Accueil") return true;
+  if (item.label === "Tableau de bord" || item.label === "Accueil" || item.label === "Ma session") {
+    return true;
+  }
   return (
     item.href === "/application/tableau-de-bord" ||
+    item.href === "/application/station" ||
+    item.href === "/application/station/pompiste/session" ||
+    item.href === "/application/station/pompiste" ||
     item.href === "/application/bar" ||
     item.href === "/application/caisse" ||
     item.href === "/application" ||
+    item.href === "/application/station/employes" ||
     item.href === "/platform"
   );
 }
@@ -69,6 +75,35 @@ export function getNavigationForSpace(
   const profile = getActivityProfile(activityCode);
   const retail = profile.kind === "retail";
 
+  const isGasStation = activityCode === "gas_station";
+
+  if (isGasStation && space === "admin") {
+    return [
+      { href: "/application/station", label: "Tableau de bord", enabled: true },
+      { href: "/application/station/employes", label: "Employés", enabled: true },
+      { href: "/application/station/sessions", label: "Sessions", enabled: true },
+      { href: "/application/station/bilans", label: "Bilans", enabled: true },
+      { href: "/application/station/parametres", label: "Paramètres", enabled: true },
+    ];
+  }
+
+  if (isGasStation && space === "cashier_kitchen") {
+    return [
+      { href: "/application/station/pompiste/session", label: "Ma session", enabled: true },
+      { href: "/application/station/pompiste", label: "Ma pompe", enabled: true },
+    ];
+  }
+
+  if (isGasStation && space === "bar_manager") {
+    return [
+      { href: "/application/station", label: "Tableau de bord", enabled: true },
+      { href: "/application/station/employes", label: "Employés", enabled: true },
+      { href: "/application/station/sessions", label: "Sessions", enabled: true },
+      { href: "/application/station/bilans", label: "Bilans", enabled: true },
+      { href: "/application/station/parametres", label: "Paramètres", enabled: true },
+    ];
+  }
+
   if (retail && space === "admin") {
     return [
       { href: "/application/tableau-de-bord", label: "Accueil", enabled: true },
@@ -101,7 +136,6 @@ export function getNavigationForSpace(
     return [
       { href: "/application/stock", label: "Accueil", enabled: true },
       { href: "/application/produits", label: profile.productNavLabel, enabled: true },
-      { href: "/application/inventaires", label: "Inventaires", enabled: true },
       { href: "/application/approvisionnements", label: "Approvisionnements", enabled: true },
       { href: "/application/depenses", label: "Dépenses", enabled: true },
     ];
@@ -180,6 +214,46 @@ export function isPathAllowedForSpace(
   activityCode?: string | null,
 ): boolean {
   const retail = isRetailActivity(activityCode);
+  const isGasStation = activityCode === "gas_station";
+
+  if (pathname.startsWith("/application/station") && !isGasStation) {
+    return false;
+  }
+
+  if (isGasStation) {
+    if (space === "admin") {
+      return (
+        pathname === "/application" ||
+        pathname.startsWith("/application/station") ||
+        pathname.startsWith("/application/utilisateurs") ||
+        pathname.startsWith("/application/parametres") ||
+        pathname.startsWith("/application/mode-hors-connexion")
+      );
+    }
+    if (space === "cashier_kitchen") {
+      return (
+        pathname.startsWith("/application/station/pompiste") ||
+        pathname === "/application" ||
+        pathname.startsWith("/application/mode-hors-connexion")
+      );
+    }
+    if (space === "bar_manager") {
+      return (
+        pathname === "/application/station" ||
+        pathname.startsWith("/application/station/employes") ||
+        pathname.startsWith("/application/station/sessions") ||
+        pathname.startsWith("/application/station/bilans") ||
+        pathname.startsWith("/application/station/parametres") ||
+        pathname.startsWith("/application/station/cuves") ||
+        pathname.startsWith("/application/station/approvisionnements") ||
+        pathname.startsWith("/application/station/pertes") ||
+        pathname.startsWith("/application/depenses") ||
+        pathname === "/application" ||
+        pathname.startsWith("/application/mode-hors-connexion")
+      );
+    }
+    return false;
+  }
 
   if (retail) {
     if (

@@ -9,6 +9,8 @@ import {
 } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
+type PackagingWorkspace = Pick<WorkspaceContext, "organizationId" | "establishmentId">;
+
 type PackagingRow = {
   id: string;
   product_id: string;
@@ -42,7 +44,7 @@ function isMissingTableError(error: { message?: string; code?: string }): boolea
   );
 }
 
-async function getPackagingReadClient(_workspace?: WorkspaceContext) {
+async function getPackagingReadClient(_workspace?: PackagingWorkspace) {
   if (isAdminClientConfigured()) {
     return createAdminClient();
   }
@@ -170,7 +172,7 @@ function unitLevelsToPackagings(rows: UnitLevelRow[], mode: "purchase" | "sale")
 }
 
 export async function listCommerceUnitsForProducts(
-  workspace: WorkspaceContext,
+  workspace: PackagingWorkspace,
   productIds: string[],
   mode: "purchase" | "sale" = "purchase",
 ): Promise<Record<string, ProductPackaging[]>> {

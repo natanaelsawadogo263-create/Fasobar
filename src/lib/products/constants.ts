@@ -57,7 +57,8 @@ export const BAR_BASE_UNIT_HINTS: Record<BarBaseUnit, string> = {
 export const BAR_PACKAGING_UNITS: BarPackagingUnit[] = ["CASE", "CARTON", "SACHET"];
 
 /** Magasin : pack, carton, paquet — pas de casier bar. */
-export const SHOP_PACKAGING_UNITS: BarPackagingUnit[] = ["PACK", "CARTON", "BUNDLE"];
+export const SHOP_PACKAGING_UNITS = ["PACK", "CARTON", "BUNDLE"] as const;
+export type ShopPackagingUnit = (typeof SHOP_PACKAGING_UNITS)[number];
 
 export const BAR_PACKAGING_LABELS: Record<BarPackagingUnit, string> = {
   CASE: "Casier",
@@ -77,10 +78,7 @@ export const BAR_PACKAGING_DEFAULT_UNITS: Record<BarPackagingUnit, number> = {
 };
 
 /** Défauts magasin : carton de 5 bidons, pack de 20 sachets. */
-export const SHOP_PACKAGING_DEFAULT_UNITS: Record<
-  (typeof SHOP_PACKAGING_UNITS)[number],
-  number
-> = {
+export const SHOP_PACKAGING_DEFAULT_UNITS: Record<ShopPackagingUnit, number> = {
   PACK: 20,
   CARTON: 5,
   BUNDLE: 10,

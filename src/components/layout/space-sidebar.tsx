@@ -51,7 +51,9 @@ export function SpaceSidebar({
             item.href === "/application/caisse"
               ? pathname === "/application/caisse" ||
                 pathname.startsWith("/application/caisse?")
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              : item.href === "/application/station/pompiste"
+                ? pathname === "/application/station/pompiste"
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           if (!item.enabled) {
             return (

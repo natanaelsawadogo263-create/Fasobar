@@ -28,6 +28,7 @@ import {
   Clock3,
   Timer,
   UtensilsCrossed,
+  Fuel,
 } from "lucide-react";
 
 import { isHomeNavItem, type NavItem } from "@/lib/navigation/space-navigation";
@@ -60,6 +61,13 @@ const NAV_ICONS: Record<
   "/application/caisse/session": Timer,
   "/application/commandes-ouvertes": ClipboardList,
   "/application/cuisine": UtensilsCrossed,
+  "/application/station": LayoutDashboard,
+  "/application/station/employes": Users,
+  "/application/station/sessions": Clock3,
+  "/application/station/bilans": BarChart3,
+  "/application/station/parametres": Settings,
+  "/application/station/pompiste": Fuel,
+  "/application/station/pompiste/session": Timer,
 };
 
 function shortLabel(label: string): string {
@@ -72,12 +80,29 @@ function shortLabel(label: string): string {
   if (label === "Commandes ouvertes") return "Ouvertes";
   if (label === "Mes ventes") return "Ventes";
   if (label === "Ma session") return "Session";
+  if (label === "Employés") return "Employés";
+  if (label === "Sessions") return "Sessions";
+  if (label === "Bilans") return "Bilans";
+  if (label === "Paramètres") return "Réglages";
+  if (label === "Ma pompe") return "Pompe";
   if (label === "Stock Cuisine") return "Stock";
   if (label === "Inventaires") return "Inventaire";
   return label;
 }
 
 function isActivePath(pathname: string, href: string): boolean {
+  if (href === "/application/station") {
+    return pathname === "/application/station";
+  }
+  if (href === "/application/station/pompiste") {
+    return pathname === "/application/station/pompiste";
+  }
+  if (href === "/application/station/pompiste/session") {
+    return (
+      pathname === "/application/station/pompiste/session" ||
+      pathname.startsWith("/application/station/pompiste/session/")
+    );
+  }
   if (href === "/application/bar") return pathname === "/application/bar";
   if (href === "/application/caisse") {
     return pathname === "/application/caisse" || pathname.startsWith("/application/caisse/");

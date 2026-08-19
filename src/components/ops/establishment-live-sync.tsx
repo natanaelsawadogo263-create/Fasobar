@@ -20,10 +20,18 @@ type EstablishmentLiveSyncProps = {
 function shouldSkipOpsRefresh(pathname: string | null): boolean {
   if (!pathname) return false;
   if (pathname.includes("acces-refuse")) return true;
+  if (pathname.startsWith("/application/station/pompiste/session")) return true;
   return (
     pathname.startsWith("/application/mon-abonnement") ||
     pathname.startsWith("/application/parametres") ||
     pathname.startsWith("/application/utilisateurs") ||
+    pathname.startsWith("/application/station/employes") ||
+    pathname.startsWith("/application/station/sessions") ||
+    pathname.startsWith("/application/station/bilans") ||
+    pathname.startsWith("/application/station/parametres") ||
+    pathname.startsWith("/application/station/carburants") ||
+    pathname.startsWith("/application/station/cuves") ||
+    pathname.startsWith("/application/station/pompes") ||
     pathname.startsWith("/abonnement")
   );
 }
@@ -45,7 +53,9 @@ function isOpsSurface(pathname: string | null): boolean {
     pathname.startsWith("/application/inventaires") ||
     pathname.startsWith("/application/rapports") ||
     pathname.startsWith("/application/recus") ||
-    pathname.startsWith("/application/stock")
+    pathname.startsWith("/application/stock") ||
+    pathname === "/application/station" ||
+    pathname.startsWith("/application/station/pompiste")
   );
 }
 
@@ -77,6 +87,7 @@ const LIVE_TABLES: LiveTable[] = [
   { table: "bar_sessions", kind: "ops" },
   { table: "expenses", kind: "ops" },
   { table: "inventory_sessions", kind: "ops" },
+  { table: "pump_sessions", kind: "ops" },
   { table: "products", kind: "catalog" },
   { table: "stock_items", kind: "catalog" },
   { table: "stock_movements", kind: "catalog" },

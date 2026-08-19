@@ -112,7 +112,32 @@ export async function listUsersPageData(
     .neq("role", "OWNER");
 
   const memberUserIds = (orgMembers ?? []).map((row) => row.user_id);
-  const emailByUserId = await fetchMemberEmails(memberUserIds);
+
+  const [{ data: estMemberships }, emailByUserId] = await Promise.all([
+    memberUserIds.length > 0
+      ? supabase
+          .from("establishment_memberships")
+          .select("user_id, establishment_id, establishments(name)")
+          .in("user_id", memberUserIds)
+      : Promise.resolve({ data: [] as Array<Record<string, unknown>> }),
+    fetchMemberEmails(memberUserIds),
+  ]);
+
+  const estByUserId = new Map<
+    string,
+    { establishmentId: string; establishmentName: string }
+  >();
+  for (const row of estMemberships ?? []) {
+    const userId = String(row.user_id);
+    if (estByUserId.has(userId)) continue;
+    const establishment = readSingle(
+      row.establishments as { name: string } | { name: string }[] | null,
+    );
+    estByUserId.set(userId, {
+      establishmentId: String(row.establishment_id),
+      establishmentName: establishment?.name ?? workspace.establishmentName,
+    });
+  }
 
   const memberRows: TeamMemberRow[] = [];
 
@@ -142,16 +167,7 @@ export async function listUsersPageData(
 
     if (!profile) continue;
 
-    const { data: estMembership } = await supabase
-      .from("establishment_memberships")
-      .select("establishment_id, establishments(name)")
-      .eq("user_id", row.user_id)
-      .limit(1)
-      .maybeSingle();
-
-    const establishment = readSingle(
-      estMembership?.establishments as { name: string } | { name: string }[] | null,
-    );
+    const estInfo = estByUserId.get(row.user_id);
 
     const authEmail = emailByUserId.get(row.user_id) ?? "";
     const loginIdentifier =
@@ -168,8 +184,8 @@ export async function listUsersPageData(
       phone: profile.phone,
       role: row.role,
       spaceLabel: roleToSpaceLabel(row.role),
-      establishmentId: estMembership?.establishment_id ?? workspace.establishmentId,
-      establishmentName: establishment?.name ?? workspace.establishmentName,
+      establishmentId: estInfo?.establishmentId ?? workspace.establishmentId,
+      establishmentName: estInfo?.establishmentName ?? workspace.establishmentName,
       status: row.status === "ACTIVE" && profile.status === "ACTIVE" ? "active" : "inactive",
       mustChangePassword: profile.must_change_password,
       credentialVersion: Number(profile.credential_version ?? 1),

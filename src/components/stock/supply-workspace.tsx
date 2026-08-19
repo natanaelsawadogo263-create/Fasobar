@@ -112,9 +112,10 @@ export function SupplyWorkspace({
   void establishmentName;
   void periodLabel;
   const retail = isRetailActivity(activityCode);
-  const supplyPages = getActivityPages(activityCode).supply;
+  const activityPages = getActivityPages(activityCode);
+  const supplyPages = activityPages.supply;
   const spaceLabels: Record<SupplyDepartment, string> = retail
-    ? { BAR: supplyPages.barArea, KITCHEN: supplyPages.caisseArea }
+    ? { BAR: activityPages.expenses.barArea, KITCHEN: activityPages.expenses.caisseArea }
     : SPACE_LABELS;
   const router = useRouter();
   const availableDepartments = lockedDepartment

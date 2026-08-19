@@ -37,6 +37,7 @@ type UsersWorkspaceProps = UsersPageData & {
   openCreateOnMount?: boolean;
   serviceScope?: ServiceScope;
   activityCode?: string | null;
+  pageTitle?: string;
 };
 
 function getInitials(name: string): string {
@@ -83,7 +84,7 @@ function displayMemberSpace(
   activityCode: string | null | undefined,
 ): string {
   const profile = getActivityProfile(activityCode);
-  if (profile.kind === "retail" && spaceLabel === SPACE_LABELS.cashier_kitchen) {
+  if (spaceLabel === SPACE_LABELS.cashier_kitchen) {
     return profile.cashierSpaceLabel;
   }
   if (spaceLabel === SPACE_LABELS.bar_manager && profile.id === "hardware") {
@@ -100,6 +101,7 @@ export function UsersWorkspace({
   openCreateOnMount = false,
   serviceScope = "BOTH",
   activityCode = null,
+  pageTitle = "Utilisateurs",
 }: UsersWorkspaceProps) {
   const profile = getActivityProfile(activityCode);
   const retail = profile.kind === "retail";
@@ -189,7 +191,7 @@ export function UsersWorkspace({
         <header className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
-              Utilisateurs
+              {pageTitle}
             </h1>
             <p className="mt-0.5 text-[11px] text-slate-500 sm:hidden">
               {stats.activeUsers} actif{stats.activeUsers > 1 ? "s" : ""}

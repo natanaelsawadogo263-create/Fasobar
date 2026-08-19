@@ -116,3 +116,11 @@ export const OPS_CASH_SESSION_PATHS = [
   "/application/caisse/session",
   "/application/rapports",
 ] as const;
+
+export const OPS_PUMP_SESSION_PATHS = [
+  "/application",
+  "/application/tableau-de-bord",
+  "/application/station/pompiste",
+  "/application/station/pompiste/session",
+  "/application/station/sessions",
+] as const;

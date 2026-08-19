@@ -41,6 +41,13 @@ const HARDWARE_ADMIN_PRIMARY = [
   "/application/ventes",
 ];
 
+const GAS_STATION_ADMIN_PRIMARY = [
+  "/application/station",
+  "/application/station/employes",
+  "/application/station/sessions",
+  "/application/station/bilans",
+];
+
 export function AdminShell({
   establishmentName,
   establishmentId,
@@ -59,7 +66,11 @@ export function AdminShell({
   const { collapsed, toggle } = useSidebarCollapsed("fasobar.admin.sidebar.collapsed");
   const mobilePrimary =
     primaryHrefs ??
-    (isRetailShopOps(activityCode) ? HARDWARE_ADMIN_PRIMARY : ADMIN_PRIMARY);
+    (activityCode === "gas_station"
+      ? GAS_STATION_ADMIN_PRIMARY
+      : isRetailShopOps(activityCode)
+        ? HARDWARE_ADMIN_PRIMARY
+        : ADMIN_PRIMARY);
 
   return (
     <div className="admin-shell app-shell flex h-dvh w-full max-w-full overflow-hidden bg-[#f4f6f9]">

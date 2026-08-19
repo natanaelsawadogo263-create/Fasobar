@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { AdminDashboardWorkspace } from "@/components/admin/admin-dashboard-workspace";
 import {
   getAdminDashboardData,
@@ -19,6 +21,11 @@ export default async function TableauDeBordPage({
   searchParams,
 }: TableauDeBordPageProps) {
   const workspace = await requireAdminContext();
+
+  if (workspace.activityCode === "gas_station") {
+    redirect("/application/station");
+  }
+
   const params = await searchParams;
   const period = parsePeriod(params.period);
   const data = await getAdminDashboardData(workspace, { period });

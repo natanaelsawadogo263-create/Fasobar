@@ -207,6 +207,27 @@ const RETAIL_OVERRIDES: Partial<
     stockManagerLabel: "Responsable entrepôt",
     stockManagerDescription: "Volumes, cartons, réceptions et entrepôt.",
   },
+  gas_station: {
+    dashboardHint: "Pompes, ventes carburant, cuves, stock et caisse.",
+    productNavLabel: "Carburants",
+    stockNavLabel: "Cuves",
+    ticketsNavLabel: "Ventes",
+    cashierNavLabel: "Pompe",
+    openTicketsNavLabel: "Mes sessions",
+    ordersKpiLabel: "Ventes du jour",
+    topProductsTitle: "Carburants les plus vendus",
+    catalogDepartmentLabel: "Station",
+    cashierSpaceLabel: "Pompiste",
+    cashierSpaceDescription:
+      "Ouvrir/clôturer une session, déclarer les encaissements et crédits.",
+    stockManagerLabel: "Responsable station",
+    stockManagerDescription:
+      "Cuves, réceptions carburant, lubrifiants et dépenses.",
+    adminSpaceDescription:
+      "Pilotage complet : pompes, cuves, ventes, équipe et bénéfice.",
+    clientPlaceholder: "Véhicule / client (optionnel)",
+    ticketTitle: "Vente en cours",
+  },
   other: {
     dashboardHint: "Pilotage des ventes, du stock et de la caisse.",
   },

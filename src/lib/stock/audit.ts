@@ -2,19 +2,12 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 
-type AuditAction =
-  | "STOCK_ENTRY_RECORDED"
-  | "STOCK_LOSS_RECORDED"
-  | "STOCK_ADJUSTMENT_RECORDED"
-  | "PRODUCT_DEACTIVATED"
-  | "PRODUCT_ACTIVATED";
-
 type WriteAuditLogInput = {
   organizationId: string;
   establishmentId: string;
   entityType: string;
   entityId: string;
-  action: AuditAction;
+  action: string;
   actorId: string;
   metadata?: Record<string, unknown>;
 };

@@ -13,6 +13,7 @@ import { BarShell } from "@/components/bar/bar-shell";
 import { CashierSecondaryShell } from "@/components/cashier/cashier-secondary-shell";
 import { FasoBarCashierShell } from "@/components/fasobar/fasobar-cashier-shell";
 import { SpaceShell } from "@/components/layout/space-shell";
+import { PompisteShell } from "@/components/station/pompiste-shell";
 import { ToastProvider } from "@/components/ui/toast";
 import { isRetailShopOps } from "@/lib/activity/ops-model";
 
@@ -28,6 +29,11 @@ type ApplicationShellProps = {
   cashierName?: string;
   canRenewSubscription?: boolean;
   activityCode?: string | null;
+  pompisteSessionSummary?: {
+    hasOwnSession: boolean;
+    sessionOpenedAt?: string;
+    fuelPumpName?: string | null;
+  };
 };
 
 function isFasoBarCashierRoute(pathname: string): boolean {
@@ -75,6 +81,7 @@ export function ApplicationShell({
   cashierName = "",
   canRenewSubscription = false,
   activityCode = null,
+  pompisteSessionSummary,
 }: ApplicationShellProps) {
   const pathname = usePathname();
   const prefetch = (
@@ -184,6 +191,19 @@ export function ApplicationShell({
       >
         {children}
       </BarShell>
+    );
+  } else if (space === "cashier_kitchen" && activityCode === "gas_station") {
+    shell = (
+      <PompisteShell
+        establishmentId={establishmentId}
+        userId={userId}
+        establishmentName={establishmentName}
+        navItems={navItems}
+        pompisteName={cashierName || "Pompiste"}
+        initialSessionSummary={pompisteSessionSummary}
+      >
+        {children}
+      </PompisteShell>
     );
   } else {
     shell = (

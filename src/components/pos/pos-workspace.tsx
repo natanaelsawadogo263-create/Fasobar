@@ -35,7 +35,8 @@ import {
   type CashierSaleKind,
 } from "@/lib/catalog/sale-choices";
 import { stockQtyFromAmount } from "@/lib/catalog/sale-stock";
-import { usesOptionalProductLots, usesTradeCatalog } from "@/lib/activity/catalog";
+import { usesOptionalProductLots } from "@/lib/activity/catalog";
+import { usesTradeCatalog } from "@/lib/activity/ops-model";
 import { formatPriceXof } from "@/lib/orders/constants";
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";

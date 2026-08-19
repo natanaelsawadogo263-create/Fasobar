@@ -74,6 +74,12 @@ export const BUSINESS_ACTIVITIES = [
     icon: "warehouse",
   },
   {
+    id: "gas_station",
+    label: "Station-service",
+    description: "Carburant, lubrifiants et services automobiles.",
+    icon: "fuel",
+  },
+  {
     id: "other",
     label: "Autre commerce",
     description: "Une activité qui ne figure pas dans la liste.",
@@ -112,4 +118,10 @@ export function isFoodServiceActivity(
   activityId: string | null | undefined,
 ): activityId is "restaurant" {
   return activityId === "restaurant";
+}
+
+export function isGasStationActivity(
+  activityId: string | null | undefined,
+): activityId is "gas_station" {
+  return activityId === "gas_station";
 }

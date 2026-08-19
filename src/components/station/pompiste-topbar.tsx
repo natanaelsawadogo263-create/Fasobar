@@ -1,0 +1,99 @@
+"use client";
+
+import Link from "next/link";
+import { Circle, Fuel, UserRound } from "lucide-react";
+
+import { signOutAction } from "@/lib/auth/actions";
+import { FullscreenButton } from "@/components/ui/fullscreen-button";
+import { LiveClock } from "@/components/ui/live-clock";
+
+type PompisteTopbarProps = {
+  establishmentName: string;
+  pompisteName?: string;
+  hasOwnSession?: boolean;
+  sessionOpenedAt?: string;
+  fuelPumpName?: string | null;
+};
+
+export function PompisteTopbar({
+  establishmentName,
+  pompisteName = "Pompiste",
+  hasOwnSession = false,
+  sessionOpenedAt,
+  fuelPumpName,
+}: PompisteTopbarProps) {
+  const openedLabel = sessionOpenedAt
+    ? new Date(sessionOpenedAt).toLocaleTimeString("fr-FR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  const sessionTone = hasOwnSession ? "text-emerald-500" : "text-slate-400";
+
+  return (
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200/80 bg-white px-3 pt-[env(safe-area-inset-top)] md:gap-3 md:px-4 lg:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 md:h-8 md:w-8 md:rounded-lg">
+          <Fuel className="h-4 w-4" strokeWidth={2.25} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-semibold text-slate-900">
+            {establishmentName}
+          </p>
+          <p className="truncate text-[11px] text-slate-400 md:hidden">
+            {hasOwnSession
+              ? fuelPumpName
+                ? `Relève · ${fuelPumpName}`
+                : "Relève active"
+              : "Hors relève"}
+          </p>
+          <p className="hidden text-[11px] text-slate-400 md:block">Espace pompiste</p>
+        </div>
+      </div>
+
+      <Link
+        href="/application/station/pompiste/session"
+        className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/80 px-2.5 transition active:bg-emerald-50/60 md:h-auto md:gap-2 md:px-3 md:py-1.5 md:hover:border-emerald-200 md:hover:bg-emerald-50/50"
+        title="Ma session"
+      >
+        <Circle className={`h-2 w-2 shrink-0 fill-current ${sessionTone}`} />
+        <span className="sr-only md:not-sr-only md:inline whitespace-nowrap text-[12px] text-slate-700">
+          {hasOwnSession ? (
+            <>
+              <span className="font-semibold text-emerald-800">Relève ouverte</span>
+              {openedLabel ? (
+                <span className="text-slate-400"> · {openedLabel}</span>
+              ) : null}
+            </>
+          ) : (
+            <span className="font-semibold text-slate-600">Hors relève</span>
+          )}
+        </span>
+      </Link>
+
+      <div className="hidden lg:block">
+        <LiveClock />
+      </div>
+
+      <div className="hidden md:block">
+        <FullscreenButton />
+      </div>
+
+      <form action={signOutAction} className="shrink-0">
+        <button
+          type="submit"
+          className="inline-flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-1.5 shadow-sm transition active:bg-slate-50 md:h-auto md:pr-3 md:hover:border-slate-300 md:hover:bg-slate-50"
+          title="Se déconnecter"
+        >
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+            <UserRound className="h-4 w-4" />
+          </span>
+          <span className="hidden max-w-[120px] truncate text-left text-[12px] font-semibold text-slate-900 sm:block">
+            {pompisteName}
+          </span>
+        </button>
+      </form>
+    </header>
+  );
+}

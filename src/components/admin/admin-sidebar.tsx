@@ -17,6 +17,8 @@ import {
   BarChart3,
   Wallet,
   Landmark,
+  Clock3,
+  Fuel,
 } from "lucide-react";
 
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
@@ -37,6 +39,13 @@ const NAV_ICONS: Record<string, ComponentType<{ className?: string; strokeWidth?
   "/application/rapports": BarChart3,
   "/application/mon-abonnement": CreditCard,
   "/application/parametres": Settings,
+  "/application/station": LayoutDashboard,
+  "/application/station/employes": Users,
+  "/application/station/sessions": Clock3,
+  "/application/station/bilans": BarChart3,
+  "/application/station/parametres": Settings,
+  "/application/station/pompiste": Fuel,
+  "/application/station/pompiste/session": Timer,
 };
 
 type AdminSidebarProps = {
@@ -74,7 +83,9 @@ export function AdminSidebar({ navItems, collapsed = false }: AdminSidebarProps)
             : (NAV_ICONS[item.href] ?? Package);
           const isActive =
             pathname === item.href ||
-            pathname.startsWith(`${item.href}/`) ||
+            (item.href === "/application/station"
+              ? pathname === "/application/station"
+              : pathname.startsWith(`${item.href}/`)) ||
             (item.href.includes("tableau-de-bord") && pathname.includes("admin-dashboard-preview"));
 
           if (!item.enabled) {
