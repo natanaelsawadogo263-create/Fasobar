@@ -20,7 +20,7 @@ export function mapRpcFailure(message: string): PlatformActionResult {
     return {
       ok: false,
       error:
-        "Cette référence de transaction est déjà enregistrée sur un autre paiement.",
+        "Un paiement avec cette référence existe déjà. La base doit être mise à jour, puis réessayez Approuver.",
     };
   }
   return { ok: false, error: message };
