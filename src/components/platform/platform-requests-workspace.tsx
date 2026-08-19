@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  ArrowLeft,
   ExternalLink,
   FileImage,
   Mail,
@@ -148,6 +149,7 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
   const [query, setQuery] = useState("");
   const [queue, setQueue] = useState<QueueFilter>("ACTION");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [note, setNote] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -196,10 +198,12 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
   useEffect(() => {
     if (filtered.length === 0) {
       setSelectedId(null);
+      setMobileDetailOpen(false);
       return;
     }
     if (!selectedId || !filtered.some((r) => r.id === selectedId)) {
       setSelectedId(filtered[0]!.id);
+      setMobileDetailOpen(false);
     }
   }, [filtered, selectedId]);
 
@@ -253,9 +257,9 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
             </PlatformAlert>
           ) : null}
 
-          {/* KPIs */}
-          <section className="shrink-0 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-            <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 sm:grid-cols-4 sm:divide-y-0">
+          {/* KPIs — desktop uniquement (les puces de file suffisent sur mobile) */}
+          <section className="hidden shrink-0 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] lg:block">
+            <div className="grid grid-cols-4 divide-x divide-slate-100">
               <button
                 type="button"
                 onClick={() => setQueue("ACTION")}
@@ -316,8 +320,12 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
           </section>
 
           <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] lg:flex-row">
-            {/* Liste */}
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-b border-slate-100 lg:border-b-0 lg:border-r">
+            {/* Liste — masquée sur mobile quand le détail est ouvert */}
+            <div
+              className={`min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-b border-slate-100 lg:flex lg:border-b-0 lg:border-r ${
+                mobileDetailOpen ? "hidden" : "flex"
+              }`}
+            >
               <div className="shrink-0 border-b border-slate-100 px-3 py-2.5 sm:px-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="mr-auto text-[13px] font-semibold text-slate-900">
@@ -371,7 +379,10 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
                       <button
                         key={row.id}
                         type="button"
-                        onClick={() => setSelectedId(row.id)}
+                        onClick={() => {
+                          setSelectedId(row.id);
+                          setMobileDetailOpen(true);
+                        }}
                         className={`flex w-full items-start gap-3 border-b border-slate-100 px-3 py-3 text-left transition last:border-0 sm:px-4 ${
                           active
                             ? "border-l-2 border-l-slate-900 bg-slate-50"
@@ -403,15 +414,27 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
               </div>
             </div>
 
-            {/* Détail */}
-            <aside className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden bg-[#fafbfc] lg:w-[380px] xl:w-[420px]">
+            {/* Détail — plein écran sur mobile, panneau à droite sur desktop */}
+            <aside
+              className={`min-h-0 w-full flex-col overflow-hidden bg-[#fafbfc] lg:flex lg:w-[380px] lg:flex-none xl:w-[420px] ${
+                mobileDetailOpen ? "flex min-h-0 flex-1" : "hidden"
+              }`}
+            >
               {!selected ? (
                 <div className="flex flex-1 items-center justify-center px-6 text-center text-[12px] text-slate-500">
                   Sélectionnez une demande pour l’examiner.
                 </div>
               ) : (
                 <>
-                  <div className="shrink-0 border-b border-slate-200/80 bg-white px-4 py-3.5">
+                  <div className="shrink-0 border-b border-slate-200/80 bg-white px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setMobileDetailOpen(false)}
+                      className="mb-2 inline-flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-slate-700 lg:hidden"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      File de demandes
+                    </button>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-mono text-[14px] font-semibold tabular-nums text-slate-900">
@@ -425,7 +448,7 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
                     </div>
                   </div>
 
-                  <div className="app-scroll min-h-0 flex-1 overflow-y-auto px-4 py-3">
+                  <div className="app-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-3 pb-6">
                     {/* Client */}
                     <section className="rounded-xl border border-slate-200 bg-white px-3.5 py-3">
                       <h3 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">

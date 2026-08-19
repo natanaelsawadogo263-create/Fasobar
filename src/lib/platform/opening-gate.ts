@@ -16,42 +16,65 @@ function isMissingRelation(message: string): boolean {
   );
 }
 
-export async function getOrganizationOpeningStatus(
+export type OrganizationOpeningRequest = {
+  status: EstablishmentOpeningStatus | null;
+  requestedAt: string | null;
+};
+
+const APPROVED_REQUEST: OrganizationOpeningRequest = {
+  status: "APPROVED",
+  requestedAt: null,
+};
+
+export async function getOrganizationOpeningRequest(
   organizationId: string,
-): Promise<EstablishmentOpeningStatus | null> {
+): Promise<OrganizationOpeningRequest> {
   if (isDesktopServerRuntime()) {
     try {
       const { probeSupabaseReachable } = await import(
         "@/lib/desktop/cloud-reachability"
       );
       if (!(await probeSupabaseReachable())) {
-        return "APPROVED";
+        return APPROVED_REQUEST;
       }
     } catch {
-      return "APPROVED";
+      return APPROVED_REQUEST;
     }
   }
 
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("establishment_opening_requests")
-    .select("status")
+    .select("status, requested_at")
     .eq("organization_id", organizationId)
     .maybeSingle();
 
   if (error) {
     if (isMissingRelation(error.message)) {
-      return "APPROVED";
+      return APPROVED_REQUEST;
     }
     console.error("[opening] status read failed:", error.message);
-    return "PENDING";
+    return { status: "PENDING", requestedAt: null };
   }
 
   if (!data?.status) {
-    return "APPROVED";
+    return APPROVED_REQUEST;
   }
 
-  return isEstablishmentOpeningStatus(data.status) ? data.status : "PENDING";
+  return {
+    status: isEstablishmentOpeningStatus(data.status)
+      ? data.status
+      : "PENDING",
+    requestedAt:
+      typeof data.requested_at === "string" ? data.requested_at : null,
+  };
+}
+
+export async function getOrganizationOpeningStatus(
+  organizationId: string,
+): Promise<EstablishmentOpeningStatus | null> {
+  const { status } = await getOrganizationOpeningRequest(organizationId);
+  return status;
 }
 
 export const getOpeningRedirectForOrganization = cache(
