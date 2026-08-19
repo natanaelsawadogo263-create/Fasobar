@@ -14,6 +14,7 @@ export const productUnitSchema = z.enum([
   "PACK",
   "CASE",
   "SACHET",
+  "SAC",
   "JERRYCAN",
   "CARTON",
   "BUNDLE",
@@ -24,8 +25,14 @@ export const productUnitSchema = z.enum([
   "SHEET",
 ]);
 
-/** Format d'achat d'une boisson : casier, carton ou sachet. */
-export const barPackagingUnitSchema = z.enum(["CASE", "CARTON", "SACHET"]);
+/** Format d'achat : casier bar, ou pack / carton / paquet magasin. */
+export const barPackagingUnitSchema = z.enum([
+  "CASE",
+  "CARTON",
+  "SACHET",
+  "PACK",
+  "BUNDLE",
+]);
 
 export const productFormSchema = z.object({
   name: z.string().trim().min(2, "Le nom du produit est obligatoire."),
@@ -101,6 +108,21 @@ export const createProductSchema = productFormSchema
         .positive("Indiquez combien d'exemplaires contient le conditionnement.")
         .optional(),
     ),
+    lotSellingPrice: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce
+        .number()
+        .int("Le prix du lot doit être un nombre entier.")
+        .positive("Indiquez le prix de vente du lot.")
+        .optional(),
+    ),
+    initialStock: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce
+        .number()
+        .min(0, "Le stock actuel doit être positif ou nul.")
+        .optional(),
+    ),
   })
   .superRefine((data, ctx) => {
     if (!data.categoryId && !data.newCategoryName) {
@@ -108,6 +130,19 @@ export const createProductSchema = productFormSchema
         code: z.ZodIssueCode.custom,
         message: "Sélectionnez une catégorie ou créez-en une.",
         path: ["categoryId"],
+      });
+    }
+
+    if (
+      data.catalogKind === "retail" &&
+      data.unitsPerPack != null &&
+      data.unitsPerPack >= 2 &&
+      (data.lotSellingPrice == null || data.lotSellingPrice <= 0)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Indiquez le prix de vente du lot.",
+        path: ["lotSellingPrice"],
       });
     }
 

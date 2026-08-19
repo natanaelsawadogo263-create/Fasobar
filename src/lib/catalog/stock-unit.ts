@@ -13,8 +13,8 @@ const EXACT_UNIT_MAP: Record<string, ProductUnit> = {
   pieces: "PIECE",
   unite: "PIECE",
   unites: "PIECE",
-  sac: "PIECE",
-  sacs: "PIECE",
+  sac: "SAC",
+  sacs: "SAC",
   sachet: "SACHET",
   sachets: "SACHET",
   kg: "KG",
@@ -57,6 +57,8 @@ export function mapLabelToProductUnit(label: string): ProductUnit {
   if (!n) return "PIECE";
   if (EXACT_UNIT_MAP[n]) return EXACT_UNIT_MAP[n];
   if (n.includes("sachet")) return "SACHET";
+  if (n === "sac" || n.startsWith("sac ") || n.endsWith(" sac") || n.includes("sacs"))
+    return "SAC";
   if (n.includes("metre")) return "METER";
   if (n.includes("kilo") || n.includes("gramme")) return "KG";
   if (n.includes("litre")) return "LITER";

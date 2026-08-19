@@ -214,6 +214,53 @@ export async function listCommerceUnitsForProducts(
   return result;
 }
 
+export type ProductSaleMeta = {
+  sellingPrice: number;
+  unitLabel: string;
+};
+
+/** Unités caisse : niveaux commerce + prix unité produit si besoin. */
+export async function listSaleUnitsForProducts(
+  workspace: WorkspaceContext,
+  productIds: string[],
+  metaByProduct: Record<string, ProductSaleMeta> = {},
+): Promise<Record<string, ProductPackaging[]>> {
+  const fromLevels = await listCommerceUnitsForProducts(workspace, productIds, "sale");
+  const result: Record<string, ProductPackaging[]> = {};
+
+  for (const productId of productIds) {
+    const meta = metaByProduct[productId];
+    const packs = (fromLevels[productId] ?? []).filter((unit) => unit.conversionFactor > 1);
+    let bases = (fromLevels[productId] ?? []).filter((unit) => unit.conversionFactor <= 1);
+
+    if (bases.length === 0 && meta && meta.sellingPrice > 0) {
+      bases = [
+        {
+          id: "",
+          productId,
+          name: meta.unitLabel,
+          packagingUnit: meta.unitLabel,
+          baseUnit: meta.unitLabel,
+          conversionFactor: 1,
+          active: true,
+          sellingPrice: meta.sellingPrice,
+        },
+      ];
+    } else if (meta && meta.sellingPrice > 0) {
+      bases = bases.map((unit) =>
+        (unit.sellingPrice ?? 0) > 0
+          ? unit
+          : { ...unit, sellingPrice: meta.sellingPrice },
+      );
+    }
+
+    const preferredBase = bases.find((unit) => unit.id) ?? bases[0];
+    result[productId] = preferredBase ? [preferredBase, ...packs] : packs;
+  }
+
+  return result;
+}
+
 export async function listPackagingsForProductsMerged(
   workspace: WorkspaceContext,
   productIds: string[],

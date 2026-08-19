@@ -14,8 +14,8 @@ describe("socle commerce unités", () => {
   });
 
   it("ne confond pas sac et sachet", () => {
-    expect(mapLabelToProductUnit("sac")).toBe("PIECE");
-    expect(mapLabelToProductUnit("Sacs")).toBe("PIECE");
+    expect(mapLabelToProductUnit("sac")).toBe("SAC");
+    expect(mapLabelToProductUnit("Sacs")).toBe("SAC");
     expect(mapLabelToProductUnit("sachet")).toBe("SACHET");
   });
 
@@ -76,6 +76,22 @@ describe("socle commerce unités", () => {
 
   it("approvisionnement gros : 4 cartons × 50 = +200", () => {
     expect(toStockQuantity(4, 50)).toBe(200);
+  });
+
+  it("propose Unité et Lot pour le supermarché", () => {
+    const choices = buildCashierSaleChoices(
+      {
+        sellingPrice: 4500,
+        unit: "bidon",
+        saleUnits: [
+          { id: "u", name: "bidon", price: 4500, factor: 1 },
+          { id: "l", name: "carton", price: 20000, factor: 5 },
+        ],
+      },
+      { shopLots: true },
+    );
+    expect(choices.map((item) => item.kind)).toEqual(["unit", "pack"]);
+    expect(choices[1]?.title).toContain("Lot · carton de 5");
   });
 
   it("propose Unité et Gros à la caisse", () => {

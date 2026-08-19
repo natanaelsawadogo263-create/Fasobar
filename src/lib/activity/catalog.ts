@@ -1,3 +1,4 @@
+import { usesShopCatalog } from "@/lib/activity/ops-model";
 import { getActivityProfile, isRetailActivity } from "@/lib/activity/profile";
 import { HARDWARE_CATEGORY_SUGGESTIONS } from "@/lib/hardware/constants";
 import { HARDWARE_UNITS } from "@/lib/hardware/units";
@@ -20,6 +21,8 @@ export type CatalogFormProfile = {
   departmentLabel: string;
   hideDepartment: boolean;
   showReference: boolean;
+  showBarcode: boolean;
+  showPurchasePrice: boolean;
   referenceLabel: string;
   referencePlaceholder: string;
   showPackaging: boolean;
@@ -37,6 +40,7 @@ const SHOP_UNITS: ProductUnit[] = [
   "KG",
   "LITER",
   "SACHET",
+  "SAC",
   "CARTON",
   "BUNDLE",
 ];
@@ -63,6 +67,8 @@ const FOOD_CATALOG: CatalogFormProfile = {
   departmentLabel: "Département",
   hideDepartment: false,
   showReference: false,
+  showBarcode: false,
+  showPurchasePrice: false,
   referenceLabel: "Description",
   referencePlaceholder: "Notes (optionnel)",
   showPackaging: true,
@@ -85,6 +91,8 @@ const RETAIL_BASE: CatalogFormProfile = {
   departmentLabel: "Magasin",
   hideDepartment: true,
   showReference: true,
+  showBarcode: false,
+  showPurchasePrice: false,
   referenceLabel: "Référence",
   referencePlaceholder: "Code / référence (optionnel)",
   showPackaging: false,
@@ -98,20 +106,47 @@ const RETAIL_OVERRIDES: Partial<
   Record<Exclude<BusinessActivityId, "restaurant">, Partial<CatalogFormProfile>>
 > = {
   supermarket: {
-    namePlaceholder: "Ex : Riz 25 kg",
+    itemNoun: "produit",
+    itemNounPlural: "produits",
+    addTitle: "Ajouter un produit",
+    editTitle: "Modifier le produit",
+    addButtonLabel: "Ajouter un produit",
+    namePlaceholder: "Ex : Riz local 25 kg",
+    nameLabel: "Nom du produit",
+    activeLabel: "Produit actif",
     departmentLabel: "Rayon",
     showPackaging: true,
+    showReference: false,
+    showBarcode: true,
+    showPurchasePrice: true,
+    referenceLabel: "Code / code-barres",
+    referencePlaceholder: "Code produit (optionnel)",
     defaultUnit: "PIECE",
-    units: SHOP_UNITS,
+    units: [
+      "PIECE",
+      "SACHET",
+      "SAC",
+      "PACK",
+      "CARTON",
+      "KG",
+      "LITER",
+      "JERRYCAN",
+      "BOTTLE",
+    ],
     suggestedCategories: [
-      "Épicerie",
-      "Boulangerie",
-      "Surgelés",
-      "Boissons & eaux",
-      "Produits frais",
+      "Riz & céréales",
       "Huiles",
+      "Farine & sucre",
+      "Épicerie",
+      "Conserves",
+      "Boissons & eaux",
+      "Lait & laitages",
+      "Produits frais",
+      "Boulangerie",
+      "Confiserie",
       "Hygiène",
       "Entretien",
+      "Bébé",
       "Autre",
     ],
   },
@@ -279,7 +314,7 @@ const RETAIL_OVERRIDES: Partial<
     namePlaceholder: "Ex : Carton savon 24 pcs",
     departmentLabel: "Entrepôt",
     showPackaging: true,
-    units: ["PIECE", "PACK", "CARTON", "CASE", "KG", "BUNDLE"],
+    units: ["PIECE", "PACK", "CARTON", "CASE", "KG", "SAC", "BUNDLE"],
     suggestedCategories: ["Alimentaire", "Hygiène", "Boissons & eaux", "Divers", "Autre"],
   },
   other: {
@@ -339,6 +374,14 @@ export function shouldShowCatalogCategory(
   if (isRestaurantSeedCategory(categoryName)) return false;
   if (HARDWARE_SEED_CATEGORY_NAMES.has(normalized)) return false;
   return true;
+}
+
+/** Magasin alimentation : lots optionnels (pack sachets, carton de bidons). */
+export function usesOptionalProductLots(
+  activityCode: string | null | undefined,
+): boolean {
+  const catalog = getCatalogFormProfile(activityCode);
+  return catalog.kind === "retail" && catalog.showPackaging && usesShopCatalog(activityCode);
 }
 
 export { isRetailActivity };

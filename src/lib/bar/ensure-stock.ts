@@ -167,3 +167,50 @@ export async function ensureStockItemForBarProduct(
   ensureOkUntil.delete(workspace.establishmentId);
   return { id: data.id };
 }
+
+/** Enregistre le stock déjà présent à la création du produit (mouvement d’entrée manuelle). */
+export async function recordInitialStockForProduct(
+  workspace: WorkspaceContext,
+  productId: string,
+  quantity: number,
+  options: { unitCost?: number | null; reason?: string } = {},
+): Promise<{ ok: true } | { error: string }> {
+  if (!(quantity > 0)) {
+    return { ok: true };
+  }
+
+  const supabase = await createClient();
+  const writeClient = isAdminClientConfigured() ? createAdminClient() : supabase;
+
+  const { data: stockRow } = await writeClient
+    .from("stock_items")
+    .select("id")
+    .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
+    .eq("product_id", productId)
+    .maybeSingle();
+
+  if (!stockRow?.id) {
+    return { error: "Article de stock introuvable." };
+  }
+
+  const qty = Math.round(quantity * 1000) / 1000;
+  const { error } = await supabase.rpc("record_stock_entry", {
+    p_stock_item_id: stockRow.id,
+    p_movement_type: "MANUAL_ENTRY",
+    p_quantity: qty,
+    p_purchased_quantity: qty,
+    p_conversion_factor: 1,
+    p_unit_cost: options.unitCost && options.unitCost > 0 ? options.unitCost : null,
+    p_supplier_id: null,
+    p_reference: null,
+    p_reason: options.reason ?? "Stock actuel à la création du produit",
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  ensureOkUntil.delete(workspace.establishmentId);
+  return { ok: true };
+}

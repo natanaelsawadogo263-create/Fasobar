@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getCatalogFormProfile,
   shouldShowCatalogCategory,
+  usesOptionalProductLots,
 } from "@/lib/activity/catalog";
 
 describe("catalogue produit par activité", () => {
@@ -59,6 +60,38 @@ describe("catalogue produit par activité", () => {
     expect(catalog.showPackaging).toBe(false);
     expect(shouldShowCatalogCategory("Boissons", catalog)).toBe(false);
     expect(shouldShowCatalogCategory("Ciment", catalog)).toBe(true);
+  });
+
+  it("prépare le catalogue supermarché / alimentation", () => {
+    const catalog = getCatalogFormProfile("supermarket");
+    expect(catalog.kind).toBe("retail");
+    expect(catalog.itemNoun).toBe("produit");
+    expect(catalog.showPackaging).toBe(true);
+    expect(catalog.defaultUnit).toBe("PIECE");
+    expect(catalog.units).toContain("KG");
+    expect(catalog.units).toContain("LITER");
+    expect(catalog.units).toContain("JERRYCAN");
+    expect(catalog.units).toContain("SACHET");
+    expect(catalog.units).toContain("SAC");
+    expect(catalog.units).not.toContain("TONNE");
+    expect(catalog.suggestedCategories).toContain("Riz & céréales");
+    expect(catalog.suggestedCategories).toContain("Huiles");
+    expect(catalog.suggestedCategories).toContain("Épicerie");
+    expect(shouldShowCatalogCategory("Riz & céréales", catalog)).toBe(true);
+    expect(shouldShowCatalogCategory("Bières", catalog)).toBe(false);
+    expect(shouldShowCatalogCategory("Plats", catalog)).toBe(false);
+    expect(shouldShowCatalogCategory("Ciment", catalog)).toBe(false);
+    expect(catalog.showBarcode).toBe(true);
+    expect(catalog.showPurchasePrice).toBe(true);
+    expect(catalog.showReference).toBe(false);
+  });
+
+  it("active les lots optionnels seulement pour le supermarché", () => {
+    expect(usesOptionalProductLots("supermarket")).toBe(true);
+    expect(usesOptionalProductLots("restaurant")).toBe(false);
+    expect(usesOptionalProductLots("pharmacy")).toBe(false);
+    expect(usesOptionalProductLots("hardware")).toBe(false);
+    expect(usesOptionalProductLots("wholesale")).toBe(false);
   });
 
   it("prépare le catalogue matériaux comme un dépôt", () => {

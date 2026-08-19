@@ -15,6 +15,11 @@ export type ReportSummaryItem = {
   value: string;
 };
 
+export type ReportMeta = {
+  /** Bénéfice masqué tant qu’aucun approvisionnement n’a été enregistré. */
+  profitAvailable?: boolean;
+};
+
 export type ReportResult = {
   type: ReportType;
   title: string;
@@ -22,4 +27,5 @@ export type ReportResult = {
   columns: ReportColumn[];
   rows: ReportRow[];
   summary: ReportSummaryItem[];
+  meta?: ReportMeta;
 };

@@ -85,6 +85,7 @@ const emptyForm: ProductFormState = {
   active: true,
   packagingUnit: "CASE",
   unitsPerPack: BAR_PACKAGING_DEFAULT_UNITS.CASE,
+  lotSellingPrice: 0,
   sku: "",
   barcode: "",
   purchasePrice: 0,
@@ -93,6 +94,7 @@ const emptyForm: ProductFormState = {
   unitsPerPurchase: 1,
   discountMinQuantity: 0,
   discountPercent: 0,
+  initialStock: 0,
 };
 
 export function ProductsWorkspace({
@@ -176,7 +178,12 @@ export function ProductsWorkspace({
           ? "BOTTLE"
           : "PORTION",
       packagingUnit: catalog.showPackaging ? "CARTON" : "CASE",
-      unitsPerPack: catalog.showPackaging ? BAR_PACKAGING_DEFAULT_UNITS.CARTON : 0,
+      unitsPerPack:
+        retail && catalog.showPackaging
+          ? 0
+          : catalog.showPackaging
+            ? BAR_PACKAGING_DEFAULT_UNITS.CARTON
+            : 0,
       categoryId: visibleCategories[0]?.id ?? "",
     });
     resetImageAssets();
@@ -202,6 +209,7 @@ export function ProductsWorkspace({
         "CASE",
       unitsPerPack:
         existingPackaging?.conversionFactor ?? BAR_PACKAGING_DEFAULT_UNITS.CASE,
+      lotSellingPrice: existingPackaging?.sellingPrice ?? 0,
       sku: product.sku ?? "",
       barcode: product.barcode ?? "",
       purchasePrice: product.purchasePrice ?? 0,
@@ -210,6 +218,7 @@ export function ProductsWorkspace({
       unitsPerPurchase: product.unitsPerPurchase ?? 1,
       discountMinQuantity: product.discountMinQuantity ?? 0,
       discountPercent: product.discountPercent ?? 0,
+      initialStock: 0,
     });
     resetImageAssets();
     setFormMode("edit");
@@ -356,7 +365,7 @@ export function ProductsWorkspace({
             value={String(stats.barCount)}
             subtitle={retail ? "en vente" : "actifs · bar"}
             icon={retail ? Package : Wine}
-            tone="sky"
+            tone={retail ? "emerald" : "sky"}
           />
         ) : null}
         {!retail && hasKitchenService(serviceScope) ? (
@@ -451,7 +460,7 @@ export function ProductsWorkspace({
           <div className="space-y-1.5 p-2 md:hidden">
             {rows.length === 0 ? (
               <p className="px-1 py-10 text-center text-[13px] text-slate-500">
-                Aucun produit trouvé pour ces filtres.
+                Aucun {catalog.itemNoun} trouvé pour ces filtres.
               </p>
             ) : (
               rows.map((product) => {
@@ -548,7 +557,7 @@ export function ProductsWorkspace({
                     colSpan={canManage ? 8 : 7}
                     className="px-3.5 py-12 text-center text-[13px] text-slate-500"
                   >
-                    Aucun produit trouvé pour ces filtres.
+                    Aucun {catalog.itemNoun} trouvé pour ces filtres.
                   </td>
                 </tr>
               ) : (
@@ -578,7 +587,8 @@ export function ProductsWorkspace({
                       ) : (
                         <DepartmentBadge
                           code={product.departmentCode}
-                          label={product.departmentName}
+                          label={retail ? profile.catalogDepartmentLabel : product.departmentName}
+                          retail={retail}
                         />
                       )}
                     </td>
@@ -748,13 +758,23 @@ function StatCard({ title, value, subtitle, icon: Icon, tone }: StatCardProps) {
   );
 }
 
-function DepartmentBadge({ code, label }: { code: string; label: string }) {
+function DepartmentBadge({
+  code,
+  label,
+  retail = false,
+}: {
+  code: string;
+  label: string;
+  retail?: boolean;
+}) {
   const isBar = code === "BAR";
   return (
     <span
       className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
         isBar
-          ? "border-sky-100 bg-sky-50 text-sky-800"
+          ? retail
+            ? "border-emerald-100 bg-emerald-50 text-emerald-800"
+            : "border-sky-100 bg-sky-50 text-sky-800"
           : "border-orange-100 bg-orange-50 text-orange-800"
       }`}
     >

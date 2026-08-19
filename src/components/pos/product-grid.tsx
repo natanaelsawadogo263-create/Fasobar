@@ -18,6 +18,7 @@ type ProductGridProps = {
   search: string;
   onSearchChange: (value: string) => void;
   searchInputRef?: RefObject<HTMLInputElement | null>;
+  shopLots?: boolean;
 };
 
 export function ProductGrid({
@@ -31,6 +32,7 @@ export function ProductGrid({
   search,
   onSearchChange,
   searchInputRef,
+  shopLots = false,
 }: ProductGridProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
@@ -115,6 +117,7 @@ export function ProductGrid({
                 flash={flashProductId === product.id}
                 onAdd={onAddProduct}
                 variant={viewMode}
+                shopLots={shopLots}
               />
             ))}
           </div>

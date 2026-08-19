@@ -19,6 +19,7 @@ export type CashierProduct = {
   /** Quantité stock suivie ; null/absent = non suivi (ex. plats cuisine). */
   stockQuantity?: number | null;
   fractionable?: boolean;
+  barcode?: string | null;
   saleUnits?: Array<{
     id: string;
     name: string;

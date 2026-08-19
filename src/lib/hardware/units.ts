@@ -40,6 +40,7 @@ export const HARDWARE_UNITS: ProductUnit[] = [
   "CARTON",
   "BUNDLE",
   "SACHET",
+  "SAC",
   "KG",
   "TONNE",
   "METER",

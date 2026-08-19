@@ -4,21 +4,36 @@ import { revalidatePath } from "next/cache";
 
 import { mapGenericError } from "@/lib/auth/errors";
 import { slugifyFromName } from "@/lib/auth/slugs";
+import { usesOptionalProductLots } from "@/lib/activity/catalog";
 import { isRetailActivity } from "@/lib/activity/profile";
 import { requireProductManagementMutationContext } from "@/lib/auth/workspace-context";
-import { ensureStockItemForBarProduct } from "@/lib/bar/ensure-stock";
+import { ensureStockItemForBarProduct, recordInitialStockForProduct } from "@/lib/bar/ensure-stock";
 import { revalidateCatalogOps } from "@/lib/ops/revalidate";
 import {
   getDepartmentIdByCode,
   validateCategoryForDepartment,
 } from "@/lib/products/queries";
-import { packagingDisplayName } from "@/lib/products/constants";
+import {
+  BAR_PACKAGING_LABELS,
+  inferFractionableFromUnit,
+  packagingDisplayName,
+} from "@/lib/products/constants";
+import {
+  deactivateLotUnitByName,
+  ensureProductLotUnits,
+  syncBaseLotSellingPrice,
+} from "@/lib/products/lot-units";
+import {
+  isProductUnitEnumError,
+  persistProductUnit,
+} from "@/lib/products/persist-unit";
 import { isDepartmentAllowed } from "@/lib/settings/service-scope";
 import {
   createProductSchema,
   toggleProductStatusSchema,
   updateProductPriceSchema,
   updateProductSchema,
+  type ProductUnit,
 } from "@/lib/products/schemas";
 import type { ProductActionState } from "@/lib/products/types";
 import { uploadProductImageFile } from "@/lib/products/upload-product-image";
@@ -212,8 +227,8 @@ function mapProductWriteError(error: { message?: string; code?: string } | null)
     return "Permission insuffisante pour créer ce produit.";
   }
 
-  if (message.includes("invalid input value for enum") || message.includes("product_unit")) {
-    return "Unité de stock non reconnue. Appliquez la migration des unités (bidon, sachet, carton) ou choisissez Bouteille / Canette.";
+  if (isProductUnitEnumError(error)) {
+    return "Cette unité n’est pas encore reconnue par la base. Réessayez : Sac, Sachet ou Carton seront enregistrés automatiquement.";
   }
 
   if (message.includes("image_url")) {
@@ -242,6 +257,8 @@ export async function createProductAction(
     active: parseCheckbox(formData.get("active")),
     packagingUnit: formData.get("packagingUnit") || undefined,
     unitsPerPack: formData.get("unitsPerPack") || undefined,
+    lotSellingPrice: formData.get("lotSellingPrice") || undefined,
+    initialStock: formData.get("initialStock") || undefined,
     sku: formData.get("sku") || undefined,
     barcode: formData.get("barcode") || undefined,
     purchasePrice: formData.get("purchasePrice") || undefined,
@@ -331,6 +348,11 @@ export async function createProductAction(
   // Droits déjà vérifiés via requireProductManagementMutationContext — service role pour un insert fiable.
   const writeClient = getProductWriteClient() ?? supabase;
 
+  const persistedUnit = persistProductUnit(parsed.data.unit);
+  const fallbackUnit = persistProductUnit(parsed.data.unit, { fallback: true });
+
+  const fractionable = inferFractionableFromUnit(parsed.data.unit);
+
   const payload = {
     organization_id: workspace.organizationId,
     establishment_id: workspace.establishmentId,
@@ -340,9 +362,11 @@ export async function createProductAction(
     slug,
     description: parsed.data.description ?? null,
     selling_price: parsed.data.sellingPrice,
-    unit: parsed.data.unit,
+    unit: persistedUnit.unit,
+    stock_unit_label: persistedUnit.stock_unit_label,
     minimum_stock: parsed.data.minimumStock,
     active: parsed.data.active,
+    fractionable,
     image_url: imageUrl,
     image_original_url: imageOriginalUrl,
     image_optimized_url: imageOptimizedUrl,
@@ -362,6 +386,7 @@ export async function createProductAction(
   };
 
   let createdId: string | null = null;
+  let savedUnit = persistedUnit.unit;
 
   {
     // 1) RPC SECURITY DEFINER (si migration appliquée)
@@ -372,7 +397,7 @@ export async function createProductAction(
       p_name: parsed.data.name,
       p_slug: slug,
       p_selling_price: parsed.data.sellingPrice,
-      p_unit: parsed.data.unit,
+      p_unit: persistedUnit.unit,
       p_minimum_stock: parsed.data.minimumStock,
       p_description: parsed.data.description ?? null,
       p_active: parsed.data.active,
@@ -386,6 +411,7 @@ export async function createProductAction(
         typeof rpcAttempt.data === "string" ? rpcAttempt.data : String(rpcAttempt.data);
     } else if (
       rpcAttempt.error &&
+      !isProductUnitEnumError(rpcAttempt.error) &&
       !/Could not find the function|PGRST202|schema cache|does not exist/i.test(
         rpcAttempt.error.message,
       ) &&
@@ -403,6 +429,27 @@ export async function createProductAction(
 
     if (!createdId) {
       let { data, error } = await attemptInsert(payload);
+
+      if (error?.message?.includes("stock_unit_label")) {
+        const { stock_unit_label: _label, ...withoutLabel } = payload;
+        void _label;
+        ({ data, error } = await attemptInsert(withoutLabel));
+      }
+
+      if (isProductUnitEnumError(error)) {
+        savedUnit = fallbackUnit.unit;
+        const fallbackPayload = {
+          ...payload,
+          unit: fallbackUnit.unit,
+          stock_unit_label: fallbackUnit.stock_unit_label,
+        };
+        ({ data, error } = await attemptInsert(fallbackPayload));
+        if (error?.message?.includes("stock_unit_label")) {
+          const { stock_unit_label: _label, ...withoutLabel } = fallbackPayload;
+          void _label;
+          ({ data, error } = await attemptInsert(withoutLabel));
+        }
+      }
 
       if (
         error &&
@@ -459,6 +506,34 @@ export async function createProductAction(
     };
   }
 
+  // Complète les champs commerce si création via RPC (insert minimal).
+  {
+    const commercePatch = {
+      sku: parsed.data.sku ?? null,
+      barcode: parsed.data.barcode ?? null,
+      purchase_price: parsed.data.purchasePrice ?? null,
+      wholesale_price: parsed.data.wholesalePrice ?? null,
+      purchase_unit:
+        "purchaseUnit" in parsed.data
+          ? ((parsed.data as { purchaseUnit?: string }).purchaseUnit ?? null)
+          : null,
+      units_per_purchase: parsed.data.unitsPerPurchase ?? null,
+      discount_min_quantity: parsed.data.discountMinQuantity ?? null,
+      discount_percent: parsed.data.discountPercent ?? null,
+      fractionable,
+      updated_by: workspace.userId,
+    };
+    const { error: patchError } = await writeClient
+      .from("products")
+      .update(commercePatch)
+      .eq("id", createdId)
+      .eq("organization_id", workspace.organizationId)
+      .eq("establishment_id", workspace.establishmentId);
+    if (patchError && !patchError.message.includes("fractionable")) {
+      console.warn("[createProductAction] commerce patch:", patchError.message);
+    }
+  }
+
   let packagingWarning: string | null = null;
 
   if (
@@ -494,8 +569,30 @@ export async function createProductAction(
           packagingError.message,
           insertPackError.message,
         );
+        packagingWarning = usesOptionalProductLots(workspace.activityCode)
+          ? "Produit enregistré. Configurez le lot (pack / carton) en modification du produit."
+          : "Produit enregistré. Configurez le conditionnement (casier/carton/sachet) en modification du produit.";
+      }
+    }
+
+    if (usesOptionalProductLots(workspace.activityCode)) {
+      try {
+        await ensureProductLotUnits(writeClient, workspace, {
+          productId: createdId,
+          baseUnit: parsed.data.unit,
+          lotName: BAR_PACKAGING_LABELS[parsed.data.packagingUnit],
+          unitsPerLot: parsed.data.unitsPerPack,
+          sellingPrice: parsed.data.sellingPrice,
+          lotSellingPrice: parsed.data.lotSellingPrice ?? 0,
+        });
+      } catch (lotError) {
+        console.warn(
+          "[createProductAction] lot units:",
+          lotError instanceof Error ? lotError.message : lotError,
+        );
         packagingWarning =
-          "Produit enregistré. Configurez le conditionnement (casier/carton/sachet) en modification du produit.";
+          packagingWarning ??
+          "Produit enregistré. Le lot n’a pas pu être lié à la caisse. Reconfigurez-le en modification.";
       }
     }
   }
@@ -505,12 +602,25 @@ export async function createProductAction(
     const stockLink = await ensureStockItemForBarProduct(workspace, {
       id: createdId,
       name: parsed.data.name,
-      unit: parsed.data.unit,
+      unit: savedUnit,
       minimumStock: parsed.data.minimumStock,
       active: parsed.data.active,
     });
     if ("error" in stockLink) {
       console.warn("[createProductAction] stock article:", stockLink.error);
+    } else if (parsed.data.initialStock && parsed.data.initialStock > 0) {
+      const initial = await recordInitialStockForProduct(
+        workspace,
+        createdId,
+        parsed.data.initialStock,
+        { unitCost: parsed.data.purchasePrice ?? null },
+      );
+      if ("error" in initial) {
+        console.warn("[createProductAction] stock initial:", initial.error);
+        packagingWarning =
+          packagingWarning ??
+          "Produit enregistré. Le stock actuel n’a pas pu être saisi — corrigez-le dans Stock.";
+      }
     }
   }
 
@@ -624,6 +734,9 @@ export async function updateProductAction(
     return { error: images.warning };
   }
 
+  const persistedUnit = persistProductUnit(parsed.data.unit);
+  const fallbackUnit = persistProductUnit(parsed.data.unit, { fallback: true });
+
   const payload = {
     department_id: departmentId,
     category_id: parsed.data.categoryId,
@@ -631,9 +744,11 @@ export async function updateProductAction(
     slug,
     description: parsed.data.description ?? null,
     selling_price: parsed.data.sellingPrice,
-    unit: parsed.data.unit,
+    unit: persistedUnit.unit,
+    stock_unit_label: persistedUnit.stock_unit_label,
     minimum_stock: parsed.data.minimumStock,
     active: parsed.data.active,
+    fractionable: inferFractionableFromUnit(parsed.data.unit),
     image_url: images.imageUrl,
     image_original_url: images.imageOriginalUrl,
     image_optimized_url: images.imageOptimizedUrl,
@@ -651,11 +766,46 @@ export async function updateProductAction(
     discount_percent: parsed.data.discountPercent ?? null,
   };
 
+  let savedUnit = persistedUnit.unit;
+
   let { error } = await writeClient
     .from("products")
     .update(payload)
     .eq("id", parsed.data.productId)
     .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId);
+
+  if (error?.message?.includes("stock_unit_label")) {
+    const { stock_unit_label: _label, ...withoutLabel } = payload;
+    void _label;
+    ({ error } = await writeClient
+      .from("products")
+      .update(withoutLabel)
+      .eq("id", parsed.data.productId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId));
+  }
+
+  if (isProductUnitEnumError(error)) {
+    savedUnit = fallbackUnit.unit;
+    const fallbackPayload = {
+      ...payload,
+      unit: fallbackUnit.unit,
+      stock_unit_label: fallbackUnit.stock_unit_label,
+    };
+    ({ error } = await writeClient
+      .from("products")
+      .update(fallbackPayload)
+      .eq("id", parsed.data.productId)
+      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId));
+    if (error?.message?.includes("stock_unit_label")) {
+      const { stock_unit_label: _label, ...withoutLabel } = fallbackPayload;
+      void _label;
+      ({ error } = await writeClient
+        .from("products")
+        .update(withoutLabel)
+        .eq("id", parsed.data.productId)
+        .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId));
+    }
+  }
 
   if (error?.message?.includes("image_original_url") || error?.message?.includes("image_optimized_url")) {
     const {
@@ -697,13 +847,22 @@ export async function updateProductAction(
     const stockLink = await ensureStockItemForBarProduct(workspace, {
       id: parsed.data.productId,
       name: parsed.data.name,
-      unit: parsed.data.unit,
+      unit: savedUnit,
       minimumStock: parsed.data.minimumStock,
       active: parsed.data.active,
     });
     if ("error" in stockLink) {
       console.warn("[updateProductAction] stock article:", stockLink.error);
     }
+  }
+
+  if (usesOptionalProductLots(workspace.activityCode)) {
+    await syncBaseLotSellingPrice(
+      writeClient,
+      workspace,
+      parsed.data.productId,
+      parsed.data.sellingPrice,
+    );
   }
 
   revalidateProductsPage();
@@ -735,6 +894,15 @@ export async function updateProductPriceAction(
 
   if (error) {
     return { error: mapProductWriteError(error) };
+  }
+
+  if (usesOptionalProductLots(workspace.activityCode)) {
+    await syncBaseLotSellingPrice(
+      writeClient,
+      workspace,
+      parsed.data.productId,
+      parsed.data.sellingPrice,
+    );
   }
 
   revalidateProductsPage();
@@ -805,7 +973,7 @@ export async function upsertPackagingAction(
   _prevState: ProductActionState,
   formData: FormData,
 ): Promise<ProductActionState> {
-  await requireProductManagementMutationContext();
+  const workspace = await requireProductManagementMutationContext();
 
   const { upsertPackagingSchema } = await import("@/lib/products/packaging-schemas");
 
@@ -815,13 +983,22 @@ export async function upsertPackagingAction(
     packagingUnit: formData.get("packagingUnit"),
     conversionFactor: formData.get("conversionFactor"),
     packagingId: formData.get("packagingId") || undefined,
+    lotSellingPrice: formData.get("lotSellingPrice") || undefined,
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
+  if (
+    usesOptionalProductLots(workspace.activityCode) &&
+    (!parsed.data.lotSellingPrice || parsed.data.lotSellingPrice <= 0)
+  ) {
+    return { error: "Indiquez le prix de vente du lot." };
+  }
+
   const supabase = await createClient();
+  const writeClient = getProductWriteClient() ?? supabase;
   const { error } = await supabase.rpc("upsert_product_packaging", {
     p_product_id: parsed.data.productId,
     p_name: parsed.data.name,
@@ -837,6 +1014,35 @@ export async function upsertPackagingAction(
       };
     }
     return { error: error.message || mapGenericError(error) };
+  }
+
+  if (usesOptionalProductLots(workspace.activityCode)) {
+    const { data: product } = await writeClient
+      .from("products")
+      .select("unit, selling_price")
+      .eq("id", parsed.data.productId)
+      .eq("organization_id", workspace.organizationId)
+      .eq("establishment_id", workspace.establishmentId)
+      .maybeSingle();
+    if (product) {
+      try {
+        await ensureProductLotUnits(writeClient, workspace, {
+          productId: parsed.data.productId,
+          baseUnit: product.unit as ProductUnit,
+          lotName:
+            BAR_PACKAGING_LABELS[parsed.data.packagingUnit as keyof typeof BAR_PACKAGING_LABELS] ??
+            parsed.data.name,
+          unitsPerLot: parsed.data.conversionFactor,
+          sellingPrice: Number(product.selling_price) || 0,
+          lotSellingPrice: parsed.data.lotSellingPrice ?? 0,
+        });
+      } catch (lotError) {
+        console.warn(
+          "[upsertPackagingAction] lot units:",
+          lotError instanceof Error ? lotError.message : lotError,
+        );
+      }
+    }
   }
 
   revalidateProductsPage();
@@ -863,6 +1069,17 @@ export async function deactivatePackagingAction(
   }
 
   const supabase = await createClient();
+  const writeClient = getProductWriteClient() ?? supabase;
+
+  const { data: packaging } = await writeClient
+    .from("product_packagings")
+    .select("name")
+    .eq("id", parsed.data.packagingId)
+    .eq("product_id", parsed.data.productId)
+    .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("product_packagings")
     .update({ active: false, updated_by: workspace.userId })
@@ -878,6 +1095,15 @@ export async function deactivatePackagingAction(
       };
     }
     return { error: error.message || mapGenericError(error) };
+  }
+
+  if (usesOptionalProductLots(workspace.activityCode) && packaging?.name) {
+    await deactivateLotUnitByName(
+      writeClient,
+      workspace,
+      parsed.data.productId,
+      String(packaging.name),
+    );
   }
 
   revalidateProductsPage();

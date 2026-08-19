@@ -35,7 +35,7 @@ import {
   type CashierSaleKind,
 } from "@/lib/catalog/sale-choices";
 import { stockQtyFromAmount } from "@/lib/catalog/sale-stock";
-import { usesTradeCatalog } from "@/lib/activity/ops-model";
+import { usesOptionalProductLots, usesTradeCatalog } from "@/lib/activity/catalog";
 import { formatPriceXof } from "@/lib/orders/constants";
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";
@@ -146,6 +146,7 @@ function resolveCategoryName(
 function HardwareOrSalePicker({
   product,
   hardware,
+  shopLots,
   saleMode,
   weightQty,
   detailAmount,
@@ -157,6 +158,7 @@ function HardwareOrSalePicker({
 }: {
   product: CashierProduct;
   hardware: boolean;
+  shopLots: boolean;
   saleMode: CashierSaleKind | null;
   weightQty: string;
   detailAmount: string;
@@ -166,7 +168,8 @@ function HardwareOrSalePicker({
   onAdd: (product: CashierProduct, unit?: CashierSaleChoice, quantity?: number) => void;
   onClose: () => void;
 }) {
-  const choices = buildCashierSaleChoices(product);
+  const choiceOptions = shopLots ? { shopLots: true } : undefined;
+  const choices = buildCashierSaleChoices(product, choiceOptions);
   const unitChoice = choices.find((item) => item.kind === "unit");
   const packChoices = choices.filter((item) => item.kind === "pack");
   const detailChoice = choices.find((item) => item.kind === "detail");
@@ -187,11 +190,11 @@ function HardwareOrSalePicker({
         onClick={(event) => event.stopPropagation()}
       >
         <p className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">
-          {simple ? "Ajouter au ticket" : "Comment le client achète"}
+          {simple ? "Ajouter au ticket" : shopLots ? "Unité ou lot ?" : "Comment le client achète"}
         </p>
         <h2 className="mt-1 text-[16px] font-semibold text-slate-900">{product.name}</h2>
-        {salePickerHint(choices) ? (
-          <p className="mt-1 text-[13px] text-slate-500">{salePickerHint(choices)}</p>
+        {salePickerHint(choices, choiceOptions) ? (
+          <p className="mt-1 text-[13px] text-slate-500">{salePickerHint(choices, choiceOptions)}</p>
         ) : null}
 
         {simple && unitChoice ? (
@@ -342,6 +345,7 @@ export function PosWorkspace({
   const profile = getActivityProfile(activityCode);
   const pages = getActivityPages(activityCode);
   const retail = profile.kind === "retail";
+  const shopLots = usesOptionalProductLots(activityCode);
   const router = useRouter();
   const cashierCtx = useFasoBarCashier();
   const browseWithoutSession = Boolean(cashierCtx?.adminReturnHref);
@@ -415,7 +419,12 @@ export function PosWorkspace({
       if (categoryId !== "all" && !categoryName && product.categoryId !== categoryId) {
         return false;
       }
-      if (search && !product.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (search) {
+        const query = search.toLowerCase().trim();
+        const nameMatch = product.name.toLowerCase().includes(query);
+        const barcodeMatch = product.barcode?.toLowerCase().includes(query);
+        if (!nameMatch && !barcodeMatch) return false;
+      }
       return true;
     });
   }, [catalogProducts, departmentFilter, categoryId, categories, search]);
@@ -512,7 +521,10 @@ export function PosWorkspace({
   }
 
   function openSaleFlow(product: CashierProduct) {
-    const choices = buildCashierSaleChoices(product);
+    const choices = buildCashierSaleChoices(
+      product,
+      shopLots ? { shopLots: true } : undefined,
+    );
     if (usesTradeCatalog(activityCode)) {
       setSalePicker(product);
       setSaleMode(null);
@@ -530,6 +542,19 @@ export function PosWorkspace({
   }
 
   function addProduct(product: CashierProduct) {
+    if (shopLots) {
+      startSaleResolve(async () => {
+        try {
+          const units = await getProductSaleUnitsAction(product.id);
+          const hydrated = { ...product, saleUnits: units };
+          openSaleFlow(hydrated);
+        } catch {
+          openSaleFlow({ ...product, saleUnits: product.saleUnits ?? [] });
+        }
+      });
+      return;
+    }
+
     const needsUnits = !product.saleUnits || product.saleUnits.length === 0;
     if (!needsUnits) {
       openSaleFlow(product);
@@ -919,6 +944,7 @@ export function PosWorkspace({
             search={search}
             onSearchChange={handleSearchChange}
             searchInputRef={searchInputRef}
+            shopLots={shopLots}
           />
         </div>
 
@@ -994,7 +1020,7 @@ export function PosWorkspace({
           className="flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-semibold text-slate-500 active:text-emerald-700"
         >
           <ClipboardList className="h-5 w-5" />
-          {retail ? "Ventes" : "Ouvertes"}
+          {profile.openTicketsNavLabel}
         </InstantLink>
         <InstantLink
           href="/application/caisse/session"
@@ -1052,7 +1078,7 @@ export function PosWorkspace({
             error={openError}
             isPending={isOpening}
             cashierName={cashierName}
-            cashierLabel={retail ? "Vendeur connecté" : "Caissière connectée"}
+            cashierLabel={`${profile.cashierSpaceLabel} connecté`}
           />
         </>
       ) : null}
@@ -1061,6 +1087,7 @@ export function PosWorkspace({
         <HardwareOrSalePicker
           product={salePicker}
           hardware={usesTradeCatalog(activityCode)}
+          shopLots={shopLots}
           saleMode={saleMode}
           weightQty={weightQty}
           detailAmount={detailAmount}

@@ -74,6 +74,7 @@ export function getNavigationForSpace(
       { href: "/application/tableau-de-bord", label: "Accueil", enabled: true },
       { href: "/application/produits", label: profile.productNavLabel, enabled: true },
       { href: "/application/stock", label: profile.stockNavLabel, enabled: true },
+      { href: "/application/inventaires", label: "Inventaires", enabled: true },
       { href: "/application/approvisionnements", label: "Approvisionnements", enabled: true },
       { href: "/application/ventes", label: "Ventes", enabled: true },
       { href: "/application/caisses", label: "Caisses", enabled: true },
@@ -100,6 +101,7 @@ export function getNavigationForSpace(
     return [
       { href: "/application/stock", label: "Accueil", enabled: true },
       { href: "/application/produits", label: profile.productNavLabel, enabled: true },
+      { href: "/application/inventaires", label: "Inventaires", enabled: true },
       { href: "/application/approvisionnements", label: "Approvisionnements", enabled: true },
       { href: "/application/depenses", label: "Dépenses", enabled: true },
     ];

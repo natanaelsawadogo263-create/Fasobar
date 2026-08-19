@@ -5,7 +5,17 @@ import {
   requireOrderManagementMutationContext,
   requireOrderReadContext,
 } from "@/lib/auth/workspace-context";
-import { listCommerceUnitsForProducts } from "@/lib/products/packaging-queries";
+import { usesOptionalProductLots } from "@/lib/activity/catalog";
+import {
+  listPackagingsForProducts,
+  listSaleUnitsForProducts,
+} from "@/lib/products/packaging-queries";
+import { repairShopSaleUnitsIfNeeded } from "@/lib/products/lot-units";
+import type { ProductUnit } from "@/lib/products/schemas";
+import {
+  createAdminClient,
+  isAdminClientConfigured,
+} from "@/lib/supabase/admin";
 import { revalidateOrderOps } from "@/lib/ops/revalidate";
 import { getOrderById } from "@/lib/orders/queries";
 import {
@@ -41,7 +51,41 @@ export async function getProductSaleUnitsAction(productId: string) {
   try {
     const workspace = await requireCashRegisterOperatorContext();
     if (!productId) return [];
-    const map = await listCommerceUnitsForProducts(workspace, [productId], "sale");
+
+    const supabase = await createClient();
+    const writeClient = isAdminClientConfigured() ? createAdminClient() : supabase;
+
+    const { data: product } = await writeClient
+      .from("products")
+      .select("unit, selling_price, stock_unit_label")
+      .eq("id", productId)
+      .eq("organization_id", workspace.organizationId)
+      .eq("establishment_id", workspace.establishmentId)
+      .maybeSingle();
+
+    if (!product) return [];
+
+    const { formatProductUnitDisplay } = await import("@/lib/products/constants");
+    const unitLabel = formatProductUnitDisplay(
+      String(product.unit ?? ""),
+      typeof product.stock_unit_label === "string" ? product.stock_unit_label : null,
+    );
+    const sellingPrice = Number(product.selling_price) || 0;
+
+    if (usesOptionalProductLots(workspace.activityCode)) {
+      const packagings = await listPackagingsForProducts(workspace, [productId]);
+      await repairShopSaleUnitsIfNeeded(
+        writeClient,
+        workspace,
+        productId,
+        { unit: product.unit as ProductUnit, sellingPrice },
+        packagings[productId] ?? [],
+      );
+    }
+
+    const map = await listSaleUnitsForProducts(workspace, [productId], {
+      [productId]: { sellingPrice, unitLabel },
+    });
     return (map[productId] ?? []).map((unit) => ({
       id: unit.id,
       name: unit.name,

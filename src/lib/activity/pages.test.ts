@@ -27,12 +27,15 @@ describe("pages métier commerce", () => {
     expect(pages.profile.stockNavLabel).toBe("Dépôt");
   });
 
-  it("adapte supermarché : tickets et rayon", () => {
+  it("adapte supermarché : tickets, caisse et magasin", () => {
     const pages = getActivityPages("supermarket");
-    expect(pages.pos.productsTab).toBe("Articles");
-    expect(pages.supply.spaceLabel).toBe("Rayon");
+    expect(pages.pos.productsTab).toBe("Produits");
+    expect(pages.pos.cartTab).toBe("Vente");
+    expect(pages.supply.spaceLabel).toBe("Magasin");
     expect(pages.cash.orderColumn).toBe("Ticket");
     expect(pages.expenses.kitchenPurchase).toBe("Achats magasin");
+    expect(pages.profile.cashierNavLabel).toBe("Caisse");
+    expect(pages.profile.cashierSpaceLabel).toBe("Caissier");
   });
 
   it("adapte la quincaillerie : vente, caisse-vendeur", () => {

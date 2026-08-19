@@ -18,6 +18,7 @@ import {
   Wine,
 } from "lucide-react";
 
+import { isRetailActivity } from "@/lib/activity/pages";
 import { getReportDataAction } from "@/app/(protected)/application/rapports/actions";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { BeneficesReportPanel } from "@/components/admin/benefices-report-panel";
@@ -668,7 +669,8 @@ export function AdminReportsWorkspace({
               <>
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center print:hidden">
                   <p className="max-w-md text-[12px] text-slate-500">
-                    La synthèse est affichée ci-dessus. Le détail des commandes
+                    La synthèse est affichée ci-dessus. Le détail des{" "}
+                    {isRetailActivity(activityCode) ? "ventes" : "commandes"}{" "}
                     est inclus à l&apos;impression et à l&apos;export CSV.
                   </p>
                 </div>

@@ -21,6 +21,7 @@ export function getMockAdminDashboardData(): AdminDashboardData {
       stockAlertCount: 8,
       expensesToday: 185_000,
       profitToday: 1_245_800 - 185_000,
+      profitAvailable: true,
     },
     stockAlerts: [
       {

@@ -208,12 +208,18 @@ export function AdminDashboardWorkspace({
           label={retail ? "Bénéfice" : "Caisses"}
           value={
             retail
-              ? formatPriceXof(kpis.profitToday)
+              ? kpis.profitAvailable && kpis.profitToday !== null
+                ? formatPriceXof(kpis.profitToday)
+                : "—"
               : formatPriceXof(kpis.openCashBalance ?? 0)
           }
           sub={
             <span className="text-slate-400">
-              {retail ? "Ventes − achat − dépenses" : `${openSessionsCount} ouverte${openSessionsCount > 1 ? "s" : ""}`}
+              {retail
+                ? kpis.profitAvailable
+                  ? "Ventes − coût vendu − dépenses"
+                  : "Après le 1er approvisionnement"
+                : `${openSessionsCount} ouverte${openSessionsCount > 1 ? "s" : ""}`}
             </span>
           }
         />
@@ -267,12 +273,18 @@ export function AdminDashboardWorkspace({
           label={retail ? "Bénéfice du jour" : "Solde caisses"}
           value={
             retail
-              ? formatPriceXof(kpis.profitToday)
+              ? kpis.profitAvailable && kpis.profitToday !== null
+                ? formatPriceXof(kpis.profitToday)
+                : "—"
               : formatPriceXof(kpis.openCashBalance ?? 0)
           }
           sub={
             retail ? (
-              <span className="text-slate-500">Ventes − achat − dépenses</span>
+              <span className="text-slate-500">
+                {kpis.profitAvailable
+                  ? "Ventes − coût vendu − dépenses"
+                  : "Après le 1er approvisionnement"}
+              </span>
             ) : openSessionsCount > 0 ? (
               <span className="inline-flex items-center gap-1 text-slate-500">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -379,7 +391,14 @@ export function AdminDashboardWorkspace({
                   <MiniStat label="Ventes" value={String(kpis.ordersToday)} />
                   <MiniStat label="CA" value={formatPriceXof(kpis.salesToday)} />
                   <MiniStat label="Dépenses" value={formatPriceXof(kpis.expensesToday)} />
-                  <MiniStat label="Bénéfice" value={formatPriceXof(kpis.profitToday)} />
+                  <MiniStat
+                    label="Bénéfice"
+                    value={
+                      kpis.profitAvailable && kpis.profitToday !== null
+                        ? formatPriceXof(kpis.profitToday)
+                        : "—"
+                    }
+                  />
                 </div>
               ) : (
                 <div className="space-y-2.5">

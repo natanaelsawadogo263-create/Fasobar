@@ -1,3 +1,4 @@
+import { getActivityPages } from "@/lib/activity/pages";
 import { isRetailActivity } from "@/lib/activity/profile";
 import type { ReportType } from "@/lib/reports/schemas";
 import type { ReportColumnFormat } from "@/lib/reports/types";
@@ -26,7 +27,7 @@ export const REPORT_TYPE_OPTIONS: Array<{
   {
     id: "benefices",
     label: "Bénéfices",
-    description: "CA, approvisionnements, dépenses et bénéfice net.",
+    description: "CA, coût des produits vendus, dépenses et bénéfice net.",
   },
   {
     id: "stock_boissons",
@@ -70,37 +71,64 @@ export function reportOptionsForScope(
   activityCode?: string | null,
 ) {
   const retail = isRetailActivity(activityCode);
+  const pages = getActivityPages(activityCode);
 
   return REPORT_TYPE_OPTIONS.filter((option) => {
     if (option.id === "stock_boissons") {
-      return !retail && hasBarService(scope);
+      return retail || hasBarService(scope);
     }
     return true;
   }).map((option) => {
+    if (option.id === "stock_boissons" && retail) {
+      return {
+        ...option,
+        label: "Stock magasin",
+        description: "Niveaux de stock actuels du magasin.",
+      };
+    }
+    if (option.id === "ventes" && retail) {
+      return {
+        ...option,
+        description: pages.reports.salesHint,
+      };
+    }
+    if (option.id === "produits_vendus" && retail) {
+      return {
+        ...option,
+        label: pages.reports.productsSold,
+        description: pages.reports.productsSoldHint,
+      };
+    }
+    if (option.id === "pertes_casse" && retail) {
+      return {
+        ...option,
+        description: "Pertes, casse et produits offerts.",
+      };
+    }
     if (option.id === "benefices") {
       if (retail) {
         return {
           ...option,
-          description: "CA, approvisionnements, dépenses et bénéfice net du magasin.",
+          description: "CA, coût des produits vendus, dépenses et bénéfice net du magasin.",
         };
       }
       if (scope === "BAR") {
         return {
           ...option,
-          description: "Vue Boissons : CA, approvisionnements, dépenses et bénéfice net.",
+          description: "Vue Boissons : CA, coût vendu, dépenses et bénéfice net.",
         };
       }
       if (scope === "KITCHEN") {
         return {
           ...option,
           description:
-            "Vue Nourriture : CA, approvisionnements, dépenses et bénéfice net.",
+            "Vue Nourriture : CA, coût vendu, dépenses et bénéfice net.",
         };
       }
       return {
         ...option,
         description:
-          "Vue Bar / Cuisine : CA, approvisionnements, dépenses et bénéfice net.",
+          "Vue Bar / Cuisine : CA, coût vendu, dépenses et bénéfice net.",
       };
     }
     if (option.id === "approvisionnements") {

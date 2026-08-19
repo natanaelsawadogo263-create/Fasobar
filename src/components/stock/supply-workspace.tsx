@@ -28,6 +28,7 @@ import {
   SupplierFormModal,
   type SupplierFormState,
 } from "@/components/stock/supplier-form-modal";
+import { getActivityPages } from "@/lib/activity/pages";
 import { isRetailActivity } from "@/lib/activity/profile";
 import { formatPriceXof, formatQuantity } from "@/lib/stock/constants";
 import { resolveOrderPeriodRange, toLocalIsoDate } from "@/lib/orders/period";
@@ -111,6 +112,10 @@ export function SupplyWorkspace({
   void establishmentName;
   void periodLabel;
   const retail = isRetailActivity(activityCode);
+  const supplyPages = getActivityPages(activityCode).supply;
+  const spaceLabels: Record<SupplyDepartment, string> = retail
+    ? { BAR: supplyPages.barArea, KITCHEN: supplyPages.caisseArea }
+    : SPACE_LABELS;
   const router = useRouter();
   const availableDepartments = lockedDepartment
     ? [lockedDepartment]
@@ -439,7 +444,7 @@ export function SupplyWorkspace({
               disabled={isPending || !canCreateEntry}
               title={
                 departmentItems.length === 0
-                  ? `Créez d'abord des articles ${SPACE_LABELS[activeDepartment].toLowerCase()}`
+                  ? `Créez d'abord des articles ${spaceLabels[activeDepartment].toLowerCase()}`
                   : activeSuppliers.length === 0
                     ? "Ajoutez d'abord un fournisseur pour cet espace"
                     : undefined
@@ -502,7 +507,7 @@ export function SupplyWorkspace({
                     : "bg-slate-100 text-slate-600 active:bg-slate-200"
                 }`}
               >
-                {SPACE_LABELS[code]}
+                {spaceLabels[code]}
               </button>
             ))
           : null}
@@ -585,7 +590,7 @@ export function SupplyWorkspace({
         />
         {!compact && !retail ? (
           <StatCard
-            title={`Articles ${SPACE_LABELS[activeDepartment].toLowerCase()}`}
+            title={`Articles ${spaceLabels[activeDepartment].toLowerCase()}`}
             value={String(departmentItems.length)}
             icon={Package}
             tone="slate"
@@ -887,7 +892,7 @@ export function SupplyWorkspace({
                 </h3>
                 <p className="mt-1 text-[12px] text-slate-500">
                   {departmentSuppliers.length === 0
-                    ? `Ajoutez un fournisseur ${SPACE_LABELS[activeDepartment].toLowerCase()} avant une entrée.`
+                    ? `Ajoutez un fournisseur ${spaceLabels[activeDepartment].toLowerCase()} avant une entrée.`
                     : "Changez le filtre pour afficher d'autres."}
                 </p>
                 {canManageStock && departmentSuppliers.length === 0 ? (
@@ -915,7 +920,7 @@ export function SupplyWorkspace({
                             {supplier.name}
                           </p>
                           <span className="inline-flex rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
-                            {SPACE_LABELS[supplier.departmentCode]}
+                            {spaceLabels[supplier.departmentCode]}
                           </span>
                           <span
                             className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getActivityPages } from "@/lib/activity/pages";
 import { isRetailActivity } from "@/lib/activity/profile";
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { listAdminCashSessions } from "@/lib/admin/cash-sessions-queries";
@@ -10,8 +11,10 @@ import { listAdminOrders } from "@/lib/orders/queries";
 import { ORDER_PAYMENT_STATUS_LABELS, ORDER_STATUS_LABELS } from "@/lib/orders/constants";
 import { humanizeActionCode, humanizeEntityType, REPORT_TYPE_OPTIONS } from "@/lib/reports/constants";
 import type { ReportFiltersInput, ReportType } from "@/lib/reports/schemas";
-import type { ReportColumn, ReportResult, ReportRow, ReportSummaryItem } from "@/lib/reports/types";
+import type { ReportColumn, ReportMeta, ReportResult, ReportRow, ReportSummaryItem } from "@/lib/reports/types";
 import { getAdminSalesData } from "@/lib/sales/queries";
+import { sumSoldGoodsCost } from "@/lib/profit/cost-of-goods";
+import { hasEstablishmentSupplyHistory } from "@/lib/profit/supply-history";
 import {
   hasBarService,
   hasKitchenService,
@@ -39,15 +42,17 @@ function buildResult(
   columns: ReportColumn[],
   rows: ReportRow[],
   summary: ReportSummaryItem[] = [],
+  meta?: ReportMeta,
 ): ReportResult {
-  const meta = findTypeMeta(type);
+  const typeMeta = findTypeMeta(type);
   return {
     type,
-    title: meta.label,
-    description: meta.description,
+    title: typeMeta.label,
+    description: typeMeta.description,
     columns,
     rows,
     summary,
+    meta,
   };
 }
 
@@ -56,6 +61,9 @@ async function buildVentesReport(
   filters: ReportFiltersInput,
 ): Promise<ReportResult> {
   const data = await getAdminSalesData(workspace, { from: filters.from, to: filters.to });
+
+  const retail = isRetailActivity(workspace.activityCode);
+  const pages = getActivityPages(workspace.activityCode);
 
   const rows: ReportRow[] = data.orders.map((order) => ({
     orderNumber: formatOrderNumber(order.orderNumber),
@@ -68,10 +76,10 @@ async function buildVentesReport(
   return buildResult(
     "ventes",
     [
-      { key: "orderNumber", label: "N° commande" },
+      { key: "orderNumber", label: retail ? "N° ticket" : "N° commande" },
       { key: "paidAt", label: "Date de paiement", format: "datetime" },
-      { key: "cashierName", label: "Caissier·ère" },
-      { key: "itemCount", label: "Articles", format: "number" },
+      { key: "cashierName", label: pages.sales.cashierColumn },
+      { key: "itemCount", label: retail ? "Produits" : "Articles", format: "number" },
       { key: "totalAmount", label: "Montant", format: "currency" },
     ],
     rows,
@@ -137,6 +145,9 @@ async function buildProduitsVendusReport(
 ): Promise<ReportResult> {
   const data = await getAdminSalesData(workspace, { from: filters.from, to: filters.to });
 
+  const retail = isRetailActivity(workspace.activityCode);
+  const pages = getActivityPages(workspace.activityCode);
+
   const rows: ReportRow[] = data.topProducts.map((product) => ({
     name: product.name,
     departmentName: product.departmentName,
@@ -147,8 +158,10 @@ async function buildProduitsVendusReport(
   return buildResult(
     "produits_vendus",
     [
-      { key: "name", label: "Produit" },
-      { key: "departmentName", label: "Département" },
+      { key: "name", label: pages.sales.productColumn },
+      ...(!retail
+        ? [{ key: "departmentName", label: "Département" } as ReportColumn]
+        : []),
       { key: "quantity", label: "Quantité", format: "number" },
       { key: "revenue", label: "Chiffre d'affaires", format: "currency" },
     ],
@@ -158,6 +171,7 @@ async function buildProduitsVendusReport(
 }
 
 async function buildStockBoissonsReport(workspace: WorkspaceContext): Promise<ReportResult> {
+  const retail = isRetailActivity(workspace.activityCode);
   const items = await listStockItems(workspace, { tab: "bar", status: "all" });
 
   const rows: ReportRow[] = items.map((item) => ({
@@ -171,7 +185,7 @@ async function buildStockBoissonsReport(workspace: WorkspaceContext): Promise<Re
   return buildResult(
     "stock_boissons",
     [
-      { key: "name", label: "Article" },
+      { key: "name", label: retail ? "Produit" : "Article" },
       { key: "currentQuantity", label: "Quantité", format: "number" },
       { key: "minimumQuantity", label: "Seuil minimum", format: "number" },
       { key: "unit", label: "Unité" },
@@ -179,7 +193,7 @@ async function buildStockBoissonsReport(workspace: WorkspaceContext): Promise<Re
     ],
     rows,
     [
-      { label: "Articles suivis", value: String(items.length) },
+      { label: retail ? "Produits suivis" : "Articles suivis", value: String(items.length) },
       {
         label: "En alerte",
         value: String(items.filter((item) => item.status === "low" || item.status === "out").length),
@@ -363,7 +377,7 @@ async function buildBeneficesReport(
   const includeBar = !retail && hasBarService(scope);
   const includeKitchen = !retail && hasKitchenService(scope);
 
-  const [sales, expenses, barSupply, kitchenSupply, retailSupply] = await Promise.all([
+  const [sales, expenses, profitAvailable] = await Promise.all([
     getAdminSalesData(workspace, { from: filters.from, to: filters.to }),
     listExpenses(
       workspace,
@@ -374,81 +388,70 @@ async function buildBeneficesReport(
       },
       { limit: 2000 },
     ),
-    includeBar
-      ? listRecentSupplyEntries(workspace, {
-          departmentCode: "BAR",
-          from: filters.from,
-          to: filters.to,
-          limit: 2000,
-        })
-      : Promise.resolve([]),
-    includeKitchen
-      ? listRecentSupplyEntries(workspace, {
-          departmentCode: "KITCHEN",
-          from: filters.from,
-          to: filters.to,
-          limit: 2000,
-        })
-      : Promise.resolve([]),
-    retail
-      ? listRecentSupplyEntries(workspace, {
-          from: filters.from,
-          to: filters.to,
-          limit: 2000,
-        })
-      : Promise.resolve([]),
+    hasEstablishmentSupplyHistory(workspace),
   ]);
 
-  const sumSupply = (entries: { totalCost: number | null }[]) =>
-    entries.reduce((sum, entry) => sum + (entry.totalCost ?? 0), 0);
+  const orderIds = sales.orders.map((order) => order.id);
+  const [totalCogs, barCogs, kitchenCogs] = await Promise.all([
+    sumSoldGoodsCost(workspace.establishmentId, orderIds),
+    includeBar
+      ? sumSoldGoodsCost(workspace.establishmentId, orderIds, { departmentCode: "BAR" })
+      : Promise.resolve(0),
+    includeKitchen
+      ? sumSoldGoodsCost(workspace.establishmentId, orderIds, { departmentCode: "KITCHEN" })
+      : Promise.resolve(0),
+  ]);
+
+  const beneficeColumns: ReportColumn[] = [
+    { key: "space", label: "Espace" },
+    { key: "revenue", label: "Chiffre d'affaires", format: "currency" },
+    { key: "supplyCost", label: "Coût appro. vendu", format: "currency" },
+    { key: "expenses", label: "Dépenses", format: "currency" },
+    { key: "profit", label: "Bénéfice net", format: "currency" },
+  ];
+
+  const meta: ReportMeta = { profitAvailable };
 
   if (retail) {
     const totalRevenue = sales.summary.totalRevenue;
-    const totalAppro = sumSupply(retailSupply);
     const totalExpenses = expenses.periodTotal;
-    const totalProfit = totalRevenue - totalAppro - totalExpenses;
+    const totalProfit = totalRevenue - totalCogs - totalExpenses;
 
     return buildResult(
       "benefices",
-      [
-        { key: "space", label: "Espace" },
-        { key: "revenue", label: "Chiffre d'affaires", format: "currency" },
-        { key: "supplyCost", label: "Approvisionnements", format: "currency" },
-        { key: "expenses", label: "Dépenses", format: "currency" },
-        { key: "profit", label: "Bénéfice net", format: "currency" },
-      ],
+      beneficeColumns,
       [
         {
           space: "Total",
           revenue: totalRevenue,
-          supplyCost: totalAppro,
+          supplyCost: totalCogs,
           expenses: totalExpenses,
-          profit: totalProfit,
+          profit: profitAvailable ? totalProfit : null,
         },
       ],
       [
-        { label: "Bénéfice net total", value: formatPriceXof(totalProfit) },
+        ...(profitAvailable
+          ? [{ label: "Bénéfice net total", value: formatPriceXof(totalProfit) }]
+          : []),
         { label: "CA total", value: formatPriceXof(totalRevenue) },
-        { label: "Appro total", value: formatPriceXof(totalAppro) },
+        { label: "Coût appro. vendu", value: formatPriceXof(totalCogs) },
         { label: "Dépenses total", value: formatPriceXof(totalExpenses) },
       ],
+      meta,
     );
   }
 
   const barRevenue = includeBar ? sales.summary.barRevenue : 0;
   const kitchenRevenue = includeKitchen ? sales.summary.kitchenRevenue : 0;
-  const barAppro = includeBar ? sumSupply(barSupply) : 0;
-  const kitchenAppro = includeKitchen ? sumSupply(kitchenSupply) : 0;
   const barExpenses = includeBar ? expenses.barTotal : 0;
-  // Cuisine : dépenses rattachées à la caisse (espace restauration).
   const kitchenExpenses = includeKitchen ? expenses.caisseTotal : 0;
 
-  const barProfit = barRevenue - barAppro - barExpenses;
-  const kitchenProfit = kitchenRevenue - kitchenAppro - kitchenExpenses;
+  const barProfit = barRevenue - barCogs - barExpenses;
+  const kitchenProfit = kitchenRevenue - kitchenCogs - kitchenExpenses;
   const totalProfit =
     (includeBar ? barProfit : 0) + (includeKitchen ? kitchenProfit : 0);
   const totalRevenue = barRevenue + kitchenRevenue;
-  const totalAppro = barAppro + kitchenAppro;
+  const totalCogsCombined = barCogs + kitchenCogs;
   const totalExpenses = barExpenses + kitchenExpenses;
 
   const rows: ReportRow[] = [];
@@ -456,44 +459,41 @@ async function buildBeneficesReport(
     rows.push({
       space: "Bar",
       revenue: barRevenue,
-      supplyCost: barAppro,
+      supplyCost: barCogs,
       expenses: barExpenses,
-      profit: barProfit,
+      profit: profitAvailable ? barProfit : null,
     });
   }
   if (includeKitchen) {
     rows.push({
       space: "Cuisine",
       revenue: kitchenRevenue,
-      supplyCost: kitchenAppro,
+      supplyCost: kitchenCogs,
       expenses: kitchenExpenses,
-      profit: kitchenProfit,
+      profit: profitAvailable ? kitchenProfit : null,
     });
   }
   rows.push({
     space: "Total",
     revenue: totalRevenue,
-    supplyCost: totalAppro,
+    supplyCost: totalCogsCombined,
     expenses: totalExpenses,
-    profit: totalProfit,
+    profit: profitAvailable ? totalProfit : null,
   });
 
   return buildResult(
     "benefices",
-    [
-      { key: "space", label: "Espace" },
-      { key: "revenue", label: "Chiffre d'affaires", format: "currency" },
-      { key: "supplyCost", label: "Approvisionnements", format: "currency" },
-      { key: "expenses", label: "Dépenses", format: "currency" },
-      { key: "profit", label: "Bénéfice net", format: "currency" },
-    ],
+    beneficeColumns,
     rows,
     [
-      { label: "Bénéfice net total", value: formatPriceXof(totalProfit) },
+      ...(profitAvailable
+        ? [{ label: "Bénéfice net total", value: formatPriceXof(totalProfit) }]
+        : []),
       { label: "CA total", value: formatPriceXof(totalRevenue) },
-      { label: "Appro total", value: formatPriceXof(totalAppro) },
+      { label: "Coût appro. vendu", value: formatPriceXof(totalCogsCombined) },
       { label: "Dépenses total", value: formatPriceXof(totalExpenses) },
     ],
+    meta,
   );
 }
 
@@ -648,7 +648,8 @@ export async function getReportData(
 ): Promise<ReportResult> {
   if (
     type === "stock_boissons" &&
-    (isRetailActivity(workspace.activityCode) || !hasBarService(workspace.serviceScope))
+    !isRetailActivity(workspace.activityCode) &&
+    !hasBarService(workspace.serviceScope)
   ) {
     return buildVentesReport(workspace, filters);
   }

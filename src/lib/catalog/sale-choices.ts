@@ -39,7 +39,7 @@ function deriveMissingPrices(units: SaleUnitOption[], productPrice: number): Sal
   });
 }
 
-/** Choix caisse : Unité, Gros, Détail (montant). */
+/** Choix caisse : Unité, Gros/Lot, Détail (montant). */
 export function buildCashierSaleChoices(
   product: {
     sellingPrice: number;
@@ -47,7 +47,9 @@ export function buildCashierSaleChoices(
     fractionable?: boolean;
     saleUnits?: SaleUnitOption[] | null;
   },
+  options?: { shopLots?: boolean },
 ): CashierSaleChoice[] {
+  const packLabel = options?.shopLots ? "Lot" : "Gros";
   const raw = (product.saleUnits ?? []).filter((unit) => unit.name.trim());
   const priced = deriveMissingPrices(raw, product.sellingPrice);
   const choices: CashierSaleChoice[] = [];
@@ -60,7 +62,7 @@ export function buildCashierSaleChoices(
         ...unit,
         allowDecimal: false,
         kind: "pack",
-        title: `Gros · ${unit.name} de ${unit.factor}`,
+        title: `${packLabel} · ${unit.name} de ${unit.factor}`,
         hint: `${roundCfa(unit.price)} F le ${unit.name}`,
       });
       continue;
@@ -110,11 +112,18 @@ export function buildCashierSaleChoices(
   });
 }
 
-export function salePickerHint(choices: CashierSaleChoice[]): string {
+export function salePickerHint(
+  choices: CashierSaleChoice[],
+  options?: { shopLots?: boolean },
+): string {
   const hasPack = choices.some((choice) => choice.kind === "pack");
   const hasDetail = choices.some((choice) => choice.kind === "detail");
-  if (hasPack && hasDetail) return "Unité, gros, ou un montant (détail).";
-  if (hasPack) return "Unité ou gros.";
+  if (hasPack && hasDetail) {
+    return options?.shopLots
+      ? "Unité, lot, ou un montant (détail)."
+      : "Unité, gros, ou un montant (détail).";
+  }
+  if (hasPack) return options?.shopLots ? "Unité ou lot." : "Unité ou gros.";
   if (hasDetail) return "Unité entière, ou détail selon le montant.";
   return "";
 }

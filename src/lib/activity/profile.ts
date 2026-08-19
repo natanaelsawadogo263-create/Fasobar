@@ -78,12 +78,25 @@ const RETAIL_OVERRIDES: Partial<
   Record<Exclude<BusinessActivityId, "restaurant">, Partial<Omit<ActivityProfile, "id" | "kind">>>
 > = {
   supermarket: {
-    dashboardHint: "Rayons, caisse, ruptures et marge du jour.",
-    catalogDepartmentLabel: "Rayon",
+    dashboardHint: "Caisse, rayons, ruptures et marge du magasin.",
+    productNavLabel: "Produits",
+    stockNavLabel: "Stock",
+    ticketsNavLabel: "Tickets",
+    cashierNavLabel: "Caisse",
+    openTicketsNavLabel: "Tickets",
+    ordersKpiLabel: "Tickets du jour",
+    topProductsTitle: "Produits les plus vendus",
+    catalogDepartmentLabel: "Magasin",
     cashierSpaceLabel: "Caissier",
-    cashierSpaceDescription: "Encaissements et tickets — le dépôt est géré à part.",
-    stockManagerLabel: "Responsable dépôt",
-    stockManagerDescription: "Rayons, réceptions et niveaux de stock.",
+    cashierSpaceDescription:
+      "Caisse, tickets et encaissement — le stock est géré à part.",
+    stockManagerLabel: "Responsable magasin",
+    stockManagerDescription:
+      "Produits, rayons, réceptions fournisseurs et niveaux de stock.",
+    adminSpaceDescription:
+      "Pilotage du magasin : équipe, stock, caisse, ventes et bénéfice.",
+    clientPlaceholder: "Client (optionnel)",
+    ticketTitle: "Ticket en cours",
   },
   clothing: {
     dashboardHint: "Ventes boutique, collections et encaisse.",

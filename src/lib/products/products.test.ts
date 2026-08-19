@@ -5,7 +5,7 @@ import {
   productFiltersSchema,
   updateProductPriceSchema,
 } from "@/lib/products/schemas";
-import { formatPriceXof, MANAGEMENT_ROLES } from "@/lib/products/constants";
+import { formatPriceXof, inferFractionableFromUnit, MANAGEMENT_ROLES } from "@/lib/products/constants";
 
 describe("product schemas", () => {
   it("valide un produit complet", () => {
@@ -38,6 +38,59 @@ describe("product schemas", () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("accepte un produit supermarché vendu à l’unité et acheté en lot", () => {
+    const result = createProductSchema.safeParse({
+      name: "Huile 5 L",
+      departmentCode: "BAR",
+      categoryId: "00000000-0000-4000-8000-000000000001",
+      sellingPrice: 4500,
+      unit: "JERRYCAN",
+      minimumStock: 5,
+      active: true,
+      catalogKind: "retail",
+      packagingUnit: "CARTON",
+      unitsPerPack: 5,
+      lotSellingPrice: 20000,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepte un pack de sachets d’eau", () => {
+    const result = createProductSchema.safeParse({
+      name: "Eau sachet",
+      departmentCode: "BAR",
+      categoryId: "00000000-0000-4000-8000-000000000001",
+      sellingPrice: 25,
+      unit: "SACHET",
+      minimumStock: 40,
+      active: true,
+      catalogKind: "retail",
+      packagingUnit: "PACK",
+      unitsPerPack: 20,
+      lotSellingPrice: 400,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("refuse un lot supermarché sans prix de vente du lot", () => {
+    const result = createProductSchema.safeParse({
+      name: "Huile 5 L",
+      departmentCode: "BAR",
+      categoryId: "00000000-0000-4000-8000-000000000001",
+      sellingPrice: 4500,
+      unit: "JERRYCAN",
+      minimumStock: 5,
+      active: true,
+      catalogKind: "retail",
+      packagingUnit: "CARTON",
+      unitsPerPack: 5,
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it("accepte une nouvelle catégorie commerce", () => {
@@ -98,6 +151,25 @@ describe("product schemas", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepte un stock actuel à la création", () => {
+    const result = createProductSchema.safeParse({
+      name: "Huile 5 L",
+      departmentCode: "BAR",
+      categoryId: "00000000-0000-4000-8000-000000000001",
+      sellingPrice: 4500,
+      unit: "JERRYCAN",
+      minimumStock: 2,
+      initialStock: 15,
+      active: true,
+      catalogKind: "retail",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.initialStock).toBe(15);
+    }
+  });
+
   it("valide une mise à jour de prix", () => {
     const result = updateProductPriceSchema.safeParse({
       productId: "00000000-0000-4000-8000-000000000099",
@@ -130,5 +202,11 @@ describe("product helpers", () => {
   it("identifie les rôles de gestion", () => {
     expect(MANAGEMENT_ROLES.has("OWNER")).toBe(true);
     expect(MANAGEMENT_ROLES.has("CASHIER")).toBe(false);
+  });
+
+  it("active la vente fractionnée pour kg et litre", () => {
+    expect(inferFractionableFromUnit("KG")).toBe(true);
+    expect(inferFractionableFromUnit("LITER")).toBe(true);
+    expect(inferFractionableFromUnit("PIECE")).toBe(false);
   });
 });

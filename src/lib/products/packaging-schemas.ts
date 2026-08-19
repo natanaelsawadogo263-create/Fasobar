@@ -20,6 +20,14 @@ export const upsertPackagingSchema = z.object({
     .number()
     .positive("Le coefficient doit être strictement positif."),
   packagingId: z.string().uuid().optional(),
+  lotSellingPrice: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce
+      .number()
+      .int("Le prix du lot doit être un nombre entier.")
+      .positive("Indiquez le prix de vente du lot.")
+      .optional(),
+  ),
 });
 
 export const deactivatePackagingSchema = z.object({

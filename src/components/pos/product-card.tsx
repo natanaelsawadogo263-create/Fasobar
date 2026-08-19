@@ -17,6 +17,7 @@ type ProductCardProps = {
   flash?: boolean;
   onAdd: (product: CashierProduct) => void;
   variant?: "grid" | "list";
+  shopLots?: boolean;
 };
 
 export function ProductCard({
@@ -25,6 +26,7 @@ export function ProductCard({
   flash,
   onAdd,
   variant = "grid",
+  shopLots = false,
 }: ProductCardProps) {
   const department = product.departmentCode as DepartmentCode;
   const badge = POS_DEPARTMENT_BADGE[department] ?? {
@@ -34,12 +36,15 @@ export function ProductCard({
   const imageUrl = getProductImage(product.name, product.imageUrl);
   const outOfStock = isProductOutOfStock(product);
   const locked = Boolean(disabled || outOfStock);
-  const saleChoices = buildCashierSaleChoices(product);
+  const saleChoices = buildCashierSaleChoices(
+    product,
+    shopLots ? { shopLots: true } : undefined,
+  );
   const priceLabel =
     saleChoices.length > 1
       ? saleChoices
           .filter((choice) => choice.kind !== "detail")
-          .map((choice) => (choice.kind === "pack" ? "Gros" : "Unité"))
+          .map((choice) => (choice.kind === "pack" ? (shopLots ? "Lot" : "Gros") : "Unité"))
           .join(" · ")
       : formatPriceXof(saleChoices[0]?.price ?? product.sellingPrice);
 

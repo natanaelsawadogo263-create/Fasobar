@@ -29,6 +29,9 @@ import {
   DEPARTMENT_LABELS,
   PRODUCT_UNIT_LABELS,
   PRODUCT_UNITS,
+  SHOP_PACKAGING_DEFAULT_UNITS,
+  SHOP_PACKAGING_UNITS,
+  suggestedShopLot,
 } from "@/lib/products/constants";
 import type { CategoryOption, ProductListItem, ProductPackaging } from "@/lib/products/types";
 import type { BarPackagingUnit, DepartmentCode, ProductUnit } from "@/lib/products/schemas";
@@ -47,6 +50,7 @@ export type ProductFormState = {
   active: boolean;
   packagingUnit: BarPackagingUnit;
   unitsPerPack: number;
+  lotSellingPrice: number;
   sku: string;
   barcode: string;
   purchasePrice: number;
@@ -55,6 +59,7 @@ export type ProductFormState = {
   unitsPerPurchase: number;
   discountMinQuantity: number;
   discountPercent: number;
+  initialStock: number;
 };
 
 type ProductFormModalProps = {
@@ -111,6 +116,9 @@ export function ProductFormModal({
   const hardware = isHardwareActivity(activityCode);
   const isCreate = mode === "create";
   const isBar = formState.departmentCode === "BAR";
+  const shopLots = retail && catalog.showPackaging;
+  const packagingChoices = shopLots ? SHOP_PACKAGING_UNITS : BAR_PACKAGING_UNITS;
+  const [comesInLot, setComesInLot] = useState(formState.unitsPerPack > 1);
   const [newCategoryName, setNewCategoryName] = useState("");
   const creatingCategory = formState.categoryId === NEW_CATEGORY_VALUE;
   const departmentLabels: Record<DepartmentCode, string> = {
@@ -124,6 +132,10 @@ export function ProductFormModal({
     : Object.entries(departmentLabels);
   const lockDepartment = departmentChoices.length === 1;
   const errorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setComesInLot(formState.unitsPerPack > 1);
+  }, [mode, editingProduct?.id]);
 
   useEffect(() => {
     if (formError) {
@@ -202,6 +214,13 @@ export function ProductFormModal({
           onClientValidationError?.("Le stock minimum doit être un nombre positif ou nul.");
           return;
         }
+        if (
+          isCreate &&
+          (formState.initialStock < 0 || Number.isNaN(formState.initialStock))
+        ) {
+          onClientValidationError?.("Le stock actuel doit être un nombre positif ou nul.");
+          return;
+        }
         if (isBar && isCreate && !retail) {
           if (!formState.packagingUnit) {
             onClientValidationError?.(
@@ -212,6 +231,20 @@ export function ProductFormModal({
           if (!formState.unitsPerPack || formState.unitsPerPack < 1) {
             onClientValidationError?.(
               `Indiquez combien de ${baseUnitLabel.toLowerCase()}s contient le conditionnement.`,
+            );
+            return;
+          }
+        }
+        if (shopLots && isCreate && comesInLot) {
+          if (!formState.packagingUnit || formState.unitsPerPack < 2) {
+            onClientValidationError?.(
+              `Indiquez combien de ${baseUnitLabel.toLowerCase()}s contient le lot (ex. 5 bidons par carton).`,
+            );
+            return;
+          }
+          if (!Number.isFinite(formState.lotSellingPrice) || formState.lotSellingPrice <= 0) {
+            onClientValidationError?.(
+              `Indiquez le prix de vente du ${packagingLabel.toLowerCase()}.`,
             );
             return;
           }
@@ -230,12 +263,28 @@ export function ProductFormModal({
         formData.set("sellingPrice", String(formState.sellingPrice));
         formData.set("unit", formState.unit);
         formData.set("minimumStock", String(formState.minimumStock));
+        if (isCreate && formState.initialStock > 0) {
+          formData.set("initialStock", String(formState.initialStock));
+        }
         formData.set("description", formState.description.trim());
+        if (catalog.showBarcode) {
+          formData.set("barcode", formState.barcode.trim());
+        }
+        if (catalog.showPurchasePrice) {
+          formData.set("purchasePrice", String(formState.purchasePrice || 0));
+        }
         formData.set("active", formState.active ? "on" : "off");
         if (isBar && isCreate && (!retail || catalog.showPackaging)) {
-          if (formState.packagingUnit && formState.unitsPerPack > 0) {
+          if (
+            formState.packagingUnit &&
+            formState.unitsPerPack > 1 &&
+            (!shopLots || comesInLot)
+          ) {
             formData.set("packagingUnit", formState.packagingUnit);
             formData.set("unitsPerPack", String(formState.unitsPerPack));
+            if (shopLots) {
+              formData.set("lotSellingPrice", String(formState.lotSellingPrice));
+            }
           }
         }
         if (hardware) {
@@ -455,6 +504,24 @@ export function ProductFormModal({
                 }))
               }
             />
+            {isCreate ? (
+              <NumberField
+                id="initialStock"
+                name="initialStock"
+                label="Stock actuel"
+                hint={`Quantité déjà en magasin, en ${baseUnitLabel.toLowerCase()}s.`}
+                min={0}
+                placeholder="0"
+                value={formState.initialStock === 0 ? "" : formState.initialStock}
+                onChange={(event) =>
+                  onChange((current) => ({
+                    ...current,
+                    initialStock:
+                      event.target.value === "" ? 0 : Number(event.target.value),
+                  }))
+                }
+              />
+            ) : null}
 
             <div className="sm:col-span-2">
               <ProductImageField
@@ -530,6 +597,7 @@ export function ProductFormModal({
                     unit: departmentCode === "BAR" ? catalog.defaultUnit : "PORTION",
                     packagingUnit: "CASE",
                     unitsPerPack: BAR_PACKAGING_DEFAULT_UNITS.CASE,
+                    lotSellingPrice: 0,
                   }));
                   setNewCategoryName("");
                 }}
@@ -583,6 +651,25 @@ export function ProductFormModal({
               />
             ) : null}
 
+            {catalog.showBarcode ? (
+              <TextField
+                id="barcode"
+                name="barcode"
+                label="Code-barres"
+                placeholder="Scan ou saisie manuelle (optionnel)"
+                inputMode="numeric"
+                autoComplete="off"
+                value={formState.barcode}
+                onChange={(event) =>
+                  onChange((current) => ({
+                    ...current,
+                    barcode: event.target.value,
+                  }))
+                }
+                className="sm:col-span-2"
+              />
+            ) : null}
+
             {catalog.showReference ? (
               <TextField
                 id="description"
@@ -613,7 +700,11 @@ export function ProductFormModal({
             <PriceField
               id="sellingPrice"
               name="sellingPrice"
-              label="Prix de vente"
+              label={
+                shopLots && comesInLot
+                  ? `Prix / ${baseUnitLabel.toLowerCase()}`
+                  : "Prix de vente"
+              }
               placeholder="Ex : 1000"
               value={formState.sellingPrice === 0 ? "" : formState.sellingPrice}
               onChange={(event) =>
@@ -623,6 +714,44 @@ export function ProductFormModal({
                 }))
               }
             />
+
+            {isCreate && formState.departmentCode === "BAR" ? (
+              <NumberField
+                id="initialStock"
+                name="initialStock"
+                label="Stock actuel"
+                hint={`Quantité déjà en stock, en ${baseUnitLabel.toLowerCase()}s.`}
+                min={0}
+                placeholder="0"
+                value={formState.initialStock === 0 ? "" : formState.initialStock}
+                onChange={(event) =>
+                  onChange((current) => ({
+                    ...current,
+                    initialStock:
+                      event.target.value === "" ? 0 : Number(event.target.value),
+                  }))
+                }
+              />
+            ) : null}
+
+            {catalog.showPurchasePrice ? (
+              <PriceField
+                id="purchasePrice"
+                name="purchasePrice"
+                label="Prix d'achat"
+                hint="Coût unitaire pour le calcul du bénéfice."
+                min={0}
+                placeholder="Ex : 3500"
+                value={formState.purchasePrice === 0 ? "" : formState.purchasePrice}
+                onChange={(event) =>
+                  onChange((current) => ({
+                    ...current,
+                    purchasePrice:
+                      event.target.value === "" ? 0 : Number(event.target.value),
+                  }))
+                }
+              />
+            ) : null}
 
             <NumberField
               id="minimumStock"
@@ -655,7 +784,18 @@ export function ProductFormModal({
                           key={unit}
                           type="button"
                           onClick={() =>
-                            onChange((current) => ({ ...current, unit }))
+                            onChange((current) => {
+                              const suggestion = suggestedShopLot(unit);
+                              if (shopLots && comesInLot && suggestion) {
+                                return {
+                                  ...current,
+                                  unit,
+                                  packagingUnit: suggestion.packagingUnit,
+                                  unitsPerPack: suggestion.unitsPerPack,
+                                };
+                              }
+                              return { ...current, unit };
+                            })
                           }
                           className={`inline-flex min-h-11 items-center rounded-md border px-3 text-[12px] font-semibold transition sm:min-h-9 sm:px-2.5 sm:text-[11px] ${
                             active
@@ -668,6 +808,12 @@ export function ProductFormModal({
                       );
                     })}
                   </div>
+                  {(formState.unit === "KG" || formState.unit === "LITER") && retail ? (
+                    <p className="mt-2 text-[11px] font-medium text-emerald-700">
+                      Vente au {formState.unit === "KG" ? "poids" : "volume"} activée en caisse
+                      (quantité décimale).
+                    </p>
+                  ) : null}
                 </>
               ) : (
                 <SelectField
@@ -696,26 +842,67 @@ export function ProductFormModal({
 
         {isBar && isCreate && (!retail || catalog.showPackaging) ? (
           <FormSection
-            title={retail ? "Conditionnement (optionnel)" : "Conditionnement"}
+            title={shopLots ? "Vient en lot ? (optionnel)" : "Conditionnement"}
             compact
           >
+            {shopLots ? (
+              <>
+                <p className="text-[11px] leading-snug text-slate-500">
+                  Sachets d’eau en pack, huile en carton de 5 bidons… Le stock se
+                  compte à l’unité. En caisse : vente à l’unité ou en gros.
+                </p>
+                <ToggleField
+                  id="comesInLot"
+                  name="comesInLot"
+                  label="Ce produit vient en lot"
+                  checked={comesInLot}
+                  onChange={(enabled) => {
+                    setComesInLot(enabled);
+                    onChange((current) => {
+                      if (!enabled) {
+                        return { ...current, unitsPerPack: 0, lotSellingPrice: 0 };
+                      }
+                      const suggestion = suggestedShopLot(current.unit);
+                      return {
+                        ...current,
+                        packagingUnit: suggestion?.packagingUnit ?? "CARTON",
+                        unitsPerPack:
+                          suggestion?.unitsPerPack ??
+                          SHOP_PACKAGING_DEFAULT_UNITS.CARTON,
+                      };
+                    });
+                  }}
+                />
+              </>
+            ) : null}
+
+            {!shopLots || comesInLot ? (
+              <>
             <div className="grid gap-2.5 sm:grid-cols-2">
               <SelectField
                 id="packagingUnit"
                 name="packagingUnit"
-                label="Format d’achat"
+                label={shopLots ? "Type de lot" : "Format d’achat"}
                 required={!retail}
                 value={formState.packagingUnit}
                 onChange={(event) => {
                   const packagingUnit = event.target.value as BarPackagingUnit;
+                  const shopDefault =
+                    shopLots &&
+                    (SHOP_PACKAGING_UNITS as readonly string[]).includes(packagingUnit)
+                      ? SHOP_PACKAGING_DEFAULT_UNITS[
+                          packagingUnit as (typeof SHOP_PACKAGING_UNITS)[number]
+                        ]
+                      : undefined;
                   onChange((current) => ({
                     ...current,
                     packagingUnit,
-                    unitsPerPack: BAR_PACKAGING_DEFAULT_UNITS[packagingUnit],
+                    unitsPerPack:
+                      shopDefault ?? BAR_PACKAGING_DEFAULT_UNITS[packagingUnit],
                   }));
                 }}
               >
-                {BAR_PACKAGING_UNITS.map((unit) => (
+                {packagingChoices.map((unit) => (
                   <option key={unit} value={unit}>
                     {BAR_PACKAGING_LABELS[unit]}
                   </option>
@@ -727,10 +914,10 @@ export function ProductFormModal({
                 name="unitsPerPack"
                 label={`${baseUnitLabel}s / ${packagingLabel.toLowerCase()}`}
                 required={!retail}
-                min={1}
+                min={0}
                 step={1}
-                placeholder="12"
-                value={formState.unitsPerPack || ""}
+                placeholder={shopLots ? "5" : "12"}
+                value={formState.unitsPerPack === 0 ? "" : formState.unitsPerPack}
                 onChange={(event) =>
                   onChange((current) => ({
                     ...current,
@@ -741,12 +928,38 @@ export function ProductFormModal({
               />
             </div>
 
-            {formState.unitsPerPack > 0 ? (
+            {shopLots ? (
+              <PriceField
+                id="lotSellingPrice"
+                name="lotSellingPrice"
+                label={`Prix du ${packagingLabel.toLowerCase()}`}
+                placeholder="Ex : 20000"
+                required
+                value={formState.lotSellingPrice === 0 ? "" : formState.lotSellingPrice}
+                onChange={(event) =>
+                  onChange((current) => ({
+                    ...current,
+                    lotSellingPrice:
+                      event.target.value === "" ? 0 : Number(event.target.value),
+                  }))
+                }
+              />
+            ) : null}
+
+            {formState.unitsPerPack > 1 ? (
               <p className="text-[11px] font-medium text-emerald-700">
                 1 {packagingLabel.toLowerCase()} = {formState.unitsPerPack}{" "}
                 {baseUnitLabel.toLowerCase()}
                 {formState.unitsPerPack > 1 ? "s" : ""}
+                {shopLots && formState.lotSellingPrice > 0
+                  ? ` · vendu ${formState.lotSellingPrice} F`
+                  : ""}
+                {shopLots
+                  ? " — à l’appro, 1 lot ajoute ce nombre en stock."
+                  : ""}
               </p>
+            ) : null}
+              </>
             ) : null}
           </FormSection>
         ) : null}
@@ -754,13 +967,14 @@ export function ProductFormModal({
         {mode === "edit" &&
         editingProduct &&
         formState.departmentCode === "BAR" &&
-        !retail &&
+        (!retail || shopLots) &&
         onPackagingsChanged ? (
           <ProductPackagingsEditor
             productId={editingProduct.id}
             baseUnit={formState.unit}
             packagings={packagings}
             onChanged={onPackagingsChanged}
+            shopLots={shopLots}
           />
         ) : null}
 

@@ -26,7 +26,7 @@ import {
   isAdminClientConfigured,
 } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { listCommerceUnitsForProducts } from "@/lib/products/packaging-queries";
+import { listSaleUnitsForProducts } from "@/lib/products/packaging-queries";
 import type { AdminOrderFiltersInput } from "@/lib/orders/schemas";
 
 function readSingle<T>(value: T | T[] | null): T | null {
@@ -127,7 +127,7 @@ export async function listCashierProducts(
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, name, selling_price, unit, stock_unit_label, fractionable, image_url, image_original_url, image_optimized_url, category_id, departments(code, name), categories(name)",
+      "id, name, selling_price, unit, stock_unit_label, fractionable, barcode, image_url, image_original_url, image_optimized_url, category_id, departments(code, name), categories(name)",
     )
     .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("active", true)
@@ -229,14 +229,21 @@ export async function listCashierProducts(
         categoryName: category.name,
         stockQuantity,
         fractionable: Boolean(row.fractionable),
+        barcode: (row.barcode as string | null | undefined) ?? null,
       },
     ];
   });
 
-  const saleMap = await listCommerceUnitsForProducts(
+  const saleMeta = Object.fromEntries(
+    products.map((product) => [
+      product.id,
+      { sellingPrice: product.sellingPrice, unitLabel: product.unit },
+    ]),
+  );
+  const saleMap = await listSaleUnitsForProducts(
     workspace,
     products.map((product) => product.id),
-    "sale",
+    saleMeta,
   );
 
   return attachSaleUnitsFromMap(products, saleMap);
@@ -244,7 +251,7 @@ export async function listCashierProducts(
 
 function attachSaleUnitsFromMap(
   products: CashierProduct[],
-  saleMap: Awaited<ReturnType<typeof listCommerceUnitsForProducts>>,
+  saleMap: Awaited<ReturnType<typeof listSaleUnitsForProducts>>,
 ): CashierProduct[] {
   return products.map((product) => {
     const units = saleMap[product.id] ?? [];
@@ -263,10 +270,16 @@ async function attachCashierSaleUnits(
   workspace: WorkspaceContext,
   products: CashierProduct[],
 ): Promise<CashierProduct[]> {
-  const saleMap = await listCommerceUnitsForProducts(
+  const saleMeta = Object.fromEntries(
+    products.map((product) => [
+      product.id,
+      { sellingPrice: product.sellingPrice, unitLabel: product.unit },
+    ]),
+  );
+  const saleMap = await listSaleUnitsForProducts(
     workspace,
     products.map((product) => product.id),
-    "sale",
+    saleMeta,
   );
   return attachSaleUnitsFromMap(products, saleMap);
 }
