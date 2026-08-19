@@ -16,6 +16,13 @@ export function mapRpcFailure(message: string): PlatformActionResult {
         "Fonction plateforme indisponible. Vérifiez que les migrations ont été appliquées.",
     };
   }
+  if (/platform_subscription_payments_tx_ref_key/i.test(message)) {
+    return {
+      ok: false,
+      error:
+        "Cette référence de transaction est déjà enregistrée sur un autre paiement.",
+    };
+  }
   return { ok: false, error: message };
 }
 

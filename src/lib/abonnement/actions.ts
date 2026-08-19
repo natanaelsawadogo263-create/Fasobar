@@ -175,8 +175,8 @@ export async function uploadSubscriptionProofAction(
   const { error } = await supabase.rpc("submit_subscription_payment_proof", {
     p_request_id: requestId,
     p_storage_path: upload.storagePath,
-    // Référence optionnelle côté UI — valeur technique pour l’RPC existant.
-    p_tx_ref: transactionReference || "PREUVE",
+    // Sans n° Orange Money : une référence unique par demande (pas le joker "PREUVE").
+    p_tx_ref: transactionReference || `PREUVE-${requestId}`,
     p_payer_phone: payerPhone,
     p_payer_name: payerName || null,
     p_declared_amount:
