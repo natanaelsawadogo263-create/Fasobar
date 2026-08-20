@@ -108,7 +108,6 @@ export function getNavigationForSpace(
       { href: "/application/tableau-de-bord", label: "Accueil", enabled: true },
       { href: "/application/produits", label: profile.productNavLabel, enabled: true },
       { href: "/application/stock", label: profile.stockNavLabel, enabled: true },
-      { href: "/application/inventaires", label: "Inventaires", enabled: true },
       { href: "/application/approvisionnements", label: "Approvisionnements", enabled: true },
       { href: "/application/ventes", label: "Ventes", enabled: true },
       { href: "/application/caisses", label: "Caisses", enabled: true },
@@ -201,7 +200,6 @@ const BAR_PREFIXES = ["/application/bar"];
 
 const SHARED_PREFIXES = [
   "/application/stock/cuisine",
-  "/application/inventaires",
   "/application/depenses",
   "/application/approvisionnements",
 ];
@@ -259,7 +257,8 @@ export function isPathAllowedForSpace(
       pathname.startsWith("/application/sessions-bar") ||
       pathname.startsWith("/application/bar") ||
       pathname.startsWith("/application/cuisine") ||
-      pathname.startsWith("/application/stock/cuisine")
+      pathname.startsWith("/application/stock/cuisine") ||
+      pathname.startsWith("/application/inventaires")
     ) {
       return false;
     }
@@ -307,8 +306,7 @@ export function isPathAllowedForSpace(
         pathname.startsWith("/application/rapports") ||
         pathname.startsWith("/application/caisses") ||
         pathname.startsWith("/application/ventes") ||
-        pathname.startsWith("/application/mon-abonnement") ||
-        pathname.startsWith("/application/inventaires")
+        pathname.startsWith("/application/mon-abonnement")
       ) {
         return false;
       }
@@ -328,7 +326,8 @@ export function isPathAllowedForSpace(
       pathname.startsWith("/application/sessions-bar") ||
       pathname.startsWith("/application/bar") ||
       pathname.startsWith("/application/cuisine") ||
-      pathname.startsWith("/application/stock/cuisine")
+      pathname.startsWith("/application/stock/cuisine") ||
+      pathname.startsWith("/application/inventaires")
     ) {
       return false;
     }
@@ -414,10 +413,6 @@ export function isPathAllowedForSpace(
     // Admin /application/approvisionnements : pas pour le Bar (il a /bar/approvisionnements).
     // Caisse–Cuisine y accède via SHARED_PREFIXES (cuisine uniquement).
     if (pathname.startsWith("/application/approvisionnements")) {
-      return false;
-    }
-
-    if (pathname.startsWith("/application/inventaires")) {
       return false;
     }
 

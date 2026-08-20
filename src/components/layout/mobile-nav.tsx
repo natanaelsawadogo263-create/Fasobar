@@ -56,7 +56,6 @@ const NAV_ICONS: Record<
   "/application/bar/approvisionnements": Truck,
   "/application/bar/historique": Clock3,
   "/application/bar/session": Timer,
-  "/application/inventaires": ClipboardList,
   "/application/caisse": ShoppingBag,
   "/application/caisse/session": Timer,
   "/application/commandes-ouvertes": ClipboardList,
@@ -86,7 +85,6 @@ function shortLabel(label: string): string {
   if (label === "Paramètres") return "Réglages";
   if (label === "Ma pompe") return "Pompe";
   if (label === "Stock Cuisine") return "Stock";
-  if (label === "Inventaires") return "Inventaire";
   return label;
 }
 

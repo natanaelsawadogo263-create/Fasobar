@@ -12,7 +12,10 @@ import {
 } from "@/lib/orders/period";
 import { getCashierServiceDayStartIso } from "@/lib/orders/queries";
 import { sumSoldGoodsCost } from "@/lib/profit/cost-of-goods";
-import { hasEstablishmentSupplyHistory } from "@/lib/profit/supply-history";
+import {
+  hasEstablishmentSupplyHistory,
+  isProfitReady,
+} from "@/lib/profit/supply-history";
 import { listDashboardStockAlerts } from "@/lib/stock/queries";
 import type { StockListItem } from "@/lib/stock/types";
 import { createClient } from "@/lib/supabase/server";
@@ -339,13 +342,16 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
 
   const orderIds = paidForAnalysis.map((order) => order.id);
   const sampleOrderIds = orderIds.slice(0, 120);
+  const todayOrderIds = paidToday.map((row) => row.id);
+  const hasSalesToday = todayOrderIds.length > 0;
+  const canShowProfit = isProfitReady({
+    hasSales: hasSalesToday,
+    hasSupplyCost: profitAvailable,
+  });
 
   const [purchaseCostToday, itemRowsResult] = await Promise.all([
-    profitAvailable && paidToday.length <= 40
-      ? sumSoldGoodsCost(
-          workspace.establishmentId,
-          paidToday.map((row) => row.id),
-        )
+    canShowProfit
+      ? sumSoldGoodsCost(workspace.establishmentId, todayOrderIds)
       : Promise.resolve(0),
     orderIds.length > 0
       ? supabase
@@ -355,8 +361,9 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
       : Promise.resolve({ data: [] as Array<Record<string, unknown>> }),
   ]);
 
-  const profitToday = profitAvailable
-    ? salesToday - purchaseCostToday - expensesToday
+  // Bénéfice du jour = ventes − coût d’achat des produits vendus.
+  const profitToday = canShowProfit
+    ? salesToday - purchaseCostToday
     : null;
 
   const openSessionRows = openSessions.data ?? [];
@@ -513,7 +520,7 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
       stockAlertCount: stockAlertsResult.alertCount,
       expensesToday,
       profitToday,
-      profitAvailable,
+      profitAvailable: canShowProfit,
     },
     liveOps,
     stockAlerts: stockItems,

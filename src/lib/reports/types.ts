@@ -16,8 +16,10 @@ export type ReportSummaryItem = {
 };
 
 export type ReportMeta = {
-  /** Bénéfice masqué tant qu’aucun approvisionnement n’a été enregistré. */
+  /** Bénéfice visible seulement s’il y a vente + coût d’achat. */
   profitAvailable?: boolean;
+  /** Surplus détaillé vente par vente (et produit par produit). */
+  saleSurpluses?: import("@/lib/profit/sale-surplus").SaleOrderSurplus[];
 };
 
 export type ReportResult = {

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 
 import {
   calculateChange,
@@ -125,12 +125,12 @@ export function CheckoutConfirmPanel({
         >
           {isPending ? "Encaissement…" : "Confirmer l'encaissement"}
         </button>
-        <Link
+        <InstantLink
           href="/application/caisse"
-          className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
         >
           Annuler
-        </Link>
+        </InstantLink>
       </footer>
     </aside>
   );

@@ -1,8 +1,6 @@
+import { RapportsPageSuspense } from "@/app/(protected)/application/rapports/rapports-page-content";
 import { requireAdminContext } from "@/lib/auth/workspace-context";
-import { getReportData } from "@/lib/reports/queries";
 import { reportFiltersSchema } from "@/lib/reports/schemas";
-import { getEstablishmentSettings } from "@/lib/settings/queries";
-import { AdminReportsWorkspace } from "@/components/admin/admin-reports-workspace";
 
 type RapportsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -19,8 +17,10 @@ function defaultPeriod(): { from: string; to: string } {
 }
 
 export default async function RapportsPage({ searchParams }: RapportsPageProps) {
-  const workspace = await requireAdminContext();
-  const raw = await searchParams;
+  const [workspace, raw] = await Promise.all([
+    requireAdminContext(),
+    searchParams,
+  ]);
 
   const hasExplicitPeriod =
     typeof raw.from === "string" || typeof raw.to === "string";
@@ -36,23 +36,5 @@ export default async function RapportsPage({ searchParams }: RapportsPageProps) 
       : {}
     : defaultPeriod();
 
-  const [initialReport, { settings }] = await Promise.all([
-    getReportData(workspace, "ventes", filters),
-    getEstablishmentSettings(workspace),
-  ]);
-
-  return (
-    <AdminReportsWorkspace
-      initialReport={initialReport}
-      initialFilters={filters}
-      establishment={{
-        name: settings?.name ?? workspace.establishmentName,
-        address: settings?.address ?? null,
-        phone: settings?.phone ?? null,
-        logoUrl: settings?.logoUrl ?? null,
-      }}
-      serviceScope={workspace.serviceScope}
-      activityCode={workspace.activityCode}
-    />
-  );
+  return <RapportsPageSuspense workspace={workspace} filters={filters} />;
 }

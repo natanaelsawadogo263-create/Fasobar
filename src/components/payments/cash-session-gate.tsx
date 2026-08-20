@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, Wallet } from "lucide-react";
@@ -79,12 +79,12 @@ export function CashSessionGate({
                 </p>
               </div>
               <div className="flex items-end gap-2">
-                <Link
+                <InstantLink
                   href="/application/caisse/session"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 px-4 py-2.5 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 px-4 py-2.5 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50"
                 >
                   Détails session
-                </Link>
+                </InstantLink>
                 <button
                   type="button"
                   onClick={() => setShowCloseModal(true)}

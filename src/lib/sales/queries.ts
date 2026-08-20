@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
+import { listSaleOrderSurpluses } from "@/lib/profit/sale-surplus";
 import type { SalesFiltersInput } from "@/lib/sales/schemas";
 import type {
   AdminSalesPageData,
@@ -34,6 +35,7 @@ const EMPTY_DATA: AdminSalesPageData = {
   byHour: Array.from({ length: 24 }, (_, hour) => ({ hour, revenue: 0, orderCount: 0 })),
   byDay: [],
   orders: [],
+  saleSurpluses: [],
 };
 
 type PaidOrderRow = {
@@ -74,7 +76,7 @@ export async function getAdminSalesData(
     .eq("establishment_id", workspace.establishmentId)
     .eq("payment_status", "PAID")
     .order("updated_at", { ascending: false })
-    .limit(300);
+    .limit(150);
 
   if (filters.cashierId) {
     query = query.eq("created_by", filters.cashierId);
@@ -216,6 +218,8 @@ export async function getAdminSalesData(
       cashierName,
       itemCount: Math.round((itemCountByOrder.get(row.id) ?? 0) * 1000) / 1000,
       totalAmount: row.total_amount,
+      surplus: null,
+      costAmount: null,
     });
   }
 
@@ -227,6 +231,26 @@ export async function getAdminSalesData(
   const byDay = Array.from(dayAgg.values()).sort((a, b) => a.date.localeCompare(b.date));
 
   orders.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
+
+  const saleSurpluses = await listSaleOrderSurpluses(
+    workspace.establishmentId,
+    orders.map((order) => ({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      paidAt: order.paidAt,
+      cashierName: order.cashierName,
+    })),
+  );
+
+  const surplusByOrder = new Map(
+    saleSurpluses.map((sale) => [sale.orderId, sale] as const),
+  );
+  for (const order of orders) {
+    const sale = surplusByOrder.get(order.id);
+    if (!sale) continue;
+    order.surplus = sale.surplus;
+    order.costAmount = sale.costAmount;
+  }
 
   return {
     summary: {
@@ -241,5 +265,6 @@ export async function getAdminSalesData(
     byHour,
     byDay,
     orders,
+    saleSurpluses,
   };
 }

@@ -148,7 +148,29 @@ async function loadServiceScope(
   return parseServiceScope((data as { service_scope?: string }).service_scope);
 }
 
+const WORKSPACE_PROCESS_TTL_MS = 25_000;
+const workspaceProcessCache = new Map<
+  string,
+  { until: number; value: WorkspaceContext | null }
+>();
+
 export const getWorkspaceContext = cache(async function getWorkspaceContext(
+  userId: string,
+): Promise<WorkspaceContext | null> {
+  const warm = workspaceProcessCache.get(userId);
+  if (warm && warm.until > Date.now()) {
+    return warm.value;
+  }
+
+  const resolved = await loadWorkspaceContext(userId);
+  workspaceProcessCache.set(userId, {
+    until: Date.now() + WORKSPACE_PROCESS_TTL_MS,
+    value: resolved,
+  });
+  return resolved;
+});
+
+async function loadWorkspaceContext(
   userId: string,
 ): Promise<WorkspaceContext | null> {
   const { isDesktopServerRuntime } = await import("@/lib/desktop/runtime");
@@ -225,31 +247,25 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
     return { ...establishments, service_scope: null };
   }
 
-  const [
-    {
-      data: { user },
-    },
-    profileResult,
-    organizationResult,
-    establishmentResultPrimary,
-  ] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase
-      .from("profiles")
-      .select("full_name, phone, status, must_change_password")
-      .eq("id", userId)
-      .maybeSingle(),
-    supabase
-      .from("organization_memberships")
-      .select("role, status, organization_id, organizations(id, name, status)")
-      .eq("user_id", userId)
-      .eq("status", "ACTIVE"),
-    supabase
-      .from("establishment_memberships")
-      .select(membershipSelectWithActivity)
-      .eq("user_id", userId)
-      .eq("status", "ACTIVE"),
-  ]);
+  // Pas de getUser() ici : userId déjà validé (évite un round-trip auth à chaque page).
+  const [profileResult, organizationResult, establishmentResultPrimary] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("full_name, phone, status, must_change_password")
+        .eq("id", userId)
+        .maybeSingle(),
+      supabase
+        .from("organization_memberships")
+        .select("role, status, organization_id, organizations(id, name, status)")
+        .eq("user_id", userId)
+        .eq("status", "ACTIVE"),
+      supabase
+        .from("establishment_memberships")
+        .select(membershipSelectWithActivity)
+        .eq("user_id", userId)
+        .eq("status", "ACTIVE"),
+    ]);
 
   let establishmentResult: EstablishmentMembershipQueryResult = {
     data: (establishmentResultPrimary.data ?? null) as EstablishmentMembershipRow[] | null,
@@ -460,7 +476,7 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
   const context: WorkspaceContext = {
     userId,
     ownerName: profile.full_name ?? "Utilisateur",
-    email: user?.email ?? "",
+    email: "",
     organizationId: organizationMembership.organization_id,
     organizationName: organization.name,
     establishmentId: establishmentMembership.establishment_id,
@@ -491,7 +507,7 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
 
   assertWorkspaceTenant(context);
   return context;
-});
+}
 
 async function persistWorkspaceTenantCookies(
   organizationId: string,
@@ -650,13 +666,13 @@ function redirectDenied(context: WorkspaceContext): never {
 
 export async function requireWorkspaceContext(): Promise<WorkspaceContext> {
   const context = await requireAuthenticatedWorkspace();
-  if (!(await isActivePlatformAdmin())) {
-    const openingRedirect = await getOpeningRedirectForOrganization(
-      context.organizationId,
-    );
-    if (openingRedirect) {
-      redirect(openingRedirect);
-    }
+
+  const [isPlatformAdmin, openingRedirect] = await Promise.all([
+    isActivePlatformAdmin(),
+    getOpeningRedirectForOrganization(context.organizationId),
+  ]);
+  if (!isPlatformAdmin && openingRedirect) {
+    redirect(openingRedirect);
   }
   return context;
 }

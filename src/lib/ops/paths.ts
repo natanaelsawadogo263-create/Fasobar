@@ -86,7 +86,6 @@ export const OPS_STOCK_PATHS = [
   "/application/stock",
   "/application/stock/cuisine",
   "/application/approvisionnements",
-  "/application/inventaires",
   "/application/bar",
   "/application/bar/stock",
   "/application/bar/approvisionnements",

@@ -50,29 +50,37 @@ export async function pullCatalogFromCloud(
   try {
     const supabase = await createClient();
 
-    const { data: categories, error: catError } = await supabase
-      .from("categories")
-      .select("id, name, active, updated_at, departments(code)")
-      .eq("organization_id", workspace.organizationId)
-      .eq("establishment_id", workspace.establishmentId);
+    const [categoriesResult, productsResult, packsResult] = await Promise.all([
+      supabase
+        .from("categories")
+        .select("id, name, active, updated_at, departments(code)")
+        .eq("organization_id", workspace.organizationId)
+        .eq("establishment_id", workspace.establishmentId),
+      supabase
+        .from("products")
+        .select(
+          "id, name, selling_price, unit, active, updated_at, category_id, image_url, image_original_url, image_optimized_url, departments(code, name), categories(name)",
+        )
+        .eq("organization_id", workspace.organizationId)
+        .eq("establishment_id", workspace.establishmentId),
+      supabase
+        .from("product_packagings")
+        .select(
+          "id, product_id, packaging_unit, units_per_pack, active, updated_at",
+        )
+        .eq("organization_id", workspace.organizationId)
+        .eq("establishment_id", workspace.establishmentId),
+    ]);
 
-    if (catError) {
-      throw new Error(catError.message);
+    if (categoriesResult.error) {
+      throw new Error(categoriesResult.error.message);
     }
 
-    const { data: products, error: prodError } = await supabase
-      .from("products")
-      .select(
-        "id, name, selling_price, unit, active, updated_at, category_id, image_url, image_original_url, image_optimized_url, departments(code, name), categories(name)",
-      )
-      .eq("organization_id", workspace.organizationId)
-      .eq("establishment_id", workspace.establishmentId);
-
-    if (prodError) {
-      // Legacy schema without image_* columns
+    let products = productsResult.data as Array<Record<string, unknown>> | null;
+    if (productsResult.error) {
       if (
-        prodError.message.includes("image_original_url") ||
-        prodError.message.includes("image_optimized_url")
+        productsResult.error.message.includes("image_original_url") ||
+        productsResult.error.message.includes("image_optimized_url")
       ) {
         const legacy = await supabase
           .from("products")
@@ -80,38 +88,25 @@ export async function pullCatalogFromCloud(
             "id, name, selling_price, unit, active, updated_at, category_id, image_url, departments(code, name), categories(name)",
           )
           .eq("organization_id", workspace.organizationId)
-      .eq("establishment_id", workspace.establishmentId);
+          .eq("establishment_id", workspace.establishmentId);
         if (legacy.error) throw new Error(legacy.error.message);
-        return persistCatalog(
-          db,
-          repo,
-          workspace,
-          categories ?? [],
-          (legacy.data as Array<Record<string, unknown>>) ?? [],
-        );
+        products = (legacy.data as Array<Record<string, unknown>>) ?? [];
+      } else {
+        throw new Error(productsResult.error.message);
       }
-      throw new Error(prodError.message);
     }
 
-    let packagings: Array<Record<string, unknown>> = [];
-    const { data: packs, error: packError } = await supabase
-      .from("product_packagings")
-      .select(
-        "id, product_id, packaging_unit, units_per_pack, active, updated_at",
-      )
-      .eq("organization_id", workspace.organizationId)
-      .eq("establishment_id", workspace.establishmentId);
-
-    if (!packError && packs) {
-      packagings = packs as Array<Record<string, unknown>>;
-    }
+    const packagings =
+      !packsResult.error && packsResult.data
+        ? (packsResult.data as Array<Record<string, unknown>>)
+        : [];
 
     return persistCatalog(
       db,
       repo,
       workspace,
-      categories ?? [],
-      (products as Array<Record<string, unknown>>) ?? [],
+      (categoriesResult.data as Array<Record<string, unknown>>) ?? [],
+      products ?? [],
       packagings,
     );
   } catch (error) {

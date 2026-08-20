@@ -123,17 +123,19 @@ export async function listCashierProducts(
     .from("stock_items")
     .select("product_id, name, current_quantity, active")
     .eq("organization_id", workspace.organizationId)
-    .eq("establishment_id", workspace.establishmentId);
+    .eq("establishment_id", workspace.establishmentId)
+    .limit(800);
 
   const productsQueryPromise = supabase
     .from("products")
     .select(
-      "id, name, selling_price, unit, stock_unit_label, fractionable, barcode, image_url, image_original_url, image_optimized_url, category_id, departments(code, name), categories(name)",
+      "id, name, selling_price, unit, stock_unit_label, fractionable, barcode, image_url, image_optimized_url, category_id, departments(code, name), categories(name)",
     )
     .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
     .eq("active", true)
-    .order("name");
+    .order("name")
+    .limit(500);
 
   const saleUnitsQueryPromise = supabase
     .from("product_unit_levels")
@@ -142,7 +144,8 @@ export async function listCashierProducts(
     )
     .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
-    .order("sort_order");
+    .order("sort_order")
+    .limit(2000);
 
   const [productsResult, stockResult, saleUnitsResult] = await Promise.all([
     productsQueryPromise,
@@ -167,7 +170,8 @@ export async function listCashierProducts(
       .eq("organization_id", workspace.organizationId)
       .eq("establishment_id", workspace.establishmentId)
       .eq("active", true)
-      .order("name");
+      .order("name")
+      .limit(500);
     rows = (legacy.data as Array<Record<string, unknown>> | null) ?? null;
     selectError = legacy.error;
   }
@@ -677,13 +681,20 @@ export async function listOrderCashiers(
 ): Promise<OrderCashierOption[]> {
   const supabase = await createClient();
 
+  // Équipe établissement (pas de scan de 500 commandes).
   const { data, error } = await supabase
-    .from("orders")
-    .select("created_by, profiles!orders_created_by_fkey(full_name)")
-    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
-    .eq("organization_id", workspace.organizationId)
-    .order("created_at", { ascending: false })
-    .limit(500);
+    .from("establishment_memberships")
+    .select("user_id, profiles(full_name)")
+    .eq("establishment_id", workspace.establishmentId)
+    .eq("status", "ACTIVE")
+    .in("role", [
+      "CASHIER_KITCHEN",
+      "CASHIER",
+      "ADMIN",
+      "OWNER",
+      "BAR_MANAGER",
+    ])
+    .limit(80);
 
   if (error || !data) {
     return [];
@@ -692,7 +703,7 @@ export async function listOrderCashiers(
   const byId = new Map<string, string>();
 
   for (const row of data) {
-    const id = row.created_by as string | null;
+    const id = row.user_id as string | null;
     if (!id || byId.has(id)) continue;
     const profile = readSingle(
       row.profiles as { full_name: string } | { full_name: string }[] | null,
@@ -719,7 +730,7 @@ export async function listAdminOrders(
     .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
     .order("created_at", { ascending: false })
-    .limit(300);
+    .limit(150);
 
   if (filters.cashierId) {
     query = query.eq("created_by", filters.cashierId);

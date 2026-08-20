@@ -1,4 +1,4 @@
-import { ExpensesWorkspace } from "@/components/expenses/expenses-workspace";
+import { DepensesPageSuspense } from "@/app/(protected)/application/depenses/depenses-page-content";
 import { requireSpacePathAccess } from "@/lib/auth/workspace-context";
 import { isRetailShopOps } from "@/lib/activity/ops-model";
 import {
@@ -6,7 +6,6 @@ import {
   type ExpenseArea,
   type ExpenseFiltersInput,
 } from "@/lib/expenses/schemas";
-import { listExpenses } from "@/lib/expenses/queries";
 import {
   formatOrderPeriodLabel,
   resolveOrderPeriodRange,
@@ -106,23 +105,18 @@ export default async function DepensesPage({ searchParams }: DepensesPageProps) 
         to: periodRange.to,
       };
 
-  const data = await listExpenses(workspace, filters);
+  const periodLabel =
+    periodFilter === "custom"
+      ? formatCustomPeriodLabel(periodRange.from, periodRange.to)
+      : formatOrderPeriodLabel(periodFilter, periodRange.from, periodRange.to);
 
   return (
-    <ExpensesWorkspace
-      {...data}
+    <DepensesPageSuspense
+      workspace={workspace}
       filters={filters}
-      establishmentName={workspace.establishmentName}
       lockedArea={lockedArea}
       periodFilter={periodFilter}
-      periodLabel={
-        periodFilter === "custom"
-          ? formatCustomPeriodLabel(periodRange.from, periodRange.to)
-          : formatOrderPeriodLabel(periodFilter, periodRange.from, periodRange.to)
-      }
-      canManage
-      serviceScope={workspace.serviceScope}
-      activityCode={workspace.activityCode}
+      periodLabel={periodLabel}
     />
   );
 }

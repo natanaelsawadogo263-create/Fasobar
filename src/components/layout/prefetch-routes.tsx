@@ -3,10 +3,14 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-/** Écrans les plus utilisés — préchargés immédiatement. */
+/** Ordre de priorité pour trier les liens déjà dans la nav (pas d’ajout global). */
 const PRIORITY_PREFIXES = [
   "/application/tableau-de-bord",
   "/application/caisse",
+  "/application/station/pompiste/session",
+  "/application/station",
+  "/application/bar",
+  "/application/cuisine",
   "/application/produits",
   "/application/stock",
   "/application/ventes",
@@ -14,16 +18,9 @@ const PRIORITY_PREFIXES = [
   "/application/commandes-ouvertes",
   "/application/approvisionnements",
   "/application/depenses",
-  "/application/caisse/session",
-  "/application/station",
-  "/application/station/employes",
-  "/application/station/sessions",
-  "/application/station/bilans",
-  "/application/station/parametres",
-  "/application/station/pompiste/session",
 ];
 
-const IMMEDIATE_PREFETCH_LIMIT = 6;
+const IMMEDIATE_PREFETCH_LIMIT = 8;
 
 function sortByPriority(hrefs: string[]): string[] {
   const rank = (href: string) => {
@@ -45,15 +42,13 @@ function scheduleIdle(callback: () => void): () => void {
 }
 
 /**
- * Précharge les routes chaudes en priorité, le reste en idle
- * pour ne pas concurrencer le chargement de la page courante.
+ * Précharge uniquement les routes de la nav de l’espace courant
+ * (pas de prefetch station pour un caissier alimentation, etc.).
  */
 export function PrefetchRoutes({ hrefs }: { hrefs: string[] }) {
   const router = useRouter();
   const pathname = usePathname();
-  const key = Array.from(new Set([...PRIORITY_PREFIXES, ...hrefs].filter(Boolean))).join(
-    "|",
-  );
+  const key = Array.from(new Set(hrefs.filter(Boolean))).join("|");
   const doneRef = useRef<string>("");
 
   useEffect(() => {

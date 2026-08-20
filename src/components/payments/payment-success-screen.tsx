@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { CheckCircle2, Printer, ShoppingCart } from "lucide-react";
 
+import { InstantLink } from "@/components/layout/instant-link";
 import { formatPriceXof } from "@/lib/payments/constants";
 import { formatOrderNumber } from "@/lib/orders/constants";
 import { buildReceiptHref } from "@/lib/payments/receipt-routes";
@@ -41,10 +41,6 @@ export function PaymentSuccessScreen({
                 {formatPriceXof(totalPaid)}
               </span>
             </div>
-            <div className="mt-2 flex items-center justify-between text-sm">
-              <span className="text-slate-600">Paiement</span>
-              <span className="font-medium text-slate-900">Espèces</span>
-            </div>
             {changeGiven > 0 ? (
               <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-2 text-sm">
                 <span className="text-slate-600">Monnaie rendue</span>
@@ -57,21 +53,21 @@ export function PaymentSuccessScreen({
 
           <div className="grid gap-2">
             {receiptId ? (
-              <Link
+              <InstantLink
                 href={buildReceiptHref(receiptId, { print: true })}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
               >
                 <Printer className="h-4 w-4" />
                 Imprimer et nouvelle vente
-              </Link>
+              </InstantLink>
             ) : null}
-            <Link
+            <InstantLink
               href="/application/caisse?fresh=1"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               <ShoppingCart className="h-4 w-4" />
               {receiptId ? "Nouvelle commande sans reçu" : "Nouvelle commande"}
-            </Link>
+            </InstantLink>
           </div>
         </div>
       </div>

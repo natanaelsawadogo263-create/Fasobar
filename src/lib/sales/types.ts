@@ -41,6 +41,9 @@ export type SalesOrderRow = {
   cashierName: string | null;
   itemCount: number;
   totalAmount: number;
+  /** Surplus = vente − coût appro (null si non calculable). */
+  surplus: number | null;
+  costAmount: number | null;
 };
 
 export type AdminSalesPageData = {
@@ -50,4 +53,6 @@ export type AdminSalesPageData = {
   byHour: SalesByHour[];
   byDay: SalesByDay[];
   orders: SalesOrderRow[];
+  /** Détail surplus vente par vente. */
+  saleSurpluses: import("@/lib/profit/sale-surplus").SaleOrderSurplus[];
 };

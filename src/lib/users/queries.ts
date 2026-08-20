@@ -5,33 +5,11 @@ import { cache } from "react";
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { roleToSpaceLabel } from "@/lib/auth/roles";
 import type { FirstLoginContext, TeamMemberRow, UsersPageData } from "@/lib/users/types";
-import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function readSingle<T>(value: T | T[] | null): T | null {
   if (!value) return null;
   return Array.isArray(value) ? (value[0] ?? null) : value;
-}
-
-async function fetchMemberEmails(userIds: string[]): Promise<Map<string, string>> {
-  const emails = new Map<string, string>();
-
-  if (!isAdminClientConfigured() || userIds.length === 0) {
-    return emails;
-  }
-
-  const admin = createAdminClient();
-
-  await Promise.all(
-    userIds.map(async (userId) => {
-      const { data } = await admin.auth.admin.getUserById(userId);
-      if (data.user?.email) {
-        emails.set(userId, data.user.email.toLowerCase());
-      }
-    }),
-  );
-
-  return emails;
 }
 
 export const profileRequiresPasswordChange = cache(
@@ -96,32 +74,31 @@ export async function listUsersPageData(
 ): Promise<UsersPageData> {
   const supabase = await createClient();
 
-  const { data: establishments } = await supabase
-    .from("establishments")
-    .select("id, name")
-    .eq("organization_id", workspace.organizationId)
-    .eq("status", "ACTIVE")
-    .order("name");
-
-  const { data: orgMembers } = await supabase
-    .from("organization_memberships")
-    .select(
-      "user_id, role, status, created_at, profiles(id, full_name, phone, status, must_change_password, login_identifier, credential_version)",
-    )
-    .eq("organization_id", workspace.organizationId)
-    .neq("role", "OWNER");
+  const [{ data: establishments }, { data: orgMembers }] = await Promise.all([
+    supabase
+      .from("establishments")
+      .select("id, name")
+      .eq("organization_id", workspace.organizationId)
+      .eq("status", "ACTIVE")
+      .order("name"),
+    supabase
+      .from("organization_memberships")
+      .select(
+        "user_id, role, status, created_at, profiles(id, full_name, phone, status, must_change_password, login_identifier, credential_version)",
+      )
+      .eq("organization_id", workspace.organizationId)
+      .neq("role", "OWNER"),
+  ]);
 
   const memberUserIds = (orgMembers ?? []).map((row) => row.user_id);
 
-  const [{ data: estMemberships }, emailByUserId] = await Promise.all([
+  const { data: estMemberships } =
     memberUserIds.length > 0
-      ? supabase
+      ? await supabase
           .from("establishment_memberships")
           .select("user_id, establishment_id, establishments(name)")
           .in("user_id", memberUserIds)
-      : Promise.resolve({ data: [] as Array<Record<string, unknown>> }),
-    fetchMemberEmails(memberUserIds),
-  ]);
+      : { data: [] as Array<Record<string, unknown>> };
 
   const estByUserId = new Map<
     string,
@@ -168,19 +145,15 @@ export async function listUsersPageData(
     if (!profile) continue;
 
     const estInfo = estByUserId.get(row.user_id);
-
-    const authEmail = emailByUserId.get(row.user_id) ?? "";
-    const loginIdentifier =
-      profile.login_identifier?.trim() ||
-      authEmail ||
-      "—";
+    const loginIdentifier = profile.login_identifier?.trim() || "—";
 
     memberRows.push({
       id: row.user_id,
       userId: row.user_id,
       fullName: profile.full_name ?? "—",
       loginIdentifier,
-      email: authEmail || "—",
+      // Identifiant métier (évite N appels Auth Admin getUserById).
+      email: loginIdentifier,
       phone: profile.phone,
       role: row.role,
       spaceLabel: roleToSpaceLabel(row.role),

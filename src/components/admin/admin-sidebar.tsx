@@ -29,7 +29,6 @@ const NAV_ICONS: Record<string, ComponentType<{ className?: string; strokeWidth?
   "/application/produits": Package,
   "/application/stock": Boxes,
   "/application/approvisionnements": Truck,
-  "/application/inventaires": ClipboardList,
   "/application/depenses": Wallet,
   "/application/ventes": ShoppingBag,
   "/application/commandes": ClipboardList,

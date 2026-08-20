@@ -164,6 +164,7 @@ export default async function ApprovisionnementsPage({
             ? workspace.canManageBarStock || workspace.canManageStock
             : workspace.canManageStock
       }
+      canReopenSupply={workspace.userSpace === "admin"}
       lockedDepartment={lockedDepartment}
       serviceScope={scope}
       periodFilter={periodFilter}

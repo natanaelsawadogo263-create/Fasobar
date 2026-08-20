@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { CheckCircle2 } from "lucide-react";
@@ -264,18 +264,18 @@ export function CheckoutWorkspace({
             {formatOrderNumber(summary.orderNumber)} · {formatPriceXof(summary.totalAmount)}
           </p>
           <div className="mt-6 grid gap-2 sm:grid-cols-2">
-            <Link
+            <InstantLink
               href="/application/commandes-ouvertes"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               Commandes ouvertes
-            </Link>
-            <Link
+            </InstantLink>
+            <InstantLink
               href="/application/caisse"
-              className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
             >
               Nouvelle commande
-            </Link>
+            </InstantLink>
           </div>
         </div>
       </div>

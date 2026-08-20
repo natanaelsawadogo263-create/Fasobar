@@ -1,9 +1,7 @@
+import { VentesPageSuspense } from "@/app/(protected)/application/ventes/ventes-page-content";
 import { requireAdminContext } from "@/lib/auth/workspace-context";
-import { listOrderCashiers } from "@/lib/orders/queries";
-import { getAdminSalesData } from "@/lib/sales/queries";
-import { salesFiltersSchema, type SalesPeriodFilter } from "@/lib/sales/schemas";
-import { AdminSalesWorkspace } from "@/components/admin/admin-sales-workspace";
 import { resolveOrderPeriodRange, toLocalIsoDate } from "@/lib/orders/period";
+import { salesFiltersSchema, type SalesPeriodFilter } from "@/lib/sales/schemas";
 
 type VentesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -17,8 +15,10 @@ function parsePeriod(value: string | undefined, hasCustomDates: boolean): SalesP
 }
 
 export default async function VentesPage({ searchParams }: VentesPageProps) {
-  const workspace = await requireAdminContext();
-  const raw = await searchParams;
+  const [workspace, raw] = await Promise.all([
+    requireAdminContext(),
+    searchParams,
+  ]);
   const hasCustomDates =
     typeof raw.from === "string" || typeof raw.to === "string";
   const periodFilter = parsePeriod(
@@ -43,21 +43,9 @@ export default async function VentesPage({ searchParams }: VentesPageProps) {
     cashierId: typeof raw.cashierId === "string" ? raw.cashierId : undefined,
   });
 
-  const filters = parsed.success ? parsed.data : { ...periodRange, period: periodFilter };
+  const filters = parsed.success
+    ? parsed.data
+    : { ...periodRange, period: periodFilter };
 
-  const [data, cashiers] = await Promise.all([
-    getAdminSalesData(workspace, filters),
-    listOrderCashiers(workspace),
-  ]);
-
-  return (
-    <AdminSalesWorkspace
-      data={data}
-      filters={filters}
-      cashiers={cashiers}
-      establishmentName={workspace.establishmentName}
-      serviceScope={workspace.serviceScope}
-      activityCode={workspace.activityCode}
-    />
-  );
+  return <VentesPageSuspense workspace={workspace} filters={filters} />;
 }

@@ -5,10 +5,15 @@ import {
   isAdminClientConfigured,
 } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  loadProductUnitCostsFromSupply,
+  stockQtySold,
+} from "@/lib/profit/product-unit-cost";
 
 type OrderItemLine = {
   product_id: string;
   quantity: number;
+  line_total?: number | null;
   department_id?: string | null;
   stock_quantity?: number | null;
   sale_unit_factor?: number | null;
@@ -20,8 +25,9 @@ export type SoldGoodsCostOptions = {
 };
 
 /**
- * Coût d’achat des articles vendus sur les commandes données
- * (dernier prix d’appro par unité de stock, sinon purchase_price produit).
+ * Coût d’achat des articles réellement vendus.
+ * Pour chaque ligne : quantité stock vendue × coût unitaire d’appro de CE produit.
+ * Ne soustrait jamais le montant total d’un bon d’approvisionnement.
  */
 export async function sumSoldGoodsCost(
   establishmentId: string,
@@ -35,7 +41,9 @@ export async function sumSoldGoodsCost(
 
   const withStock = await itemsClient
     .from("order_items")
-    .select("product_id, quantity, department_id, stock_quantity, sale_unit_factor")
+    .select(
+      "product_id, quantity, line_total, department_id, stock_quantity, sale_unit_factor",
+    )
     .eq("establishment_id", establishmentId)
     .in("order_id", orderIds);
 
@@ -77,61 +85,17 @@ export async function sumSoldGoodsCost(
   ];
   if (productIds.length === 0) return 0;
 
-  const [{ data: stockRows }, { data: productRows }] = await Promise.all([
-    itemsClient
-      .from("stock_items")
-      .select("id, product_id")
-      .eq("establishment_id", establishmentId)
-      .in("product_id", productIds),
-    itemsClient
-      .from("products")
-      .select("id, purchase_price")
-      .eq("establishment_id", establishmentId)
-      .in("id", productIds),
-  ]);
-
-  const stockIdByProduct = new Map<string, string>();
-  for (const row of stockRows ?? []) {
-    if (row.product_id && !stockIdByProduct.has(row.product_id)) {
-      stockIdByProduct.set(row.product_id as string, row.id as string);
-    }
-  }
-
-  const stockIds = [...stockIdByProduct.values()];
-  const unitCostByStock = new Map<string, number>();
-  if (stockIds.length > 0) {
-    const { data: movements } = await itemsClient
-      .from("stock_movements")
-      .select("stock_item_id, unit_cost")
-      .eq("establishment_id", establishmentId)
-      .in("stock_item_id", stockIds)
-      .not("unit_cost", "is", null)
-      .order("created_at", { ascending: false });
-    for (const row of movements ?? []) {
-      if (row.unit_cost != null && !unitCostByStock.has(row.stock_item_id)) {
-        unitCostByStock.set(row.stock_item_id, Number(row.unit_cost));
-      }
-    }
-  }
-
-  const purchaseByProduct = new Map<string, number>();
-  for (const row of productRows ?? []) {
-    const price = Number(row.purchase_price ?? 0);
-    if (price > 0) purchaseByProduct.set(row.id as string, price);
-  }
+  const unitCostByProduct = await loadProductUnitCostsFromSupply(
+    establishmentId,
+    productIds,
+  );
 
   let total = 0;
   for (const item of items) {
-    const stockQty =
-      Number(item.stock_quantity) > 0
-        ? Number(item.stock_quantity)
-        : Number(item.quantity) * (Number(item.sale_unit_factor) || 1);
+    const stockQty = stockQtySold(item);
     if (!(stockQty > 0)) continue;
-    const stockId = stockIdByProduct.get(item.product_id);
-    const unitCost =
-      (stockId ? unitCostByStock.get(stockId) : undefined) ??
-      purchaseByProduct.get(item.product_id) ??
-      0;
+    const unitCost = unitCostByProduct.get(item.product_id) ?? 0;
+    if (!(unitCost > 0)) continue;
     total += Math.round(stockQty * unitCost);
   }
   return total;

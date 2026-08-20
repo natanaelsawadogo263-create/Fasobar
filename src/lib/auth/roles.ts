@@ -26,7 +26,7 @@ export const INVITABLE_SPACES = [
   {
     id: "bar_manager" as const,
     label: "Bar",
-    description: "Commandes boissons, stock Bar, pertes et inventaires.",
+    description: "Commandes boissons, stock Bar et pertes.",
     role: "BAR_MANAGER" as const,
   },
 ];

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { useState, useTransition } from "react";
 import {
   Calendar,
@@ -136,12 +136,12 @@ export function SessionWorkspace({
         </div>
 
         <div className="mt-4">
-          <Link
+          <InstantLink
             href="/application/caisse"
             className="inline-flex h-11 min-h-11 items-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 active:bg-slate-50"
           >
             Retour à la caisse
-          </Link>
+          </InstantLink>
         </div>
       </div>
 
@@ -220,12 +220,12 @@ export function SessionWorkspace({
               <Lock className="h-4 w-4" />
               {isPending ? "Fermeture et déconnexion…" : "Fermer et me déconnecter"}
             </button>
-            <Link
+            <InstantLink
               href="/application/caisse"
               className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 text-[13px] font-semibold text-slate-600 active:bg-slate-50"
             >
               Annuler
-            </Link>
+            </InstantLink>
           </footer>
         </form>
       </aside>

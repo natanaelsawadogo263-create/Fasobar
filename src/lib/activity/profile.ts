@@ -45,7 +45,7 @@ const FOOD_PROFILE: Omit<ActivityProfile, "id" | "label"> = {
   cashierSpaceLabel: "Cuisine",
   cashierSpaceDescription: "Commandes cuisine, préparation et opérations Cuisine.",
   stockManagerLabel: "Bar",
-  stockManagerDescription: "Commandes boissons, stock Bar, pertes et inventaires.",
+  stockManagerDescription: "Commandes boissons, stock Bar et pertes.",
   adminSpaceDescription: "Gestion générale de l'établissement et de l'équipe.",
   catalogDepartmentLabel: "Boissons",
   clientPlaceholder: "Table / réf. (ex. T12)",

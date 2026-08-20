@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -311,21 +311,21 @@ function KitchenOrderCard({
             {action.label}
           </button>
         ) : null}
-        <Link
+        <InstantLink
           href={`/application/caisse/addition/${order.id}?from=cuisine`}
-          className="inline-flex items-center justify-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
+          className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 sm:min-h-0"
           title="Imprimer l'addition client (sans encaisser)"
         >
           <Printer className="h-3 w-3" />
           Addition
-        </Link>
-        <Link
+        </InstantLink>
+        <InstantLink
           href={`/application/commandes/${order.id}`}
-          className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+          className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50 sm:min-h-0"
         >
           <Eye className="h-3 w-3" />
           Détail
-        </Link>
+        </InstantLink>
       </div>
     </article>
   );

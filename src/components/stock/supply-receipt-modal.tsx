@@ -190,7 +190,7 @@ export function SupplyReceiptModal({
         <header className="flex shrink-0 items-center gap-2 border-b border-slate-100 px-4 py-3">
           <div className="min-w-0 flex-1">
             <h2 className="text-[16px] font-semibold text-slate-900">
-              {initialDraft ? "Reprendre le brouillon" : "Nouvel approvisionnement"}
+              {initialDraft ? "Modifier l’approvisionnement" : "Nouvel approvisionnement"}
             </h2>
             <p className="mt-0.5 text-[12px] text-slate-500">
               Plusieurs produits, une seule validation. Le stock change seulement à la validation.

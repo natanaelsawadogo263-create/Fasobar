@@ -14,7 +14,11 @@ import type { ReportFiltersInput, ReportType } from "@/lib/reports/schemas";
 import type { ReportColumn, ReportMeta, ReportResult, ReportRow, ReportSummaryItem } from "@/lib/reports/types";
 import { getAdminSalesData } from "@/lib/sales/queries";
 import { sumSoldGoodsCost } from "@/lib/profit/cost-of-goods";
-import { hasEstablishmentSupplyHistory } from "@/lib/profit/supply-history";
+import { listSaleOrderSurpluses } from "@/lib/profit/sale-surplus";
+import {
+  hasEstablishmentSupplyHistory,
+  isProfitReady,
+} from "@/lib/profit/supply-history";
 import {
   hasBarService,
   hasKitchenService,
@@ -377,7 +381,7 @@ async function buildBeneficesReport(
   const includeBar = !retail && hasBarService(scope);
   const includeKitchen = !retail && hasKitchenService(scope);
 
-  const [sales, expenses, profitAvailable] = await Promise.all([
+  const [sales, expenses, hasSupplyCost] = await Promise.all([
     getAdminSalesData(workspace, { from: filters.from, to: filters.to }),
     listExpenses(
       workspace,
@@ -392,14 +396,32 @@ async function buildBeneficesReport(
   ]);
 
   const orderIds = sales.orders.map((order) => order.id);
-  const [totalCogs, barCogs, kitchenCogs] = await Promise.all([
-    sumSoldGoodsCost(workspace.establishmentId, orderIds),
-    includeBar
+  const hasSales = orderIds.length > 0;
+  const profitAvailable = isProfitReady({ hasSales, hasSupplyCost });
+
+  const [totalCogs, barCogs, kitchenCogs, saleSurpluses] = await Promise.all([
+    hasSales
+      ? sumSoldGoodsCost(workspace.establishmentId, orderIds)
+      : Promise.resolve(0),
+    includeBar && hasSales
       ? sumSoldGoodsCost(workspace.establishmentId, orderIds, { departmentCode: "BAR" })
       : Promise.resolve(0),
-    includeKitchen
-      ? sumSoldGoodsCost(workspace.establishmentId, orderIds, { departmentCode: "KITCHEN" })
+    includeKitchen && hasSales
+      ? sumSoldGoodsCost(workspace.establishmentId, orderIds, {
+          departmentCode: "KITCHEN",
+        })
       : Promise.resolve(0),
+    hasSales
+      ? listSaleOrderSurpluses(
+          workspace.establishmentId,
+          sales.orders.map((order) => ({
+            id: order.id,
+            orderNumber: order.orderNumber,
+            paidAt: order.paidAt,
+            cashierName: order.cashierName,
+          })),
+        )
+      : Promise.resolve([]),
   ]);
 
   const beneficeColumns: ReportColumn[] = [
@@ -407,15 +429,16 @@ async function buildBeneficesReport(
     { key: "revenue", label: "Chiffre d'affaires", format: "currency" },
     { key: "supplyCost", label: "Coût appro. vendu", format: "currency" },
     { key: "expenses", label: "Dépenses", format: "currency" },
-    { key: "profit", label: "Bénéfice net", format: "currency" },
+    { key: "profit", label: "Bénéfice", format: "currency" },
   ];
 
-  const meta: ReportMeta = { profitAvailable };
+  const meta: ReportMeta = { profitAvailable, saleSurpluses };
 
   if (retail) {
     const totalRevenue = sales.summary.totalRevenue;
     const totalExpenses = expenses.periodTotal;
-    const totalProfit = totalRevenue - totalCogs - totalExpenses;
+    // Bénéfice = ventes − coût d’achat des produits vendus (pas les dépenses).
+    const totalProfit = totalRevenue - totalCogs;
 
     return buildResult(
       "benefices",
@@ -431,7 +454,7 @@ async function buildBeneficesReport(
       ],
       [
         ...(profitAvailable
-          ? [{ label: "Bénéfice net total", value: formatPriceXof(totalProfit) }]
+          ? [{ label: "Bénéfice total", value: formatPriceXof(totalProfit) }]
           : []),
         { label: "CA total", value: formatPriceXof(totalRevenue) },
         { label: "Coût appro. vendu", value: formatPriceXof(totalCogs) },
@@ -446,8 +469,8 @@ async function buildBeneficesReport(
   const barExpenses = includeBar ? expenses.barTotal : 0;
   const kitchenExpenses = includeKitchen ? expenses.caisseTotal : 0;
 
-  const barProfit = barRevenue - barCogs - barExpenses;
-  const kitchenProfit = kitchenRevenue - kitchenCogs - kitchenExpenses;
+  const barProfit = barRevenue - barCogs;
+  const kitchenProfit = kitchenRevenue - kitchenCogs;
   const totalProfit =
     (includeBar ? barProfit : 0) + (includeKitchen ? kitchenProfit : 0);
   const totalRevenue = barRevenue + kitchenRevenue;
@@ -487,7 +510,7 @@ async function buildBeneficesReport(
     rows,
     [
       ...(profitAvailable
-        ? [{ label: "Bénéfice net total", value: formatPriceXof(totalProfit) }]
+        ? [{ label: "Bénéfice total", value: formatPriceXof(totalProfit) }]
         : []),
       { label: "CA total", value: formatPriceXof(totalRevenue) },
       { label: "Coût appro. vendu", value: formatPriceXof(totalCogsCombined) },

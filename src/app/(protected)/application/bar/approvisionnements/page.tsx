@@ -14,6 +14,7 @@ import {
 import { listPackagingsForProducts } from "@/lib/products/packaging-queries";
 import {
   listRecentSupplyEntries,
+  listStockItems,
   listSuppliers,
   listSupplyReceipts,
 } from "@/lib/stock/queries";
@@ -69,19 +70,22 @@ export default async function BarApprovisionnementsPage({
     await Promise.all([
       getBarSessionContext(workspace),
       listSuppliers(workspace, { departmentCode: "BAR" }),
-      ensureBarStockItemsFromProducts(workspace),
+      listStockItems(workspace, { tab: "bar", status: "all" }),
       listRecentSupplyEntries(workspace, {
         departmentCode: "BAR",
         from: periodRange.from,
         to: periodRange.to,
-        limit: 500,
+        limit: 100,
       }),
       listSupplyReceipts(workspace, {
         from: periodRange.from,
         to: periodRange.to,
-        limit: 200,
+        limit: 60,
       }),
     ]);
+
+  // Sync stock hors chemin critique.
+  void ensureBarStockItemsFromProducts(workspace);
 
   const productIds = stockItems
     .map((item) => item.productId)

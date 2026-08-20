@@ -28,7 +28,7 @@ function isLocalRealtimeSurface(pathname: string | null): boolean {
   );
 }
 
-/** Pages admin « statiques » : pas de refresh ops (évite de recharger tout le SSR). */
+/** Pages admin « statiques » / lourdes : pas de refresh ops (évite de recharger tout le SSR). */
 function shouldSkipOpsRefresh(pathname: string | null): boolean {
   if (!pathname) return false;
   if (pathname.includes("acces-refuse")) return true;
@@ -38,6 +38,16 @@ function shouldSkipOpsRefresh(pathname: string | null): boolean {
     pathname.startsWith("/application/mon-abonnement") ||
     pathname.startsWith("/application/parametres") ||
     pathname.startsWith("/application/utilisateurs") ||
+    pathname.startsWith("/application/produits") ||
+    pathname.startsWith("/application/stock") ||
+    pathname.startsWith("/application/approvisionnements") ||
+    pathname.startsWith("/application/tableau-de-bord") ||
+    pathname.startsWith("/application/rapports") ||
+    pathname.startsWith("/application/ventes") ||
+    pathname.startsWith("/application/commandes") ||
+    pathname.startsWith("/application/caisses") ||
+    pathname.startsWith("/application/depenses") ||
+    pathname.startsWith("/application/sessions-bar") ||
     pathname.startsWith("/application/station/employes") ||
     pathname.startsWith("/application/station/sessions") ||
     pathname.startsWith("/application/station/bilans") ||
@@ -45,6 +55,7 @@ function shouldSkipOpsRefresh(pathname: string | null): boolean {
     pathname.startsWith("/application/station/carburants") ||
     pathname.startsWith("/application/station/cuves") ||
     pathname.startsWith("/application/station/pompes") ||
+    pathname === "/application/station" ||
     pathname.startsWith("/abonnement")
   );
 }
@@ -52,29 +63,18 @@ function shouldSkipOpsRefresh(pathname: string | null): boolean {
 function isOpsSurface(pathname: string | null): boolean {
   if (!pathname) return true;
   if (isLocalRealtimeSurface(pathname)) return false;
+  // Realtime SSR réservé aux surfaces ops live (reçu / pompiste dashboard).
   return (
-    pathname.startsWith("/application/commandes") ||
-    pathname.startsWith("/application/tableau-de-bord") ||
-    pathname.startsWith("/application/sessions") ||
-    pathname.startsWith("/application/caisses") ||
-    pathname.startsWith("/application/ventes") ||
-    pathname.startsWith("/application/depenses") ||
-    pathname.startsWith("/application/inventaires") ||
-    pathname.startsWith("/application/rapports") ||
     pathname.startsWith("/application/recus") ||
-    pathname.startsWith("/application/stock") ||
-    pathname === "/application/station" ||
     pathname.startsWith("/application/station/pompiste")
   );
 }
 
 function isCatalogSurface(pathname: string | null): boolean {
   if (!pathname) return false;
+  // Produits/stock rechargés à la navigation — pas de SSR refresh pendant la consultation.
   return (
-    pathname.startsWith("/application/produits") ||
-    pathname.startsWith("/application/stock") ||
     pathname.startsWith("/application/approvisionnements") ||
-    pathname.startsWith("/application/bar/stock") ||
     pathname.startsWith("/application/bar/approvisionnements")
   );
 }
@@ -136,7 +136,7 @@ export function EstablishmentLiveSync({ establishmentId }: EstablishmentLiveSync
       scheduleOpsRefresh(() => {
         if (shouldSkipOpsRefresh(pathnameRef.current)) return;
         router.refresh();
-      }, 1500);
+      }, kind === "catalog" ? 4000 : 2500);
     };
 
     let channel = supabase.channel(`ops-establishment:${establishmentId}`);

@@ -2,6 +2,7 @@
 
 import { mapGenericError } from "@/lib/auth/errors";
 import {
+  requireAdminContext,
   requireStockManagementMutationContext,
   requireStockReadContext,
   type WorkspaceContext,
@@ -870,6 +871,34 @@ export async function saveSupplyReceiptAction(
 
   revalidateStockPages();
   return { success: "Brouillon enregistré. Le stock n’a pas encore changé.", receiptId };
+}
+
+export async function reopenSupplyReceiptAction(
+  receiptId: string,
+): Promise<StockActionState & { receiptId?: string }> {
+  const workspace = await requireAdminContext();
+  if (!workspace.canManageProducts) {
+    return { error: "Seul l’administrateur peut réouvrir un approvisionnement." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("reopen_supply_receipt", {
+    p_receipt_id: receiptId,
+  });
+
+  if (error) {
+    return {
+      error:
+        error.message ||
+        "Impossible de réouvrir cet approvisionnement (stock déjà consommé ?).",
+    };
+  }
+
+  revalidateStockPages();
+  return {
+    success: "Approvisionnement réouvert. Vous pouvez le modifier puis le revalider.",
+    receiptId: (data as string | null) ?? receiptId,
+  };
 }
 
 export async function deleteSupplyReceiptDraftAction(

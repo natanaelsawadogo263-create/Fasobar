@@ -9,6 +9,8 @@ import {
   Pencil,
   Phone,
   Plus,
+  RotateCcw,
+  Trash2,
   Truck,
   Wallet,
 } from "lucide-react";
@@ -17,6 +19,7 @@ import {
   createSupplierAction,
   deleteSupplyReceiptDraftAction,
   getSupplyReceiptAction,
+  reopenSupplyReceiptAction,
   saveSupplyReceiptAction,
   toggleSupplierStatusAction,
   updateSupplierAction,
@@ -57,6 +60,8 @@ type SupplyWorkspaceProps = {
   receipts?: SupplyReceiptListItem[] | null;
   packagingsByProduct?: Record<string, ProductPackaging[]>;
   canManageStock: boolean;
+  /** Admin uniquement : réouvrir un appro validé pour le modifier. */
+  canReopenSupply?: boolean;
   /** Espace responsable bar : layout compact. */
   compact?: boolean;
   /** Si défini, l'écran est figé sur cet espace (ex. Bar). */
@@ -83,6 +88,21 @@ const PERIOD_OPTIONS: Array<{ id: SupplyPeriodFilter; label: string }> = [
   { id: "month", label: "Mois" },
 ];
 
+function SupplyStatusBadge({ status }: { status: "DRAFT" | "VALIDATED" }) {
+  if (status === "DRAFT") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-200/80">
+        Brouillon
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200/80">
+      Validé
+    </span>
+  );
+}
+
 const emptySupplierForm = (departmentCode: SupplyDepartment): SupplierFormState => ({
   name: "",
   phone: "",
@@ -99,6 +119,7 @@ export function SupplyWorkspace({
   receipts,
   packagingsByProduct = {},
   canManageStock,
+  canReopenSupply = false,
   compact = false,
   lockedDepartment = null,
   serviceScope = "BOTH",
@@ -298,6 +319,34 @@ export function SupplyWorkspace({
       }
       setEditingReceipt(result.receipt);
       setShowEntryModal(true);
+    });
+  }
+
+  async function handleReopenValidated(receipt: SupplyReceiptListItem) {
+    if (receipt.status !== "VALIDATED" || !canReopenSupply) return;
+    const confirmed = window.confirm(
+      "Réouvrir cet approvisionnement pour le modifier ?\n\nLe stock ajouté par cette entrée sera retiré. Vous pourrez ensuite corriger et revalider.",
+    );
+    if (!confirmed) return;
+
+    setEntryError(null);
+    setError(null);
+    startTransition(async () => {
+      const reopen = await reopenSupplyReceiptAction(receipt.id);
+      if (reopen.error) {
+        setError(reopen.error);
+        return;
+      }
+      const result = await getSupplyReceiptAction(receipt.id);
+      if (result.error || !result.receipt) {
+        setError(result.error ?? "Approvisionnement réouvert, mais impossible de l’ouvrir.");
+        refreshSoon(() => router.refresh());
+        return;
+      }
+      setMessage(reopen.success ?? "Approvisionnement réouvert.");
+      setEditingReceipt(result.receipt);
+      setShowEntryModal(true);
+      refreshSoon(() => router.refresh());
     });
   }
 
@@ -638,67 +687,81 @@ export function SupplyWorkspace({
               </div>
             ) : (
               <>
-                {/* Mobile : cartes */}
-                <div className="space-y-1.5 p-2 md:hidden">
+                <div className="space-y-2 p-2.5 md:hidden">
                   {departmentReceipts !== null
-                    ? departmentReceipts.map((receipt) => (
-                        <article
-                          key={receipt.id}
-                          className={`rounded-xl border border-slate-200 bg-white px-3 py-2.5 ${
-                            receipt.status === "DRAFT" && canManageStock ? "cursor-pointer" : ""
-                          }`}
-                          onClick={() => {
-                            if (receipt.status === "DRAFT") void handleOpenDraft(receipt);
-                          }}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-[13px] font-semibold text-slate-900">
-                                {receipt.supplierName}
-                              </p>
-                              <p className="mt-0.5 text-[11px] text-slate-500">
-                                {new Date(`${receipt.receivedOn}T12:00:00`).toLocaleDateString("fr-FR", {
-                                  day: "2-digit",
-                                  month: "short",
-                                })}
-                                <span className="text-slate-300"> · </span>
-                                {receipt.lineCount} produit{receipt.lineCount > 1 ? "s" : ""}
-                                <span className="text-slate-300"> · </span>
-                                {receipt.status === "DRAFT" ? "Brouillon" : "Validé"}
-                              </p>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <p className="text-[13px] font-bold tabular-nums text-slate-900">
+                    ? departmentReceipts.map((receipt) => {
+                        const canEditDraft =
+                          receipt.status === "DRAFT" && canManageStock;
+                        const canReopen =
+                          receipt.status === "VALIDATED" && canReopenSupply;
+                        return (
+                          <article
+                            key={receipt.id}
+                            className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="truncate text-[14px] font-semibold text-slate-900">
+                                    {receipt.supplierName}
+                                  </p>
+                                  <SupplyStatusBadge status={receipt.status} />
+                                </div>
+                                <p className="mt-1 text-[12px] text-slate-500">
+                                  {new Date(
+                                    `${receipt.receivedOn}T12:00:00`,
+                                  ).toLocaleDateString("fr-FR", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  })}
+                                  <span className="text-slate-300"> · </span>
+                                  {receipt.lineCount} produit
+                                  {receipt.lineCount > 1 ? "s" : ""}
+                                </p>
+                              </div>
+                              <p className="shrink-0 text-[14px] font-bold tabular-nums text-slate-900">
                                 {formatPriceXof(receipt.totalAmount)}
                               </p>
-                              {receipt.status === "DRAFT" && canManageStock ? (
-                                <div className="mt-1 flex flex-col items-end gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      void handleOpenDraft(receipt);
-                                    }}
-                                    className="text-[11px] font-semibold text-emerald-700"
-                                  >
-                                    Ouvrir
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      handleDeleteDraft(receipt.id);
-                                    }}
-                                    className="text-[11px] font-medium text-red-600"
-                                  >
-                                    Supprimer
-                                  </button>
-                                </div>
-                              ) : null}
                             </div>
-                          </div>
-                        </article>
-                      ))
+
+                            {canEditDraft || canReopen ? (
+                              <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-2.5">
+                                {canEditDraft ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleOpenDraft(receipt)}
+                                      className="inline-flex h-10 min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white active:bg-emerald-700"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                      Modifier
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteDraft(receipt.id)}
+                                      className="inline-flex h-10 min-h-10 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-[12px] font-semibold text-red-700 active:bg-red-50"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                      Supprimer
+                                    </button>
+                                  </>
+                                ) : null}
+                                {canReopen ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleReopenValidated(receipt)}
+                                    className="inline-flex h-10 min-h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 text-[12px] font-semibold text-slate-800 active:bg-slate-100"
+                                  >
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                    Réouvrir et modifier
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </article>
+                        );
+                      })
                     : departmentEntries.map((entry) => (
                     <article
                       key={entry.id}
@@ -747,64 +810,84 @@ export function SupplyWorkspace({
                       <th className="px-3.5 py-2.5 font-medium">Produits</th>
                       <th className="px-3.5 py-2.5 font-medium">Statut</th>
                       <th className="px-3.5 py-2.5 text-right font-medium">Montant</th>
+                      {canManageStock || canReopenSupply ? (
+                        <th className="px-3.5 py-2.5 text-right font-medium">Actions</th>
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {departmentReceipts !== null
-                      ? departmentReceipts.map((receipt) => (
+                      ? departmentReceipts.map((receipt) => {
+                          const canEditDraft =
+                            receipt.status === "DRAFT" && canManageStock;
+                          const canReopen =
+                            receipt.status === "VALIDATED" && canReopenSupply;
+                          return (
                           <tr
                             key={receipt.id}
-                            className={`text-slate-700 hover:bg-slate-50/70 ${
-                              receipt.status === "DRAFT" && canManageStock ? "cursor-pointer" : ""
-                            }`}
-                            onClick={() => {
-                              if (receipt.status === "DRAFT") void handleOpenDraft(receipt);
-                            }}
+                            className="text-slate-700 hover:bg-slate-50/70"
                           >
-                            <td className="whitespace-nowrap px-3.5 py-2.5 text-slate-500">
+                            <td className="whitespace-nowrap px-3.5 py-3 text-slate-500">
                               {new Date(`${receipt.receivedOn}T12:00:00`).toLocaleDateString("fr-FR", {
                                 day: "2-digit",
                                 month: "short",
+                                year: "numeric",
                               })}
                             </td>
-                            <td className="px-3.5 py-2.5 font-semibold text-slate-900">
+                            <td className="px-3.5 py-3 font-semibold text-slate-900">
                               {receipt.supplierName}
                             </td>
-                            <td className="px-3.5 py-2.5 tabular-nums text-slate-700">
+                            <td className="px-3.5 py-3 tabular-nums text-slate-700">
                               {receipt.lineCount}
                             </td>
-                            <td className="px-3.5 py-2.5 text-slate-600">
-                              {receipt.status === "DRAFT" ? "Brouillon" : "Validé"}
-                              {receipt.status === "DRAFT" && canManageStock ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      void handleOpenDraft(receipt);
-                                    }}
-                                    className="ml-2 text-[11px] font-semibold text-emerald-700"
-                                  >
-                                    Ouvrir
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      handleDeleteDraft(receipt.id);
-                                    }}
-                                    className="ml-2 text-[11px] font-medium text-red-600"
-                                  >
-                                    Supprimer
-                                  </button>
-                                </>
-                              ) : null}
+                            <td className="px-3.5 py-3">
+                              <SupplyStatusBadge status={receipt.status} />
                             </td>
-                            <td className="px-3.5 py-2.5 text-right font-semibold tabular-nums text-slate-900">
+                            <td className="px-3.5 py-3 text-right font-semibold tabular-nums text-slate-900">
                               {formatPriceXof(receipt.totalAmount)}
                             </td>
+                            {canManageStock || canReopenSupply ? (
+                              <td className="px-3.5 py-3">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {canEditDraft ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleOpenDraft(receipt)}
+                                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                        Modifier
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteDraft(receipt.id)}
+                                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 text-[11px] font-semibold text-red-700 hover:bg-red-50"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                        Supprimer
+                                      </button>
+                                    </>
+                                  ) : null}
+                                  {canReopen ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleReopenValidated(receipt)}
+                                      className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                                    >
+                                      <RotateCcw className="h-3 w-3" />
+                                      Réouvrir
+                                    </button>
+                                  ) : null}
+                                  {!canEditDraft && !canReopen ? (
+                                    <span className="text-[11px] text-slate-400">—</span>
+                                  ) : null}
+                                </div>
+                              </td>
+                            ) : null}
                           </tr>
-                        ))
+                          );
+                        })
                       : departmentEntries.map((entry) => (
                       <tr
                         key={entry.id}
@@ -837,6 +920,9 @@ export function SupplyWorkspace({
                             ? formatPriceXof(entry.totalCost)
                             : "—"}
                         </td>
+                        {canManageStock || canReopenSupply ? (
+                          <td className="px-3.5 py-2.5 text-right text-slate-400">—</td>
+                        ) : null}
                       </tr>
                     ))}
                   </tbody>

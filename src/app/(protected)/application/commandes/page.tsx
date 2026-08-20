@@ -1,12 +1,10 @@
+import { CommandesPageSuspense } from "@/app/(protected)/application/commandes/commandes-page-content";
 import { requireAdminContext } from "@/lib/auth/workspace-context";
 import {
-  formatOrderPeriodLabel,
   resolveOrderPeriodRange,
   toLocalIsoDate,
 } from "@/lib/orders/period";
 import { adminOrderFiltersSchema } from "@/lib/orders/schemas";
-import { listAdminOrders, listOrderCashiers } from "@/lib/orders/queries";
-import { AdminOrdersWorkspace } from "@/components/admin/admin-orders-workspace";
 import { coerceAdminOrderDepartment } from "@/lib/settings/service-scope";
 
 type CommandesPageProps = {
@@ -61,20 +59,5 @@ export default async function CommandesPage({ searchParams }: CommandesPageProps
     to: range.to,
   };
 
-  const [data, cashiers] = await Promise.all([
-    listAdminOrders(workspace, filters),
-    listOrderCashiers(workspace),
-  ]);
-
-  return (
-    <AdminOrdersWorkspace
-      {...data}
-      filters={filters}
-      periodLabel={formatOrderPeriodLabel(period, filters.from, filters.to)}
-      cashiers={cashiers}
-      establishmentName={workspace.establishmentName}
-      canManageOrders={workspace.canManageOrders}
-      serviceScope={workspace.serviceScope}
-    />
-  );
+  return <CommandesPageSuspense workspace={workspace} filters={filters} />;
 }

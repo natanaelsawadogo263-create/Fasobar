@@ -27,8 +27,9 @@ export const ensureBarStockItemsFromProducts = cache(
   ): Promise<StockListItem[]> {
     const cacheKey = workspace.establishmentId;
     const until = ensureOkUntil.get(cacheKey) ?? 0;
+    // Warm TTL : no-op (appelé en fire-and-forget depuis stock/appro).
     if (until > Date.now()) {
-      return listStockItems(workspace, { tab: "bar", status: "all" });
+      return [];
     }
 
     const [existing, products] = await Promise.all([

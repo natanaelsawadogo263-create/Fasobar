@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { downloadCsv } from "@/lib/csv/download-csv";
+import { formatOrderNumber } from "@/lib/orders/constants";
 import {
   formatDayLabel,
   formatHourLabel,
@@ -44,9 +45,10 @@ type AdminSalesWorkspaceProps = {
   activityCode?: string | null;
 };
 
-type TabId = "produits" | "caissiers" | "heures" | "jours";
+type TabId = "surplus" | "produits" | "caissiers" | "heures" | "jours";
 
 const TABS: Array<{ id: TabId; label: string; short: string }> = [
+  { id: "surplus", label: "Surplus", short: "Surplus" },
   { id: "produits", label: "Produits", short: "Produits" },
   { id: "caissiers", label: "Par caissier·ère", short: "Caissiers" },
   { id: "heures", label: "Par heure", short: "Heures" },
@@ -69,7 +71,7 @@ export function AdminSalesWorkspace({
 }: AdminSalesWorkspaceProps) {
   void _establishmentName;
   const router = useRouter();
-  const [tab, setTab] = useState<TabId>("produits");
+  const [tab, setTab] = useState<TabId>("surplus");
   const { expanded, toggle: toggleExpanded } = useExpandPanel();
   const pages = getActivityPages(activityCode);
   const retail = isRetailActivity(activityCode);
@@ -104,20 +106,34 @@ export function AdminSalesWorkspace({
   }
 
   const stats = useMemo(() => {
+    const totalSurplus = data.saleSurpluses.reduce(
+      (sum, sale) => sum + sale.surplus,
+      0,
+    );
     const items = [
+      {
+        title: "Surplus cumulé",
+        shortTitle: "Surplus",
+        value:
+          data.saleSurpluses.length > 0
+            ? formatPriceXof(totalSurplus)
+            : "—",
+        icon: <TrendingUp className="h-3.5 w-3.5" />,
+        iconClass: "bg-emerald-50 text-emerald-600",
+      },
       {
         title: "Chiffre d'affaires",
         shortTitle: "CA",
         value: formatPriceXof(data.summary.totalRevenue),
-        icon: <TrendingUp className="h-3.5 w-3.5" />,
-        iconClass: "bg-emerald-50 text-emerald-600",
+        icon: <ShoppingBag className="h-3.5 w-3.5" />,
+        iconClass: "bg-sky-50 text-sky-600",
       },
       {
         title: pages.sales.paidTitle,
         shortTitle: pages.sales.paidShort,
         value: String(data.summary.paidOrderCount),
         icon: <ClipboardList className="h-3.5 w-3.5" />,
-        iconClass: "bg-sky-50 text-sky-600",
+        iconClass: "bg-violet-50 text-violet-600",
       },
     ];
     if (!retail && showBar) {
@@ -139,10 +155,35 @@ export function AdminSalesWorkspace({
       });
     }
     return items;
-  }, [data.summary, showBar, showKitchen, singleScope, retail, pages.sales.paidTitle, pages.sales.paidShort]);
+  }, [
+    data.summary,
+    data.saleSurpluses,
+    showBar,
+    showKitchen,
+    singleScope,
+    retail,
+    pages.sales.paidTitle,
+    pages.sales.paidShort,
+  ]);
 
   function exportCsv() {
     const filenameSuffix = new Date().toISOString().slice(0, 10);
+
+    if (tab === "surplus") {
+      downloadCsv(
+        `ventes-surplus-${filenameSuffix}.csv`,
+        ["Vente", "Date", "Caissier", "Vendu", "Coût produits", "Surplus"],
+        data.saleSurpluses.map((sale) => [
+          formatOrderNumber(sale.orderNumber),
+          sale.paidAt,
+          sale.cashierName ?? "",
+          sale.saleAmount,
+          sale.costAmount,
+          sale.surplus,
+        ]),
+      );
+      return;
+    }
 
     if (tab === "produits") {
       downloadCsv(
@@ -353,6 +394,145 @@ export function AdminSalesWorkspace({
           </div>
         ) : (
           <div className="h-full overflow-auto print:h-auto print:overflow-visible">
+            {tab === "surplus" ? (
+              <>
+                <div className="space-y-2 p-3 md:hidden">
+                  {data.saleSurpluses.map((sale) => (
+                    <article
+                      key={sale.orderId}
+                      className="rounded-xl border border-slate-200 px-3.5 py-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[14px] font-semibold text-slate-900">
+                            Vente {formatOrderNumber(sale.orderNumber)}
+                          </p>
+                          <p className="mt-0.5 text-[12px] text-slate-500">
+                            {new Date(sale.paidAt).toLocaleString("fr-FR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {sale.cashierName ? ` · ${sale.cashierName}` : ""}
+                          </p>
+                        </div>
+                        <p
+                          className={`shrink-0 text-[15px] font-bold tabular-nums ${
+                            sale.surplus >= 0 ? "text-emerald-700" : "text-red-600"
+                          }`}
+                        >
+                          {formatPriceXof(sale.surplus)}
+                        </p>
+                      </div>
+                      <ul className="mt-2 space-y-1.5 border-t border-slate-100 pt-2">
+                        {sale.lines.map((line, index) => (
+                          <li
+                            key={`${sale.orderId}-${index}`}
+                            className="text-[12px]"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="min-w-0 truncate text-slate-700">
+                                {line.productName}
+                                <span className="text-slate-400"> ×{line.quantity}</span>
+                              </span>
+                              <span
+                                className={`shrink-0 font-semibold tabular-nums ${
+                                  line.surplus >= 0 ? "text-emerald-700" : "text-red-600"
+                                }`}
+                              >
+                                {formatPriceXof(line.surplus)}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-[11px] text-slate-400">
+                              Vente {formatPriceXof(line.unitSalePrice)}/u − Achat{" "}
+                              {line.hasCost
+                                ? `${formatPriceXof(line.unitCostPrice)}/u`
+                                : "—"}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-2 text-[11px] text-slate-400">
+                        Total ligne : vendu {formatPriceXof(sale.saleAmount)} − coût
+                        produits {formatPriceXof(sale.costAmount)}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+                <table className="hidden min-w-full text-left text-[13px] md:table">
+                  <thead className="sticky top-0 z-10 bg-slate-50 text-[12px] uppercase tracking-wide text-slate-500 print:static">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Vente</th>
+                      <th className="px-4 py-3 font-semibold">Produits</th>
+                      <th className="px-4 py-3 font-semibold">Vendu</th>
+                      <th className="px-4 py-3 font-semibold">Coût produits</th>
+                      <th className="px-4 py-3 font-semibold">Surplus</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {data.saleSurpluses.map((sale) => (
+                      <tr key={sale.orderId} className="align-top hover:bg-slate-50/80">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-slate-900">
+                            {formatOrderNumber(sale.orderNumber)}
+                          </p>
+                          <p className="mt-0.5 text-[12px] text-slate-500">
+                            {new Date(sale.paidAt).toLocaleString("fr-FR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {sale.cashierName ? ` · ${sale.cashierName}` : ""}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          <ul className="space-y-1">
+                            {sale.lines.map((line, index) => (
+                              <li key={`${sale.orderId}-d-${index}`}>
+                                {line.productName}{" "}
+                                <span className="text-slate-400">×{line.quantity}</span>
+                                <span className="ml-2 text-[11px] text-slate-400">
+                                  ({formatPriceXof(line.unitSalePrice)}/u −{" "}
+                                  {line.hasCost
+                                    ? `${formatPriceXof(line.unitCostPrice)}/u`
+                                    : "achat ?"}
+                                  )
+                                </span>
+                                <span
+                                  className={`ml-2 font-semibold tabular-nums ${
+                                    line.surplus >= 0
+                                      ? "text-emerald-700"
+                                      : "text-red-600"
+                                  }`}
+                                >
+                                  {formatPriceXof(line.surplus)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                        <td className="px-4 py-3 font-semibold tabular-nums text-slate-900">
+                          {formatPriceXof(sale.saleAmount)}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums text-slate-700">
+                          {formatPriceXof(sale.costAmount)}
+                        </td>
+                        <td
+                          className={`px-4 py-3 font-bold tabular-nums ${
+                            sale.surplus >= 0 ? "text-emerald-700" : "text-red-600"
+                          }`}
+                        >
+                          {formatPriceXof(sale.surplus)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            ) : null}
+
             {tab === "produits" ? (
               <>
                 <div className="space-y-2 p-3 md:hidden">

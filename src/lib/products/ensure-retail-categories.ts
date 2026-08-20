@@ -29,11 +29,13 @@ export const ensureRetailCategories = cache(async function ensureRetailCategorie
   }
 
   const catalog = getCatalogFormProfile(workspace.activityCode);
-  const existing = await listCategories(workspace);
   const until = ensureOkUntil.get(workspace.establishmentId) ?? 0;
   if (until > Date.now()) {
-    return existing.filter((item) => shouldShowCatalogCategory(item.name, catalog));
+    const cached = await listCategories(workspace);
+    return cached.filter((item) => shouldShowCatalogCategory(item.name, catalog));
   }
+
+  const existing = await listCategories(workspace);
 
   const departmentId = await getDepartmentIdByCode(workspace, "BAR");
   if (!departmentId || catalog.suggestedCategories.length === 0) {

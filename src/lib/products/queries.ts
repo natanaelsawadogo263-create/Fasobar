@@ -164,8 +164,9 @@ export async function listProducts(
       .from("products")
       .select(columns)
       .eq("organization_id", workspace.organizationId)
-    .eq("establishment_id", workspace.establishmentId)
-      .order("name");
+      .eq("establishment_id", workspace.establishmentId)
+      .order("name")
+      .limit(500);
 
     if (filters.tab === "bar" || filters.tab === "kitchen") {
       const departmentCode = filters.tab === "bar" ? "BAR" : "KITCHEN";

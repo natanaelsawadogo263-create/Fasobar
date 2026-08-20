@@ -257,9 +257,6 @@ describe("profil d’exploitation", () => {
     expect(
       isPathAllowedForSpace("/application/approvisionnements", "bar_manager", "BOTH", "hardware"),
     ).toBe(true);
-    expect(
-      isPathAllowedForSpace("/application/inventaires", "bar_manager", "BOTH", "hardware"),
-    ).toBe(false);
     expect(canOperateCashRegister("OWNER", "OWNER", "hardware")).toBe(true);
     expect(canOperateCashRegister("OWNER", "OWNER")).toBe(false);
     expect(resolveHomePathForRoles("BAR_MANAGER", "BAR_MANAGER", "hardware")).toBe(

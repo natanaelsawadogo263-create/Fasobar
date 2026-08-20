@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink } from "@/components/layout/instant-link";
 import { Circle, Fuel, UserRound } from "lucide-react";
 
 import { SignOutForm } from "@/components/auth/sign-out-form";
@@ -46,7 +46,7 @@ export function PompisteTopbar({
         </div>
       </div>
 
-      <Link
+      <InstantLink
         href="/application/station/pompiste/session"
         className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/80 px-2.5 transition active:bg-emerald-50/60 md:h-auto md:gap-2 md:px-3 md:py-1.5 md:hover:border-emerald-200 md:hover:bg-emerald-50/50"
         title="Ma session"
@@ -64,7 +64,7 @@ export function PompisteTopbar({
             <span className="font-semibold text-slate-600">Hors session</span>
           )}
         </span>
-      </Link>
+      </InstantLink>
 
       <div className="hidden lg:block">
         <LiveClock />

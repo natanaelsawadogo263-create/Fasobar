@@ -111,8 +111,10 @@ export async function listStockItems(
     .select(
       "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, stock_unit_label, categories(name))",
     )
-    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
-    .order("name");
+    .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
+    .order("name")
+    .limit(500);
 
   if (filters.tab === "bar" || filters.tab === "kitchen") {
     const departmentCode = filters.tab === "bar" ? "BAR" : "KITCHEN";
@@ -140,8 +142,10 @@ export async function listStockItems(
       .select(
         "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, categories(name))",
       )
-      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
-      .order("name");
+      .eq("organization_id", workspace.organizationId)
+      .eq("establishment_id", workspace.establishmentId)
+      .order("name")
+      .limit(500);
     if (filters.tab === "bar" || filters.tab === "kitchen") {
       const departmentCode = filters.tab === "bar" ? "BAR" : "KITCHEN";
       const departmentId = await getDepartmentIdByCode(workspace, departmentCode);
@@ -250,13 +254,16 @@ async function attachEstimatedCosts(
   const supabase = await createClient();
   const itemIds = items.map((item) => item.id);
 
+  // Derniers mouvements avec coût seulement (évite de charger tout l'historique).
   const { data, error } = await supabase
     .from("stock_movements")
     .select("stock_item_id, unit_cost, created_at")
-    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
     .in("stock_item_id", itemIds)
     .not("unit_cost", "is", null)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(Math.min(Math.max(itemIds.length * 3, 60), 400));
 
   if (error || !data) {
     return items;

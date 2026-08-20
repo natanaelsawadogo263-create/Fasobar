@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CheckCircle2, Printer, ShoppingCart, X } from "lucide-react";
 
 import { AlertMessage } from "@/components/auth/alert-message";
+import { InstantLink } from "@/components/layout/instant-link";
 import { formatOrderNumber, formatPriceXof } from "@/lib/orders/constants";
 import { calculateChange } from "@/lib/payments/constants";
 import { buildReceiptHref } from "@/lib/payments/receipt-routes";
@@ -99,13 +99,13 @@ export function CashCheckoutModal({
 
             <div className="grid gap-2">
               {success.receiptId ? (
-                <Link
+                <InstantLink
                   href={buildReceiptHref(success.receiptId, { print: true })}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700"
                 >
                   <Printer className="h-4 w-4" />
                   Imprimer et nouvelle vente
-                </Link>
+                </InstantLink>
               ) : null}
               <button
                 type="button"

@@ -7,6 +7,9 @@ import { pullCatalogFromCloud } from "@/lib/local-domain/catalog-pull";
 import { LocalProductRepository } from "@/lib/local-domain/products-repository";
 import type { CashierCategory, CashierProduct } from "@/lib/orders/types";
 
+const CATALOG_PULL_TTL_MS = 120_000;
+const lastCatalogPullOkUntil = new Map<string, number>();
+
 /**
  * Desktop: hydrate SQLite from cloud when possible, then serve local catalogue.
  * Web callers should not use this — use Supabase queries instead.
@@ -21,13 +24,19 @@ export async function ensureLocalCatalogHydrated(
   const db = getLocalDatabase({ skipBackup: true });
   const repo = new LocalProductRepository(db);
   const localCount = repo.countProducts(workspace.establishmentId);
+  const warmUntil = lastCatalogPullOkUntil.get(workspace.establishmentId) ?? 0;
 
-  // Always attempt a soft pull when we have zero local products, or periodically
-  // when local data exists (best-effort; failures leave local data intact).
-  await pullCatalogFromCloud(workspace);
+  // Si le catalogue local est déjà là et récent : ne pas re-tirer le cloud.
+  if (localCount > 0 && warmUntil > Date.now()) {
+    return;
+  }
 
-  if (localCount === 0) {
-    // Second chance already done inside pull; nothing else.
+  const result = await pullCatalogFromCloud(workspace);
+  if (result.ok || localCount > 0) {
+    lastCatalogPullOkUntil.set(
+      workspace.establishmentId,
+      Date.now() + CATALOG_PULL_TTL_MS,
+    );
   }
 }
 

@@ -1,4 +1,7 @@
+import { Suspense } from "react";
+
 import { ApplicationShell } from "@/components/layout/application-shell";
+import { PageLoadingShell } from "@/components/layout/page-loading-shell";
 import { getNavigationForSpace } from "@/lib/navigation/space-navigation";
 import { requireWorkspaceContext } from "@/lib/auth/workspace-context";
 
@@ -24,7 +27,9 @@ export default async function ApplicationLayout({
       canRenewSubscription={workspace.organizationRole === "OWNER"}
       activityCode={workspace.activityCode}
     >
-      {children}
+      <Suspense fallback={<PageLoadingShell label="Ouverture…" />}>
+        {children}
+      </Suspense>
     </ApplicationShell>
   );
 }

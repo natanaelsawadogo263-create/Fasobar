@@ -1,10 +1,8 @@
 import { redirect } from "next/navigation";
 
-import { StockWorkspace } from "@/components/stock/stock-workspace";
-import { isRetailActivity } from "@/lib/activity/profile";
+import { StockPageSuspense } from "@/app/(protected)/application/stock/stock-page-content";
 import { requireStockReadContext } from "@/lib/auth/workspace-context";
 import { hasBarService, hasKitchenService } from "@/lib/settings/service-scope";
-import { loadStockPageData } from "@/lib/stock/page-data";
 
 type StockPageProps = {
   searchParams: Promise<{
@@ -25,42 +23,5 @@ export default async function StockPage({ searchParams }: StockPageProps) {
     redirect("/application/stock/cuisine");
   }
 
-  const {
-    filters,
-    stockItems,
-    suppliers,
-    categories,
-    products,
-    stats,
-    packagingsByProduct,
-    basePath,
-    totalStockItemCount,
-    serviceScope,
-  } = await loadStockPageData(params, { workspace });
-
-  return (
-    <StockWorkspace
-      establishmentName={workspace.establishmentName}
-      stockItems={stockItems}
-      suppliers={suppliers}
-      categories={categories}
-      products={products}
-      stats={stats}
-      packagingsByProduct={packagingsByProduct}
-      initialTab={filters.tab}
-      initialSearch={filters.search ?? ""}
-      initialCategoryId={filters.categoryId ?? ""}
-      initialStatus={filters.status}
-      canManageStock={workspace.canManageStock}
-      canManageBarStock={workspace.canManageBarStock}
-      canManageKitchenStock={workspace.canManageKitchenStock}
-      organizationRole={workspace.organizationRole}
-      establishmentRole={workspace.establishmentRole}
-      totalStockItemCount={totalStockItemCount}
-      basePath={basePath}
-      drinksOnly={serviceScope === "BAR" && !isRetailActivity(workspace.activityCode)}
-      serviceScope={serviceScope}
-      activityCode={workspace.activityCode}
-    />
-  );
+  return <StockPageSuspense workspace={workspace} params={params} />;
 }

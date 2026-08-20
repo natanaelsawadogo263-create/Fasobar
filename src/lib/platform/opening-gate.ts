@@ -77,9 +77,27 @@ export async function getOrganizationOpeningStatus(
   return status;
 }
 
+/** Après APPROVED : ne pas re-requêter à chaque navigation (TTL process). */
+const OPENING_APPROVED_TTL_MS = 90_000;
+const openingApprovedUntil = new Map<string, number>();
+
 export const getOpeningRedirectForOrganization = cache(
   async (organizationId: string): Promise<string | null> => {
+    const warmUntil = openingApprovedUntil.get(organizationId) ?? 0;
+    if (warmUntil > Date.now()) {
+      return null;
+    }
+
     const status = await getOrganizationOpeningStatus(organizationId);
-    return resolveOpeningRedirect(status);
+    const redirectTo = resolveOpeningRedirect(status);
+    if (!redirectTo) {
+      openingApprovedUntil.set(
+        organizationId,
+        Date.now() + OPENING_APPROVED_TTL_MS,
+      );
+    } else {
+      openingApprovedUntil.delete(organizationId);
+    }
+    return redirectTo;
   },
 );

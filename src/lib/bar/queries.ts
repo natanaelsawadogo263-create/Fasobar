@@ -292,30 +292,27 @@ export type BarDashboardData = {
 export async function getBarDashboardData(
   workspace: WorkspaceContext,
 ): Promise<BarDashboardData> {
-  const { listStockItems } = await import("@/lib/stock/queries");
+  const { listDashboardStockAlerts } = await import("@/lib/stock/queries");
 
-  const [orders, stockItems] = await Promise.all([
+  const [orders, stock] = await Promise.all([
     listBarDrinkOrders(workspace),
-    listStockItems(workspace, { tab: "bar", status: "all" }),
+    listDashboardStockAlerts(workspace, 8),
   ]);
 
-  const alerts = stockItems
-    .filter((item) => item.active && (item.status === "low" || item.status === "out"))
-    .map((item) => ({
-      id: item.id,
-      name: item.name,
-      currentQuantity: item.currentQuantity,
-      minimumQuantity: item.minimumQuantity,
-      unit: item.unit,
-      status: (item.status === "out" ? "out" : "low") as "low" | "out",
-    }))
-    .slice(0, 8);
+  const alerts = stock.alerts.map((item) => ({
+    id: item.id,
+    name: item.name,
+    currentQuantity: item.currentQuantity,
+    minimumQuantity: item.minimumQuantity,
+    unit: item.unit,
+    status: (item.status === "out" ? "out" : "low") as "low" | "out",
+  }));
 
   return {
     toPrepare: orders.filter((o) => o.barStatus === "TO_PREPARE").length,
     inPreparation: orders.filter((o) => o.barStatus === "IN_PREPARATION").length,
     ready: orders.filter((o) => o.barStatus === "READY").length,
-    lowStock: alerts.length,
+    lowStock: stock.alertCount,
     recentOrders: orders.slice(0, 6),
     stockAlerts: alerts,
   };

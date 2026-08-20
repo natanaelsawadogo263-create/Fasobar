@@ -217,8 +217,8 @@ export function AdminDashboardWorkspace({
             <span className="text-slate-400">
               {retail
                 ? kpis.profitAvailable
-                  ? "Ventes − coût vendu − dépenses"
-                  : "Après le 1er approvisionnement"
+                  ? "Ventes − coût d’achat (appro)"
+                  : "Après 1re vente + appro"
                 : `${openSessionsCount} ouverte${openSessionsCount > 1 ? "s" : ""}`}
             </span>
           }
@@ -282,8 +282,8 @@ export function AdminDashboardWorkspace({
             retail ? (
               <span className="text-slate-500">
                 {kpis.profitAvailable
-                  ? "Ventes − coût vendu − dépenses"
-                  : "Après le 1er approvisionnement"}
+                  ? "Ventes − coût d’achat (appro)"
+                  : "Après 1re vente + appro"}
               </span>
             ) : openSessionsCount > 0 ? (
               <span className="inline-flex items-center gap-1 text-slate-500">
