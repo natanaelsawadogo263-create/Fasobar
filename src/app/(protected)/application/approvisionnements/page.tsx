@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { SupplyWorkspace } from "@/components/stock/supply-workspace";
 import { isRetailActivity } from "@/lib/activity/profile";
 import { ensureBarStockItemsFromProducts } from "@/lib/bar/ensure-stock";
+import { listProducts } from "@/lib/products/queries";
 import { requireStockReadContext } from "@/lib/auth/workspace-context";
 import { isPathAllowedForSpace } from "@/lib/navigation/space-navigation";
 import {
@@ -57,8 +58,10 @@ function formatCustomPeriodLabel(from?: string, to?: string): string {
 export default async function ApprovisionnementsPage({
   searchParams,
 }: ApprovisionnementsPageProps) {
-  const workspace = await requireStockReadContext();
-
+  const [workspace, raw] = await Promise.all([
+    requireStockReadContext(),
+    searchParams,
+  ]);
   if (
     !isPathAllowedForSpace(
       "/application/approvisionnements",
@@ -70,7 +73,6 @@ export default async function ApprovisionnementsPage({
     redirect("/application/acces-refuse");
   }
 
-  const raw = await searchParams;
   const scope = workspace.serviceScope;
   const lockedDepartment =
     workspace.userSpace === "cashier_kitchen"
@@ -106,12 +108,28 @@ export default async function ApprovisionnementsPage({
     ? hasKitchenService(scope)
     : lockedDepartment === "KITCHEN";
 
-  const [suppliers, barItems, kitchenItems, recentEntries, receipts] = await Promise.all([
+  if (loadBar) {
+    void ensureBarStockItemsFromProducts(workspace);
+  }
+
+  const packagingsPromise = loadBar
+    ? listProducts(workspace, { tab: "bar", search: "", categoryId: "" }).then(
+        (barProducts) => {
+          const ids = barProducts.map((product) => product.id);
+          return ids.length > 0
+            ? listPackagingsForProductsMerged(workspace, ids)
+            : {};
+        },
+      )
+    : Promise.resolve({});
+
+  const [suppliers, barItems, kitchenItems, recentEntries, receipts, packagingsByProduct] =
+    await Promise.all([
     listSuppliers(
       workspace,
       lockedDepartment ? { departmentCode: lockedDepartment } : {},
     ),
-    loadBar ? ensureBarStockItemsFromProducts(workspace) : Promise.resolve([]),
+    loadBar ? listStockItems(workspace, { tab: "bar", status: "all" }) : Promise.resolve([]),
     loadKitchen
       ? listStockItems(workspace, { tab: "kitchen", status: "all" })
       : Promise.resolve([]),
@@ -119,20 +137,17 @@ export default async function ApprovisionnementsPage({
       ...(lockedDepartment ? { departmentCode: lockedDepartment } : {}),
       from: periodRange.from,
       to: periodRange.to,
-      limit: 500,
+      limit: 100,
     }),
     listSupplyReceipts(workspace, {
       from: periodRange.from,
       to: periodRange.to,
-      limit: 200,
+      limit: 60,
     }),
+    packagingsPromise,
   ]);
 
   const stockItems = [...barItems, ...kitchenItems];
-  const productIds = stockItems
-    .map((item) => item.productId)
-    .filter((id): id is string => Boolean(id));
-  const packagingsByProduct = await listPackagingsForProductsMerged(workspace, productIds);
 
   return (
     <SupplyWorkspace

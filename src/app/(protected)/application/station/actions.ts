@@ -29,6 +29,8 @@ const STATION_PATHS = [
   "/application/station/carburants",
   "/application/station/cuves",
   "/application/station/pompes",
+  "/application/station/pompiste",
+  "/application/station/pompiste/session",
   "/application/station/approvisionnements",
   "/application/station/pertes",
   "/application/station/controle-cuves",

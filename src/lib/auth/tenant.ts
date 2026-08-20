@@ -94,11 +94,9 @@ export function sameTenant(
 }
 
 /** Filtre obligatoire : org + établissement. */
-export function applyTenantFilter<T>(query: T, workspace: TenantIds): T {
-  const builder = query as {
-    eq: (column: string, value: string) => unknown;
-  };
-  builder.eq("organization_id", workspace.organizationId);
-  builder.eq("establishment_id", workspace.establishmentId);
-  return query;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- chaînage Supabase sans explosion de types
+export function applyTenantFilter(query: any, workspace: TenantIds): any {
+  return query
+    .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId);
 }

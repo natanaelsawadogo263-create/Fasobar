@@ -1,10 +1,14 @@
 export type PumpForSelect = {
+  /** Identifiant ligne fiche (SUPER_1, GAZ_OIL_1, …). */
   id: string;
+  fuelLineId: string;
   name: string;
   fuelTypeName: string;
   fuelTankName: string;
   /** FCFA (integer) */
   pricePerLiter: number;
+  fuelTypeId: string;
+  fuelTankId: string;
 };
 
 export type OwnOpenPumpSession = {
@@ -36,6 +40,7 @@ export type StationSheetBootstrap = {
 };
 
 export type OtherOpenPumpSession = {
+  fuelLineId: string;
   fuelPumpId: string;
   openedAt: string;
   openedByName: string | null;

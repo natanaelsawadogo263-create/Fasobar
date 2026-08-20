@@ -125,18 +125,20 @@ export function BarOrdersWorkspace({
             setTickets((prev) => prev.filter((ticket) => ticket.id !== row.id));
             return;
           }
-          scheduleOpsRefresh(() => router.refresh());
+          if (payload.eventType === "INSERT") {
+            scheduleOpsRefresh(() => router.refresh(), 2500);
+            return;
+          }
+          if (row.bar_status) {
+            setTickets((prev) =>
+              prev.map((ticket) =>
+                ticket.id === row.id
+                  ? { ...ticket, barStatus: row.bar_status ?? ticket.barStatus }
+                  : ticket,
+              ),
+            );
+          }
         },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "order_items",
-          filter: `establishment_id=eq.${establishmentId}`,
-        },
-        () => scheduleOpsRefresh(() => router.refresh()),
       )
       .subscribe();
     return () => {

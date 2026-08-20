@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { BarHistoryRow, BarOrderTicket } from "@/lib/bar/constants";
 import { mapMovementToBarHistoryType } from "@/lib/bar/constants";
 import type { BarHistoryTypeFilter, BarPrepStatus } from "@/lib/bar/schemas";
@@ -60,7 +62,7 @@ type BarOrderRow = {
  * Tickets boissons pour le responsable bar :
  * détails complets de commande + articles BAR (nom, qté, prix, notes).
  */
-export async function listBarDrinkOrders(
+export const listBarDrinkOrders = cache(async function listBarDrinkOrders(
   workspace: WorkspaceContext,
 ): Promise<BarOrderTicket[]> {
   const supabase = await createClient();
@@ -103,12 +105,13 @@ export async function listBarDrinkOrders(
       )
     `,
     )
-    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
     .not("bar_status", "is", null)
     .neq("status", "CANCELLED")
     .neq("payment_status", "PAID")
-    .order("bar_status_updated_at", { ascending: true });
+    .order("bar_status_updated_at", { ascending: true })
+    .limit(120);
 
   if (error || !data) {
     if (error && isMissingBarStatusError(error)) {
@@ -181,7 +184,7 @@ export async function listBarDrinkOrders(
       },
     ];
   });
-}
+});
 
 export async function listBarHistoryMovements(
   workspace: WorkspaceContext,

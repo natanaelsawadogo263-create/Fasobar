@@ -14,8 +14,9 @@ import { bindRealtimeAuth } from "@/lib/supabase/realtime-session";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 
-const POLL_MS = 2500;
 const OPS_HYDRATE_DELAY_MS = 450;
+/** Realtime + visibilité suffisent — pas de polling agressif sur chaque page admin. */
+const FALLBACK_POLL_MS = 90_000;
 
 const OPS_TABLES = [
   "orders",
@@ -199,9 +200,9 @@ export function useAdminNotificationsLive(establishmentId: string) {
       if (cancelled) return;
 
       pollTimer = setInterval(() => {
-        if (document.visibilityState === "hidden") return;
+        if (document.visibilityState === "hidden" || openRef.current) return;
         void hydrate(true);
-      }, POLL_MS);
+      }, FALLBACK_POLL_MS);
 
       let channel = supabase.channel(`admin-live:${establishmentId}`);
       for (const table of OPS_TABLES) {

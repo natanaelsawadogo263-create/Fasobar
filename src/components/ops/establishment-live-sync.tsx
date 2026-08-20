@@ -16,11 +16,24 @@ type EstablishmentLiveSyncProps = {
   establishmentId: string;
 };
 
+/** Pages avec état local / Realtime dédié — pas de refresh SSR lourd. */
+function isLocalRealtimeSurface(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    pathname.startsWith("/application/caisse") ||
+    pathname.startsWith("/application/bar") ||
+    pathname.startsWith("/application/cuisine") ||
+    pathname.startsWith("/application/commandes-ouvertes") ||
+    pathname.startsWith("/application/encaissement")
+  );
+}
+
 /** Pages admin « statiques » : pas de refresh ops (évite de recharger tout le SSR). */
 function shouldSkipOpsRefresh(pathname: string | null): boolean {
   if (!pathname) return false;
   if (pathname.includes("acces-refuse")) return true;
   if (pathname.startsWith("/application/station/pompiste/session")) return true;
+  if (isLocalRealtimeSurface(pathname)) return true;
   return (
     pathname.startsWith("/application/mon-abonnement") ||
     pathname.startsWith("/application/parametres") ||
@@ -38,13 +51,9 @@ function shouldSkipOpsRefresh(pathname: string | null): boolean {
 
 function isOpsSurface(pathname: string | null): boolean {
   if (!pathname) return true;
+  if (isLocalRealtimeSurface(pathname)) return false;
   return (
-    pathname.startsWith("/application/caisse") ||
     pathname.startsWith("/application/commandes") ||
-    pathname.startsWith("/application/bar") ||
-    pathname.startsWith("/application/cuisine") ||
-    pathname.startsWith("/application/encaissement") ||
-    pathname.startsWith("/application/commandes-ouvertes") ||
     pathname.startsWith("/application/tableau-de-bord") ||
     pathname.startsWith("/application/sessions") ||
     pathname.startsWith("/application/caisses") ||
@@ -66,11 +75,7 @@ function isCatalogSurface(pathname: string | null): boolean {
     pathname.startsWith("/application/stock") ||
     pathname.startsWith("/application/approvisionnements") ||
     pathname.startsWith("/application/bar/stock") ||
-    pathname.startsWith("/application/bar/approvisionnements") ||
-    pathname.startsWith("/application/tableau-de-bord") ||
-    pathname.startsWith("/application/caisse") ||
-    pathname.startsWith("/application/cuisine") ||
-    pathname.startsWith("/application/bar")
+    pathname.startsWith("/application/bar/approvisionnements")
   );
 }
 
@@ -131,7 +136,7 @@ export function EstablishmentLiveSync({ establishmentId }: EstablishmentLiveSync
       scheduleOpsRefresh(() => {
         if (shouldSkipOpsRefresh(pathnameRef.current)) return;
         router.refresh();
-      });
+      }, 1500);
     };
 
     let channel = supabase.channel(`ops-establishment:${establishmentId}`);

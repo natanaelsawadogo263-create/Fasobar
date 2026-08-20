@@ -52,45 +52,8 @@ export const updateFuelPumpSchema = createFuelPumpSchema.extend({
   id: z.string().uuid("Pompe invalide."),
 });
 
-function roundIndex3(value: number): number {
-  return Math.round(value * 1000) / 1000;
-}
-
-/**
- * Ouverture de session pompiste.
- *
- * Règle UI/UX :
- * - Si `indexStart` diffère du pré-remplissage (`prefillIndexEnd`),
- *   alors `indexGapReason` devient obligatoire.
- */
-export const openPumpSessionSchema = z
-  .object({
-    fuelPumpId: z.string().uuid("Pompe invalide."),
-    indexStart: z.coerce
-      .number()
-      .min(0, "L'index de début doit être positif ou nul."),
-    prefillIndexEnd: z.coerce
-      .number()
-      .min(0, "Index de pré-remplissage invalide."),
-    indexGapReason: z
-      .string()
-      .trim()
-      .min(3, "Le motif de l'écart d'index doit contenir au moins 3 caractères.")
-      .optional(),
-  })
-  .superRefine((data, ctx) => {
-    const mismatch =
-      roundIndex3(data.indexStart) !== roundIndex3(data.prefillIndexEnd);
-    if (!mismatch) return;
-
-    if (!data.indexGapReason || data.indexGapReason.trim().length < 3) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Motif obligatoire en cas d'écart d'index.",
-        path: ["indexGapReason"],
-      });
-    }
-  });
+/** Ouverture directe de la fiche journalière — aucun champ requis. */
+export const openPumpSessionSchema = z.object({});
 
 /**
  * Clôture de session pompiste.

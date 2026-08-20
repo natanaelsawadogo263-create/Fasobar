@@ -3,14 +3,14 @@ import "server-only";
 import { cache } from "react";
 
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
-import { applyTenantFilter } from "@/lib/auth/tenant";
 import type {
   OwnOpenPumpSession,
   OtherOpenPumpSession,
-  PumpForSelect,
   StationSheetBootstrap,
 } from "@/lib/station/pump-session-types";
-import { getEstablishmentSettings } from "@/lib/settings/queries";
+import type { StationSheetPrices } from "@/lib/station/sheet-engine";
+import { DEFAULT_SHEET_PRICES } from "@/lib/station/sheet-engine";
+import { listFuelLinesForSessionOpen } from "@/lib/station/fuel-line-selection";
 import { createClient } from "@/lib/supabase/server";
 
 function readSingle<T>(value: T | T[] | null): T | null {
@@ -18,49 +18,25 @@ function readSingle<T>(value: T | T[] | null): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
-export const listActivePumpsForPumpSelection = cache(
-  async function listActivePumpsForPumpSelection(
-    workspace: WorkspaceContext,
-  ): Promise<PumpForSelect[]> {
-    const supabase = await createClient();
+function scopedPumpSessions(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  workspace: WorkspaceContext,
+  select: string,
+) {
+  return supabase
+    .from("pump_sessions")
+    .select(select)
+    .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId);
+}
 
-    const { data, error } = await applyTenantFilter(
-      supabase
-        .from("fuel_pumps")
-        .select(
-          "id, name, active, fuel_type_id, fuel_tank_id, fuel_types(name, selling_price), fuel_tanks(name)",
-        )
-        .eq("active", true)
-        .order("name"),
-      workspace,
-    );
+export const listActivePumpsForPumpSelection = listFuelLinesForSessionOpen;
 
-    if (error || !data) {
-      if (error) console.error("[listActivePumpsForPumpSelection]", error.message);
-      return [];
-    }
-
-    return data.map((row) => {
-      const fuelType = readSingle(
-        row.fuel_types as
-          | { name: string; selling_price: number | string }[]
-          | { name: string; selling_price: number | string }
-          | null,
-      );
-      const fuelTank = readSingle(
-        row.fuel_tanks as { name: string }[] | { name: string } | null,
-      );
-
-      return {
-        id: String(row.id),
-        name: String(row.name),
-        fuelTypeName: fuelType?.name ?? "—",
-        fuelTankName: fuelTank?.name ?? "—",
-        pricePerLiter: Number(fuelType?.selling_price ?? 0),
-      };
-    });
-  },
-);
+export const countInactiveFuelPumps = cache(async function countInactiveFuelPumps(
+  _workspace: WorkspaceContext,
+): Promise<number> {
+  return 0;
+});
 
 const SESSION_ROW_SELECT_FULL =
   "id, opened_at, opened_by, index_start, price_per_liter, fuel_pump_id, fuel_type_id, fuel_tank_id, is_initial_session, active_fuel_line_id, sheet_manual, sheet_carry_forward";
@@ -68,17 +44,15 @@ const SESSION_ROW_SELECT_FULL =
 const SESSION_ROW_SELECT_BASE =
   "id, opened_at, opened_by, index_start, price_per_liter, fuel_pump_id, fuel_type_id, fuel_tank_id";
 
-const SESSION_HYDRATED_SELECT = `${SESSION_ROW_SELECT_FULL}, fuel_pumps(name), fuel_types(name, selling_price), fuel_tanks(name), profiles!pump_sessions_opened_by_fkey(full_name)`;
-
 type PumpSessionRow = {
   id: string;
   opened_at: string;
   opened_by: string;
   index_start: number | string;
   price_per_liter: number | string;
-  fuel_pump_id: string;
-  fuel_type_id: string;
-  fuel_tank_id: string;
+  fuel_pump_id: string | null;
+  fuel_type_id: string | null;
+  fuel_tank_id: string | null;
   is_initial_session?: boolean | null;
   active_fuel_line_id?: string | null;
   sheet_manual?: unknown;
@@ -92,22 +66,19 @@ type PumpSessionRow = {
   profiles?: { full_name: string } | { full_name: string }[] | null;
 };
 
-function mapSessionRowToOwnOpen(row: PumpSessionRow): OwnOpenPumpSession {
-  const fuelPump = readSingle(row.fuel_pumps ?? null);
-  const fuelType = readSingle(row.fuel_types ?? null);
-  const fuelTank = readSingle(row.fuel_tanks ?? null);
-  const profile = readSingle(row.profiles ?? null);
-  const pricePerLiter = Number(row.price_per_liter ?? fuelType?.selling_price ?? 0);
-
+async function hydrateOwnOpenSessionForSheet(
+  row: PumpSessionRow,
+  workspace: WorkspaceContext,
+): Promise<OwnOpenPumpSession> {
   return {
     id: String(row.id),
     openedAt: String(row.opened_at),
-    openedByName: profile?.full_name ?? null,
-    fuelPumpId: String(row.fuel_pump_id),
-    fuelPumpName: fuelPump?.name ?? "—",
-    fuelTypeName: fuelType?.name ?? "—",
-    fuelTankName: fuelTank?.name ?? "—",
-    pricePerLiter,
+    openedByName: workspace.ownerName,
+    fuelPumpId: row.fuel_pump_id ? String(row.fuel_pump_id) : "",
+    fuelPumpName: "Fiche journalière",
+    fuelTypeName: "—",
+    fuelTankName: "—",
+    pricePerLiter: Number(row.price_per_liter ?? 0),
     indexStart: Number(row.index_start),
     isInitialSession: Boolean(row.is_initial_session),
     activeFuelLineId: row.active_fuel_line_id ? String(row.active_fuel_line_id) : null,
@@ -122,6 +93,7 @@ function mapSessionRowToOwnOpen(row: PumpSessionRow): OwnOpenPumpSession {
   };
 }
 
+/** @deprecated Préférer hydrateOwnOpenSessionForSheet — évite 4 requêtes labels inutiles. */
 async function hydrateOwnOpenSessionSplit(
   row: PumpSessionRow,
   workspace: WorkspaceContext,
@@ -189,8 +161,9 @@ async function fetchOwnOpenSessionRow(
   const supabase = await createClient();
 
   const run = (select: string) => {
-    let query = applyTenantFilter(supabase.from("pump_sessions").select(select), workspace)
-      .eq("status", "OPEN");
+    let query = scopedPumpSessions(supabase, workspace, select)
+      .eq("status", "OPEN")
+      .order("opened_at", { ascending: false });
 
     if (sessionId) {
       query = query.eq("id", sessionId).eq("opened_by", workspace.userId);
@@ -198,13 +171,20 @@ async function fetchOwnOpenSessionRow(
       query = query.eq("opened_by", workspace.userId);
     }
 
-    return query.maybeSingle();
+    return query.limit(1).maybeSingle();
   };
 
   let { data, error } = await run(SESSION_ROW_SELECT_FULL);
 
+  if (error?.code === "PGRST116") {
+    return null;
+  }
+
   if (error && /column|sheet_|is_initial|active_fuel/i.test(error.message)) {
     ({ data, error } = await run(SESSION_ROW_SELECT_BASE));
+    if (error?.code === "PGRST116") {
+      return null;
+    }
   }
 
   if (error) {
@@ -219,39 +199,37 @@ async function resolveOwnOpenSession(
   workspace: WorkspaceContext,
   sessionId?: string,
 ): Promise<OwnOpenPumpSession | null> {
-  const supabase = await createClient();
-
-  const runHydrated = () => {
-    let query = applyTenantFilter(
-      supabase.from("pump_sessions").select(SESSION_HYDRATED_SELECT),
-      workspace,
-    )
-      .eq("status", "OPEN");
-
-    if (sessionId) {
-      query = query.eq("id", sessionId).eq("opened_by", workspace.userId);
-    } else {
-      query = query.eq("opened_by", workspace.userId);
-    }
-
-    return query.maybeSingle();
-  };
-
-  let { data, error } = await runHydrated();
-
-  if (!error && data) {
-    return mapSessionRowToOwnOpen(data as PumpSessionRow);
-  }
-
-  if (error && !/column|sheet_|relationship|is_initial|active_fuel/i.test(error.message)) {
-    console.error("[resolveOwnOpenSession]", error.message);
-    return null;
-  }
-
   const row = await fetchOwnOpenSessionRow(workspace, sessionId);
   if (!row) return null;
-  return hydrateOwnOpenSessionSplit(row, workspace);
+  return hydrateOwnOpenSessionForSheet(row, workspace);
 }
+
+/** Topbar / layout — 1 seule requête légère. */
+export const getOwnOpenPumpSessionSummary = cache(
+  async function getOwnOpenPumpSessionSummary(
+    workspace: WorkspaceContext,
+  ): Promise<{ hasOwnSession: boolean; sessionOpenedAt?: string }> {
+    const supabase = await createClient();
+    const { data, error } = await scopedPumpSessions(
+      supabase,
+      workspace,
+      "opened_at",
+    )
+      .eq("status", "OPEN")
+      .eq("opened_by", workspace.userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) {
+      return { hasOwnSession: false };
+    }
+
+    return {
+      hasOwnSession: true,
+      sessionOpenedAt: String((data as unknown as { opened_at: string }).opened_at),
+    };
+  },
+);
 
 export const getOwnOpenPumpSession = cache(async function getOwnOpenPumpSession(
   workspace: WorkspaceContext,
@@ -272,21 +250,27 @@ export const getOpenPumpSessionsHeldByOthers = cache(
   ): Promise<OtherOpenPumpSession[]> {
     const supabase = await createClient();
 
-    const { data, error } = await applyTenantFilter(
-      supabase
-        .from("pump_sessions")
-        .select("fuel_pump_id, opened_at, opened_by")
-        .eq("status", "OPEN")
-        .neq("opened_by", workspace.userId),
+    const { data, error } = await scopedPumpSessions(
+      supabase,
       workspace,
-    );
+      "fuel_pump_id, active_fuel_line_id, opened_at, opened_by",
+    )
+      .eq("status", "OPEN")
+      .neq("opened_by", workspace.userId);
 
     if (error || !data) {
       if (error) console.error("[getOpenPumpSessionsHeldByOthers]", error.message);
       return [];
     }
 
-    const openedByIds = [...new Set(data.map((row) => String(row.opened_by)))];
+    const rows = data as unknown as Array<{
+      fuel_pump_id: string;
+      active_fuel_line_id: string | null;
+      opened_at: string;
+      opened_by: string;
+    }>;
+
+    const openedByIds = [...new Set(rows.map((row) => String(row.opened_by)))];
     const profileNames = new Map<string, string>();
 
     if (openedByIds.length > 0) {
@@ -300,7 +284,10 @@ export const getOpenPumpSessionsHeldByOthers = cache(
       }
     }
 
-    return data.map((row) => ({
+    return rows.map((row) => ({
+      fuelLineId: row.active_fuel_line_id
+        ? String(row.active_fuel_line_id)
+        : String(row.fuel_pump_id),
       fuelPumpId: String(row.fuel_pump_id),
       openedAt: String(row.opened_at),
       openedByName: profileNames.get(String(row.opened_by)) ?? null,
@@ -308,42 +295,49 @@ export const getOpenPumpSessionsHeldByOthers = cache(
   },
 );
 
-export const getLastClosedIndexEndByPump = cache(
-  async function getLastClosedIndexEndByPump(
+export const getLastClosedIndexEndByFuelLine = cache(
+  async function getLastClosedIndexEndByFuelLine(
     workspace: WorkspaceContext,
-    fuelPumpIds: readonly string[],
+    fuelLineIds: readonly string[],
   ): Promise<Record<string, number | null>> {
     const map: Record<string, number | null> = {};
-    for (const id of fuelPumpIds) map[id] = null;
+    for (const id of fuelLineIds) map[id] = null;
 
-    if (fuelPumpIds.length === 0) return map;
+    if (fuelLineIds.length === 0) return map;
 
     const supabase = await createClient();
 
-    const { data, error } = await applyTenantFilter(
-      supabase
-        .from("pump_sessions")
-        .select("fuel_pump_id, index_end, closed_at")
-        .eq("status", "CLOSED")
-        .in("fuel_pump_id", fuelPumpIds)
-        .order("closed_at", { ascending: false }),
+    const { data, error } = await scopedPumpSessions(
+      supabase,
       workspace,
-    );
+      "active_fuel_line_id, index_end, closed_at",
+    )
+      .eq("status", "CLOSED")
+      .in("active_fuel_line_id", [...fuelLineIds])
+      .order("closed_at", { ascending: false });
 
     if (error || !data) {
-      if (error) console.error("[getLastClosedIndexEndByPump]", error.message);
+      if (error) console.error("[getLastClosedIndexEndByFuelLine]", error.message);
       return map;
     }
 
-    for (const row of data) {
-      const pumpId = String(row.fuel_pump_id);
-      if (map[pumpId] != null) continue;
-      map[pumpId] = row.index_end == null ? null : Number(row.index_end);
+    const rows = data as unknown as Array<{
+      active_fuel_line_id: string | null;
+      index_end: number | string | null;
+    }>;
+
+    for (const row of rows) {
+      const lineId = row.active_fuel_line_id ? String(row.active_fuel_line_id) : null;
+      if (!lineId || map[lineId] != null) continue;
+      map[lineId] = row.index_end == null ? null : Number(row.index_end);
     }
 
     return map;
   },
 );
+
+/** @deprecated Préférer getLastClosedIndexEndByFuelLine. */
+export const getLastClosedIndexEndByPump = getLastClosedIndexEndByFuelLine;
 
 /** @deprecated Préférer getLastClosedIndexEndByPump avec la liste des pompes actives. */
 export async function getEstablishmentLastClosedIndexEndByPump(
@@ -361,50 +355,30 @@ export const getStationSheetBootstrap = cache(async function getStationSheetBoot
 ): Promise<StationSheetBootstrap> {
   const supabase = await createClient();
 
-  const { count, error: countError } = await applyTenantFilter(
-    supabase
-      .from("pump_sessions")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "CLOSED"),
+  const { data: lastClosed, error } = await scopedPumpSessions(
+    supabase,
     workspace,
-  );
-
-  if (countError) {
-    console.error("[getStationSheetBootstrap]", countError.message);
-  }
-
-  const isInitialSession = (count ?? 0) === 0;
-  if (isInitialSession) {
-    return { isInitialSession: true, carryForward: null };
-  }
-
-  let { data: lastClosed, error } = await applyTenantFilter(
-    supabase
-      .from("pump_sessions")
-      .select("sheet_closed_snapshot")
-      .eq("status", "CLOSED")
-      .order("closed_at", { ascending: false })
-      .limit(1),
-    workspace,
-  ).maybeSingle();
+    "sheet_closed_snapshot",
+  )
+    .eq("status", "CLOSED")
+    .order("closed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (error && /column|sheet_closed_snapshot/i.test(error.message)) {
-    ({ data: lastClosed, error } = await applyTenantFilter(
-      supabase
-        .from("pump_sessions")
-        .select("id")
-        .eq("status", "CLOSED")
-        .order("closed_at", { ascending: false })
-        .limit(1),
-      workspace,
-    ).maybeSingle());
+    return { isInitialSession: true, carryForward: null };
   }
 
   if (error) {
     console.error("[getStationSheetBootstrap]", error.message);
+    return { isInitialSession: true, carryForward: null };
   }
 
-  const snapshot = lastClosed?.sheet_closed_snapshot;
+  if (!lastClosed) {
+    return { isInitialSession: true, carryForward: null };
+  }
+
+  const snapshot = (lastClosed as { sheet_closed_snapshot?: unknown }).sheet_closed_snapshot;
   const carryForward =
     snapshot &&
     typeof snapshot === "object" &&
@@ -431,38 +405,33 @@ export const getPumpSessionOpenState = cache(async function getPumpSessionOpenSt
   return { ownSession, otherOpenSessions };
 });
 
+export const getStationSheetPrices = cache(async function getStationSheetPrices(
+  _workspace: WorkspaceContext,
+): Promise<StationSheetPrices> {
+  return DEFAULT_SHEET_PRICES;
+});
+
 export type PompisteSessionPageData = {
   ownSession: OwnOpenPumpSession | null;
-  otherOpenSessions: OtherOpenPumpSession[];
-  pumps: PumpForSelect[];
   sheetBootstrap: StationSheetBootstrap;
-  lastClosedIndexEndByPump: Record<string, number | null>;
-  settings: Awaited<ReturnType<typeof getEstablishmentSettings>>;
+  prices: StationSheetPrices;
+  /** @deprecated Conservé pour compatibilité — toujours []. */
+  otherOpenSessions: OtherOpenPumpSession[];
 };
 
-/** Une seule entrée page session pompiste — requêtes parallèles + cache React. */
+/** Entrée unique page session pompiste — 2 requêtes parallèles (session + bootstrap). */
 export const getPompisteSessionPageData = cache(async function getPompisteSessionPageData(
   workspace: WorkspaceContext,
 ): Promise<PompisteSessionPageData> {
-  const pumps = await listActivePumpsForPumpSelection(workspace);
-
-  const [openState, sheetBootstrap, settings, lastClosedIndexEndByPump] =
-    await Promise.all([
-      getPumpSessionOpenState(workspace),
-      getStationSheetBootstrap(workspace),
-      getEstablishmentSettings(workspace),
-      getLastClosedIndexEndByPump(
-        workspace,
-        pumps.map((pump) => pump.id),
-      ),
-    ]);
+  const [ownSession, sheetBootstrap] = await Promise.all([
+    getOwnOpenPumpSession(workspace),
+    getStationSheetBootstrap(workspace),
+  ]);
 
   return {
-    ownSession: openState.ownSession,
-    otherOpenSessions: openState.otherOpenSessions,
-    pumps,
+    ownSession,
     sheetBootstrap,
-    lastClosedIndexEndByPump,
-    settings,
+    prices: DEFAULT_SHEET_PRICES,
+    otherOpenSessions: [],
   };
 });

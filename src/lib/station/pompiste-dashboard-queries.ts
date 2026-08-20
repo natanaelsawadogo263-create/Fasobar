@@ -114,12 +114,17 @@ function buildPumpCards(
   ownSession: OwnOpenPumpSession | null,
   teamSessions: OtherOpenPumpSession[],
 ): PompistePumpCard[] {
-  const occupiedByPump = new Map(
-    teamSessions.map((session) => [session.fuelPumpId, session]),
+  const occupiedByLine = new Map(
+    teamSessions.map((session) => [session.fuelLineId, session]),
   );
 
   return pumps.map((pump) => {
-    if (ownSession?.fuelPumpId === pump.id) {
+    const sessionLineId = ownSession
+      ? (ownSession.activeFuelLineId ??
+        resolveFuelLineId(ownSession.fuelTypeName, ownSession.fuelPumpName))
+      : null;
+
+    if (ownSession && sessionLineId === pump.fuelLineId) {
       return {
         ...pump,
         status: "mine",
@@ -128,7 +133,7 @@ function buildPumpCards(
       };
     }
 
-    const occupied = occupiedByPump.get(pump.id);
+    const occupied = occupiedByLine.get(pump.fuelLineId);
     if (occupied) {
       return {
         ...pump,

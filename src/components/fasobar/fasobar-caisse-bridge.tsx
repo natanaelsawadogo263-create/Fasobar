@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 import {
   useFasoBarCashier,
@@ -36,6 +36,18 @@ export function FasoBarCaisseBridge({
   const setOnCloseSession = parent?.setOnCloseSession;
   const setOnOpenOrders = parent?.setOnOpenOrders;
 
+  const onDepartmentChangeRef = useRef(onDepartmentChange);
+  const onCategoryChangeRef = useRef(onCategoryChange);
+  const onSearchChangeRef = useRef(onSearchChange);
+  const onCloseSessionRef = useRef(onCloseSession);
+  const onOpenOrdersRef = useRef(onOpenOrders);
+
+  onDepartmentChangeRef.current = onDepartmentChange;
+  onCategoryChangeRef.current = onCategoryChange;
+  onSearchChangeRef.current = onSearchChange;
+  onCloseSessionRef.current = onCloseSession;
+  onOpenOrdersRef.current = onOpenOrders;
+
   useLayoutEffect(() => {
     if (!setCaisseFilters || !setOnCloseSession || !setOnOpenOrders) {
       return;
@@ -47,20 +59,14 @@ export function FasoBarCaisseBridge({
       categoryId,
       search,
       searchInputRef,
-      onDepartmentChange,
-      onCategoryChange,
-      onSearchChange,
+      onDepartmentChange: (filter) => onDepartmentChangeRef.current(filter),
+      onCategoryChange: (id) => onCategoryChangeRef.current(id),
+      onSearchChange: (value) => onSearchChangeRef.current(value),
       serviceScope,
       activityCode,
     });
-    setOnCloseSession(onCloseSession);
-    setOnOpenOrders(onOpenOrders);
-
-    return () => {
-      setCaisseFilters(null);
-      setOnCloseSession(undefined);
-      setOnOpenOrders(undefined);
-    };
+    setOnCloseSession(() => onCloseSessionRef.current);
+    setOnOpenOrders(() => onOpenOrdersRef.current);
   }, [
     setCaisseFilters,
     setOnCloseSession,
@@ -70,14 +76,17 @@ export function FasoBarCaisseBridge({
     categoryId,
     search,
     searchInputRef,
-    onDepartmentChange,
-    onCategoryChange,
-    onSearchChange,
     serviceScope,
     activityCode,
-    onCloseSession,
-    onOpenOrders,
   ]);
+
+  useLayoutEffect(() => {
+    return () => {
+      setCaisseFilters?.(null);
+      setOnCloseSession?.(undefined);
+      setOnOpenOrders?.(undefined);
+    };
+  }, [setCaisseFilters, setOnCloseSession, setOnOpenOrders]);
 
   return children;
 }

@@ -70,11 +70,11 @@ export async function getAdminSalesData(
     .select(
       "id, order_number, total_amount, created_at, updated_at, created_by, profiles!orders_created_by_fkey(full_name)",
     )
-    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
     .eq("payment_status", "PAID")
     .order("updated_at", { ascending: false })
-    .limit(1000);
+    .limit(300);
 
   if (filters.cashierId) {
     query = query.eq("created_by", filters.cashierId);
@@ -107,29 +107,17 @@ export async function getAdminSalesData(
   const { data: itemRows } = await itemsClient
     .from("order_items")
     .select(
-      "order_id, product_id, product_name_snapshot, quantity, line_total, department_id",
+      "order_id, product_id, product_name_snapshot, quantity, line_total, departments(code, name)",
     )
-    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
     .in("order_id", orderIds);
 
-  const items = (itemRows ?? []) as OrderItemRow[];
-
-  const departmentIds = [...new Set(items.map((item) => item.department_id).filter(Boolean))];
-  const departmentById = new Map<string, { code: string; name: string }>();
-
-  if (departmentIds.length > 0) {
-    const { data: departments } = await itemsClient
-      .from("departments")
-      .select("id, code, name")
-      .in("id", departmentIds);
-
-    for (const department of departments ?? []) {
-      departmentById.set(department.id, {
-        code: department.code,
-        name: department.name,
-      });
+  const items = (itemRows ?? []) as Array<
+    OrderItemRow & {
+      departments?: { code: string; name: string } | { code: string; name: string }[] | null;
     }
-  }
+  >;
 
   const totalRevenue = orderRows.reduce((sum, row) => sum + row.total_amount, 0);
   const paidOrderCount = orderRows.length;
@@ -142,7 +130,7 @@ export async function getAdminSalesData(
   const itemCountByOrder = new Map<string, number>();
 
   for (const item of items) {
-    const department = departmentById.get(item.department_id);
+    const department = readSingle(item.departments ?? null);
     const lineTotal = Number(item.line_total) || 0;
     const quantity = Number(item.quantity) || 0;
 

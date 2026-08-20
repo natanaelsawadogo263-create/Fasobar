@@ -1,6 +1,6 @@
 import type { AuthError } from "@supabase/supabase-js";
 
-import { USER_ERROR_MESSAGE, toUserFacingError } from "@/lib/errors/user-facing";
+import { toUserFacingError } from "@/lib/errors/user-facing";
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   invalid_credentials: "Identifiant, e-mail ou mot de passe incorrect.",

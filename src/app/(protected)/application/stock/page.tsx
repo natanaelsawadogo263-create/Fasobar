@@ -16,8 +16,10 @@ type StockPageProps = {
 };
 
 export default async function StockPage({ searchParams }: StockPageProps) {
-  const params = await searchParams;
-  const workspace = await requireStockReadContext();
+  const [params, workspace] = await Promise.all([
+    searchParams,
+    requireStockReadContext(),
+  ]);
 
   if (!hasBarService(workspace.serviceScope) && hasKitchenService(workspace.serviceScope)) {
     redirect("/application/stock/cuisine");
@@ -34,7 +36,7 @@ export default async function StockPage({ searchParams }: StockPageProps) {
     basePath,
     totalStockItemCount,
     serviceScope,
-  } = await loadStockPageData(params);
+  } = await loadStockPageData(params, { workspace });
 
   return (
     <StockWorkspace

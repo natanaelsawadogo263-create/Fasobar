@@ -10,6 +10,7 @@ import {
   listSuppliers,
 } from "@/lib/stock/queries";
 import { stockFiltersSchema, type StockTab } from "@/lib/stock/schemas";
+import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { requireStockReadContext } from "@/lib/auth/workspace-context";
 import {
   defaultStockTab,
@@ -78,9 +79,9 @@ function matchesStockFilters(
 
 export async function loadStockPageData(
   params: StockPageParams,
-  options: StockPageOptions = {},
+  options: StockPageOptions & { workspace?: WorkspaceContext } = {},
 ) {
-  const workspace = await requireStockReadContext();
+  const workspace = options.workspace ?? (await requireStockReadContext());
   const scope = workspace.serviceScope;
 
   const requestedTab =
@@ -106,10 +107,14 @@ export async function loadStockPageData(
   const wantBar = hasBarService(scope) && listTab !== "kitchen";
   const wantKitchen = hasKitchenService(scope) && listTab !== "bar";
 
+  if (wantBar) {
+    void ensureBarStockItemsFromProducts(workspace);
+  }
+
   const [barItems, kitchenItems, suppliers, categories, products] =
     await Promise.all([
       wantBar
-        ? ensureBarStockItemsFromProducts(workspace)
+        ? listStockItems(workspace, { tab: "bar", status: "all" })
         : Promise.resolve([] as StockListItem[]),
       wantKitchen
         ? listStockItems(workspace, { tab: "kitchen", status: "all" })
@@ -145,8 +150,10 @@ export async function loadStockPageData(
     .map((item) => item.productId)
     .filter((id): id is string => Boolean(id));
 
-  const packagingsByProduct = await listPackagingsForProductsMerged(workspace, productIds);
-  const stats = await getStockStats(workspace, allStockItems);
+  const [packagingsByProduct, stats] = await Promise.all([
+    listPackagingsForProductsMerged(workspace, productIds),
+    getStockStats(workspace, allStockItems),
+  ]);
 
   return {
     workspace,

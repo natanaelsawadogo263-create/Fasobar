@@ -90,7 +90,6 @@ export function getNavigationForSpace(
   if (isGasStation && space === "cashier_kitchen") {
     return [
       { href: "/application/station/pompiste/session", label: "Ma session", enabled: true },
-      { href: "/application/station/pompiste", label: "Ma pompe", enabled: true },
     ];
   }
 

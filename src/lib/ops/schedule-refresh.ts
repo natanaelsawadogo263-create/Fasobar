@@ -7,7 +7,7 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 let pendingWhileHidden = false;
 let refreshFn: (() => void) | null = null;
 
-export const OPS_REFRESH_DEBOUNCE_MS = 700;
+export const OPS_REFRESH_DEBOUNCE_MS = 1200;
 
 export function scheduleOpsRefresh(
   refresh: () => void,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
 
@@ -18,6 +18,8 @@ type ThermalReceiptProps = {
   receipt: ReceiptDetail;
   returnTo?: string | null;
   activityCode?: string | null;
+  /** Ouvre la boîte d'impression dès l'affichage (après vente caisse). */
+  autoPrint?: boolean;
 };
 
 /** Montant compact pour colonnes étroites (évite le chevauchement « F CFA »). */
@@ -31,6 +33,7 @@ export function ThermalReceipt({
   receipt,
   returnTo = null,
   activityCode = null,
+  autoPrint = false,
 }: ThermalReceiptProps) {
   const pages = getActivityPages(activityCode);
   const router = useRouter();
@@ -38,6 +41,7 @@ export function ThermalReceipt({
     receipt.tableReference ?? receipt.customerReference ?? "—";
   const homePath = returnTo || "/application/caisse?fresh=1";
   const redirectedRef = useRef(false);
+  const autoPrintStartedRef = useRef(false);
 
   function returnHome() {
     if (redirectedRef.current) return;
@@ -45,10 +49,20 @@ export function ThermalReceipt({
     router.replace(homePath);
   }
 
-  function handleManualPrint() {
-    window.addEventListener("afterprint", returnHome, { once: true });
+  function handlePrint(returnAfter = false) {
+    if (returnAfter) {
+      window.addEventListener("afterprint", returnHome, { once: true });
+    }
     printThermalTicket();
   }
+
+  useEffect(() => {
+    if (!autoPrint || autoPrintStartedRef.current) return;
+    autoPrintStartedRef.current = true;
+    const timer = window.setTimeout(() => handlePrint(true), 350);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- autoPrint une seule fois au montage
+  }, [autoPrint]);
 
   return (
     <div className="thermal-receipt-host flex min-h-0 w-full flex-1 flex-col bg-slate-200">
@@ -57,7 +71,7 @@ export function ThermalReceipt({
           <h1 className="text-center text-[17px] font-bold text-slate-900">Reçu</h1>
           <button
             type="button"
-            onClick={handleManualPrint}
+            onClick={() => handlePrint(false)}
             className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-[15px] font-semibold text-white active:bg-emerald-700"
           >
             <Printer className="h-5 w-5" />
@@ -69,7 +83,7 @@ export function ThermalReceipt({
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[14px] font-medium text-slate-600 active:bg-slate-100"
           >
             <ArrowLeft className="h-4 w-4" />
-            Retour à la caisse
+            {autoPrint ? "Continuer sans imprimer" : "Retour à la caisse"}
           </button>
         </div>
       </div>

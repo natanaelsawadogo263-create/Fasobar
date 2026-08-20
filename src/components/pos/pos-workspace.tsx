@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { InstantLink } from "@/components/layout/instant-link";
 import { ClipboardList, LayoutGrid, ShoppingBag, Timer } from "lucide-react";
@@ -441,30 +441,30 @@ export function PosWorkspace({
   );
   const totalProductCount = products.length;
 
-  const showToast = useCallback((message: string, tone: ToastTone = "info") => {
+  const showToast = (message: string, tone: ToastTone = "info") => {
     setToast({ message, tone });
     window.setTimeout(() => setToast(null), 4000);
-  }, []);
+  };
 
-  const handleCloseSession = useCallback(() => {
+  const handleCloseSession = () => {
     setShowCloseModal(true);
-  }, []);
+  };
 
-  const handleOpenOrdersDrawer = useCallback(() => {
+  const handleOpenOrdersDrawer = () => {
     setShowOpenOrders(true);
-  }, []);
+  };
 
-  const handleDepartmentChange = useCallback((filter: DepartmentFilter) => {
+  const handleDepartmentChange = (filter: DepartmentFilter) => {
     setDepartmentFilter(filter);
-  }, []);
+  };
 
-  const handleCategoryChange = useCallback((nextCategoryId: string) => {
+  const handleCategoryChange = (nextCategoryId: string) => {
     setCategoryId(nextCategoryId);
-  }, []);
+  };
 
-  const handleSearchChange = useCallback((value: string) => {
+  const handleSearchChange = (value: string) => {
     setSearch(value);
-  }, []);
+  };
 
   function addSaleUnit(
     product: CashierProduct,
@@ -646,7 +646,6 @@ export function PosWorkspace({
       router.replace(`/application/caisse?fresh=1&t=${Date.now()}`);
       return;
     }
-    refreshSoon(() => router.refresh());
   }
 
   function submitOrder(
@@ -854,7 +853,6 @@ export function PosWorkspace({
           totalPaid: checkoutDraft.totalToPay,
           orderNumber: checkoutDraft.orderNumber,
         });
-        refreshSoon(() => router.refresh());
       } catch (error) {
         setCheckoutError("L’encaissement n’a pas abouti. Réessayez.");
       }
@@ -869,7 +867,6 @@ export function PosWorkspace({
         return;
       }
       setOpenError(undefined);
-      refreshSoon(() => router.refresh());
     });
   }
 

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { ThermalReceipt } from "@/components/payments/thermal-receipt";
 import { requireOrderReadContext } from "@/lib/auth/workspace-context";
+import { CAISSE_FRESH_PATH } from "@/lib/payments/receipt-routes";
 import { getReceiptById } from "@/lib/payments/queries";
 
 type ReceiptPageProps = {
@@ -14,7 +15,6 @@ type ReceiptPageProps = {
   }>;
 };
 
-const CAISSE_NEXT = "/application/caisse?fresh=1";
 const ADMIN_VENTES_NEXT = "/application/ventes";
 
 function resolveReturnTo(
@@ -22,7 +22,7 @@ function resolveReturnTo(
   userSpace: string,
 ): string | null {
   if (!next) {
-    return userSpace === "admin" ? ADMIN_VENTES_NEXT : null;
+    return userSpace === "admin" ? CAISSE_FRESH_PATH : null;
   }
 
   if (next === "/application/caisse" || next.startsWith("/application/caisse?")) {
@@ -58,6 +58,7 @@ export default async function ReceiptPage({ params, searchParams }: ReceiptPageP
       receipt={receipt}
       returnTo={returnTo}
       activityCode={workspace.activityCode}
+      autoPrint={query.print === "1"}
     />
   );
 }

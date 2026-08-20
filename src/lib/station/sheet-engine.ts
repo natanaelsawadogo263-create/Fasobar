@@ -105,13 +105,20 @@ export type StationSheetPrices = {
   gazoilPu: number;
 };
 
+/** Prix par défaut — le pompiste saisit les P.U. sur la fiche (pas de config admin). */
+export const DEFAULT_SHEET_PRICES: StationSheetPrices = {
+  superPu: 0,
+  gazoilPu: 0,
+};
+
 export type StationSheetContext = {
   isInitialSession: boolean;
-  activeFuelLineId: FuelLineId;
-  /** Index compteur début (session pompe active). */
-  sessionIndexStart: number;
-  /** Index compteur fin saisi sur la ligne active. */
-  sessionIndexEnd: number;
+  /** Ligne liée à un compteur pompe (legacy). Null = fiche complète, saisie manuelle. */
+  activeFuelLineId?: FuelLineId | null;
+  /** Index compteur début (legacy, ligne active uniquement). */
+  sessionIndexStart?: number;
+  /** Index compteur fin (legacy, ligne active uniquement). */
+  sessionIndexEnd?: number;
   carryForward: StationSheetCarryForward | null;
   prices: StationSheetPrices;
   manual: StationSheetManual;
@@ -382,7 +389,10 @@ function computeAmountLines(lines: AmountLineManual[]): {
  */
 export function computeStationSheet(ctx: StationSheetContext): ComputedStationSheet {
   const carry = ctx.carryForward ?? emptyCarryForward();
-  const isActive = (id: FuelLineId) => id === ctx.activeFuelLineId;
+  const sessionIndexStart = ctx.sessionIndexStart ?? 0;
+  const sessionIndexEnd = ctx.sessionIndexEnd ?? 0;
+  const isActive = (id: FuelLineId) =>
+    ctx.activeFuelLineId != null && id === ctx.activeFuelLineId;
 
   let superLiters = 0;
   let gazoilLiters = 0;
@@ -400,14 +410,18 @@ export function computeStationSheet(ctx: StationSheetContext): ComputedStationSh
     const stockCfEditable = ctx.isInitialSession;
     const stockRenterieur = stockCfEditable
       ? liters3(manual.stockRenterieur)
-      : liters3(carried?.stockRenterieur ?? manual.stockRenterieur ?? (active ? ctx.sessionIndexStart : 0));
+      : liters3(
+          carried?.stockRenterieur ??
+            manual.stockRenterieur ??
+            (active ? sessionIndexStart : 0),
+        );
     const stockOuverture = stockCfEditable
       ? liters3(manual.stockOuverture)
       : liters3(
           carried?.stockOuverture ??
             manual.stockOuverture ??
             stockRenterieur ??
-            (active ? ctx.sessionIndexStart : 0),
+            (active ? sessionIndexStart : 0),
         );
 
     const depotRempli = liters3(manual.depotRempli);
@@ -416,13 +430,13 @@ export function computeStationSheet(ctx: StationSheetContext): ComputedStationSh
     let ventesJour = liters3(manual.ventesJour);
     if (active) {
       const diffMilli =
-        Math.round(ctx.sessionIndexEnd * 1000) - Math.round(ctx.sessionIndexStart * 1000);
+        Math.round(sessionIndexEnd * 1000) - Math.round(sessionIndexStart * 1000);
       ventesJour = diffMilli >= 0 ? diffMilli / 1000 : 0;
     }
 
     let stockAjusteSortie = liters3(manual.stockAjusteSortie);
     if (active) {
-      stockAjusteSortie = liters3(ctx.sessionIndexEnd);
+      stockAjusteSortie = liters3(sessionIndexEnd);
     } else if (!ctx.isInitialSession && carried?.stockAjusteSortie != null) {
       stockAjusteSortie = liters3(carried.stockAjusteSortie);
     }
@@ -576,7 +590,8 @@ export function computeStationSheet(ctx: StationSheetContext): ComputedStationSh
   const versementNet = intCfa(recetteNette - manquants + surplus - poursuites);
 
   const indexValid =
-    Math.round(ctx.sessionIndexEnd * 1000) >= Math.round(ctx.sessionIndexStart * 1000);
+    ctx.activeFuelLineId == null ||
+    Math.round(sessionIndexEnd * 1000) >= Math.round(sessionIndexStart * 1000);
 
   return {
     fuelLines,

@@ -5,13 +5,17 @@ import { getActiveCashSession } from "@/lib/payments/queries";
 
 export default async function CommandesOuvertesPage() {
   const workspace = await requireOrderReadContext();
-  const session = workspace.canManageOrders
-    ? await getActiveCashSession(workspace)
-    : null;
-  const orders = await listCashierOrders(workspace, {
-    includeFinalized: true,
-    sessionOpenedAt: session?.openedAt ?? null,
-  });
+  const sessionPromise = workspace.canManageOrders
+    ? getActiveCashSession(workspace)
+    : Promise.resolve(null);
+
+  const [session, orders] = await Promise.all([
+    sessionPromise,
+    listCashierOrders(workspace, {
+      includeFinalized: true,
+      sessionOpenedAt: null,
+    }),
+  ]);
 
   return (
     <OpenOrdersWorkspace

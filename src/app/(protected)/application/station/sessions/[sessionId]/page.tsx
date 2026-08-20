@@ -6,7 +6,6 @@ import {
   computeStationSheet,
   parseSheetCarryForward,
   parseSheetManual,
-  resolveFuelLineId,
   type FuelLineId,
 } from "@/lib/station/sheet-engine";
 import { createClient } from "@/lib/supabase/server";
@@ -44,9 +43,6 @@ export default async function StationSessionDetailPage({ params }: PageProps) {
   const fuelPump = readSingle(
     session.fuel_pumps as { name: string } | { name: string }[] | null,
   );
-  const fuelType = readSingle(
-    session.fuel_types as { name: string } | { name: string }[] | null,
-  );
   const profile = readSingle(
     session.profiles as { full_name: string } | { full_name: string }[] | null,
   );
@@ -60,12 +56,11 @@ export default async function StationSessionDetailPage({ params }: PageProps) {
   const carryForward = parseSheetCarryForward(
     session.sheet_carry_forward as Record<string, unknown> | null,
   );
-  const activeFuelLineId = (session.active_fuel_line_id ??
-    resolveFuelLineId(fuelType?.name ?? "", fuelPump?.name ?? "")) as FuelLineId;
-
   const computed = computeStationSheet({
     isInitialSession: Boolean(session.is_initial_session),
-    activeFuelLineId,
+    activeFuelLineId: session.active_fuel_line_id
+      ? (String(session.active_fuel_line_id) as FuelLineId)
+      : null,
     sessionIndexStart: Number(session.index_start),
     sessionIndexEnd: Number(session.index_end ?? session.index_start),
     carryForward,
@@ -88,7 +83,6 @@ export default async function StationSessionDetailPage({ params }: PageProps) {
         pompisteName={profile?.full_name ?? "Pompiste"}
         openedAt={String(session.opened_at)}
         computed={computed}
-        activeFuelLineId={activeFuelLineId}
         readOnly
       />
     </div>

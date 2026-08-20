@@ -11,7 +11,6 @@ import { createClient } from "@/lib/supabase/client";
 type PompisteSessionSummary = {
   hasOwnSession: boolean;
   sessionOpenedAt?: string;
-  fuelPumpName?: string | null;
 };
 
 type PompisteShellProps = {
@@ -21,13 +20,9 @@ type PompisteShellProps = {
   pompisteName?: string;
   establishmentId?: string;
   userId?: string;
-  initialSessionSummary?: PompisteSessionSummary;
 };
 
-const POMPISTE_PRIMARY = [
-  "/application/station/pompiste/session",
-  "/application/station/pompiste",
-];
+const POMPISTE_PRIMARY = ["/application/station/pompiste/session"];
 
 export function PompisteShell({
   establishmentName,
@@ -36,32 +31,46 @@ export function PompisteShell({
   pompisteName,
   establishmentId,
   userId,
-  initialSessionSummary,
 }: PompisteShellProps) {
-  const [sessionSummary, setSessionSummary] = useState<PompisteSessionSummary>(
-    () =>
-      initialSessionSummary ?? {
-        hasOwnSession: false,
-      },
-  );
-
-  useEffect(() => {
-    setSessionSummary(initialSessionSummary ?? { hasOwnSession: false });
-  }, [initialSessionSummary]);
+  const [sessionSummary, setSessionSummary] = useState<PompisteSessionSummary>({
+    hasOwnSession: false,
+  });
 
   useEffect(() => {
     if (!establishmentId || !userId) return;
 
+    let cancelled = false;
     const supabase = createClient();
+
+    void supabase
+      .from("pump_sessions")
+      .select("opened_at")
+      .eq("establishment_id", establishmentId)
+      .eq("opened_by", userId)
+      .eq("status", "OPEN")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data?.opened_at) {
+          setSessionSummary({
+            hasOwnSession: true,
+            sessionOpenedAt: String(data.opened_at),
+          });
+        } else {
+          setSessionSummary({ hasOwnSession: false });
+        }
+      });
+
     const channel = supabase
-      .channel(`pompiste-session-${establishmentId}-${userId}`)
+      .channel(`pompiste-session-${userId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "pump_sessions",
-          filter: `establishment_id=eq.${establishmentId}`,
+          filter: `opened_by=eq.${userId}`,
         },
         (payload) => {
           const row = (payload.new ?? payload.old) as
@@ -69,7 +78,6 @@ export function PompisteShell({
                 status?: string;
                 opened_by?: string;
                 opened_at?: string;
-                fuel_pump_id?: string;
               }
             | undefined;
 
@@ -79,7 +87,6 @@ export function PompisteShell({
             setSessionSummary((prev) => ({
               hasOwnSession: true,
               sessionOpenedAt: row.opened_at ?? prev.sessionOpenedAt,
-              fuelPumpName: prev.fuelPumpName,
             }));
             return;
           }
@@ -92,6 +99,7 @@ export function PompisteShell({
       .subscribe();
 
     return () => {
+      cancelled = true;
       void supabase.removeChannel(channel);
     };
   }, [establishmentId, userId]);
@@ -108,7 +116,6 @@ export function PompisteShell({
           pompisteName={pompisteName}
           hasOwnSession={sessionSummary.hasOwnSession}
           sessionOpenedAt={sessionSummary.sessionOpenedAt}
-          fuelPumpName={sessionSummary.fuelPumpName ?? null}
         />
         <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pb-[calc(3.75rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { ProductFiltersInput } from "@/lib/products/schemas";
 import type {
   CategoryOption,
@@ -284,7 +286,7 @@ export async function getProductById(
   return mapProduct(data as ProductRow);
 }
 
-export async function getDepartmentIdByCode(
+export const getDepartmentIdByCode = cache(async function getDepartmentIdByCode(
   workspace: WorkspaceContext,
   departmentCode: string,
 ): Promise<string | null> {
@@ -303,7 +305,7 @@ export async function getDepartmentIdByCode(
   }
 
   return data.id;
-}
+});
 
 export async function validateCategoryForDepartment(
   workspace: WorkspaceContext,

@@ -29,11 +29,6 @@ type ApplicationShellProps = {
   cashierName?: string;
   canRenewSubscription?: boolean;
   activityCode?: string | null;
-  pompisteSessionSummary?: {
-    hasOwnSession: boolean;
-    sessionOpenedAt?: string;
-    fuelPumpName?: string | null;
-  };
 };
 
 function isFasoBarCashierRoute(pathname: string): boolean {
@@ -81,7 +76,6 @@ export function ApplicationShell({
   cashierName = "",
   canRenewSubscription = false,
   activityCode = null,
-  pompisteSessionSummary,
 }: ApplicationShellProps) {
   const pathname = usePathname();
   const prefetch = (
@@ -98,7 +92,15 @@ export function ApplicationShell({
 
   let shell: ReactNode;
 
-  if (space === "admin" && retailShop && isFasoBarCashierRoute(pathname)) {
+  if (isThermalTicketRoute(pathname)) {
+    shell = (
+      <div className="app-shell flex h-dvh w-full max-w-full flex-col overflow-hidden bg-slate-200">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {children}
+        </main>
+      </div>
+    );
+  } else if (space === "admin" && retailShop && isFasoBarCashierRoute(pathname)) {
     shell = (
       <FasoBarCashierShell
         establishmentId={establishmentId}
@@ -124,14 +126,6 @@ export function ApplicationShell({
       >
         {children}
       </AdminShell>
-    );
-  } else if (space === "cashier_kitchen" && isThermalTicketRoute(pathname)) {
-    shell = (
-      <div className="app-shell flex h-dvh w-full max-w-full flex-col overflow-hidden bg-slate-200">
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {children}
-        </main>
-      </div>
     );
   } else if (space === "cashier_kitchen" && isOrderFocusRoute(pathname)) {
     shell = (
@@ -200,7 +194,6 @@ export function ApplicationShell({
         establishmentName={establishmentName}
         navItems={navItems}
         pompisteName={cashierName || "Pompiste"}
-        initialSessionSummary={pompisteSessionSummary}
       >
         {children}
       </PompisteShell>

@@ -14,8 +14,10 @@ type CommandesPageProps = {
 };
 
 export default async function CommandesPage({ searchParams }: CommandesPageProps) {
-  const workspace = await requireAdminContext();
-  const raw = await searchParams;
+  const [workspace, raw] = await Promise.all([
+    requireAdminContext(),
+    searchParams,
+  ]);
 
   const parsed = adminOrderFiltersSchema.safeParse({
     status: typeof raw.status === "string" ? raw.status : "all",

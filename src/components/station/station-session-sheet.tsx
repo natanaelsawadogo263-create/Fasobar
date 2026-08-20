@@ -20,7 +20,7 @@ type StationSessionSheetProps = {
   pompisteName: string;
   openedAt: string;
   computed: ComputedStationSheet;
-  activeFuelLineId: FuelLineId;
+  activeFuelLineId?: FuelLineId | null;
   onManualChange?: (path: SheetManualPath, value: number | string) => void;
   readOnly?: boolean;
 };
@@ -586,7 +586,7 @@ export function StationSessionSheet({
               <FuelRow
                 key={row.id}
                 row={row}
-                active={row.id === activeFuelLineId}
+                active={activeFuelLineId != null && row.id === activeFuelLineId}
                 onManualChange={onManualChange}
                 readOnly={readOnly}
               />

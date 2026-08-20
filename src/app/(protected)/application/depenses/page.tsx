@@ -54,8 +54,10 @@ function formatCustomPeriodLabel(from?: string, to?: string): string {
 }
 
 export default async function DepensesPage({ searchParams }: DepensesPageProps) {
-  const workspace = await requireSpacePathAccess("/application/depenses");
-  const raw = await searchParams;
+  const [workspace, raw] = await Promise.all([
+    requireSpacePathAccess("/application/depenses"),
+    searchParams,
+  ]);
   const lockedArea = lockedAreaForSpace(workspace.userSpace, workspace.activityCode);
 
   const hasCustomDates =

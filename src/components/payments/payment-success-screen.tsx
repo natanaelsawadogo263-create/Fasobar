@@ -5,6 +5,7 @@ import { CheckCircle2, Printer, ShoppingCart } from "lucide-react";
 
 import { formatPriceXof } from "@/lib/payments/constants";
 import { formatOrderNumber } from "@/lib/orders/constants";
+import { buildReceiptHref } from "@/lib/payments/receipt-routes";
 
 type PaymentSuccessScreenProps = {
   orderNumber: number;
@@ -57,11 +58,11 @@ export function PaymentSuccessScreen({
           <div className="grid gap-2">
             {receiptId ? (
               <Link
-                href={`/application/recus/${receiptId}`}
+                href={buildReceiptHref(receiptId, { print: true })}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
               >
                 <Printer className="h-4 w-4" />
-                Imprimer le reçu
+                Imprimer et nouvelle vente
               </Link>
             ) : null}
             <Link
@@ -69,7 +70,7 @@ export function PaymentSuccessScreen({
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               <ShoppingCart className="h-4 w-4" />
-              Nouvelle commande
+              {receiptId ? "Nouvelle commande sans reçu" : "Nouvelle commande"}
             </Link>
           </div>
         </div>

@@ -1,18 +1,12 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
-  BarChart3,
-  Clock3,
   Fuel,
-  LayoutDashboard,
   Lock,
-  Settings,
   TrendingDown,
   TrendingUp,
   Unlock,
-  Users,
 } from "lucide-react";
 
 import { InstantLink } from "@/components/layout/instant-link";
@@ -90,28 +84,6 @@ function TrendBadge({
   );
 }
 
-function QuickLink({
-  href,
-  icon,
-  label,
-}: {
-  href: string;
-  icon: ReactNode;
-  label: string;
-}) {
-  return (
-    <InstantLink
-      href={href}
-      className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-slate-800 shadow-sm active:bg-slate-50"
-    >
-      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-        {icon}
-      </span>
-      {label}
-    </InstantLink>
-  );
-}
-
 function SessionRow({ session }: { session: AdminPumpSessionListItem }) {
   const open = session.status === "OPEN";
   return (
@@ -149,8 +121,7 @@ function SessionRow({ session }: { session: AdminPumpSessionListItem }) {
 
 export function StationAdminDashboardWorkspace({ data }: StationAdminDashboardWorkspaceProps) {
   const router = useRouter();
-  const { kpis, openSessions, recentClosed, period, periodLabel, establishmentName } =
-    data;
+  const { kpis, openSessions, recentClosed, period } = data;
 
   const revenueTrend = trendLabel(kpis.revenue, kpis.revenuePrevious);
   const litersTrend = trendLabel(kpis.liters, kpis.litersPrevious);
@@ -170,9 +141,6 @@ export function StationAdminDashboardWorkspace({ data }: StationAdminDashboardWo
             <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
               Tableau de bord
             </h1>
-            <p className="mt-0.5 text-[12px] text-slate-600">
-              {establishmentName} · Station-service · {periodLabel}
-            </p>
           </div>
           <div className="inline-flex h-11 items-center rounded-xl border border-slate-200 bg-white p-1">
             {PERIOD_OPTIONS.map((option) => (
@@ -192,29 +160,6 @@ export function StationAdminDashboardWorkspace({ data }: StationAdminDashboardWo
           </div>
         </div>
       </header>
-
-      <div className="-mx-1 flex shrink-0 gap-2 overflow-x-auto px-1 pb-0.5">
-        <QuickLink
-          href="/application/station/employes"
-          icon={<Users className="h-4 w-4" />}
-          label="Employés"
-        />
-        <QuickLink
-          href="/application/station/sessions"
-          icon={<Clock3 className="h-4 w-4" />}
-          label="Sessions"
-        />
-        <QuickLink
-          href="/application/station/bilans"
-          icon={<BarChart3 className="h-4 w-4" />}
-          label="Bilans"
-        />
-        <QuickLink
-          href="/application/station/parametres"
-          icon={<Settings className="h-4 w-4" />}
-          label="Paramètres"
-        />
-      </div>
 
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm ring-1 ring-slate-100">
@@ -301,11 +246,6 @@ export function StationAdminDashboardWorkspace({ data }: StationAdminDashboardWo
             ))
           )}
         </section>
-      </div>
-
-      <div className="hidden shrink-0 items-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-3 py-2 text-[11px] text-slate-500 lg:flex">
-        <LayoutDashboard className="h-4 w-4 text-emerald-600" />
-        Vue d&apos;ensemble station — encaissements et relèves pompistes en temps réel.
       </div>
     </div>
   );

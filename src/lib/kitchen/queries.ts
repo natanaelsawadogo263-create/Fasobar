@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
+import { cache } from "react";
+
 import type { KitchenOrderTicket } from "@/lib/kitchen/constants";
 import type { KitchenStatus } from "@/lib/kitchen/schemas";
 import type { OrderType } from "@/lib/orders/schemas";
@@ -34,7 +36,7 @@ type KitchenOrderRow = {
   }>;
 };
 
-export async function listKitchenOrders(
+export const listKitchenOrders = cache(async function listKitchenOrders(
   workspace: WorkspaceContext,
 ): Promise<KitchenOrderTicket[]> {
   const supabase = await createClient();
@@ -61,12 +63,13 @@ export async function listKitchenOrders(
       )
     `,
     )
-    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
     .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
     .not("kitchen_status", "is", null)
     .neq("status", "CANCELLED")
     .neq("payment_status", "PAID")
-    .order("kitchen_status_updated_at", { ascending: true });
+    .order("kitchen_status_updated_at", { ascending: true })
+    .limit(120);
 
   if (error || !data) {
     return [];
@@ -129,4 +132,4 @@ export async function listKitchenOrders(
       },
     ];
   });
-}
+});

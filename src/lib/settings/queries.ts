@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { parseServiceScope, type ServiceScope } from "@/lib/settings/service-scope";
 import type { EstablishmentSettings, EstablishmentSettingsResult } from "@/lib/settings/types";
@@ -48,7 +50,7 @@ function mapSettings(row: EstablishmentSettingsRow): EstablishmentSettings {
  * Si la migration ajoutant ces colonnes n'a pas encore été appliquée, retourne
  * `migrationMissing: true` au lieu de faire planter la page.
  */
-export async function getEstablishmentSettings(
+export const getEstablishmentSettings = cache(async function getEstablishmentSettings(
   workspace: WorkspaceContext,
 ): Promise<EstablishmentSettingsResult> {
   const supabase = await createClient();
@@ -90,7 +92,7 @@ export async function getEstablishmentSettings(
   }
 
   return { settings: null, migrationMissing: true };
-}
+});
 
 export async function getEstablishmentServiceScope(
   establishmentId: string,

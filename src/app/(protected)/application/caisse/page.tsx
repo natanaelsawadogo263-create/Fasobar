@@ -1,14 +1,7 @@
-import { CashierWorkspace } from "@/components/cashier/cashier-workspace";
+import { redirect } from "next/navigation";
+
+import { CaissePageSuspense } from "@/app/(protected)/application/caisse/caisse-page-content";
 import { requireCashRegisterOperatorContext } from "@/lib/auth/workspace-context";
-import { isDesktopServerRuntime } from "@/lib/desktop/runtime";
-import { ensureRetailCategories } from "@/lib/products/ensure-retail-categories";
-import {
-  getOrderById,
-  listCashierCategories,
-  listCashierOrders,
-  listCashierProducts,
-} from "@/lib/orders/queries";
-import { getActiveCashSession } from "@/lib/payments/queries";
 
 type CaissePageProps = {
   searchParams: Promise<{
@@ -19,39 +12,10 @@ type CaissePageProps = {
 };
 
 export default async function CaissePage({ searchParams }: CaissePageProps) {
-  const workspace = await requireCashRegisterOperatorContext();
-  const params = await searchParams;
-  const freshCart = params.fresh === "1";
-
-  if (isDesktopServerRuntime()) {
-    const { ensureCaisseCatalog } = await import("@/lib/caisse/ensure-catalog");
-    await ensureCaisseCatalog(workspace);
-  }
-
-  const [categories, products, initialOrder, session, openOrders] = await Promise.all([
-    listCashierCategories(workspace),
-    listCashierProducts(workspace),
-    params.order && !freshCart ? getOrderById(workspace, params.order) : Promise.resolve(null),
-    getActiveCashSession(workspace),
-    listCashierOrders(workspace, {
-      includeFinalized: true,
-      sessionOpenedAt: null,
-    }),
-    ensureRetailCategories(workspace),
+  const [workspace, params] = await Promise.all([
+    requireCashRegisterOperatorContext(),
+    searchParams,
   ]);
 
-  return (
-    <CashierWorkspace
-      key={freshCart ? `fresh-${params.t ?? "1"}` : (params.order ?? "new")}
-      cashierName={workspace.ownerName}
-      categories={categories}
-      products={products}
-      openOrders={openOrders}
-      session={session}
-      initialOrder={initialOrder}
-      freshCart={freshCart}
-      serviceScope={workspace.serviceScope}
-      activityCode={workspace.activityCode}
-    />
-  );
+  return <CaissePageSuspense workspace={workspace} params={params} />;
 }

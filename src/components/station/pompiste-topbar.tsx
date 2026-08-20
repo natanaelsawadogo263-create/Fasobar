@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Circle, Fuel, UserRound } from "lucide-react";
 
-import { signOutAction } from "@/lib/auth/actions";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 import { FullscreenButton } from "@/components/ui/fullscreen-button";
 import { LiveClock } from "@/components/ui/live-clock";
 
@@ -12,7 +12,6 @@ type PompisteTopbarProps = {
   pompisteName?: string;
   hasOwnSession?: boolean;
   sessionOpenedAt?: string;
-  fuelPumpName?: string | null;
 };
 
 export function PompisteTopbar({
@@ -20,7 +19,6 @@ export function PompisteTopbar({
   pompisteName = "Pompiste",
   hasOwnSession = false,
   sessionOpenedAt,
-  fuelPumpName,
 }: PompisteTopbarProps) {
   const openedLabel = sessionOpenedAt
     ? new Date(sessionOpenedAt).toLocaleTimeString("fr-FR", {
@@ -42,11 +40,7 @@ export function PompisteTopbar({
             {establishmentName}
           </p>
           <p className="truncate text-[11px] text-slate-400 md:hidden">
-            {hasOwnSession
-              ? fuelPumpName
-                ? `Relève · ${fuelPumpName}`
-                : "Relève active"
-              : "Hors relève"}
+            {hasOwnSession ? "Session active" : "Hors session"}
           </p>
           <p className="hidden text-[11px] text-slate-400 md:block">Espace pompiste</p>
         </div>
@@ -61,13 +55,13 @@ export function PompisteTopbar({
         <span className="sr-only md:not-sr-only md:inline whitespace-nowrap text-[12px] text-slate-700">
           {hasOwnSession ? (
             <>
-              <span className="font-semibold text-emerald-800">Relève ouverte</span>
+              <span className="font-semibold text-emerald-800">Session ouverte</span>
               {openedLabel ? (
                 <span className="text-slate-400"> · {openedLabel}</span>
               ) : null}
             </>
           ) : (
-            <span className="font-semibold text-slate-600">Hors relève</span>
+            <span className="font-semibold text-slate-600">Hors session</span>
           )}
         </span>
       </Link>
@@ -80,7 +74,7 @@ export function PompisteTopbar({
         <FullscreenButton />
       </div>
 
-      <form action={signOutAction} className="shrink-0">
+      <SignOutForm className="shrink-0">
         <button
           type="submit"
           className="inline-flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-1.5 shadow-sm transition active:bg-slate-50 md:h-auto md:pr-3 md:hover:border-slate-300 md:hover:bg-slate-50"
@@ -93,7 +87,7 @@ export function PompisteTopbar({
             {pompisteName}
           </span>
         </button>
-      </form>
+      </SignOutForm>
     </header>
   );
 }

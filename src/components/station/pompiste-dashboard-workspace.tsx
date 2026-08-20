@@ -36,14 +36,6 @@ function formatWhen(iso: string): string {
   });
 }
 
-function titleCase(value: string): string {
-  return value
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toLocaleUpperCase("fr-FR") + word.slice(1).toLocaleLowerCase("fr-FR"))
-    .join(" ");
-}
-
 function PumpStatusChip({
   status,
 }: {
@@ -75,7 +67,6 @@ function PumpStatusChip({
 
 export function PompisteDashboardWorkspace({ data }: PompisteDashboardWorkspaceProps) {
   const {
-    establishmentName,
     operatorName,
     ownSession,
     pumps,
@@ -166,10 +157,6 @@ export function PompisteDashboardWorkspace({ data }: PompisteDashboardWorkspaceP
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-[22px] font-bold tracking-tight text-slate-900">Ma pompe</h1>
-            <p className="mt-0.5 text-[13px] text-slate-500">
-              Bonjour {firstName} — vue d&apos;ensemble de votre relève à{" "}
-              {titleCase(establishmentName)}
-            </p>
           </div>
 
           {hasOpenSession && ownSession ? (
@@ -400,10 +387,10 @@ export function PompisteDashboardWorkspace({ data }: PompisteDashboardWorkspaceP
                   </li>
                 ) : null}
                 {teamOnShift.map((session) => {
-                  const pump = pumps.find((p) => p.id === session.fuelPumpId);
+                  const pump = pumps.find((p) => p.fuelLineId === session.fuelLineId);
                   return (
                     <li
-                      key={session.fuelPumpId}
+                      key={session.fuelLineId}
                       className="flex items-center justify-between gap-3 px-4 py-3"
                     >
                       <div className="min-w-0">

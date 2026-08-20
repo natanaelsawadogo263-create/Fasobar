@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import {
   formatOrderPeriodLabel,
@@ -198,7 +200,7 @@ function readSingle<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
-export async function getAdminDashboardData(
+export const getAdminDashboardData = cache(async function getAdminDashboardData(
   workspace: WorkspaceContext,
   options: { period?: AdminDashboardPeriod } = {},
 ): Promise<AdminDashboardData> {
@@ -291,7 +293,7 @@ export async function getAdminDashboardData(
       .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
       .eq("status", "CONFIRMED")
       .eq("cash_register_sessions.status", "OPEN")
-      .limit(400),
+      .limit(80),
     supabase
       .from("orders")
       .select("id, status, payment_status, bar_status, kitchen_status")
@@ -299,7 +301,7 @@ export async function getAdminDashboardData(
       .neq("payment_status", "PAID")
       .neq("status", "CANCELLED")
       .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"])
-      .limit(300),
+      .limit(60),
     supabase
       .from("bar_sessions")
       .select(
@@ -334,12 +336,25 @@ export async function getAdminDashboardData(
     (sum, row) => sum + (row.amount ?? 0),
     0,
   );
-  const purchaseCostToday = profitAvailable
-    ? await sumSoldGoodsCost(
-        workspace.establishmentId,
-        paidToday.map((row) => row.id),
-      )
-    : 0;
+
+  const orderIds = paidForAnalysis.map((order) => order.id);
+  const sampleOrderIds = orderIds.slice(0, 120);
+
+  const [purchaseCostToday, itemRowsResult] = await Promise.all([
+    profitAvailable && paidToday.length <= 40
+      ? sumSoldGoodsCost(
+          workspace.establishmentId,
+          paidToday.map((row) => row.id),
+        )
+      : Promise.resolve(0),
+    orderIds.length > 0
+      ? supabase
+          .from("order_items")
+          .select("product_name_snapshot, quantity, line_total, departments(code)")
+          .in("order_id", sampleOrderIds)
+      : Promise.resolve({ data: [] as Array<Record<string, unknown>> }),
+  ]);
+
   const profitToday = profitAvailable
     ? salesToday - purchaseCostToday - expensesToday
     : null;
@@ -362,17 +377,12 @@ export async function getAdminDashboardData(
     bounds.toDate,
   );
 
-  const orderIds = paidForAnalysis.map((order) => order.id);
   let topProducts: AdminTopProduct[] = [];
   const salesByDept = { bar: 0, kitchen: 0, other: 0 };
 
-  if (orderIds.length > 0) {
-    const sampleOrderIds = orderIds.slice(0, 120);
-    const { data: itemRows } = await supabase
-      .from("order_items")
-      .select("product_name_snapshot, quantity, line_total, departments(code)")
-      .in("order_id", sampleOrderIds);
+  const itemRows = itemRowsResult.data;
 
+  if (orderIds.length > 0 && itemRows) {
     const productMap = new Map<string, { quantity: number; revenue: number }>();
 
     for (const row of itemRows ?? []) {
@@ -518,4 +528,4 @@ export async function getAdminDashboardData(
     usedMockSalesSeries: false,
     usedMockTopProducts: false,
   };
-}
+});

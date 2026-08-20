@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import { requireGasStationOperatorMutationContext } from "@/lib/auth/workspace-context";
 import { applyTenantFilter } from "@/lib/auth/tenant";
@@ -13,13 +14,15 @@ import {
 import {
   buildCarryForwardForNextSession,
   computeStationSheet,
-  resolveFuelLineId,
-  type FuelLineId,
+  DEFAULT_SHEET_PRICES,
   type StationSheetCarryForward,
   type StationSheetManual,
 } from "@/lib/station/sheet-engine";
-import type { PumpSessionActionState } from "@/lib/station/pump-session-types";
-import { getOwnOpenPumpSessionById } from "@/lib/station/pump-session-queries";
+import type {
+  OwnOpenPumpSession,
+  PumpSessionActionState,
+} from "@/lib/station/pump-session-types";
+import { getStationSheetBootstrap } from "@/lib/station/pump-session-queries";
 import { revalidatePumpSessionOps } from "@/lib/ops/revalidate";
 
 function mapRpcError(error: { message?: string; details?: string } | null): string {
@@ -35,10 +38,6 @@ function mapRpcError(error: { message?: string; details?: string } | null): stri
     /session expirée/i.test(message)
   ) {
     return "Session expirée. Veuillez vous reconnecter.";
-  }
-
-  if (message.includes("Pompe introuvable ou inactive")) {
-    return "Pompe introuvable ou inactive.";
   }
 
   if (message.includes("Accès interdit")) {
@@ -72,133 +71,116 @@ function mapRpcError(error: { message?: string; details?: string } | null): stri
   return toUserFacingError(error);
 }
 
+function buildOpenedSessionFallback(input: {
+  sessionId: string;
+  workspace: Awaited<ReturnType<typeof requireGasStationOperatorMutationContext>>;
+  fuelPumpId: string;
+  pricePerLiter: number;
+  isInitialSession: boolean;
+  carryForward: StationSheetCarryForward | null;
+}): OwnOpenPumpSession {
+  return {
+    id: input.sessionId,
+    openedAt: new Date().toISOString(),
+    openedByName: input.workspace.ownerName,
+    fuelPumpId: input.fuelPumpId,
+    fuelPumpName: "Fiche journalière",
+    fuelTypeName: "—",
+    fuelTankName: "—",
+    pricePerLiter: input.pricePerLiter,
+    indexStart: 0,
+    isInitialSession: input.isInitialSession,
+    activeFuelLineId: null,
+    sheetManual: null,
+    sheetCarryForward: input.carryForward,
+  };
+}
+
 export async function openPumpSessionAction(
   _prevState: PumpSessionActionState,
-  formData: FormData,
+  _formData: FormData,
 ): Promise<PumpSessionActionState> {
-  const workspace = await requireGasStationOperatorMutationContext();
-
-  const parsed = openPumpSessionSchema.safeParse({
-    fuelPumpId: formData.get("fuelPumpId"),
-    indexStart: formData.get("indexStart"),
-    prefillIndexEnd: formData.get("prefillIndexEnd"),
-    indexGapReason: formData.get("indexGapReason") || undefined,
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
-  }
-
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.rpc("open_pump_session", {
-    p_fuel_pump_id: parsed.data.fuelPumpId,
-    p_index_start: parsed.data.indexStart,
-    p_note: null,
-    p_index_gap_reason: parsed.data.indexGapReason ?? null,
-  });
-
-  if (error || !data) {
-    return { error: mapRpcError(error) };
-  }
-
-  revalidatePumpSessionOps();
-  revalidatePath("/application/station/pompiste/session");
-  revalidatePath("/application/station/pompiste");
-
-  const payload = data as { session_id?: string } | null;
-  const sessionId = payload?.session_id ? String(payload.session_id) : null;
-
-  let openedSession: PumpSessionActionState["openedSession"];
-
-  if (sessionId) {
-    const [pumpRes, closedCountRes, lastClosedRes] = await Promise.all([
-      applyTenantFilter(
-        supabase
-          .from("fuel_pumps")
-          .select("name, fuel_types(name)")
-          .eq("id", parsed.data.fuelPumpId),
-        workspace,
-      ).maybeSingle(),
-      applyTenantFilter(
-        supabase
-          .from("pump_sessions")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "CLOSED"),
-        workspace,
-      ),
-      applyTenantFilter(
-        supabase
-          .from("pump_sessions")
-          .select("sheet_closed_snapshot")
-          .eq("status", "CLOSED")
-          .order("closed_at", { ascending: false })
-          .limit(1),
-        workspace,
-      ).maybeSingle(),
-    ]);
-
-    const pumpRow = pumpRes.data;
-    const fuelType = pumpRow?.fuel_types as { name?: string } | { name?: string }[] | null;
-    const fuelTypeName = Array.isArray(fuelType)
-      ? fuelType[0]?.name
-      : fuelType?.name ?? "";
-    const pumpName = pumpRow?.name ? String(pumpRow.name) : "";
-    const activeFuelLineId = resolveFuelLineId(fuelTypeName ?? "", pumpName);
-
-    const isInitialSession = (closedCountRes.count ?? 0) === 0;
-
-    const snapshot = lastClosedRes.data?.sheet_closed_snapshot as
-      | { carryForward?: StationSheetCarryForward }
-      | null
-      | undefined;
-
-    const { error: sheetInitError } = await applyTenantFilter(
-      supabase
-        .from("pump_sessions")
-        .update({
-          is_initial_session: isInitialSession,
-          active_fuel_line_id: activeFuelLineId,
-          sheet_carry_forward: snapshot?.carryForward ?? null,
-          sheet_manual: {},
-        })
-        .eq("id", sessionId)
-        .eq("opened_by", workspace.userId)
-        .eq("status", "OPEN"),
-      workspace,
-    );
-
-    if (sheetInitError) {
-      console.error("[openPumpSessionAction] sheet init", sheetInitError.message);
+  try {
+    const workspace = await requireGasStationOperatorMutationContext();
+    const parsed = openPumpSessionSchema.safeParse({});
+    if (!parsed.success) {
+      return { error: "Impossible d'ouvrir la session." };
     }
 
-    await writeAuditLogEntry({
-      organizationId: workspace.organizationId,
-      establishmentId: workspace.establishmentId,
-      entityType: "pump_session",
-      entityId: sessionId,
-      action: "PUMP_SESSION_OPENED",
-      actorId: workspace.userId,
-      metadata: {
-        fuelPumpId: parsed.data.fuelPumpId,
-        indexStart: parsed.data.indexStart,
-        indexGapReason: parsed.data.indexGapReason ?? null,
-        activeFuelLineId,
-        isInitialSession,
-      },
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.rpc("open_station_sheet_session", {
+      p_establishment_id: workspace.establishmentId,
     });
-  }
 
-  if (sessionId) {
-    openedSession =
-      (await getOwnOpenPumpSessionById(workspace, sessionId)) ?? undefined;
-  }
+    if (error || !data) {
+      return { error: mapRpcError(error) };
+    }
 
-  return {
-    success: "Session pompe ouverte.",
-    sessionId: sessionId ?? undefined,
-    openedSession,
-  };
+    revalidatePumpSessionOps();
+    revalidatePath("/application/station/pompiste/session");
+
+    const payload = data as { session_id?: string; price_per_liter?: number } | null;
+    const sessionId = payload?.session_id ? String(payload.session_id) : null;
+    const pricePerLiter = Number(payload?.price_per_liter ?? 0);
+
+    let openedSession: PumpSessionActionState["openedSession"];
+
+    if (sessionId) {
+      const sheetBootstrap = await getStationSheetBootstrap(workspace);
+      const isInitialSession = sheetBootstrap.isInitialSession;
+      const carryForward = (sheetBootstrap.carryForward ?? null) as StationSheetCarryForward | null;
+
+      const { error: sheetInitError } = await applyTenantFilter(
+        supabase
+          .from("pump_sessions")
+          .update({
+            is_initial_session: isInitialSession,
+            sheet_carry_forward: carryForward,
+            sheet_manual: {},
+          })
+          .eq("id", sessionId)
+          .eq("opened_by", workspace.userId)
+          .eq("status", "OPEN"),
+        workspace,
+      );
+
+      if (sheetInitError) {
+        console.error("[openPumpSessionAction] sheet init", sheetInitError.message);
+      }
+
+      await writeAuditLogEntry({
+        organizationId: workspace.organizationId,
+        establishmentId: workspace.establishmentId,
+        entityType: "pump_session",
+        entityId: sessionId,
+        action: "PUMP_SESSION_OPENED",
+        actorId: workspace.userId,
+        metadata: { isInitialSession },
+      });
+
+      openedSession = buildOpenedSessionFallback({
+        sessionId,
+        workspace,
+        fuelPumpId: "",
+        pricePerLiter,
+        isInitialSession,
+        carryForward,
+      });
+    }
+
+    return {
+      success: "Session ouverte.",
+      sessionId: sessionId ?? undefined,
+      openedSession,
+    };
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    console.error("[openPumpSessionAction]", error);
+    return {
+      error: "Impossible d'ouvrir la session. Vérifiez votre connexion et réessayez.",
+    };
+  }
 }
 
 export async function closePumpSessionAction(
@@ -262,7 +244,10 @@ export async function closePumpSessionAction(
 
   // Création du crédit station (OPEN) si le pompiste a autorisé un crédit.
   if (parsed.data.creditAmount > 0) {
-    const litersSold = rpcData && "liters_sold" in rpcData ? Number((rpcData as any).liters_sold) : null;
+    const litersSold =
+      rpcData && typeof rpcData === "object" && "liters_sold" in rpcData
+        ? Number((rpcData as { liters_sold?: number | string }).liters_sold)
+        : null;
 
     const { data: sessionFuelType } = await applyTenantFilter(
       supabase.from("pump_sessions").select("fuel_type_id").eq("id", parsed.data.sessionId),
@@ -384,9 +369,7 @@ async function persistClosedSheetSnapshot(
   const { data: sessionRow } = await applyTenantFilter(
     supabase
       .from("pump_sessions")
-      .select(
-        "index_start, price_per_liter, is_initial_session, active_fuel_line_id, sheet_carry_forward, fuel_types(name)",
-      )
+      .select("index_start, price_per_liter, is_initial_session, sheet_carry_forward")
       .eq("id", sessionId)
       .eq("opened_by", workspace.userId),
     workspace,
@@ -394,25 +377,18 @@ async function persistClosedSheetSnapshot(
 
   if (!sessionRow) return;
 
-  const fuelType = sessionRow.fuel_types as { name?: string } | { name?: string }[] | null;
-  const fuelTypeName = Array.isArray(fuelType) ? fuelType[0]?.name : fuelType?.name;
-  const price = Number(sessionRow.price_per_liter ?? 0);
-  const activeFuelLineId = (sessionRow.active_fuel_line_id ??
-    resolveFuelLineId(fuelTypeName ?? "", "")) as FuelLineId;
-
-  const carryForward = sessionRow.sheet_carry_forward as StationSheetCarryForward | null;
-
   const computed = computeStationSheet({
     isInitialSession: Boolean(sessionRow.is_initial_session),
-    activeFuelLineId,
-    sessionIndexStart: Number(sessionRow.index_start),
-    sessionIndexEnd: indexEnd,
-    carryForward,
-    prices: { superPu: price, gazoilPu: price },
+    activeFuelLineId: null,
+    carryForward: sessionRow.sheet_carry_forward as StationSheetCarryForward | null,
+    prices: DEFAULT_SHEET_PRICES,
     manual: sheetManual,
   });
 
-  const nextCarry = buildCarryForwardForNextSession(computed, carryForward);
+  const nextCarry = buildCarryForwardForNextSession(
+    computed,
+    sessionRow.sheet_carry_forward as StationSheetCarryForward | null,
+  );
 
   await applyTenantFilter(
     supabase

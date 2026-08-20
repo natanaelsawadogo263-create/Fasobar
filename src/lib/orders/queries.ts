@@ -119,41 +119,60 @@ export async function listCashierProducts(
   const supabase = await createClient();
   const stockClient = isAdminClientConfigured() ? createAdminClient() : supabase;
 
-  const stockQuery = stockClient
+  const stockQueryPromise = stockClient
     .from("stock_items")
     .select("product_id, name, current_quantity, active")
-    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId);
+    .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId);
 
-  const { data, error } = await supabase
+  const productsQueryPromise = supabase
     .from("products")
     .select(
       "id, name, selling_price, unit, stock_unit_label, fractionable, barcode, image_url, image_original_url, image_optimized_url, category_id, departments(code, name), categories(name)",
     )
-    .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+    .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
     .eq("active", true)
     .order("name");
 
-  let rows: Array<Record<string, unknown>> | null = data as Array<Record<string, unknown>> | null;
-  let selectError = error;
+  const saleUnitsQueryPromise = supabase
+    .from("product_unit_levels")
+    .select(
+      "id, product_id, name, parent_id, contains_qty, is_base, sellable, selling_price, allow_decimal",
+    )
+    .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
+    .order("sort_order");
+
+  const [productsResult, stockResult, saleUnitsResult] = await Promise.all([
+    productsQueryPromise,
+    stockQueryPromise,
+    saleUnitsQueryPromise,
+  ]);
+
+  let rows: Array<Record<string, unknown>> | null =
+    productsResult.data as Array<Record<string, unknown>> | null;
+  let selectError = productsResult.error;
 
   if (
-    error?.message?.includes("image_original_url") ||
-    error?.message?.includes("image_optimized_url") ||
-    error?.message?.includes("fractionable")
+    productsResult.error?.message?.includes("image_original_url") ||
+    productsResult.error?.message?.includes("image_optimized_url") ||
+    productsResult.error?.message?.includes("fractionable")
   ) {
     const legacy = await supabase
       .from("products")
       .select(
         "id, name, selling_price, unit, image_url, category_id, departments(code, name), categories(name)",
       )
-      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+      .eq("organization_id", workspace.organizationId)
+      .eq("establishment_id", workspace.establishmentId)
       .eq("active", true)
       .order("name");
     rows = (legacy.data as Array<Record<string, unknown>> | null) ?? null;
     selectError = legacy.error;
   }
 
-  const { data: stockRows } = await stockQuery;
+  const stockRows = stockResult.data;
 
   if (selectError || !rows) {
     if (isDesktopServerRuntime()) {
@@ -240,13 +259,80 @@ export async function listCashierProducts(
       { sellingPrice: product.sellingPrice, unitLabel: product.unit },
     ]),
   );
-  const saleMap = await listSaleUnitsForProducts(
-    workspace,
+  const saleMap = buildCashierSaleMapFromUnitRows(
+    (saleUnitsResult.data ?? []) as SaleUnitLevelRow[],
     products.map((product) => product.id),
     saleMeta,
   );
 
   return attachSaleUnitsFromMap(products, saleMap);
+}
+
+type SaleUnitLevelRow = {
+  id: string;
+  product_id: string;
+  name: string;
+  parent_id: string | null;
+  contains_qty: number | string | null;
+  is_base: boolean | null;
+  sellable: boolean | null;
+  selling_price: number | string | null;
+  allow_decimal: boolean | null;
+};
+
+function buildCashierSaleMapFromUnitRows(
+  rows: SaleUnitLevelRow[],
+  productIds: string[],
+  metaByProduct: Record<string, { sellingPrice: number; unitLabel: string }>,
+): Awaited<ReturnType<typeof listSaleUnitsForProducts>> {
+  const byProduct: Record<string, SaleUnitLevelRow[]> = {};
+  for (const row of rows) {
+    if (!byProduct[row.product_id]) byProduct[row.product_id] = [];
+    byProduct[row.product_id]!.push(row);
+  }
+
+  const result: Awaited<ReturnType<typeof listSaleUnitsForProducts>> = {};
+  for (const productId of productIds) {
+    const meta = metaByProduct[productId];
+    const levels = byProduct[productId] ?? [];
+    const mapped = levels
+      .filter((row) => row.sellable !== false)
+      .map((row) => ({
+        id: row.id,
+        productId,
+        name: row.name,
+        packagingUnit: row.name,
+        baseUnit: row.name,
+        conversionFactor: Number(row.contains_qty ?? 1) || 1,
+        active: true,
+        sellingPrice: Number(row.selling_price ?? 0) || meta?.sellingPrice || 0,
+        allowDecimal: Boolean(row.allow_decimal),
+      }));
+
+    const packs = mapped.filter((unit) => unit.conversionFactor > 1);
+    let bases = mapped.filter((unit) => unit.conversionFactor <= 1);
+
+    if (bases.length === 0 && meta && meta.sellingPrice > 0) {
+      bases = [
+        {
+          id: "",
+          productId,
+          name: meta.unitLabel,
+          packagingUnit: meta.unitLabel,
+          baseUnit: meta.unitLabel,
+          conversionFactor: 1,
+          active: true,
+          sellingPrice: meta.sellingPrice,
+          allowDecimal: false,
+        },
+      ];
+    }
+
+    const preferredBase = bases.find((unit) => unit.id) ?? bases[0];
+    result[productId] = preferredBase ? [preferredBase, ...packs] : packs;
+  }
+
+  return result;
 }
 
 function attachSaleUnitsFromMap(
@@ -370,7 +456,7 @@ export async function listCashierOrders(
   );
 
   const selectClause =
-    "id, order_number, table_reference, customer_reference, status, payment_status, bar_status, kitchen_status, total_amount, created_at, updated_at, profiles!orders_created_by_fkey(full_name), order_items(id), receipts(id)";
+    "id, order_number, table_reference, customer_reference, status, payment_status, bar_status, kitchen_status, total_amount, created_at, updated_at, profiles!orders_created_by_fkey(full_name), receipts(id)";
 
   // Ouvertes + en attente : toujours visibles tant qu'elles ne sont pas payées.
   const activeQuery = supabase
@@ -380,19 +466,20 @@ export async function listCashierOrders(
     .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"])
     .neq("payment_status", "PAID")
     .order("created_at", { ascending: false })
-    .limit(200);
+    .limit(100);
 
   // Terminées : commandes payées de la journée de session.
   const paidQuery = includeFinalized
     ? supabase
         .from("orders")
         .select(selectClause)
-        .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+        .eq("organization_id", workspace.organizationId)
+        .eq("establishment_id", workspace.establishmentId)
         .eq("payment_status", "PAID")
         .neq("status", "CANCELLED")
         .gte("updated_at", dayStartIso)
         .order("updated_at", { ascending: false })
-        .limit(200)
+        .limit(80)
     : null;
 
   const [activeResult, paidResult] = await Promise.all([
@@ -416,8 +503,7 @@ export async function listCashierOrders(
     const profile = readSingle(
       row.profiles as { full_name: string } | { full_name: string }[] | null,
     );
-    const orderItems = row.order_items;
-    const itemCount = Array.isArray(orderItems) ? orderItems.length : orderItems ? 1 : 0;
+    const itemCount = 0;
     const receipt = readSingle(
       row.receipts as { id: string } | { id: string }[] | null,
     );

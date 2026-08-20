@@ -78,26 +78,25 @@ export const ensureBarStockItemsFromProducts = cache(
       active: true,
     }));
 
-    const { error } = await writeClient.from("stock_items").insert(rows);
-
-    if (error) {
-      console.error("[ensureBarStockItemsFromProducts]", error.message, error.code);
-      if (writeClient !== supabase) {
-        const retry = await supabase.from("stock_items").insert(rows);
-        if (retry.error) {
-          console.error(
-            "[ensureBarStockItemsFromProducts] retry",
-            retry.error.message,
-          );
-          return existing;
+    void (async () => {
+      const { error } = await writeClient.from("stock_items").insert(rows);
+      if (error) {
+        console.error("[ensureBarStockItemsFromProducts]", error.message, error.code);
+        if (writeClient !== supabase) {
+          const retry = await supabase.from("stock_items").insert(rows);
+          if (retry.error) {
+            console.error(
+              "[ensureBarStockItemsFromProducts] retry",
+              retry.error.message,
+            );
+          }
         }
-      } else {
-        return existing;
       }
-    }
+      ensureOkUntil.set(cacheKey, Date.now() + ENSURE_TTL_MS);
+    })();
 
-    ensureOkUntil.set(cacheKey, Date.now() + ENSURE_TTL_MS);
-    return listStockItems(workspace, { tab: "bar", status: "all" });
+    ensureOkUntil.set(cacheKey, Date.now() + 15_000);
+    return existing;
   },
 );
 

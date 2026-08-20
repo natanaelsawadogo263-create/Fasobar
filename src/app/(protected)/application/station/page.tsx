@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
 
-import { StationAdminDashboardWorkspace } from "@/components/station/station-admin-dashboard-workspace";
-import {
-  getStationDashboardData,
-  type StationDashboardPeriod,
-} from "@/lib/admin/station-dashboard-queries";
+import { StationDashboardSuspense } from "@/app/(protected)/application/station/station-dashboard-content";
 import { requireGasStationAdminContext } from "@/lib/auth/workspace-context";
+import type { StationDashboardPeriod } from "@/lib/admin/station-dashboard-queries";
 
 export const metadata: Metadata = {
   title: "Tableau de bord — Station",
@@ -24,10 +21,15 @@ function parsePeriod(raw: string | string[] | undefined): StationDashboardPeriod
 export default async function StationDashboardPage({
   searchParams,
 }: StationDashboardPageProps) {
-  const workspace = await requireGasStationAdminContext();
-  const params = await searchParams;
-  const period = parsePeriod(params.period);
-  const data = await getStationDashboardData(workspace, { period });
+  const [workspace, params] = await Promise.all([
+    requireGasStationAdminContext(),
+    searchParams,
+  ]);
 
-  return <StationAdminDashboardWorkspace data={data} />;
+  return (
+    <StationDashboardSuspense
+      workspace={workspace}
+      period={parsePeriod(params.period)}
+    />
+  );
 }

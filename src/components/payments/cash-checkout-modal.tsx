@@ -7,6 +7,7 @@ import { CheckCircle2, Printer, ShoppingCart, X } from "lucide-react";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { formatOrderNumber, formatPriceXof } from "@/lib/orders/constants";
 import { calculateChange } from "@/lib/payments/constants";
+import { buildReceiptHref } from "@/lib/payments/receipt-routes";
 
 export type CashCheckoutSuccess = {
   receiptId?: string;
@@ -99,11 +100,11 @@ export function CashCheckoutModal({
             <div className="grid gap-2">
               {success.receiptId ? (
                 <Link
-                  href={`/application/recus/${success.receiptId}`}
+                  href={buildReceiptHref(success.receiptId, { print: true })}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700"
                 >
                   <Printer className="h-4 w-4" />
-                  Imprimer le reçu
+                  Imprimer et nouvelle vente
                 </Link>
               ) : null}
               <button
@@ -112,7 +113,13 @@ export function CashCheckoutModal({
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 <ShoppingCart className="h-4 w-4" />
-                {retail ? "Nouvelle vente" : "Nouvelle commande"}
+                {success.receiptId
+                  ? retail
+                    ? "Nouvelle vente sans reçu"
+                    : "Nouvelle commande sans reçu"
+                  : retail
+                    ? "Nouvelle vente"
+                    : "Nouvelle commande"}
               </button>
             </div>
           </div>
