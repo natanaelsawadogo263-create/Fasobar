@@ -6,7 +6,6 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
-import { FasoBarInstallButton } from "@/components/pwa/fasobar-install-button";
 import { MARKETING_NAV } from "@/lib/marketing/config";
 
 export function MarketingHeader() {
@@ -50,24 +49,23 @@ export function MarketingHeader() {
           })}
         </nav>
 
-        <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2">
-          <FasoBarInstallButton variant="header" className="hidden sm:inline-flex" />
+        <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
           <Link
             href="/connexion"
-            className="inline-flex h-11 min-h-11 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/10 px-3 text-[13px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 sm:border-0 sm:bg-transparent sm:px-3 sm:hover:bg-white/5"
+            className="inline-flex h-11 min-h-11 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-white/10 px-2.5 text-[13px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 sm:border-0 sm:bg-transparent sm:px-3 sm:hover:bg-white/5"
           >
             Se connecter
           </Link>
           <Link
             href="/inscription/activite"
-            className="inline-flex h-11 min-h-11 shrink-0 items-center rounded-xl bg-emerald-500 px-3 text-[13px] font-semibold text-white shadow-sm transition hover:bg-emerald-400 sm:px-3.5"
+            className="inline-flex h-11 min-h-11 shrink-0 items-center rounded-xl bg-emerald-500 px-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-emerald-400 sm:px-3.5"
           >
             <span className="sm:hidden">Commencer</span>
             <span className="hidden sm:inline">Créer mon établissement</span>
           </Link>
           <button
             type="button"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-white md:hidden"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white md:hidden"
             onClick={() => setOpen((value) => !value)}
             aria-expanded={open}
             aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
@@ -90,7 +88,6 @@ export function MarketingHeader() {
                 {item.label}
               </Link>
             ))}
-            <FasoBarInstallButton variant="ghost" className="mt-2 w-full" />
           </nav>
         </div>
       ) : null}

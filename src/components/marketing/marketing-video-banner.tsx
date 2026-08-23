@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
-import { FasoBarInstallButton } from "@/components/pwa/fasobar-install-button";
 
 const FRAMES = [
   "/brand/banner/01-stock.png",
@@ -28,7 +27,7 @@ export function MarketingVideoBanner() {
 
   return (
     <section className="relative isolate w-full shrink-0 bg-[#07110e] text-white">
-      <div className="relative aspect-[16/9] w-full min-h-[56.25vw]">
+      <div className="relative min-h-[540px] w-full sm:min-h-[520px] lg:aspect-[21/9] lg:min-h-[460px]">
         <div className="fb-banner-reel absolute inset-0" aria-hidden>
           {FRAMES.map((src, index) => (
             <img
@@ -40,9 +39,9 @@ export function MarketingVideoBanner() {
           ))}
         </div>
 
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(7,17,14,0.62)_0%,transparent_42%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(7,17,14,0.78)_0%,rgba(7,17,14,0.35)_38%,transparent_65%)]" />
 
-        <div className="relative z-10 flex h-full max-w-6xl flex-col justify-end gap-4 px-4 py-6 sm:px-6 sm:py-10 lg:mx-auto lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex h-full max-w-6xl flex-col justify-end gap-6 px-4 py-8 sm:px-6 sm:py-10 lg:mx-auto lg:flex-row lg:items-end lg:justify-between lg:gap-8">
         <div className="max-w-md">
           <FasoBarLogo size="lg" tone="dark" />
           <p className="mt-4 text-[12px] font-semibold uppercase tracking-[0.2em] text-amber-300">
@@ -53,17 +52,13 @@ export function MarketingVideoBanner() {
             <span className="block text-emerald-300">Un seul outil.</span>
           </h1>
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <Link
             href="/inscription/activite"
             className="inline-flex min-h-12 items-center justify-center rounded-xl bg-emerald-500 px-5 text-[15px] font-semibold text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-400"
           >
             Créer mon établissement
           </Link>
-          <FasoBarInstallButton
-            variant="secondary"
-            className="min-h-12 px-5 text-[15px] shadow-lg shadow-emerald-900/20"
-          />
           <Link
             href="/contact"
             className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-5 text-[15px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
