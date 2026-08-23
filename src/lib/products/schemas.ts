@@ -165,41 +165,66 @@ export const createProductSchema = productFormSchema
     }
   });
 
-export const updateProductSchema = productFormSchema.extend({
-  productId: z.string().uuid("Produit invalide."),
-  sku: z.preprocess((value) => {
-    const text = typeof value === "string" ? value.trim() : "";
-    return text.length > 0 ? text : undefined;
-  }, z.string().max(64).optional()),
-  barcode: z.preprocess((value) => {
-    const text = typeof value === "string" ? value.trim() : "";
-    return text.length > 0 ? text : undefined;
-  }, z.string().max(64).optional()),
-  purchasePrice: z.preprocess(
-    (value) => (value === "" || value == null ? undefined : value),
-    z.coerce.number().int().min(0).optional(),
-  ),
-  wholesalePrice: z.preprocess(
-    (value) => (value === "" || value == null ? undefined : value),
-    z.coerce.number().int().min(0).optional(),
-  ),
-  purchaseUnit: z.preprocess(
-    (value) => (value === "" || value == null ? undefined : value),
-    productUnitSchema.optional(),
-  ),
-  unitsPerPurchase: z.preprocess(
-    (value) => (value === "" || value == null ? undefined : value),
-    z.coerce.number().positive().optional(),
-  ),
-  discountMinQuantity: z.preprocess(
-    (value) => (value === "" || value == null ? undefined : value),
-    z.coerce.number().int().positive().optional(),
-  ),
-  discountPercent: z.preprocess(
-    (value) => (value === "" || value == null ? undefined : value),
-    z.coerce.number().min(0).max(100).optional(),
-  ),
-});
+export const updateProductSchema = productFormSchema
+  .omit({ categoryId: true })
+  .extend({
+    productId: z.string().uuid("Produit invalide."),
+    // Même préparation que createProductSchema : "" / "__new__" (sélecteur
+    // « + Nouvelle catégorie ») ne doivent pas échouer la validation UUID —
+    // sans ça, modifier un produit en créant sa propre catégorie échouait
+    // toujours avec "Catégorie invalide.", avant même d'atteindre la logique
+    // de création de catégorie.
+    categoryId: z.preprocess(
+      (value) =>
+        value === "" || value === "__new__" || value == null ? undefined : value,
+      z.string().uuid("Catégorie invalide.").optional(),
+    ),
+    newCategoryName: z.preprocess((value) => {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text.length > 0 ? text : undefined;
+    }, z.string().min(2, "Indiquez le nom de la nouvelle catégorie.").optional()),
+    sku: z.preprocess((value) => {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text.length > 0 ? text : undefined;
+    }, z.string().max(64).optional()),
+    barcode: z.preprocess((value) => {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text.length > 0 ? text : undefined;
+    }, z.string().max(64).optional()),
+    purchasePrice: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().int().min(0).optional(),
+    ),
+    wholesalePrice: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().int().min(0).optional(),
+    ),
+    purchaseUnit: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      productUnitSchema.optional(),
+    ),
+    unitsPerPurchase: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().positive().optional(),
+    ),
+    discountMinQuantity: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().int().positive().optional(),
+    ),
+    discountPercent: z.preprocess(
+      (value) => (value === "" || value == null ? undefined : value),
+      z.coerce.number().min(0).max(100).optional(),
+    ),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.categoryId && !data.newCategoryName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Sélectionnez une catégorie ou créez-en une.",
+        path: ["categoryId"],
+      });
+    }
+  });
 
 export const updateProductPriceSchema = z.object({
   productId: z.string().uuid("Produit invalide."),

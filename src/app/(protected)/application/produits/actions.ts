@@ -817,9 +817,29 @@ export async function updateProductAction(
     return { error: "Département introuvable pour cet établissement." };
   }
 
+  // « + Nouvelle catégorie » lors d'une modification : même logique que la
+  // création de produit — sans ça, categoryId reste vide et la validation
+  // ci-dessous échoue toujours.
+  let categoryId = parsed.data.categoryId ?? null;
+  if (!categoryId && parsed.data.newCategoryName) {
+    const created = await createCategoryForDepartment(
+      workspace,
+      departmentId,
+      parsed.data.newCategoryName,
+    );
+    if ("error" in created) {
+      return { error: created.error };
+    }
+    categoryId = created.id;
+  }
+
+  if (!categoryId) {
+    return { error: "Sélectionnez une catégorie ou créez-en une." };
+  }
+
   const categoryValid = await validateCategoryForDepartment(
     workspace,
-    parsed.data.categoryId,
+    categoryId,
     departmentId,
   );
 
@@ -866,7 +886,7 @@ export async function updateProductAction(
 
   const payload = {
     department_id: departmentId,
-    category_id: parsed.data.categoryId,
+    category_id: categoryId,
     name: parsed.data.name,
     slug,
     description: parsed.data.description ?? null,

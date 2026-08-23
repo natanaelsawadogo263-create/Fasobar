@@ -4,6 +4,7 @@ import {
   createProductSchema,
   productFiltersSchema,
   updateProductPriceSchema,
+  updateProductSchema,
 } from "@/lib/products/schemas";
 import { formatPriceXof, inferFractionableFromUnit, MANAGEMENT_ROLES } from "@/lib/products/constants";
 
@@ -107,6 +108,40 @@ describe("product schemas", () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  // Régression : modifier un produit tout en créant sa propre catégorie
+  // échouait toujours ("Catégorie invalide.") — updateProductSchema exigeait
+  // un UUID strict et ignorait newCategoryName, contrairement à createProductSchema.
+  it("accepte une nouvelle catégorie lors d'une modification", () => {
+    const result = updateProductSchema.safeParse({
+      productId: "00000000-0000-4000-8000-000000000009",
+      name: "T-shirt col rond",
+      departmentCode: "BAR",
+      categoryId: "",
+      newCategoryName: "Homme",
+      sellingPrice: 3500,
+      unit: "PIECE",
+      minimumStock: 0,
+      active: true,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("refuse une modification sans catégorie ni nouvelle catégorie", () => {
+    const result = updateProductSchema.safeParse({
+      productId: "00000000-0000-4000-8000-000000000009",
+      name: "T-shirt col rond",
+      departmentCode: "BAR",
+      categoryId: "",
+      sellingPrice: 3500,
+      unit: "PIECE",
+      minimumStock: 0,
+      active: true,
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it("refuse une boisson sans conditionnement", () => {
