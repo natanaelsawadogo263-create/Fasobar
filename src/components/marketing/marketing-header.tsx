@@ -25,7 +25,7 @@ export function MarketingHeader() {
         </Link>
 
         <nav
-          className="hidden flex-1 items-center justify-center gap-1 md:flex"
+          className="hidden flex-1 items-center justify-center gap-0.5 lg:flex"
           aria-label="Navigation principale"
         >
           {MARKETING_NAV.map((item) => {
@@ -37,7 +37,7 @@ export function MarketingHeader() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-lg px-3 py-2 text-[13px] font-medium transition ${
+                className={`whitespace-nowrap rounded-lg px-2.5 py-2 text-[13px] font-medium transition ${
                   active
                     ? "bg-white/10 text-white"
                     : "text-emerald-100/70 hover:bg-white/5 hover:text-white"
@@ -65,7 +65,7 @@ export function MarketingHeader() {
           </Link>
           <button
             type="button"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white md:hidden"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white lg:hidden"
             onClick={() => setOpen((value) => !value)}
             aria-expanded={open}
             aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
@@ -76,7 +76,7 @@ export function MarketingHeader() {
       </div>
 
       {open ? (
-        <div className="border-t border-white/10 bg-[#07110e] px-4 py-4 md:hidden">
+        <div className="border-t border-white/10 bg-[#07110e] px-4 py-4 lg:hidden">
           <nav className="flex flex-col gap-1" aria-label="Navigation mobile">
             {MARKETING_NAV.map((item) => (
               <Link

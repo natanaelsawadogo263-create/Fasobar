@@ -17,13 +17,48 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = "https://fasobar.com";
+const SITE_DESCRIPTION =
+  "FasoBar est un logiciel de gestion pour commerces et établissements : caisse, stock, produits, approvisionnements, équipe et rapports, dans un seul outil.";
+const DEFAULT_OG_IMAGE = {
+  url: "/og/fasobar-og.jpg",
+  width: 1200,
+  height: 630,
+  alt: "FasoBar — logiciel de gestion, caisse et stock pour commerces",
+};
+
 export const metadata: Metadata = {
+  // Base absolue pour résoudre canonical, Open Graph et Twitter — domaine
+  // canonique officiel, jamais www.fasobar.com.
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "FasoBar — Gestion des stocks et des ventes",
-    template: "%s",
+    default: "FasoBar — Logiciel de gestion, caisse et stock pour commerces",
+    template: "%s — FasoBar",
   },
-  description:
-    "FasoBar, logiciel de gestion des stocks et des ventes pour toute activité commerciale.",
+  description: SITE_DESCRIPTION,
+  applicationName: "FasoBar",
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "FasoBar",
+    title: "FasoBar — Logiciel de gestion, caisse et stock pour commerces",
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    locale: "fr_FR",
+    images: [DEFAULT_OG_IMAGE],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FasoBar — Logiciel de gestion, caisse et stock pour commerces",
+    description: SITE_DESCRIPTION,
+    images: [DEFAULT_OG_IMAGE.url],
+  },
   // Le favicon/icône Apple viennent des fichiers app/icon.png et
   // app/apple-icon.png (convention Next.js) — ne pas les redéclarer ici avec
   // un autre visuel, sinon on obtient une icône différente de celle utilisée

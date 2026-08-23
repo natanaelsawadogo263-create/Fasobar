@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 
 import { PageHero } from "@/components/marketing/page-hero";
+import { buildPageMetadata } from "@/lib/marketing/seo";
 
-export const metadata: Metadata = {
-  title: "Politique de confidentialité — FasoBar",
-};
+export const metadata: Metadata = buildPageMetadata({
+  path: "/politique-de-confidentialite",
+  title: "Politique de confidentialité",
+  description:
+    "Comment FasoBar traite les données de votre établissement : compte, employés, ventes, stock et abonnement. Vos données ne sont pas vendues.",
+});
 
 export default function ConfidentialitePage() {
   return (

@@ -15,7 +15,12 @@
       "Bash(npm run *)",
       "Bash(npx next *)",
       "Bash(node -e ' *)",
-      "Bash(node scripts/desktop-verify-icons.mjs)"
+      "Bash(node scripts/desktop-verify-icons.mjs)",
+      "Bash(rm -rf \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/alimentation\" \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/quincaillerie\" \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/station-service\" \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/restaurant-bar-maquis\" \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/commerce\" && mkdir -p \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/[slug]\")",
+      "Bash(git add *)"
+    ],
+    "additionalDirectories": [
+      "c:\\projet-dev\\maquis-gestion\\src\\app\\(marketing)\\solutions"
     ]
   }
 }

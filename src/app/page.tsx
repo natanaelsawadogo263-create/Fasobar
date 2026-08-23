@@ -1,13 +1,63 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { ConnexionScreen } from "@/components/auth/connexion-screen";
 import { MarketingHomePage } from "@/components/marketing/home-page";
 import { MarketingShell } from "@/components/marketing/marketing-shell";
+import { JsonLd } from "@/components/marketing/json-ld";
 import { resolvePostLoginRedirect } from "@/lib/auth/post-login";
 import { getAuthenticatedUser } from "@/lib/auth/session";
 import { isDesktopServerRuntime } from "@/lib/desktop/runtime";
+import { FASOBAR_WHATSAPP } from "@/lib/marketing/config";
+import { buildPageMetadata, SITE_URL } from "@/lib/marketing/seo";
 import { createClient } from "@/lib/supabase/server";
+
+// Route racine (hors groupe (marketing) — cette page gère aussi la
+// redirection post-connexion et le mode desktop) : la metadata et les
+// données structurées ne s'appliquent qu'au rendu public ci-dessous.
+export const metadata: Metadata = buildPageMetadata({
+  path: "/",
+  description:
+    "FasoBar est un logiciel de gestion pour commerces et établissements : caisse, stock, produits, approvisionnements, équipe et rapports. Pensé pour les commerçants du Burkina Faso et d’Afrique.",
+});
+
+const ORGANIZATION_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "FasoBar",
+  url: SITE_URL,
+  logo: `${SITE_URL}/brand/fasobar-icon-512.png`,
+  description:
+    "FasoBar est un logiciel de gestion pour commerces et établissements : caisse, stock, produits, approvisionnements, équipe et rapports.",
+  contactPoint: [
+    {
+      "@type": "ContactPoint",
+      contactType: "customer service",
+      telephone: `+${FASOBAR_WHATSAPP.e164}`,
+      areaServed: "BF",
+      availableLanguage: ["fr"],
+    },
+  ],
+};
+
+const WEBSITE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "FasoBar",
+  url: SITE_URL,
+};
+
+const SOFTWARE_APPLICATION_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "FasoBar",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web, Windows",
+  url: SITE_URL,
+  description:
+    "Logiciel de gestion pour commerces et établissements : caisse, stock, produits, approvisionnements, équipe et rapports.",
+};
 
 type HomePageProps = {
   searchParams?: Promise<{ error?: string; redirect?: string }>;
@@ -53,8 +103,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   return (
-    <MarketingShell>
-      <MarketingHomePage />
-    </MarketingShell>
+    <>
+      <JsonLd data={ORGANIZATION_JSON_LD} />
+      <JsonLd data={WEBSITE_JSON_LD} />
+      <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
+      <MarketingShell>
+        <MarketingHomePage />
+      </MarketingShell>
+    </>
   );
 }

@@ -3,8 +3,13 @@ import type { Metadata } from "next";
 import { AffichePoster } from "@/components/marketing/affiche-poster";
 
 export const metadata: Metadata = {
-  title: "Affiche — FasoBar",
+  title: "Affiche",
   description: "Affiche publicitaire FasoBar : tarifs logiciel et kit.",
+  // Outil interne (affiche à imprimer), pas un contenu pour Google.
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function AffichePage() {

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -30,10 +31,13 @@ export function MarketingVideoBanner() {
       <div className="relative min-h-[540px] w-full sm:min-h-[520px] lg:aspect-[21/9] lg:min-h-[460px]">
         <div className="fb-banner-reel absolute inset-0" aria-hidden>
           {FRAMES.map((src, index) => (
-            <img
+            <Image
               key={src}
               src={src}
               alt=""
+              fill
+              sizes="100vw"
+              priority={index === 0}
               className={`fb-banner-frame ${index === active ? "is-active" : ""}`}
             />
           ))}
@@ -48,9 +52,16 @@ export function MarketingVideoBanner() {
             FasoBar · Tous commerces
           </p>
           <h1 className="mt-2 text-[28px] font-semibold leading-[1.12] tracking-tight sm:text-[40px] lg:text-[44px]">
-            Stock, caisse, tickets.
-            <span className="block text-emerald-300">Un seul outil.</span>
+            Le logiciel de gestion de votre commerce.
+            <span className="block text-emerald-300">
+              Stock, caisse et ventes, un seul outil.
+            </span>
           </h1>
+          <p className="mt-3 max-w-sm text-[14px] leading-relaxed text-slate-200/85 sm:text-[15px]">
+            Conçu pour les commerçants du Burkina Faso — alimentation,
+            quincaillerie, station-service, restaurant, bar — et adapté aux
+            commerces d’Afrique.
+          </p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <Link

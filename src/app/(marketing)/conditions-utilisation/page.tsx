@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 
 import { PageHero } from "@/components/marketing/page-hero";
+import { buildPageMetadata } from "@/lib/marketing/seo";
 
-export const metadata: Metadata = {
-  title: "Conditions d’utilisation — FasoBar",
-};
+export const metadata: Metadata = buildPageMetadata({
+  path: "/conditions-utilisation",
+  title: "Conditions d’utilisation",
+  description:
+    "Conditions d’utilisation de FasoBar : compte, rôles, responsabilités et accès au service selon l’essai ou l’abonnement.",
+});
 
 export default function ConditionsPage() {
   return (

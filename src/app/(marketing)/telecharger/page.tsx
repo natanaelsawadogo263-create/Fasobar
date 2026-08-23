@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import { Download, MonitorSmartphone, Share, Smartphone } from "lucide-react";
 
 import { FasoBarInstallButton } from "@/components/pwa/fasobar-install-button";
+import { buildPageMetadata } from "@/lib/marketing/seo";
 
-export const metadata: Metadata = {
-  title: "Installer FasoBar",
+export const metadata: Metadata = buildPageMetadata({
+  path: "/telecharger",
+  title: "Installer l’application",
   description:
-    "Téléchargez le raccourci FasoBar sur votre PC, tablette ou téléphone.",
-};
+    "Installez FasoBar sur votre PC, tablette ou téléphone en un raccourci — accédez à votre caisse en un clic, sans passer par le navigateur.",
+});
 
 export default function TelechargerPage() {
   return (
