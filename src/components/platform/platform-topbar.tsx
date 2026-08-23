@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight, LogOut } from "lucide-react";

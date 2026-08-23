@@ -26,6 +26,8 @@ export type CashierProduct = {
     price: number;
     factor: number;
     allowDecimal?: boolean;
+    /** Code-barres propre à ce conditionnement (ex. carton), distinct du code produit. */
+    barcode?: string | null;
   }>;
 };
 

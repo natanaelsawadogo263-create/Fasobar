@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   Bell,
@@ -15,7 +15,6 @@ import {
 
 import { markAdminNotificationsReadAction } from "@/app/(protected)/application/notifications/actions";
 import { useAdminNotificationsLive } from "@/hooks/use-admin-notifications-live";
-import { playFasoBarNotificationChime } from "@/lib/admin/notification-chime";
 import type { AdminNotificationItem } from "@/lib/admin/notification-types";
 
 type AdminNotificationsBellProps = {
@@ -79,8 +78,10 @@ export function AdminNotificationsBell({
   }, [open]);
 
   function toggleOpen() {
+    // Débloque uniquement la lecture audio (aucun son ici) : le son automatique à
+    // l'arrivée d'une notification en a besoin, mais ouvrir/fermer la cloche ne doit
+    // plus jouer de son lui-même.
     live.unlock();
-    void playFasoBarNotificationChime({ force: true });
     const next = !open;
     setOpen(next);
     if (next && live.unreadCount > 0) {

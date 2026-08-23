@@ -92,6 +92,7 @@ export async function getProductSaleUnitsAction(productId: string) {
       price: unit.sellingPrice ?? 0,
       factor: unit.conversionFactor || 1,
       allowDecimal: Boolean(unit.allowDecimal),
+      barcode: unit.barcode ?? null,
     }));
   } catch {
     return [];

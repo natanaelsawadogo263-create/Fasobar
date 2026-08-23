@@ -112,6 +112,32 @@ export function buildCashierSaleChoices(
   });
 }
 
+export type SaleFlowDecision =
+  | { action: "add"; choice?: CashierSaleChoice }
+  | { action: "picker" };
+
+/**
+ * Décision « ajout direct vs sélecteur de mode de vente » — utilisée aussi bien au
+ * clic sur un produit qu'au scan d'un code-barres principal. Un seul mode disponible
+ * (ou catalogue négoce toujours en sélecteur) : identique dans les deux cas, une seule
+ * fonction pour ne jamais diverger entre clic et scan.
+ */
+export function decideSaleFlow(
+  product: {
+    sellingPrice: number;
+    unit: string;
+    fractionable?: boolean;
+    saleUnits?: SaleUnitOption[] | null;
+  },
+  options: { shopLots?: boolean; alwaysPicker?: boolean } = {},
+): SaleFlowDecision {
+  const choices = buildCashierSaleChoices(product, options);
+  if (options.alwaysPicker || choices.length > 1) {
+    return { action: "picker" };
+  }
+  return { action: "add", choice: choices[0] };
+}
+
 export function salePickerHint(
   choices: CashierSaleChoice[],
   options?: { shopLots?: boolean },

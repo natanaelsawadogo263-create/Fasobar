@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 import { useEffect, useState, useTransition } from "react";
 import {
   AlertTriangle,
@@ -442,7 +442,7 @@ export function AdminSettingsWorkspace({
                       return (
                         <label
                           key={option.id}
-                          className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3.5 text-left transition ${
+                          className={`relative flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3.5 text-left transition ${
                             selected
                               ? "border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/15"
                               : "border-slate-200 bg-white hover:border-emerald-300"

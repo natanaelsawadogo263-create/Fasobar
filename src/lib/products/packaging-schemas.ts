@@ -28,6 +28,11 @@ export const upsertPackagingSchema = z.object({
       .positive("Indiquez le prix de vente du lot.")
       .optional(),
   ),
+  /** Code-barres propre à ce conditionnement (ex. carton) — optionnel. */
+  barcode: z.preprocess((value) => {
+    const text = typeof value === "string" ? value.trim() : "";
+    return text.length > 0 ? text : undefined;
+  }, z.string().max(64).optional()),
 });
 
 export const deactivatePackagingSchema = z.object({

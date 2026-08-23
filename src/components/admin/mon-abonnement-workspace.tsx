@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 import { CreditCard, RefreshCw } from "lucide-react";
 
 import { SubscriptionExpiryBanner } from "@/components/abonnement/subscription-expiry-banner";

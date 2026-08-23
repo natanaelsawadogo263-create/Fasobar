@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 
 import { requireGasStationAdminContext } from "@/lib/auth/workspace-context";
 import { listAdminStationPumpSessions } from "@/lib/admin/station-sessions-queries";

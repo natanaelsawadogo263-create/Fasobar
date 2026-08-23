@@ -128,6 +128,7 @@ type UnitLevelRow = {
   selling_price: number | null;
   purchase_price: number | null;
   allow_decimal: boolean;
+  barcode?: string | null;
 };
 
 function pickProductUnitTree(rows: UnitLevelRow[]): UnitLevelRow[] {
@@ -167,6 +168,7 @@ function unitLevelsToPackagings(rows: UnitLevelRow[], mode: "purchase" | "sale")
       active: true,
       sellingPrice: row.selling_price,
       allowDecimal: Boolean(row.allow_decimal),
+      barcode: row.barcode ?? null,
     };
   });
 }
@@ -179,9 +181,11 @@ export async function listCommerceUnitsForProducts(
   if (productIds.length === 0) return {};
   const supabase = await getPackagingReadClient(workspace);
   const selectWithVariant =
-    "id, product_id, variant_id, name, parent_id, contains_qty, is_base, purchasable, sellable, selling_price, purchase_price, allow_decimal";
+    "id, product_id, variant_id, name, parent_id, contains_qty, is_base, purchasable, sellable, selling_price, purchase_price, allow_decimal, barcode";
   const selectPlain =
-    "id, product_id, name, parent_id, contains_qty, is_base, purchasable, sellable, selling_price, purchase_price, allow_decimal";
+    "id, product_id, name, parent_id, contains_qty, is_base, purchasable, sellable, selling_price, purchase_price, allow_decimal, barcode";
+  const selectWithoutBarcode =
+    "id, product_id, variant_id, name, parent_id, contains_qty, is_base, purchasable, sellable, selling_price, purchase_price, allow_decimal";
   let { data, error } = await supabase
     .from("product_unit_levels")
     .select(selectWithVariant)
@@ -189,6 +193,20 @@ export async function listCommerceUnitsForProducts(
     .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
     .order("sort_order");
+  if (error?.message?.includes("barcode")) {
+    const withoutBarcode = await supabase
+      .from("product_unit_levels")
+      .select(selectWithoutBarcode)
+      .in("product_id", productIds)
+      .eq("organization_id", workspace.organizationId)
+      .eq("establishment_id", workspace.establishmentId)
+      .order("sort_order");
+    data = (withoutBarcode.data ?? []).map((row) => ({
+      ...row,
+      barcode: null as string | null,
+    })) as typeof data;
+    error = withoutBarcode.error;
+  }
   if (error) {
     const fallback = await supabase
       .from("product_unit_levels")

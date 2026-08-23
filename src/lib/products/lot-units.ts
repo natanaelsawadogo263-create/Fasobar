@@ -19,6 +19,8 @@ export type ProductLotInput = {
   unitsPerLot: number;
   sellingPrice: number;
   lotSellingPrice: number;
+  /** Code-barres du lot / conditionnement (ex. carton de 6) — optionnel, distinct du code produit. */
+  lotBarcode?: string | null;
 };
 
 function isMissingUnitLevelsError(error: { message?: string; code?: string } | null): boolean {
@@ -110,6 +112,8 @@ export async function ensureProductLotUnits(
     (row) => !row.is_base && normalizeLotName(row.name) === normalizeLotName(lotName),
   );
 
+  const lotBarcode = input.lotBarcode?.trim() || null;
+
   if (existingLot) {
     await (
       client
@@ -121,6 +125,7 @@ export async function ensureProductLotUnits(
           purchasable: true,
           sellable: true,
           selling_price: Math.round(input.lotSellingPrice),
+          ...(lotBarcode ? { barcode: lotBarcode } : {}),
           updated_by: workspace.userId,
         })
         .eq("id", existingLot.id)
@@ -140,6 +145,7 @@ export async function ensureProductLotUnits(
     sellable: true,
     sellingPrice: Math.round(input.lotSellingPrice),
     sortOrder: 1,
+    barcode: lotBarcode,
   });
 }
 
@@ -221,6 +227,7 @@ async function insertUnitLevel(
     sellable: boolean;
     sellingPrice: number | null;
     sortOrder: number;
+    barcode?: string | null;
   },
 ): Promise<string | null> {
   const payload = {
@@ -237,6 +244,7 @@ async function insertUnitLevel(
     selling_price: row.sellingPrice,
     allow_decimal: false,
     sort_order: row.sortOrder,
+    barcode: row.barcode ?? null,
     created_by: workspace.userId,
     updated_by: workspace.userId,
   };
@@ -253,8 +261,27 @@ async function insertUnitLevel(
       .maybeSingle();
   }
 
+  if (result.error && (result.error.message ?? "").includes("barcode") && !(result.error.message ?? "").toLowerCase().includes("duplicate") && !(result.error.message ?? "").toLowerCase().includes("unique")) {
+    const { barcode: _barcode, ...withoutBarcode } = payload;
+    void _barcode;
+    result = await client
+      .from("product_unit_levels")
+      .insert(withoutBarcode)
+      .select("id")
+      .maybeSingle();
+  }
+
   if (result.error) {
     if (isMissingUnitLevelsError(result.error)) return null;
+    if (
+      result.error.code === "23505" ||
+      (result.error.message ?? "").toLowerCase().includes("duplicate") ||
+      (result.error.message ?? "").toLowerCase().includes("unique")
+    ) {
+      throw new Error(
+        "Ce code-barres de conditionnement est déjà utilisé dans cet établissement.",
+      );
+    }
     throw new Error(result.error.message ?? "Impossible d’enregistrer le lot.");
   }
 

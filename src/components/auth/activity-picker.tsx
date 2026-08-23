@@ -61,7 +61,7 @@ export function ActivityPicker({
         return (
           <label
             key={activity.id}
-            className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition ${
+            className={`relative flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition ${
               selected
                 ? "border-emerald-500 bg-white ring-2 ring-emerald-500/20"
                 : "border-slate-200 bg-white hover:border-emerald-300"

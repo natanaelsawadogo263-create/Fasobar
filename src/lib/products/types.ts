@@ -63,4 +63,6 @@ export type ProductPackaging = {
   active: boolean;
   sellingPrice?: number | null;
   allowDecimal?: boolean;
+  /** Code-barres propre à ce conditionnement (ex. carton de 6) — distinct du code produit. */
+  barcode?: string | null;
 };

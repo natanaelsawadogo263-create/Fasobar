@@ -76,36 +76,25 @@ export function FasoBarTopbar() {
 
         <div className="mx-0.5 hidden h-6 w-px bg-white/10 sm:block" aria-hidden />
 
-        {ctx?.onOpenOrders ? (
-          <button
-            type="button"
-            onClick={ctx.onOpenOrders}
-            className={`${iconBtn} relative`}
-            title={pages.pos.openTicketsTitle}
-            aria-label={`${pages.pos.openTicketsTitle}${openCount > 0 ? ` (${openCount})` : ""}`}
-          >
-            <Package className="h-4 w-4" />
-            {openCount > 0 ? (
-              <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[9px] font-bold leading-none text-white">
-                {openCount > 99 ? "99+" : openCount}
-              </span>
-            ) : null}
-          </button>
-        ) : (
-          <InstantLink
-            href="/application/commandes-ouvertes"
-            className={`${iconBtn} relative`}
-            title={pages.pos.openTicketsTitle}
-            aria-label={`${pages.pos.openTicketsTitle}${openCount > 0 ? ` (${openCount})` : ""}`}
-          >
-            <Package className="h-4 w-4" />
-            {openCount > 0 ? (
-              <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[9px] font-bold leading-none text-white">
-                {openCount > 99 ? "99+" : openCount}
-              </span>
-            ) : null}
-          </InstantLink>
-        )}
+        {/*
+          Toujours une vraie navigation vers la page des tickets (jamais le callback
+          ctx.onOpenOrders enregistré à distance par la page caisse) : ce pont entre
+          composants peut rester bloqué sur undefined après certains changements
+          d'écran et rendre le bouton inerte.
+        */}
+        <InstantLink
+          href="/application/commandes-ouvertes"
+          className={`${iconBtn} relative`}
+          title={pages.pos.openTicketsTitle}
+          aria-label={`${pages.pos.openTicketsTitle}${openCount > 0 ? ` (${openCount})` : ""}`}
+        >
+          <Package className="h-4 w-4" />
+          {openCount > 0 ? (
+            <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[9px] font-bold leading-none text-white">
+              {openCount > 99 ? "99+" : openCount}
+            </span>
+          ) : null}
+        </InstantLink>
 
         {sessionOpen ? (
           <button

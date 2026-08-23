@@ -259,6 +259,44 @@ html {
     print-color-adjust: exact;
   }
 
+  /* Étiquette produit (code-barres) : format séparé de l'impression des tickets. */
+  html.printing-label,
+  html.printing-label body {
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  html.printing-label body {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+  }
+
+  html.printing-label body > *:not(#print-label-clone) {
+    display: none !important;
+  }
+
+  html.printing-label #print-label-clone {
+    display: flex !important;
+    position: static !important;
+  }
+
+  .product-label {
+    width: 50mm;
+    max-width: 50mm;
+    height: 30mm;
+    max-height: 30mm;
+    padding: 2mm;
+    box-sizing: border-box;
+    color: #000;
+    background: #fff;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
   /* Rapports admin : pagination multi-pages (évite la coupe en bas de page) */
   html.printing-reports,
   html.printing-reports body {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { bootstrapOrganizationAction } from "@/app/(protected)/onboarding/actions";
 import { ActivityPicker } from "@/components/auth/activity-picker";
@@ -26,6 +26,13 @@ export function OnboardingForm({ initialActivity = "" }: OnboardingFormProps) {
   const [activityCode, setActivityCode] = useState<BusinessActivityId | "">(
     initialActivity,
   );
+  // Choix en cours sur la grille, avant confirmation par le bouton « Continuer ».
+  // Distinct de activityCode : on ne bascule plus vers le formulaire dès le clic
+  // sur une tuile (ça provoquait un changement de hauteur brutal, avec un flash
+  // de page à moitié blanche) — le clic sélectionne seulement la tuile.
+  const [pendingActivity, setPendingActivity] = useState<BusinessActivityId | "">(
+    initialActivity,
+  );
   const [organizationName, setOrganizationName] = useState("");
   const [establishmentName, setEstablishmentName] = useState("");
   const [establishmentTouched, setEstablishmentTouched] = useState(false);
@@ -39,10 +46,31 @@ export function OnboardingForm({ initialActivity = "" }: OnboardingFormProps) {
     : organizationName;
   const establishmentSlug = slugifyFromName(resolvedEstablishmentName);
   const selectedActivity = getBusinessActivity(activityCode);
+  const topRef = useRef<HTMLDivElement>(null);
+  const continueRef = useRef<HTMLButtonElement>(null);
+
+  // La grille d'activités (haute, souvent scrollée) et le formulaire d'établissement
+  // (court) sont deux rendus complètement différents dans le même conteneur centré :
+  // sans ça, après un clic la page garde l'ancienne position de scroll et affiche du
+  // vide au-dessus/au-dessous du nouveau contenu, plus court — donne l'impression que
+  // « la page devient bizarre ».
+  useEffect(() => {
+    topRef.current?.scrollIntoView({ block: "start" });
+  }, [activityCode]);
+
+  // Choisir une tuile n'affiche plus directement le formulaire (ça provoquait le
+  // changement brutal de hauteur / flash à moitié blanc) : on amène plutôt le
+  // bouton « Continuer » à l'écran, et c'est ce bouton qui confirme le choix.
+  useEffect(() => {
+    if (pendingActivity) {
+      continueRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    }
+  }, [pendingActivity]);
 
   if (!activityCode) {
     return (
       <div className="w-full max-w-3xl">
+        <div ref={topRef} aria-hidden className="h-px w-full" />
         <div className="text-center">
           <div className="flex justify-center">
             <FasoBarLogo size="md" />
@@ -59,7 +87,20 @@ export function OnboardingForm({ initialActivity = "" }: OnboardingFormProps) {
           </p>
         </div>
         <div className="mt-8">
-          <ActivityPicker value="" onChange={setActivityCode} />
+          <ActivityPicker value={pendingActivity} onChange={setPendingActivity} />
+        </div>
+        <div className="mt-6 flex justify-center">
+          <button
+            ref={continueRef}
+            type="button"
+            disabled={!pendingActivity}
+            onClick={() => {
+              if (pendingActivity) setActivityCode(pendingActivity);
+            }}
+            className="inline-flex w-full max-w-xs items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            Continuer
+          </button>
         </div>
       </div>
     );
@@ -67,6 +108,7 @@ export function OnboardingForm({ initialActivity = "" }: OnboardingFormProps) {
 
   return (
     <div className="w-full max-w-[480px]">
+      <div ref={topRef} aria-hidden className="h-px w-full" />
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_20px_60px_-28px_rgba(15,23,42,0.28)]">
         <form action={formAction} className="flex flex-col">
           <div className="px-7 pb-2 pt-9 sm:px-9 sm:pt-10">

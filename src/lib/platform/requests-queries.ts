@@ -51,7 +51,7 @@ export async function listPlatformSubscriptionRequests(): Promise<PlatformReques
   try {
     const supabase = await createClient();
 
-    const [requestsResult, orgsResult, profilesResult] = await Promise.all([
+    const [requestsResult, orgsResult] = await Promise.all([
       supabase
         .from("subscription_requests")
         .select(
@@ -59,7 +59,6 @@ export async function listPlatformSubscriptionRequests(): Promise<PlatformReques
         )
         .order("created_at", { ascending: false }),
       supabase.from("organizations").select("id, name"),
-      supabase.from("profiles").select("id, full_name, phone"),
     ]);
 
     if (requestsResult.error) {
@@ -76,6 +75,20 @@ export async function listPlatformSubscriptionRequests(): Promise<PlatformReques
     const orgById = new Map(
       (orgsResult.data ?? []).map((o) => [o.id, o] as const),
     );
+
+    // Ne charge que les profils des demandeurs listés — jamais la table profiles
+    // entière (elle grossit avec chaque employé de chaque établissement).
+    const ownerUserIds = [
+      ...new Set((requestsResult.data ?? []).map((row) => row.owner_user_id)),
+    ];
+    const profilesResult =
+      ownerUserIds.length > 0
+        ? await supabase
+            .from("profiles")
+            .select("id, full_name, phone")
+            .in("id", ownerUserIds)
+        : { data: [], error: null };
+
     const profileById = new Map(
       (profilesResult.data ?? []).map((p) => [p.id, p] as const),
     );

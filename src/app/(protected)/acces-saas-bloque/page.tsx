@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 
 import { signOutAction } from "@/lib/auth/actions";
 import { requireAuthenticatedUser } from "@/lib/auth/session";

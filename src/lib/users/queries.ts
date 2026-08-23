@@ -40,16 +40,28 @@ export async function getFirstLoginContext(userId: string): Promise<FirstLoginCo
     return null;
   }
 
-  const { data: estMembership } = await supabase
-    .from("establishment_memberships")
-    .select("role, establishments(name)")
-    .eq("user_id", userId)
-    .eq("status", "ACTIVE")
-    .limit(1)
-    .maybeSingle();
+  const [{ data: estMembership }, { data: orgMembership }] = await Promise.all([
+    supabase
+      .from("establishment_memberships")
+      .select("role, establishments(name, activity_code)")
+      .eq("user_id", userId)
+      .eq("status", "ACTIVE")
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("organization_memberships")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("status", "ACTIVE")
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   const establishment = readSingle(
-    estMembership?.establishments as { name: string } | { name: string }[] | null,
+    estMembership?.establishments as
+      | { name: string; activity_code?: string | null }
+      | { name: string; activity_code?: string | null }[]
+      | null,
   );
 
   const { isInternalFasoBarAuthEmail } = await import(
@@ -61,11 +73,22 @@ export async function getFirstLoginContext(userId: string): Promise<FirstLoginCo
       ? user.email
       : user?.email?.split("@")[0] ?? "");
 
+  // Libellé d'espace propre à l'activité (ex. « Caissier » en Alimentation, pas
+  // toujours « Cuisine »/« Bar » — mêmes libellés que ceux vus par l'admin à la
+  // création du compte).
+  const { resolveUserSpace } = await import("@/lib/auth/roles");
+  const { displaySpaceLabel } = await import("@/lib/activity/profile");
+  const userSpace = resolveUserSpace(
+    orgMembership?.role ?? "",
+    estMembership?.role ?? "ADMIN",
+  );
+  const spaceLabel = displaySpaceLabel(userSpace, establishment?.activity_code ?? null);
+
   return {
     fullName: profile.full_name ?? "Utilisateur",
     loginIdentifier,
     establishmentName: establishment?.name ?? "—",
-    spaceLabel: roleToSpaceLabel(estMembership?.role ?? "ADMIN"),
+    spaceLabel,
   };
 }
 

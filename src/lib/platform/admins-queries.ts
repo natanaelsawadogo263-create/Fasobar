@@ -54,13 +54,10 @@ export async function listPlatformAdmins(): Promise<PlatformAdminsResult> {
   try {
     const supabase = await createClient();
 
-    const [adminsResult, profilesResult] = await Promise.all([
-      supabase
-        .from("platform_admins")
-        .select("id, user_id, status, created_at, created_by")
-        .order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id, full_name, phone"),
-    ]);
+    const adminsResult = await supabase
+      .from("platform_admins")
+      .select("id, user_id, status, created_at, created_by")
+      .order("created_at", { ascending: false });
 
     if (adminsResult.error) {
       if (isMissingTableError(adminsResult.error.message)) {
@@ -70,11 +67,19 @@ export async function listPlatformAdmins(): Promise<PlatformAdminsResult> {
       return { admins: [], error: adminsResult.error.message };
     }
 
+    const userIds = [...new Set((adminsResult.data ?? []).map((a) => a.user_id))];
+
+    // Ne charge que les profils des admins listés — jamais la table profiles entière.
+    const [profilesResult, emails] = await Promise.all([
+      userIds.length > 0
+        ? supabase.from("profiles").select("id, full_name, phone").in("id", userIds)
+        : Promise.resolve({ data: [], error: null }),
+      fetchEmails(userIds),
+    ]);
+
     const profileById = new Map(
       (profilesResult.data ?? []).map((p) => [p.id, p] as const),
     );
-    const userIds = (adminsResult.data ?? []).map((a) => a.user_id);
-    const emails = await fetchEmails(userIds);
 
     const admins: PlatformAdminRow[] = (adminsResult.data ?? []).map((row) => {
       const profile = profileById.get(row.user_id);

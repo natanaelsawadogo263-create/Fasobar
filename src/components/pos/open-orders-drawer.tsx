@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 import { useMemo, useState } from "react";
 import { ClipboardList, Printer, Search, X } from "lucide-react";
 

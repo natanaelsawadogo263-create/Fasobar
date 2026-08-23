@@ -35,6 +35,7 @@ import {
   getLocalDatabase,
   resetLocalDatabaseSingletonForTests,
 } from "@/lib/local-db/database";
+import { expectedSchemaVersion } from "@/lib/local-db/migrations";
 import { resolveSyncUiStatus } from "@/lib/sync/status";
 
 function tempRoot(): string {
@@ -290,7 +291,7 @@ describe("offline local auth rules", () => {
 });
 
 describe("schema v4", () => {
-  it("applies migrations through saas_authorization (version 4)", () => {
+  it("applies migrations through saas_authorization (version 4) and beyond", () => {
     const root = tempRoot();
     const db = getLocalDatabase({
       userDataRoot: root,
@@ -300,7 +301,11 @@ describe("schema v4", () => {
     const version = db
       .prepare("SELECT MAX(version) AS v FROM local_schema_migrations")
       .get();
-    expect(Number(version?.v)).toBe(5);
+    // >= 4 (pas une égalité stricte) : ce test vérifie que les migrations passent bien
+    // par saas_authorization (v4), sans se casser à chaque nouvelle migration ajoutée
+    // après — la version courante réelle vient d'expectedSchemaVersion().
+    expect(Number(version?.v)).toBeGreaterThanOrEqual(4);
+    expect(Number(version?.v)).toBe(expectedSchemaVersion());
     expect(resolveSyncUiStatus(db, { cloudReachable: false })).toBe("OFFLINE");
     closeLocalDatabase();
   });

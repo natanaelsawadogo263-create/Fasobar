@@ -220,6 +220,12 @@ function mapProductWriteError(error: { message?: string; code?: string } | null)
     message.includes("duplicate") ||
     message.includes("unique")
   ) {
+    if (message.includes("barcode")) {
+      return "Ce code-barres est déjà utilisé par un autre produit dans cet établissement.";
+    }
+    if (message.includes("_sku_")) {
+      return "Cette référence (SKU) est déjà utilisée par un autre produit.";
+    }
     return "Un produit avec ce nom existe déjà dans cet établissement.";
   }
 
@@ -236,6 +242,102 @@ function mapProductWriteError(error: { message?: string; code?: string } | null)
   }
 
   return error.message || mapGenericError(error);
+}
+
+/**
+ * Vérifie qu'un code-barres n'est pas déjà pris dans l'établissement avant d'écrire.
+ * Pré-contrôle applicatif : l'index unique DB reste le filet de sécurité final
+ * (course concurrente entre deux enregistrements simultanés).
+ */
+async function checkBarcodeAvailable(
+  workspace: Awaited<ReturnType<typeof requireProductManagementMutationContext>>,
+  barcode: string | undefined,
+  excludeProductId?: string,
+): Promise<string | null> {
+  if (!barcode) return null;
+
+  const supabase = await createClient();
+  const writeClient = getProductWriteClient() ?? supabase;
+
+  let productQuery = writeClient
+    .from("products")
+    .select("id, name")
+    .eq("organization_id", workspace.organizationId)
+    .eq("establishment_id", workspace.establishmentId)
+    .eq("barcode", barcode)
+    .limit(1);
+
+  if (excludeProductId) {
+    productQuery = productQuery.neq("id", excludeProductId);
+  }
+
+  const [productHit, unitLevelHit] = await Promise.all([
+    productQuery.maybeSingle(),
+    writeClient
+      .from("product_unit_levels")
+      .select("id, name")
+      .eq("organization_id", workspace.organizationId)
+      .eq("establishment_id", workspace.establishmentId)
+      .eq("barcode", barcode)
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  if (productHit.data?.id) {
+    return `Ce code-barres est déjà utilisé par « ${productHit.data.name} ». Utilisez un autre code ou modifiez ce produit.`;
+  }
+  if (unitLevelHit.data?.id) {
+    return `Ce code-barres est déjà utilisé par un conditionnement existant (« ${unitLevelHit.data.name} »). Utilisez un autre code.`;
+  }
+
+  return null;
+}
+
+/**
+ * Vérifie qu'un code-barres de conditionnement (lot / pack) est libre dans
+ * l'établissement — contre les deux espaces de codes existants (produit ET
+ * conditionnements) pour qu'un scan résolve toujours sans ambiguïté.
+ */
+async function checkPackagingBarcodeAvailable(
+  workspace: Awaited<ReturnType<typeof requireProductManagementMutationContext>>,
+  barcode: string,
+  excludeUnitLevelId?: string,
+): Promise<string | null> {
+  const supabase = await createClient();
+  const writeClient = getProductWriteClient() ?? supabase;
+
+  const [productHit, unitLevelHit] = await Promise.all([
+    writeClient
+      .from("products")
+      .select("id, name")
+      .eq("organization_id", workspace.organizationId)
+      .eq("establishment_id", workspace.establishmentId)
+      .eq("barcode", barcode)
+      .limit(1)
+      .maybeSingle(),
+    (() => {
+      let query = writeClient
+        .from("product_unit_levels")
+        .select("id, name")
+        .eq("organization_id", workspace.organizationId)
+        .eq("establishment_id", workspace.establishmentId)
+        .eq("barcode", barcode)
+        .limit(1);
+      if (excludeUnitLevelId) {
+        query = query.neq("id", excludeUnitLevelId);
+      }
+      return query.maybeSingle();
+    })(),
+  ]);
+
+  if (productHit.data?.id) {
+    return `Ce code-barres est déjà utilisé par « ${productHit.data.name} ». Utilisez un autre code.`;
+  }
+  if (unitLevelHit.data?.id) {
+    return `Ce code-barres est déjà utilisé par un autre conditionnement (« ${unitLevelHit.data.name} »). Utilisez un autre code.`;
+  }
+
+  return null;
 }
 
 export async function createProductAction(
@@ -271,6 +373,11 @@ export async function createProductAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  const barcodeConflict = await checkBarcodeAvailable(workspace, parsed.data.barcode);
+  if (barcodeConflict) {
+    return { error: barcodeConflict };
   }
 
   if (!isDepartmentAllowed(workspace.serviceScope, parsed.data.departmentCode)) {
@@ -532,6 +639,17 @@ export async function createProductAction(
     if (patchError && !patchError.message.includes("fractionable")) {
       console.warn("[createProductAction] commerce patch:", patchError.message);
     }
+    if (
+      patchError &&
+      (patchError.message.includes("barcode") || patchError.message.includes("code-barres"))
+    ) {
+      // Le produit est créé mais son code-barres n'a pas pu être enregistré (collision
+      // détectée par le pré-contrôle → race, ou par le déclencheur DB) : on le dit.
+      return {
+        error:
+          "Produit créé, mais le code-barres n'a pas pu être enregistré (déjà utilisé par un autre produit ou conditionnement). Modifiez le produit pour en indiquer un autre.",
+      };
+    }
   }
 
   let packagingWarning: string | null = null;
@@ -672,6 +790,15 @@ export async function updateProductAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  const barcodeConflict = await checkBarcodeAvailable(
+    workspace,
+    parsed.data.barcode,
+    parsed.data.productId,
+  );
+  if (barcodeConflict) {
+    return { error: barcodeConflict };
   }
 
   if (!isDepartmentAllowed(workspace.serviceScope, parsed.data.departmentCode)) {
@@ -984,6 +1111,7 @@ export async function upsertPackagingAction(
     conversionFactor: formData.get("conversionFactor"),
     packagingId: formData.get("packagingId") || undefined,
     lotSellingPrice: formData.get("lotSellingPrice") || undefined,
+    barcode: formData.get("barcode") || undefined,
   });
 
   if (!parsed.success) {
@@ -995,6 +1123,13 @@ export async function upsertPackagingAction(
     (!parsed.data.lotSellingPrice || parsed.data.lotSellingPrice <= 0)
   ) {
     return { error: "Indiquez le prix de vente du lot." };
+  }
+
+  if (parsed.data.barcode) {
+    const conflict = await checkPackagingBarcodeAvailable(workspace, parsed.data.barcode);
+    if (conflict) {
+      return { error: conflict };
+    }
   }
 
   const supabase = await createClient();
@@ -1035,12 +1170,14 @@ export async function upsertPackagingAction(
           unitsPerLot: parsed.data.conversionFactor,
           sellingPrice: Number(product.selling_price) || 0,
           lotSellingPrice: parsed.data.lotSellingPrice ?? 0,
+          lotBarcode: parsed.data.barcode ?? null,
         });
       } catch (lotError) {
-        console.warn(
-          "[upsertPackagingAction] lot units:",
-          lotError instanceof Error ? lotError.message : lotError,
-        );
+        const message = lotError instanceof Error ? lotError.message : String(lotError);
+        console.warn("[upsertPackagingAction] lot units:", message);
+        if (message.includes("code-barres")) {
+          return { error: message };
+        }
       }
     }
   }

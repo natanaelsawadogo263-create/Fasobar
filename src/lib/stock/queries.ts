@@ -36,11 +36,13 @@ type StockItemRow = {
     | {
         category_id: string;
         stock_unit_label?: string | null;
+        barcode?: string | null;
         categories: { name: string } | { name: string }[] | null;
       }
     | {
         category_id: string;
         stock_unit_label?: string | null;
+        barcode?: string | null;
         categories: { name: string } | { name: string }[] | null;
       }[]
     | null;
@@ -82,6 +84,7 @@ function mapStockItem(row: StockItemRow): StockListItem | null {
     categoryName: category?.name ?? null,
     status: computeStockStatus(currentQuantity, minimumQuantity, row.active),
     estimatedUnitCost: null,
+    barcode: product?.barcode ?? null,
   };
 }
 
@@ -109,7 +112,7 @@ export async function listStockItems(
   let query = supabase
     .from("stock_items")
     .select(
-      "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, stock_unit_label, categories(name))",
+      "id, name, unit, current_quantity, minimum_quantity, active, product_id, department_id, departments(code, name), products(category_id, stock_unit_label, barcode, categories(name))",
     )
     .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 
 import { SessionWorkspace } from "@/components/payments/session-workspace";
 import { requireCashRegisterOperatorContext } from "@/lib/auth/workspace-context";

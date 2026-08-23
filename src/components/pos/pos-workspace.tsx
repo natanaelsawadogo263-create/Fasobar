@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { InstantLink } from "@/components/layout/instant-link";
 import { ClipboardList, LayoutGrid, ShoppingBag, Timer } from "lucide-react";
@@ -28,13 +28,15 @@ import {
 } from "@/components/payments/cash-checkout-modal";
 import { CloseSessionModal } from "@/components/payments/close-session-modal";
 import { OpenSessionModal } from "@/components/payments/open-session-modal";
+import { buildBarcodeIndex, decideScanAction } from "@/lib/catalog/barcode";
 import {
   buildCashierSaleChoices,
+  decideSaleFlow,
   salePickerHint,
   type CashierSaleChoice,
   type CashierSaleKind,
 } from "@/lib/catalog/sale-choices";
-import { stockQtyFromAmount } from "@/lib/catalog/sale-stock";
+import { saleLineKey, stockQtyFromAmount } from "@/lib/catalog/sale-stock";
 import { usesOptionalProductLots } from "@/lib/activity/catalog";
 import { usesTradeCatalog } from "@/lib/activity/ops-model";
 import { formatPriceXof } from "@/lib/orders/constants";
@@ -74,6 +76,8 @@ type PosWorkspaceProps = {
   freshCart?: boolean;
   serviceScope?: ServiceScope;
   activityCode?: string | null;
+  /** Autorise le bandeau « Créer ce produit » sur un code-barres inconnu. */
+  canManageProducts?: boolean;
 };
 
 type MobileTab = "products" | "order";
@@ -342,6 +346,7 @@ export function PosWorkspace({
   freshCart = false,
   serviceScope = "BOTH",
   activityCode = null,
+  canManageProducts = false,
 }: PosWorkspaceProps) {
   const profile = getActivityProfile(activityCode);
   const pages = getActivityPages(activityCode);
@@ -377,6 +382,11 @@ export function PosWorkspace({
   const [saleMode, setSaleMode] = useState<CashierSaleKind | null>(null);
   const [weightQty, setWeightQty] = useState("1");
   const [detailAmount, setDetailAmount] = useState("");
+  const [unknownBarcode, setUnknownBarcode] = useState<string | null>(null);
+  const barcodeIndex = useMemo(
+    () => buildBarcodeIndex(catalogProducts),
+    [catalogProducts],
+  );
   const [flashProductId, setFlashProductId] = useState<string | null>(null);
 
   const [orderId, setOrderId] = useState(initialOrder?.id ?? "");
@@ -464,6 +474,7 @@ export function PosWorkspace({
 
   const handleSearchChange = (value: string) => {
     setSearch(value);
+    if (unknownBarcode) setUnknownBarcode(null);
   };
 
   function addSaleUnit(
@@ -491,12 +502,13 @@ export function PosWorkspace({
     setDetailAmount("");
 
     setCart((current) => {
+      const targetKey = saleLineKey(product.id, unitId);
       const existing = current.find(
-        (line) => line.productId === product.id && (line.saleUnitId ?? "") === (unitId ?? ""),
+        (line) => saleLineKey(line.productId, line.saleUnitId) === targetKey,
       );
       if (existing) {
         return current.map((line) =>
-          line.productId === product.id && (line.saleUnitId ?? "") === (unitId ?? "")
+          saleLineKey(line.productId, line.saleUnitId) === targetKey
             ? { ...line, quantity: Math.round((line.quantity + qty) * 1000) / 1000 }
             : line,
         );
@@ -522,24 +534,87 @@ export function PosWorkspace({
   }
 
   function openSaleFlow(product: CashierProduct) {
-    const choices = buildCashierSaleChoices(
-      product,
-      shopLots ? { shopLots: true } : undefined,
-    );
-    if (usesTradeCatalog(activityCode)) {
+    const decision = decideSaleFlow(product, {
+      shopLots,
+      alwaysPicker: usesTradeCatalog(activityCode),
+    });
+    if (decision.action === "picker") {
       setSalePicker(product);
       setSaleMode(null);
       setWeightQty("1");
       setDetailAmount("");
       return;
     }
-    if (choices.length > 1) {
-      setSalePicker(product);
-      setSaleMode(null);
-      setWeightQty("1");
-      return;
+    addSaleUnit(product, decision.choice);
+  }
+
+  /**
+   * Scan douchette USB : la douchette « tape » le code puis Entrée dans le champ de
+   * recherche déjà focus — aucun logiciel spécial requis.
+   *
+   * - Code de conditionnement précis (product_unit_levels.barcode) : le code désigne
+   *   déjà l'unité exacte → ajout direct, pas de sélecteur.
+   * - Code produit principal (products.barcode) : réutilise exactement le flux de vente
+   *   existant (decideScanAction → decideSaleFlow, la même décision qu'au clic sur la
+   *   grille) — ajout direct si un seul mode, sélecteur déjà existant si plusieurs.
+   */
+  function handleScanBarcode(rawCode: string): boolean {
+    const decision = decideScanAction(barcodeIndex, rawCode, {
+      shopLots,
+      alwaysPicker: usesTradeCatalog(activityCode),
+    });
+
+    if (decision.type === "not-found") {
+      return false;
     }
-    addSaleUnit(product, choices[0]);
+    if (decision.type === "unknown") {
+      setUnknownBarcode(decision.code);
+      return false;
+    }
+
+    setUnknownBarcode(null);
+    const { product } = decision;
+
+    if (isProductOutOfStock(product)) {
+      showToast(`${product.name} — rupture de stock.`, "error");
+      return true;
+    }
+
+    if (decision.type === "picker") {
+      // Plusieurs modes de vente (ex. Bouteille / Pack ×6) : le sélecteur existant
+      // s'ouvre, le caissier choisit — même écran qu'au clic sur le produit.
+      openSaleFlow(product);
+      return true;
+    }
+
+    const choice = decision.choice;
+    const unitId = choice?.id;
+    const targetKey = saleLineKey(product.id, unitId);
+    const existingLine = cart.find(
+      (line) => saleLineKey(line.productId, line.saleUnitId) === targetKey,
+    );
+    addSaleUnit(product, choice);
+    const label =
+      choice && choice.factor !== 1 ? `${product.name} (${choice.name})` : product.name;
+    const nextQty = existingLine ? Math.round((existingLine.quantity + 1) * 100) / 100 : 1;
+    showToast(nextQty > 1 ? `${label} · quantité ${nextQty}` : `${label} ajouté`, "success");
+    return true;
+  }
+
+  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    const raw = search.trim();
+    if (!raw) return;
+    event.preventDefault();
+    const matched = handleScanBarcode(raw);
+    if (matched) {
+      setSearch("");
+    }
+  }
+
+  function handleCreateFromUnknownBarcode() {
+    if (!unknownBarcode) return;
+    router.push(`/application/produits?newBarcode=${encodeURIComponent(unknownBarcode)}`);
   }
 
   function addProduct(product: CashierProduct) {
@@ -574,7 +649,7 @@ export function PosWorkspace({
   }
 
   function lineMatches(line: CartLine, productId: string, saleUnitId?: string) {
-    return line.productId === productId && (line.saleUnitId ?? "") === (saleUnitId ?? "");
+    return saleLineKey(line.productId, line.saleUnitId) === saleLineKey(productId, saleUnitId);
   }
 
   function updateQuantity(productId: string, quantity: number, saleUnitId?: string) {
@@ -728,9 +803,9 @@ export function PosWorkspace({
     });
   }
 
-  /** Enregistre la commande « à encaisser » puis ouvre un panier neuf. */
+  /** Met la commande de côté (brouillon, pas encore prête à encaisser) puis ouvre un panier neuf. */
   function handleHold() {
-    submitOrder("READY_TO_PAY", async () => {
+    submitOrder("DRAFT", async () => {
       startFreshOrder({
         toast:
           pages.pos.holdToast,
@@ -941,8 +1016,14 @@ export function PosWorkspace({
             hasSearch={search.length > 0}
             search={search}
             onSearchChange={handleSearchChange}
+            onSearchKeyDown={handleSearchKeyDown}
             searchInputRef={searchInputRef}
             shopLots={shopLots}
+            unknownBarcode={unknownBarcode}
+            onDismissUnknownBarcode={() => setUnknownBarcode(null)}
+            onCreateFromBarcode={
+              canManageProducts ? handleCreateFromUnknownBarcode : undefined
+            }
           />
         </div>
 

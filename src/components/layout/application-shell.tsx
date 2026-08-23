@@ -51,7 +51,8 @@ function isThermalTicketRoute(pathname: string): boolean {
   return (
     pathname.startsWith("/application/caisse/addition/") ||
     pathname.includes("/addition") ||
-    pathname.startsWith("/application/recus/")
+    pathname.startsWith("/application/recus/") ||
+    pathname.startsWith("/application/produits/etiquette/")
   );
 }
 

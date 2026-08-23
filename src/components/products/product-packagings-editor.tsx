@@ -49,6 +49,7 @@ export function ProductPackagingsEditor({
     ),
   );
   const [lotSellingPrice, setLotSellingPrice] = useState("");
+  const [barcode, setBarcode] = useState("");
 
   const baseLabel =
     PRODUCT_UNIT_LABELS[baseUnit as keyof typeof PRODUCT_UNIT_LABELS] ?? baseUnit;
@@ -66,6 +67,9 @@ export function ProductPackagingsEditor({
     formData.set("conversionFactor", unitsPerPack);
     if (shopLots) {
       formData.set("lotSellingPrice", lotSellingPrice);
+    }
+    if (barcode.trim()) {
+      formData.set("barcode", barcode.trim());
     }
     setError(null);
     setSuccess(null);
@@ -85,6 +89,7 @@ export function ProductPackagingsEditor({
         ),
       );
       setLotSellingPrice("");
+      setBarcode("");
       onChanged();
     });
   }
@@ -141,7 +146,7 @@ export function ProductPackagingsEditor({
               key={item.id}
               className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px]"
             >
-              <span className="font-medium text-slate-800">
+              <span className="min-w-0 font-medium text-slate-800">
                 1{" "}
                 {BAR_PACKAGING_LABELS[
                   item.packagingUnit as BarPackagingUnit
@@ -151,6 +156,11 @@ export function ProductPackagingsEditor({
                 {item.sellingPrice
                   ? ` · ${item.sellingPrice} F`
                   : ""}
+                {item.barcode ? (
+                  <span className="ml-1.5 inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-normal text-slate-600">
+                    {item.barcode}
+                  </span>
+                ) : null}
               </span>
               <button
                 type="button"
@@ -206,6 +216,18 @@ export function ProductPackagingsEditor({
             onChange={(event) => setLotSellingPrice(event.target.value)}
             placeholder={`Prix du ${packagingLabel.toLowerCase()} (F)`}
             aria-label="Prix de vente du lot"
+            className="min-h-11 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px] sm:h-9 sm:min-h-9"
+          />
+        ) : null}
+        {shopLots ? (
+          <input
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            value={barcode}
+            onChange={(event) => setBarcode(event.target.value)}
+            placeholder={`Code-barres du ${packagingLabel.toLowerCase()} (optionnel)`}
+            aria-label="Code-barres du lot"
             className="min-h-11 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px] sm:h-9 sm:min-h-9"
           />
         ) : null}

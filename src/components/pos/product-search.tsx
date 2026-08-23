@@ -9,11 +9,13 @@ type ProductSearchProps = {
   variant?: "light" | "dark";
   compact?: boolean;
   disabled?: boolean;
+  /** Reçoit Enter — utilisé pour détecter un scan code-barres (douchette USB). */
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
 };
 
 export const ProductSearch = forwardRef<HTMLInputElement, ProductSearchProps>(
   function ProductSearch(
-    { value, onChange, variant = "light", compact = false, disabled = false },
+    { value, onChange, variant = "light", compact = false, disabled = false, onKeyDown },
     ref,
   ) {
     const isDark = variant === "dark";
@@ -32,6 +34,7 @@ export const ProductSearch = forwardRef<HTMLInputElement, ProductSearchProps>(
           value={value}
           disabled={disabled}
           onChange={(event) => onChange(event.target.value)}
+          onKeyDown={onKeyDown}
           placeholder={compact ? "Rechercher…" : "Rechercher un article…"}
           aria-label="Rechercher un article"
           title="Rechercher un produit (F2 ou /)"

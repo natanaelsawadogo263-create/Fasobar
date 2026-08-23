@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 import { ClipboardList, LayoutDashboard, LogOut } from "lucide-react";
 
 import { CashSessionIndicator } from "@/components/pos/cash-session-indicator";

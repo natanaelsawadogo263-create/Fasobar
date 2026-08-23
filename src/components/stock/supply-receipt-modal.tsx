@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 
 import { AlertMessage } from "@/components/auth/alert-message";
@@ -11,6 +11,11 @@ import {
   SelectField,
   TextField,
 } from "@/components/ui/form-controls";
+import {
+  buildStockBarcodeIndex,
+  looksLikeBarcode,
+  resolveStockBarcode,
+} from "@/lib/catalog/barcode";
 import { formatPriceXof, formatQuantity } from "@/lib/stock/constants";
 import { formatProductUnitDisplay } from "@/lib/products/constants";
 import type { ProductPackaging } from "@/lib/products/types";
@@ -90,6 +95,31 @@ export function SupplyReceiptModal({
   const [quantity, setQuantity] = useState("1");
   const [price, setPrice] = useState("");
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [unknownCode, setUnknownCode] = useState<string | null>(null);
+
+  const barcodeIndex = useMemo(
+    () => buildStockBarcodeIndex(stockItems, packagingsByProduct),
+    [stockItems, packagingsByProduct],
+  );
+
+  function handleArticleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    const raw = event.currentTarget.value.trim();
+    if (!raw) return;
+    const match = resolveStockBarcode(barcodeIndex, raw);
+    if (!match) {
+      if (looksLikeBarcode(raw)) {
+        event.preventDefault();
+        setUnknownCode(raw);
+      }
+      return;
+    }
+    event.preventDefault();
+    setUnknownCode(null);
+    setStockItemId(match.stockItem.id);
+    setUnitId(match.unit?.id ?? "");
+    event.currentTarget.blur();
+  }
 
   const selectedItem = stockItems.find((item) => item.id === stockItemId) ?? null;
   const stockUnit = selectedItem
@@ -245,15 +275,36 @@ export function SupplyReceiptModal({
 
           <section className="space-y-2 rounded-2xl border border-slate-200 p-3">
             <h3 className="text-[14px] font-semibold text-slate-900">Ajouter un produit</h3>
+            <p className="text-[11px] text-slate-500">
+              Scannez un code-barres (douchette USB) ou tapez le nom du produit.
+            </p>
             <StockArticleSearch
               items={stockItems}
               value={stockItemId}
               onChange={(id) => {
                 setStockItemId(id);
                 setUnitId("");
+                setUnknownCode(null);
               }}
+              onKeyDown={handleArticleSearchKeyDown}
               label="Produit"
             />
+            {unknownCode ? (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+                <span className="min-w-0">
+                  <strong className="font-semibold">Code inconnu</strong> :{" "}
+                  <span className="font-mono">{unknownCode}</span> — aucun produit associé.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setUnknownCode(null)}
+                  aria-label="Fermer"
+                  className="shrink-0 rounded-lg p-1 text-amber-700 hover:bg-amber-100"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : null}
             {selectedItem ? (
               <>
                 <SelectField

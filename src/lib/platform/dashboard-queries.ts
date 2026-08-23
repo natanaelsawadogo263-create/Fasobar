@@ -75,7 +75,6 @@ export async function getPlatformDashboardData(): Promise<PlatformDashboardData>
       orgsResult,
       trialsResult,
       ownersResult,
-      profilesResult,
       requestsResult,
       paymentsResult,
       machinesResult,
@@ -96,7 +95,6 @@ export async function getPlatformDashboardData(): Promise<PlatformDashboardData>
         .select("organization_id, user_id")
         .eq("role", "OWNER")
         .eq("status", "ACTIVE"),
-      supabase.from("profiles").select("id, full_name, phone"),
       supabase
         .from("subscription_requests")
         .select("id, status")
@@ -123,12 +121,30 @@ export async function getPlatformDashboardData(): Promise<PlatformDashboardData>
       orgsResult.error?.message ||
       trialsResult.error?.message ||
       ownersResult.error?.message ||
-      profilesResult.error?.message ||
       null;
 
     if (firstError) {
       console.error("[platform] dashboard query error:", firstError);
       return { ...empty, error: firstError };
+    }
+
+    // Ne charge que les profils des propriétaires affichés (un par organisation),
+    // jamais la table profiles entière — évite un plein scan qui grossit avec chaque
+    // employé de chaque établissement, alors que seuls les OWNER sont utilisés ici.
+    const ownerUserIds = [
+      ...new Set((ownersResult.data ?? []).map((row) => row.user_id)),
+    ];
+    const profilesResult =
+      ownerUserIds.length > 0
+        ? await supabase
+            .from("profiles")
+            .select("id, full_name, phone")
+            .in("id", ownerUserIds)
+        : { data: [], error: null };
+
+    if (profilesResult.error) {
+      console.error("[platform] dashboard query error:", profilesResult.error.message);
+      return { ...empty, error: profilesResult.error.message };
     }
 
     const soft = (err: { message: string } | null) =>

@@ -19,13 +19,26 @@ describe("libellés d’audit", () => {
 });
 
 describe("catalogue des rapports", () => {
-  it("masque Stock boissons en quincaillerie", () => {
-    const ids = reportOptionsForScope("BOTH", "hardware").map((option) => option.id);
-    expect(ids).not.toContain("stock_boissons");
+  it("renomme Stock boissons en Stock magasin en quincaillerie (même rapport, activité commerce)", () => {
+    const options = reportOptionsForScope("BOTH", "hardware");
+    const option = options.find((item) => item.id === "stock_boissons");
+    expect(option?.label).toBe("Stock magasin");
   });
 
-  it("garde Stock boissons pour un restaurant avec bar", () => {
-    const ids = reportOptionsForScope("BOTH", "restaurant").map((option) => option.id);
-    expect(ids).toContain("stock_boissons");
+  it("renomme Stock boissons en Stock magasin en Alimentation (supermarché)", () => {
+    const options = reportOptionsForScope("BOTH", "supermarket");
+    const option = options.find((item) => item.id === "stock_boissons");
+    expect(option?.label).toBe("Stock magasin");
+  });
+
+  it("garde le libellé Stock boissons pour un restaurant avec bar", () => {
+    const options = reportOptionsForScope("BOTH", "restaurant");
+    const option = options.find((item) => item.id === "stock_boissons");
+    expect(option?.label).toBe("Stock boissons");
+  });
+
+  it("masque Stock boissons pour un restaurant sans service bar (cuisine seule)", () => {
+    const ids = reportOptionsForScope("KITCHEN", "restaurant").map((option) => option.id);
+    expect(ids).not.toContain("stock_boissons");
   });
 });

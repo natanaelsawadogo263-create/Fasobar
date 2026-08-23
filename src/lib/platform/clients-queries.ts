@@ -62,7 +62,6 @@ export async function listPlatformClients(): Promise<PlatformClientsResult> {
       statesResult,
       orgsResult,
       ownersResult,
-      profilesResult,
       trialsResult,
       establishmentsResult,
       establishmentMembershipsResult,
@@ -77,7 +76,6 @@ export async function listPlatformClients(): Promise<PlatformClientsResult> {
         .select("organization_id, user_id")
         .eq("role", "OWNER")
         .eq("status", "ACTIVE"),
-      supabase.from("profiles").select("id, full_name, phone"),
       supabase.from("organization_trials").select("organization_id, status, ends_at"),
       supabase.from("establishments").select("id, organization_id"),
       supabase
@@ -90,7 +88,6 @@ export async function listPlatformClients(): Promise<PlatformClientsResult> {
       statesResult.error?.message ||
       orgsResult.error?.message ||
       ownersResult.error?.message ||
-      profilesResult.error?.message ||
       trialsResult.error?.message ||
       establishmentsResult.error?.message ||
       establishmentMembershipsResult.error?.message ||
@@ -104,6 +101,27 @@ export async function listPlatformClients(): Promise<PlatformClientsResult> {
     const orgById = new Map(
       (orgsResult.data ?? []).map((org) => [org.id, org] as const),
     );
+
+    // Ne charge que les profils des propriétaires réellement affichés (un par
+    // organisation), jamais la table profiles entière — avec beaucoup d'établissements
+    // (donc beaucoup d'employés), un select() sans filtre y devient un vrai goulot
+    // d'étranglement alors que seuls les OWNER sont utilisés ici.
+    const ownerUserIds = [
+      ...new Set((ownersResult.data ?? []).map((row) => row.user_id)),
+    ];
+    const profilesResult =
+      ownerUserIds.length > 0
+        ? await supabase
+            .from("profiles")
+            .select("id, full_name, phone")
+            .in("id", ownerUserIds)
+        : { data: [], error: null };
+
+    if (profilesResult.error) {
+      console.error("[platform] listPlatformClients query error:", profilesResult.error.message);
+      return { clients: [], error: profilesResult.error.message };
+    }
+
     const profileById = new Map(
       (profilesResult.data ?? []).map((profile) => [profile.id, profile] as const),
     );

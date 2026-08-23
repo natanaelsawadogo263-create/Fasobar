@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { InstantLink as Link } from "@/components/layout/instant-link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Check,
   Package,
@@ -9,6 +10,7 @@ import {
   Pencil,
   Power,
   Search,
+  Tag,
   UtensilsCrossed,
   Wine,
 } from "lucide-react";
@@ -112,6 +114,7 @@ export function ProductsWorkspace({
 }: ProductsWorkspaceProps) {
   void _establishmentName;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
   const profile = getActivityProfile(activityCode);
   const catalog = getCatalogFormProfile(activityCode);
@@ -161,7 +164,7 @@ export function ProductsWorkspace({
     router.push(`/application/produits?${params.toString()}`);
   }
 
-  function openCreateForm() {
+  function openCreateForm(prefillBarcode?: string) {
     const departmentCode = defaultDepartmentCode(serviceScope);
     const visibleCategories = categories.filter(
       (category) =>
@@ -185,12 +188,29 @@ export function ProductsWorkspace({
             ? BAR_PACKAGING_DEFAULT_UNITS.CARTON
             : 0,
       categoryId: visibleCategories[0]?.id ?? "",
+      barcode: prefillBarcode ?? "",
     });
     resetImageAssets();
     setFormMode("create");
     setFormError(null);
     setError(null);
   }
+
+  // Arrivée depuis « Produit introuvable » à la caisse (scan sans correspondance) :
+  // ouvre directement la création avec le code déjà scanné pré-rempli.
+  useEffect(() => {
+    const newBarcode = searchParams.get("newBarcode");
+    if (!newBarcode || !canManage) return;
+    startTransition(() => {
+      openCreateForm(newBarcode);
+    });
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("newBarcode");
+    router.replace(
+      params.toString() ? `/application/produits?${params.toString()}` : "/application/produits",
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   function openEditForm(product: ProductListItem) {
     setEditingProduct(product);
@@ -330,7 +350,7 @@ export function ProductsWorkspace({
         {canManage ? (
           <button
             type="button"
-            onClick={openCreateForm}
+            onClick={() => openCreateForm()}
             disabled={isPending}
             className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:h-9 sm:px-3.5 sm:text-[12px] sm:hover:bg-emerald-500"
           >
@@ -505,7 +525,9 @@ export function ProductsWorkspace({
                       </div>
                     </div>
                     {canManage ? (
-                      <div className="mt-2 grid grid-cols-2 gap-1.5">
+                      <div
+                        className={`mt-2 grid gap-1.5 ${catalog.showBarcode ? "grid-cols-3" : "grid-cols-2"}`}
+                      >
                         <button
                           type="button"
                           onClick={() => openEditForm(product)}
@@ -522,6 +544,15 @@ export function ProductsWorkspace({
                           <Power className="h-3.5 w-3.5" />
                           {product.active ? "Désactiver" : "Activer"}
                         </button>
+                        {catalog.showBarcode ? (
+                          <Link
+                            href={`/application/produits/etiquette/${product.id}`}
+                            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white text-[12px] font-semibold text-slate-700 active:bg-slate-50"
+                          >
+                            <Tag className="h-3.5 w-3.5" />
+                            Étiquette
+                          </Link>
+                        ) : null}
                       </div>
                     ) : null}
                   </article>
@@ -655,6 +686,15 @@ export function ProductsWorkspace({
                             label={product.active ? "Désactiver" : "Activer"}
                             onClick={() => handleToggleStatus(product)}
                           />
+                          {catalog.showBarcode ? (
+                            <ActionButton
+                              icon={Tag}
+                              label="Étiquette"
+                              onClick={() =>
+                                router.push(`/application/produits/etiquette/${product.id}`)
+                              }
+                            />
+                          ) : null}
                         </div>
                       </td>
                     ) : null}

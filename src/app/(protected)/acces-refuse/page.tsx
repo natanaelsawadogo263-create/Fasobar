@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 import { redirect } from "next/navigation";
 
 import { SignOutButton } from "@/components/auth/sign-out-button";

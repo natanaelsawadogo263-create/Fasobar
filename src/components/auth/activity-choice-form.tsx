@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
 import { saveActivityChoiceAction } from "@/app/(auth)/inscription/activite/actions";
@@ -20,6 +20,15 @@ export function ActivityChoiceForm({
   const [activity, setActivity] = useState<BusinessActivityId | "">(
     initialActivity,
   );
+  const continueRef = useRef<HTMLDivElement>(null);
+
+  // Dès qu'une tuile est choisie, on amène directement le bouton « Continuer »
+  // à l'écran — pas besoin de scroller manuellement dans la longue grille.
+  useEffect(() => {
+    if (activity) {
+      continueRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    }
+  }, [activity]);
 
   return (
     <div className="w-full max-w-3xl">
@@ -48,7 +57,7 @@ export function ActivityChoiceForm({
 
       <form action={saveActivityChoiceAction} className="mt-8">
         <ActivityPicker value={activity} onChange={setActivity} />
-        <div className="mt-6">
+        <div ref={continueRef} className="mt-6">
           <SubmitButton
             label="Continuer"
             pendingLabel="Enregistrement..."

@@ -29,6 +29,7 @@ async function CaissePageContent({ workspace, params }: CaissePageContentProps) 
       freshCart={data.freshCart}
       serviceScope={workspace.serviceScope}
       activityCode={workspace.activityCode}
+      canManageProducts={workspace.canManageProducts}
     />
   );
 }

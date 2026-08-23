@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 300 npx next build --webpack)",
+      "Bash(npm ping *)",
+      "Bash(npx supabase *)",
+      "Bash(docker --version)",
+      "Bash(npm install *)",
+      "Bash(npm ls *)",
+      "Bash(npm audit *)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{try{const j=JSON.parse\\(d\\);const vulns=Object.values\\(j.vulnerabilities||{}\\);const jb=vulns.filter\\(v=>JSON.stringify\\(v\\).includes\\('jsbarcode'\\)\\);console.log\\('jsbarcode-related vulns:',jb.length\\);}catch\\(e\\){console.log\\('parse-error',e.message\\)}}\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(timeout 300 npm run build)",
+      "Bash(timeout 590 npx next build --webpack)",
+      "Bash(npm run *)",
+      "Bash(npx next *)"
+    ]
+  }
+}

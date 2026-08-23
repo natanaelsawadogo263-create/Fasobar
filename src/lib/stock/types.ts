@@ -21,6 +21,8 @@ export type StockListItem = {
   stockUnitLabel?: string | null;
   status: StockStatus;
   estimatedUnitCost: number | null;
+  /** Code-barres du produit lié (unité de base) — pour le scan en approvisionnement. */
+  barcode?: string | null;
 };
 
 export type SupplierOption = {

@@ -140,18 +140,31 @@ export async function listCashierProducts(
   const saleUnitsQueryPromise = supabase
     .from("product_unit_levels")
     .select(
-      "id, product_id, name, parent_id, contains_qty, is_base, sellable, selling_price, allow_decimal",
+      "id, product_id, name, parent_id, contains_qty, is_base, sellable, selling_price, allow_decimal, barcode",
     )
     .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
     .order("sort_order")
     .limit(2000);
 
-  const [productsResult, stockResult, saleUnitsResult] = await Promise.all([
+  const [productsResult, stockResult, saleUnitsResultInitial] = await Promise.all([
     productsQueryPromise,
     stockQueryPromise,
     saleUnitsQueryPromise,
   ]);
+
+  // Repli si la migration barcode sur product_unit_levels n'est pas encore appliquée.
+  const saleUnitsResult = saleUnitsResultInitial.error?.message?.includes("barcode")
+    ? await supabase
+        .from("product_unit_levels")
+        .select(
+          "id, product_id, name, parent_id, contains_qty, is_base, sellable, selling_price, allow_decimal",
+        )
+        .eq("organization_id", workspace.organizationId)
+        .eq("establishment_id", workspace.establishmentId)
+        .order("sort_order")
+        .limit(2000)
+    : saleUnitsResultInitial;
 
   let rows: Array<Record<string, unknown>> | null =
     productsResult.data as Array<Record<string, unknown>> | null;
@@ -282,6 +295,7 @@ type SaleUnitLevelRow = {
   sellable: boolean | null;
   selling_price: number | string | null;
   allow_decimal: boolean | null;
+  barcode?: string | null;
 };
 
 function buildCashierSaleMapFromUnitRows(
@@ -311,6 +325,7 @@ function buildCashierSaleMapFromUnitRows(
         active: true,
         sellingPrice: Number(row.selling_price ?? 0) || meta?.sellingPrice || 0,
         allowDecimal: Boolean(row.allow_decimal),
+        barcode: row.barcode ?? null,
       }));
 
     const packs = mapped.filter((unit) => unit.conversionFactor > 1);
@@ -328,6 +343,7 @@ function buildCashierSaleMapFromUnitRows(
           active: true,
           sellingPrice: meta.sellingPrice,
           allowDecimal: false,
+          barcode: null,
         },
       ];
     }
@@ -351,6 +367,7 @@ function attachSaleUnitsFromMap(
       price: unit.sellingPrice ?? 0,
       factor: unit.conversionFactor || 1,
       allowDecimal: Boolean(unit.allowDecimal),
+      barcode: unit.barcode ?? null,
     }));
     return { ...product, saleUnits };
   });

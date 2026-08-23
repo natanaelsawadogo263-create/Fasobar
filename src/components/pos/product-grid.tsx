@@ -1,7 +1,7 @@
 "use client";
 
-import { LayoutGrid, LayoutList, PackageSearch, SearchX } from "lucide-react";
-import { useState, type RefObject } from "react";
+import { LayoutGrid, LayoutList, PackagePlus, PackageSearch, SearchX, X } from "lucide-react";
+import { useState, type KeyboardEvent, type RefObject } from "react";
 
 import { ProductCard } from "@/components/pos/product-card";
 import { ProductSearch } from "@/components/pos/product-search";
@@ -17,8 +17,13 @@ type ProductGridProps = {
   hasSearch: boolean;
   search: string;
   onSearchChange: (value: string) => void;
+  onSearchKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
   searchInputRef?: RefObject<HTMLInputElement | null>;
   shopLots?: boolean;
+  /** Code scanné sans correspondance — bandeau non bloquant, pas de pop-up. */
+  unknownBarcode?: string | null;
+  onDismissUnknownBarcode?: () => void;
+  onCreateFromBarcode?: () => void;
 };
 
 export function ProductGrid({
@@ -31,8 +36,12 @@ export function ProductGrid({
   hasSearch,
   search,
   onSearchChange,
+  onSearchKeyDown,
   searchInputRef,
   shopLots = false,
+  unknownBarcode = null,
+  onDismissUnknownBarcode,
+  onCreateFromBarcode,
 }: ProductGridProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
@@ -83,8 +92,37 @@ export function ProductGrid({
           ref={searchInputRef}
           value={search}
           onChange={onSearchChange}
+          onKeyDown={onSearchKeyDown}
           variant="light"
         />
+
+        {unknownBarcode ? (
+          <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+            <PackageSearch className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <strong className="font-semibold">Produit introuvable</strong> — code détecté :{" "}
+              <span className="font-mono">{unknownBarcode}</span>
+            </span>
+            {onCreateFromBarcode ? (
+              <button
+                type="button"
+                onClick={onCreateFromBarcode}
+                className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-500"
+              >
+                <PackagePlus className="h-3.5 w-3.5" />
+                Créer ce produit
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onDismissUnknownBarcode}
+              aria-label="Fermer"
+              className="shrink-0 rounded-lg p-1 text-amber-700 hover:bg-amber-100"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="pos-scroll min-h-0 flex-1 overflow-y-auto p-3">

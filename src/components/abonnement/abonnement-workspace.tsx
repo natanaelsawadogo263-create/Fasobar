@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, CheckCircle2, LogOut } from "lucide-react";
 

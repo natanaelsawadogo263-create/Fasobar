@@ -255,14 +255,18 @@ export async function getProductById(
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, name, slug, description, selling_price, unit, minimum_stock, active, image_url, image_original_url, image_optimized_url, category_id, departments(code, name), categories(name)",
+      "id, name, slug, description, selling_price, unit, minimum_stock, active, image_url, image_original_url, image_optimized_url, category_id, sku, barcode, departments(code, name), categories(name)",
     )
     .eq("id", productId)
     .eq("organization_id", workspace.organizationId)
     .eq("establishment_id", workspace.establishmentId)
     .maybeSingle();
 
-  if (error?.message?.includes("image_original_url") || error?.message?.includes("image_optimized_url")) {
+  if (
+    error?.message?.includes("image_original_url") ||
+    error?.message?.includes("image_optimized_url") ||
+    error?.message?.includes("barcode")
+  ) {
     const legacy = await supabase
       .from("products")
       .select(

@@ -1,5 +1,5 @@
 import { Package } from "lucide-react";
-import Link from "next/link";
+import { InstantLink as Link } from "@/components/layout/instant-link";
 
 type StockEmptyStateProps = {
   canManage: boolean;

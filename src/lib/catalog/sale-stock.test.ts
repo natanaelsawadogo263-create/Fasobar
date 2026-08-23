@@ -74,6 +74,33 @@ describe("débit stock à la validation", () => {
     }
   });
 
+  it("le scan ne débite rien : un pack ×6 vendu ne diminue le stock qu'à la validation (-6 unités de base)", () => {
+    // Coca-Cola : 48 en stock, 1 pack ×6 scanné et ajouté au panier — le stock ne
+    // bouge qu'au moment où applySaleStockDebits (validation réelle) est appelé.
+    const packLine = snapshotSaleLine({
+      productId: PRODUCT,
+      saleUnitId: "unit-pack-6",
+      saleUnitName: "Pack de 6",
+      unitPrice: 2700,
+      quantity: 1,
+      conversionFactor: 6,
+    });
+    expect(packLine.stockQuantity).toBe(6);
+
+    const stockBeforeValidation = new Map([[PRODUCT, 48]]);
+    // Simule le panier scanné, pas encore encaissé : aucun débit tant que
+    // applySaleStockDebits n'est pas appelé.
+    expect(stockBeforeValidation.get(PRODUCT)).toBe(48);
+
+    const result = applySaleStockDebits(stockBeforeValidation, [packLine]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.ledger.get(PRODUCT)).toBe(42); // 48 - 6
+    }
+    // Le map d'origine n'est jamais muté avant la validation.
+    expect(stockBeforeValidation.get(PRODUCT)).toBe(48);
+  });
+
   it("refuse une double validation (déjà PAID)", () => {
     expect(paymentAlreadySettled("PAID")).toBe(true);
     const ledger = new Map([[PRODUCT, 10]]);
