@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 
+import { DemoVideoSection } from "@/components/marketing/demo-video-section";
 import { MarketingVideoBanner } from "@/components/marketing/marketing-video-banner";
 import { MARKETING_FAQ } from "@/lib/marketing/faq";
 import { MARKETING_FEATURES } from "@/lib/marketing/features";
@@ -165,6 +166,8 @@ export function MarketingHomePage() {
           </Link>
         </div>
       </section>
+
+      <DemoVideoSection />
     </>
   );
 }
