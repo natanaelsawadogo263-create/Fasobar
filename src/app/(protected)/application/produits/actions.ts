@@ -347,7 +347,54 @@ async function checkPackagingBarcodeAvailable(
   return null;
 }
 
+/**
+ * redirect()/notFound() marchent en LEVANT une exception spéciale que
+ * Next.js intercepte lui-même plus haut dans l'arbre — un try/catch générique
+ * autour d'une action qui appelle requireProductManagementMutationContext()
+ * (laquelle redirige si l'accès est refusé) l'avalerait sinon par erreur et
+ * afficherait un message au lieu de rediriger. On la relance donc telle quelle.
+ */
+function isNextControlFlowError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("digest" in error)) {
+    return false;
+  }
+  const digest = (error as { digest?: unknown }).digest;
+  return (
+    typeof digest === "string" &&
+    (digest === "NEXT_NOT_FOUND" || digest.startsWith("NEXT_REDIRECT"))
+  );
+}
+
+/**
+ * Filet de sécurité : toute exception non gérée à l'intérieur de l'action
+ * (réseau, appel inattendu, etc.) était auparavant non interceptée — Next.js
+ * la remplaçait alors par un message serveur générique, opaque même dans les
+ * logs. Ici, l'erreur réelle est toujours journalisée côté serveur ET
+ * traduite via mapProductWriteError plutôt que de disparaître silencieusement
+ * derrière « L'opération n'a pas abouti ».
+ */
 export async function createProductAction(
+  prevState: ProductActionState,
+  formData: FormData,
+): Promise<ProductActionState> {
+  try {
+    return await createProductActionInner(prevState, formData);
+  } catch (error) {
+    if (isNextControlFlowError(error)) {
+      throw error;
+    }
+    console.error("[createProductAction] uncaught", error);
+    return {
+      error: mapProductWriteError(
+        error instanceof Error
+          ? { message: error.message }
+          : { message: String(error) },
+      ),
+    };
+  }
+}
+
+async function createProductActionInner(
   _prevState: ProductActionState,
   formData: FormData,
 ): Promise<ProductActionState> {
@@ -769,7 +816,29 @@ export async function createProductAction(
   };
 }
 
+/** Même filet de sécurité que createProductAction — voir son commentaire. */
 export async function updateProductAction(
+  prevState: ProductActionState,
+  formData: FormData,
+): Promise<ProductActionState> {
+  try {
+    return await updateProductActionInner(prevState, formData);
+  } catch (error) {
+    if (isNextControlFlowError(error)) {
+      throw error;
+    }
+    console.error("[updateProductAction] uncaught", error);
+    return {
+      error: mapProductWriteError(
+        error instanceof Error
+          ? { message: error.message }
+          : { message: String(error) },
+      ),
+    };
+  }
+}
+
+async function updateProductActionInner(
   _prevState: ProductActionState,
   formData: FormData,
 ): Promise<ProductActionState> {

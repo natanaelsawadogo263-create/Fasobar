@@ -31,7 +31,16 @@
       "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/commits/e8c3ea9b8da29a423ac00eb4facf2b5503900c67/status\")",
       "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/deployments?sha=e8c3ea9b8da29a423ac00eb4facf2b5503900c67\")",
       "Bash(awk 'NR==765,NR==980' \"c:/projet-dev/maquis-gestion/src/app/\\(protected\\)/application/produits/actions.ts\")",
-      "Bash(xargs grep -l \"policy\\\\|POLICY\")"
+      "Bash(xargs grep -l \"policy\\\\|POLICY\")",
+      "Bash(awk 'NR==350,NR==780' \"c:/projet-dev/maquis-gestion/src/app/\\(protected\\)/application/produits/actions.ts\")",
+      "Bash(npx --yes supabase migration list)",
+      "Bash(npx --yes supabase db --help)",
+      "Bash(npx --yes supabase query --help)",
+      "Bash(npx --yes supabase db query --help)",
+      "Bash(npx --yes supabase db query --linked \"select trigger_name, event_object_table from information_schema.triggers where trigger_name like '%barcode%';\")",
+      "Bash(npx --yes supabase db query --linked \"select proname, pg_get_function_arguments\\(oid\\) as args from pg_proc where proname = 'create_establishment_product';\")",
+      "Bash(npx --yes supabase db query --linked \"select indexname, indexdef from pg_indexes where tablename in \\('products','product_unit_levels'\\) and indexdef ilike '%barcode%';\")",
+      "Bash(git fetch *)"
     ],
     "additionalDirectories": [
       "c:\\projet-dev\\maquis-gestion\\src\\app\\(marketing)\\solutions"
