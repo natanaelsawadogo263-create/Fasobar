@@ -17,7 +17,7 @@ import {
   isAdminClientConfigured,
 } from "@/lib/supabase/admin";
 import { revalidateOrderOps } from "@/lib/ops/revalidate";
-import { getOrderById } from "@/lib/orders/queries";
+import { getOrderById, listCashierProducts } from "@/lib/orders/queries";
 import {
   cancelOrderSchema,
   cartItemSchema,
@@ -25,7 +25,7 @@ import {
   orderStatusSchema,
   prepareOrderSchema,
 } from "@/lib/orders/schemas";
-import type { OrderActionState } from "@/lib/orders/types";
+import type { CashierProduct, OrderActionState } from "@/lib/orders/types";
 import { createClient } from "@/lib/supabase/server";
 import { isRetailActivity } from "@/lib/activity/profile";
 import { toUserFacingError } from "@/lib/errors/user-facing";
@@ -94,6 +94,22 @@ export async function getProductSaleUnitsAction(productId: string) {
       allowDecimal: Boolean(unit.allowDecimal),
       barcode: unit.barcode ?? null,
     }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Rafraîchit le catalogue caisse (stock/prix/disponibilité) sans recharger
+ * la page — utilisé par la synchronisation temps réel multi-appareils : la
+ * caisse n'a pas de refresh SSR automatique (ça viderait le panier en
+ * cours), donc chaque appareil connecté rappelle cette action quand un
+ * autre appareil du même établissement modifie un produit ou le stock.
+ */
+export async function refreshCashierCatalogAction(): Promise<CashierProduct[]> {
+  try {
+    const workspace = await requireCashRegisterOperatorContext();
+    return await listCashierProducts(workspace);
   } catch {
     return [];
   }

@@ -7,6 +7,7 @@ import { ClipboardList, LayoutGrid, ShoppingBag, Timer } from "lucide-react";
 
 import {
   getProductSaleUnitsAction,
+  refreshCashierCatalogAction,
   saveOrderAction,
 } from "@/app/(protected)/application/caisse/actions";
 import {
@@ -49,6 +50,8 @@ import {
 } from "@/lib/caisse/demo-cart";
 import { sortCaisseProducts } from "@/lib/caisse/sort-products";
 import { isProductOutOfStock } from "@/lib/orders/stock-availability";
+import { createClient } from "@/lib/supabase/client";
+import { bindRealtimeAuth } from "@/lib/supabase/realtime-session";
 import type {
   CartLine,
   CashierCategory,
@@ -78,6 +81,8 @@ type PosWorkspaceProps = {
   activityCode?: string | null;
   /** Autorise le bandeau « Créer ce produit » sur un code-barres inconnu. */
   canManageProducts?: boolean;
+  /** Sync temps réel du stock/produits entre appareils (même établissement). */
+  establishmentId?: string;
 };
 
 type MobileTab = "products" | "order";
@@ -347,6 +352,7 @@ export function PosWorkspace({
   serviceScope = "BOTH",
   activityCode = null,
   canManageProducts = false,
+  establishmentId,
 }: PosWorkspaceProps) {
   const profile = getActivityProfile(activityCode);
   const pages = getActivityPages(activityCode);
@@ -355,9 +361,13 @@ export function PosWorkspace({
   const router = useRouter();
   const cashierCtx = useFasoBarCashier();
   const browseWithoutSession = Boolean(cashierCtx?.adminReturnHref);
+  // Catalogue tenu à jour en direct (autre appareil du même établissement qui
+  // modifie un produit/le stock pendant que la caisse est ouverte) — initialisé
+  // avec le catalogue SSR, remplacé quand la synchronisation temps réel arrive.
+  const [liveProducts, setLiveProducts] = useState(products);
   // Tous les produits actifs de l'établissement (créés par l'admin) — pas le catalogue démo.
   const catalogProducts = useMemo(() => {
-    const sorted = sortCaisseProducts(products);
+    const sorted = sortCaisseProducts(liveProducts);
     if (serviceScope === "BAR") {
       return sorted.filter((product) => product.departmentCode === "BAR");
     }
@@ -365,7 +375,7 @@ export function PosWorkspace({
       return sorted.filter((product) => product.departmentCode === "KITCHEN");
     }
     return sorted;
-  }, [products, serviceScope]);
+  }, [liveProducts, serviceScope]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
   const [isOpening, startOpenTransition] = useTransition();
@@ -387,6 +397,68 @@ export function PosWorkspace({
       searchInputRef.current?.focus();
     }
   }, [mobileTab]);
+
+  // Multi-appareils : si un autre appareil du même établissement modifie un
+  // produit ou le stock pendant que cette caisse est ouverte, on le répercute
+  // ici — sans router.refresh() (ça viderait le panier en cours), juste un
+  // remplacement ciblé du catalogue affiché.
+  useEffect(() => {
+    if (!establishmentId) return;
+
+    const supabase = createClient();
+    let unbindAuth: (() => void) | null = null;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const scheduleRefresh = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        void refreshCashierCatalogAction().then((fresh) => {
+          if (cancelled) return;
+          // Ignore une réponse vide (erreur réseau/session) : mieux vaut un
+          // catalogue légèrement daté qu'une grille vidée sous les yeux du caissier.
+          if (fresh.length > 0) setLiveProducts(fresh);
+        });
+      }, 1500);
+    };
+
+    const channel = supabase
+      .channel(`caisse-catalog:${establishmentId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "products",
+          filter: `establishment_id=eq.${establishmentId}`,
+        },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "stock_items",
+          filter: `establishment_id=eq.${establishmentId}`,
+        },
+        scheduleRefresh,
+      );
+
+    void bindRealtimeAuth(supabase).then((unbind) => {
+      if (cancelled) return;
+      unbindAuth = unbind;
+      channel.subscribe();
+    });
+
+    return () => {
+      cancelled = true;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unbindAuth?.();
+      void supabase.removeChannel(channel);
+    };
+  }, [establishmentId]);
 
   const [salePicker, setSalePicker] = useState<CashierProduct | null>(null);
   const [saleMode, setSaleMode] = useState<CashierSaleKind | null>(null);
@@ -459,7 +531,7 @@ export function PosWorkspace({
     pages.pos.allProducts,
     retail,
   );
-  const totalProductCount = products.length;
+  const totalProductCount = liveProducts.length;
 
   const showToast = (message: string, tone: ToastTone = "info") => {
     setToast({ message, tone });

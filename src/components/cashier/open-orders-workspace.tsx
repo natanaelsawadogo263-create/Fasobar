@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { InstantLink as Link } from "@/components/layout/instant-link";
 import { ClipboardList, Plus, Search } from "lucide-react";
 
@@ -14,6 +16,8 @@ import {
   ORDER_STATUS_STYLES,
 } from "@/lib/orders/constants";
 import type { OpenOrderListItem } from "@/lib/orders/types";
+import { createClient } from "@/lib/supabase/client";
+import { bindRealtimeAuth } from "@/lib/supabase/realtime-session";
 
 type OpenOrdersWorkspaceProps = {
   establishmentName: string;
@@ -21,6 +25,8 @@ type OpenOrdersWorkspaceProps = {
   canManageOrders: boolean;
   canOperateCashRegister?: boolean;
   activityCode?: string | null;
+  /** Sync temps réel multi-appareils (même établissement). */
+  establishmentId?: string;
 };
 
 function isFinalized(order: OpenOrderListItem): boolean {
@@ -296,8 +302,67 @@ export function OpenOrdersWorkspace({
   canManageOrders,
   canOperateCashRegister = false,
   activityCode = null,
+  establishmentId,
 }: OpenOrdersWorkspaceProps) {
+  const router = useRouter();
   const pages = getActivityPages(activityCode);
+
+  // Multi-appareils : une commande créée/encaissée depuis un autre appareil
+  // (caisse, cuisine, bar...) du même établissement doit apparaître ici sans
+  // que le caissier ait à recharger la page manuellement.
+  useEffect(() => {
+    if (!establishmentId) return;
+
+    const supabase = createClient();
+    let unbindAuth: (() => void) | null = null;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const scheduleRefresh = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        if (!cancelled) router.refresh();
+      }, 1500);
+    };
+
+    const channel = supabase
+      .channel(`open-orders-live:${establishmentId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `establishment_id=eq.${establishmentId}`,
+        },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "payments",
+          filter: `establishment_id=eq.${establishmentId}`,
+        },
+        scheduleRefresh,
+      );
+
+    void bindRealtimeAuth(supabase).then((unbind) => {
+      if (cancelled) return;
+      unbindAuth = unbind;
+      channel.subscribe();
+    });
+
+    return () => {
+      cancelled = true;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unbindAuth?.();
+      void supabase.removeChannel(channel);
+    };
+  }, [establishmentId, router]);
+
   // Un seul groupe « à encaisser » (tickets ouverts, mis de côté ou prêts) + « terminées ».
   const toEncaisserOrders = orders.filter((order) => !isFinalized(order));
   const finalizedOrders = orders.filter(isFinalized);

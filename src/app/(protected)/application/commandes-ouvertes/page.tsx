@@ -23,6 +23,7 @@ export default async function CommandesOuvertesPage() {
       orders={orders}
       canManageOrders={workspace.canManageOrders}
       canOperateCashRegister={workspace.canOperateCashRegister}
+      establishmentId={workspace.establishmentId}
     />
   );
 }

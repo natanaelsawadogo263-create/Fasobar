@@ -30,6 +30,7 @@ async function CaissePageContent({ workspace, params }: CaissePageContentProps) 
       serviceScope={workspace.serviceScope}
       activityCode={workspace.activityCode}
       canManageProducts={workspace.canManageProducts}
+      establishmentId={workspace.establishmentId}
     />
   );
 }
