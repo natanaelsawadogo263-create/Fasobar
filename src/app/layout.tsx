@@ -24,10 +24,10 @@ export const metadata: Metadata = {
   },
   description:
     "FasoBar, logiciel de gestion des stocks et des ventes pour toute activité commerciale.",
-  icons: {
-    icon: "/brand/fasobar-logo.png",
-    apple: "/brand/fasobar-logo.png",
-  },
+  // Le favicon/icône Apple viennent des fichiers app/icon.png et
+  // app/apple-icon.png (convention Next.js) — ne pas les redéclarer ici avec
+  // un autre visuel, sinon on obtient une icône différente de celle utilisée
+  // ailleurs (ex. le raccourci PWA défini dans manifest.ts).
   appleWebApp: {
     capable: true,
     title: "FasoBar",
