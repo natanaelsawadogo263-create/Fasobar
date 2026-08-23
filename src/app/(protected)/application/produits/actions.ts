@@ -115,8 +115,15 @@ async function createCategoryForDepartment(
     return { id: existing.data.id };
   }
 
+  // Sans ce mapping, une erreur technique brute (ex. RLS : « row-level
+  // security ») remontait telle quelle, puis se faisait remplacer côté
+  // affichage par le message générique « L'opération n'a pas abouti » —
+  // perdant le message spécifique et actionnable (ex. « Permission
+  // insuffisante ») que createProductAction obtient déjà pour le produit lui-même.
   return {
-    error: inserted.error?.message || "Impossible de créer la catégorie.",
+    error: inserted.error
+      ? mapProductWriteError(inserted.error)
+      : "Impossible de créer la catégorie.",
   };
 }
 
