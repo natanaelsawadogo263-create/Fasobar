@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { mapGenericError } from "@/lib/auth/errors";
 import { slugifyFromName } from "@/lib/auth/slugs";
 import { usesOptionalProductLots } from "@/lib/activity/catalog";
+import { correctAzertyScannedBarcode } from "@/lib/catalog/barcode";
 import { isRetailActivity } from "@/lib/activity/profile";
 import { requireProductManagementMutationContext } from "@/lib/auth/workspace-context";
 import { ensureStockItemForBarProduct, recordInitialStockForProduct } from "@/lib/bar/ensure-stock";
@@ -427,6 +428,13 @@ async function createProductActionInner(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  // Filet de sécurité côté serveur : corrige aussi un code-barres scanné sur
+  // un poste en clavier AZERTY, au cas où le correctif client n'aurait pas
+  // tourné (ancien onglet ouvert, appel API direct...).
+  if (parsed.data.barcode) {
+    parsed.data.barcode = correctAzertyScannedBarcode(parsed.data.barcode);
   }
 
   const barcodeConflict = await checkBarcodeAvailable(workspace, parsed.data.barcode);
@@ -868,6 +876,13 @@ async function updateProductActionInner(
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
   }
 
+  // Même filet de sécurité que createProductActionInner — corrige aussi au
+  // passage un code-barres déjà enregistré tout croche si le produit est
+  // modifié sans y retoucher directement, tant que le champ garde sa valeur.
+  if (parsed.data.barcode) {
+    parsed.data.barcode = correctAzertyScannedBarcode(parsed.data.barcode);
+  }
+
   const barcodeConflict = await checkBarcodeAvailable(
     workspace,
     parsed.data.barcode,
@@ -1212,6 +1227,12 @@ export async function upsertPackagingAction(
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide." };
+  }
+
+  // Même correctif AZERTY que pour le code-barres produit — un conditionnement
+  // (carton, pack...) se scanne exactement pareil.
+  if (parsed.data.barcode) {
+    parsed.data.barcode = correctAzertyScannedBarcode(parsed.data.barcode);
   }
 
   if (

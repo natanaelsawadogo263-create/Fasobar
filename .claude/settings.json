@@ -40,7 +40,26 @@
       "Bash(npx --yes supabase db query --linked \"select trigger_name, event_object_table from information_schema.triggers where trigger_name like '%barcode%';\")",
       "Bash(npx --yes supabase db query --linked \"select proname, pg_get_function_arguments\\(oid\\) as args from pg_proc where proname = 'create_establishment_product';\")",
       "Bash(npx --yes supabase db query --linked \"select indexname, indexdef from pg_indexes where tablename in \\('products','product_unit_levels'\\) and indexdef ilike '%barcode%';\")",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/deployments?sha=1562cbc\")",
+      "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/deployments?sha=1562cbca8276a237a5bc4682aaa86ebecc572e4b\")",
+      "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/deployments/6051290936/statuses\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://fasobar.com/\")",
+      "Bash(npx --yes supabase db query --linked \"select id, name, barcode, length\\(barcode\\) as len, establishment_id from public.products where barcode is not null order by created_at desc limit 20;\")",
+      "Bash(npx --yes supabase db query --linked \"select id, name from public.products where name in \\('Heineken','four speciale'\\) and establishment_id = '3e70f558-c1b4-4385-a3f5-19f2aa3b6a79';\")",
+      "Bash(npx --yes supabase db query --linked ' *)",
+      "Bash(npx --yes supabase db query --linked \"update public.products set barcode = '8886409508017' where id = '840bc26e-6849-48fe-b61a-97018d758fa3' returning id, name, barcode;\")",
+      "Bash(npx --yes supabase db query --linked \"update public.products set barcode = '3014400009942' where id = 'f45e4cad-07d8-4190-94b8-7919aacf71b6' returning id, name, barcode;\")",
+      "Bash(npx --yes supabase db query --linked \"update public.products set barcode = '5060103605514' where id = '5da34038-4c24-4e5d-b4f8-50ac813ed603' returning id, name, barcode;\")",
+      "Bash(npx --yes supabase db query --linked \"update public.products set barcode = '9504000105013' where id = 'fa50a750-8a50-42da-959a-65de1773a71b' returning id, name, barcode;\")",
+      "Bash(npx --yes supabase db query --linked \"update public.products set barcode = '30045521' where id = 'b454af00-a009-41ed-b21b-523bee615264' returning id, name, barcode;\")",
+      "Bash(npx --yes supabase db query --linked \"update public.products set barcode = '9504000105013' where id = 'f76902fd-aadd-472a-b5e5-14e146a02c1d' returning id, name, barcode;\")",
+      "Bash(npx --yes supabase db query --linked \"update public.products set barcode = '8712000030575' where id = '4e68f369-feb0-4cc9-827c-f3ca03354a11' returning id, name, barcode;\")",
+      "Bash(npx --yes supabase db query --linked \"update public.products set barcode = '6034000345070' where id = '5feefdd7-7749-4233-b140-d759c0c6a1df' returning id, name, barcode;\")",
+      "Bash(npx --yes supabase db query --linked \"select id, name, barcode from public.products where barcode is not null and barcode !~ '^[A-Za-z0-9-]+$';\")",
+      "Bash(npx --yes supabase db query --linked \"select id, name, barcode from public.product_unit_levels where barcode is not null and barcode !~ '^[A-Za-z0-9-]+$';\")",
+      "Bash(npx --yes supabase db query --linked \"select id, name, sku from public.products where sku is not null and sku !~ '^[A-Za-z0-9-]+$';\")",
+      "Bash(npx --yes supabase db query --linked \"select table_name, column_name from information_schema.columns where table_schema='public' and table_name in \\('stock_items','product_packagings'\\) and column_name ilike '%barcode%';\")"
     ],
     "additionalDirectories": [
       "c:\\projet-dev\\maquis-gestion\\src\\app\\(marketing)\\solutions"

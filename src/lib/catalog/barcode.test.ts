@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildBarcodeIndex,
   buildStockBarcodeIndex,
+  correctAzertyScannedBarcode,
   decideScanAction,
   looksLikeBarcode,
   normalizeBarcode,
@@ -34,6 +35,32 @@ function product(overrides: Partial<CashierProduct> = {}): CashierProduct {
 describe("normalizeBarcode", () => {
   it("retire les espaces superflus", () => {
     expect(normalizeBarcode("  5449000000996  ")).toBe("5449000000996");
+  });
+
+  // Régression : une douchette USB scannée sur un poste en clavier AZERTY
+  // (standard en Afrique francophone) tape en QWERTY quel que soit le
+  // clavier configuré — les chiffres ressortent en accents/ponctuation.
+  it("corrige un scan brouillé par un clavier AZERTY", () => {
+    expect(normalizeBarcode("___-'àç(à_à&è")).toBe("8886409508017");
+  });
+});
+
+describe("correctAzertyScannedBarcode", () => {
+  it("laisse un code déjà propre inchangé", () => {
+    expect(correctAzertyScannedBarcode("5449000000996")).toBe("5449000000996");
+  });
+
+  it("traduit chaque caractère AZERTY vers son chiffre voulu", () => {
+    // & é " ' ( - è _ ç à → 1 2 3 4 5 6 7 8 9 0
+    expect(correctAzertyScannedBarcode('&é"\'(-è_çà')).toBe("1234567890");
+  });
+
+  it("ne touche pas un vrai code alphanumérique (Code128 avec lettres)", () => {
+    expect(correctAzertyScannedBarcode("FB2608219473")).toBe("FB2608219473");
+  });
+
+  it("ne touche pas une chaîne vide", () => {
+    expect(correctAzertyScannedBarcode("")).toBe("");
   });
 });
 
@@ -100,6 +127,17 @@ describe("buildBarcodeIndex / resolveBarcode", () => {
     const withoutCode = product({ id: "pain", barcode: null });
     const index = buildBarcodeIndex([withoutCode]);
     expect(index.size).toBe(0);
+  });
+
+  // Régression AZERTY : un produit dont le code a été enregistré brouillé
+  // (avant le correctif, ou tant que l'admin ne le modifie pas) doit quand
+  // même se retrouver au scan — l'un et l'autre sont corrigés vers la même clé.
+  it("retrouve un produit même si son code stocké est resté brouillé (clavier AZERTY)", () => {
+    const eauLafi = product({ id: "eau-lafi", barcode: "___-'àç(à_à&è" });
+    const index = buildBarcodeIndex([eauLafi]);
+
+    expect(resolveBarcode(index, "8886409508017")?.product.id).toBe("eau-lafi");
+    expect(resolveBarcode(index, "___-'àç(à_à&è")?.product.id).toBe("eau-lafi");
   });
 });
 

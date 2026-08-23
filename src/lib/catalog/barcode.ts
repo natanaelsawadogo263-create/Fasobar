@@ -11,9 +11,55 @@ export type BarcodeMatch = {
   unit?: BarcodeSaleUnit;
 };
 
+/**
+ * Une douchette USB émule un clavier « US » (QWERTY) : chaque chiffre 0-9
+ * envoie le même code de touche physique qu'un clavier QWERTY, quelle que
+ * soit la disposition réellement configurée sur le poste. Sur un clavier
+ * français (AZERTY, standard en Afrique francophone), ces mêmes touches sans
+ * Maj produisent des caractères accentués/ponctuation au lieu des chiffres —
+ * un code réel « 8886409508017 » ressort scanné comme « ___-'àç(à_à&è ».
+ * Cette table est la correspondance AZERTY (rangée des chiffres, sans Maj) →
+ * chiffre voulu, pour corriger ce cas précis.
+ */
+const AZERTY_UNSHIFTED_DIGIT_MAP: Record<string, string> = {
+  "&": "1",
+  "é": "2",
+  '"': "3",
+  "'": "4",
+  "(": "5",
+  "-": "6",
+  "è": "7",
+  "_": "8",
+  "ç": "9",
+  "à": "0",
+};
+
+/**
+ * Corrige un code scanné produit par une douchette sur un poste en clavier
+ * AZERTY. Ne transforme QUE si chaque caractère est soit déjà un chiffre,
+ * soit l'un des 10 caractères AZERTY ci-dessus — un vrai code alphanumérique
+ * (Code128 avec de véritables lettres, par exemple) contient d'autres
+ * caractères et ressort donc inchangé, jamais corrompu par erreur.
+ */
+export function correctAzertyScannedBarcode(raw: string): string {
+  if (!raw || /^[0-9]+$/.test(raw)) return raw;
+
+  let translated = "";
+  for (const char of raw) {
+    if (char >= "0" && char <= "9") {
+      translated += char;
+      continue;
+    }
+    const digit = AZERTY_UNSHIFTED_DIGIT_MAP[char];
+    if (!digit) return raw;
+    translated += digit;
+  }
+  return translated;
+}
+
 /** Normalise un code scanné : espaces superflus retirés, casse ignorée pour la clé d'index. */
 export function normalizeBarcode(raw: string): string {
-  return raw.trim();
+  return correctAzertyScannedBarcode(raw.trim());
 }
 
 function indexKey(value: string): string {
@@ -87,8 +133,13 @@ export function decideScanAction(
 ): ScanAction {
   const match = resolveBarcode(index, rawCode);
   if (!match) {
-    return looksLikeBarcode(rawCode)
-      ? { type: "unknown", code: normalizeBarcode(rawCode) }
+    // Corrigé AVANT le test « ça ressemble à un code » : un scan brouillé par
+    // un clavier AZERTY (accents/ponctuation) ne matcherait sinon jamais ce
+    // test et retomberait en recherche texte muette, sans le bandeau « code
+    // inconnu » qui permet de créer le produit.
+    const corrected = normalizeBarcode(rawCode);
+    return looksLikeBarcode(corrected)
+      ? { type: "unknown", code: corrected }
       : { type: "not-found" };
   }
 

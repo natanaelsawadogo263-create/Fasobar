@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { ProductImageField, type ProductImageAssets } from "@/components/products/product-image-field";
 import { ProductPackagingsEditor } from "@/components/products/product-packagings-editor";
+import { correctAzertyScannedBarcode } from "@/lib/catalog/barcode";
 import {
   FormSection,
   NumberField,
@@ -667,7 +668,11 @@ export function ProductFormModal({
                 onChange={(event) =>
                   onChange((current) => ({
                     ...current,
-                    barcode: event.target.value,
+                    // Auto-corrige un scan brouillé par un clavier AZERTY (la
+                    // douchette tape en QWERTY quel que soit le clavier
+                    // configuré sur le poste — ex. "8886409508017" ressort
+                    // "___-'àç(à_à&è" sans cette correction).
+                    barcode: correctAzertyScannedBarcode(event.target.value),
                   }))
                 }
                 onKeyDown={(event) => {
