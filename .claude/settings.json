@@ -59,7 +59,9 @@
       "Bash(npx --yes supabase db query --linked \"select id, name, barcode from public.products where barcode is not null and barcode !~ '^[A-Za-z0-9-]+$';\")",
       "Bash(npx --yes supabase db query --linked \"select id, name, barcode from public.product_unit_levels where barcode is not null and barcode !~ '^[A-Za-z0-9-]+$';\")",
       "Bash(npx --yes supabase db query --linked \"select id, name, sku from public.products where sku is not null and sku !~ '^[A-Za-z0-9-]+$';\")",
-      "Bash(npx --yes supabase db query --linked \"select table_name, column_name from information_schema.columns where table_schema='public' and table_name in \\('stock_items','product_packagings'\\) and column_name ilike '%barcode%';\")"
+      "Bash(npx --yes supabase db query --linked \"select table_name, column_name from information_schema.columns where table_schema='public' and table_name in \\('stock_items','product_packagings'\\) and column_name ilike '%barcode%';\")",
+      "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/deployments?sha=8b61e00640b95c2388ce1c1ec6a9e0f4045948a4\")",
+      "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/deployments/6051595160/statuses\")"
     ],
     "additionalDirectories": [
       "c:\\projet-dev\\maquis-gestion\\src\\app\\(marketing)\\solutions"
