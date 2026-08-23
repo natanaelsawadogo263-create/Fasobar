@@ -659,6 +659,10 @@ export function ProductFormModal({
                 placeholder="Scan ou saisie manuelle (optionnel)"
                 inputMode="numeric"
                 autoComplete="off"
+                // La douchette USB émule un clavier : sans focus sur ce champ
+                // dès l'ouverture, le scan ne va nulle part et le code
+                // n'apparaît jamais dans la case.
+                autoFocus
                 value={formState.barcode}
                 onChange={(event) =>
                   onChange((current) => ({
@@ -666,6 +670,14 @@ export function ProductFormModal({
                     barcode: event.target.value,
                   }))
                 }
+                onKeyDown={(event) => {
+                  // La douchette envoie un Entrée après le code scanné — sans
+                  // ça, elle soumettrait le formulaire produit en entier
+                  // (encore vide) au lieu de simplement valider le scan.
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                  }
+                }}
                 className="sm:col-span-2"
               />
             ) : null}

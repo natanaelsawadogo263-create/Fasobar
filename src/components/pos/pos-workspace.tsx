@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { InstantLink } from "@/components/layout/instant-link";
 import { ClipboardList, LayoutGrid, ShoppingBag, Timer } from "lucide-react";
@@ -378,6 +378,16 @@ export function PosWorkspace({
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState<CashCheckoutSuccess | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("products");
+
+  // La douchette USB « tape » dans le champ qui a le focus, comme un clavier.
+  // Sans ce focus au chargement (et en revenant sur l'onglet Produits côté
+  // mobile), le tout premier scan de la journée partait dans le vide.
+  useEffect(() => {
+    if (mobileTab === "products") {
+      searchInputRef.current?.focus();
+    }
+  }, [mobileTab]);
+
   const [salePicker, setSalePicker] = useState<CashierProduct | null>(null);
   const [saleMode, setSaleMode] = useState<CashierSaleKind | null>(null);
   const [weightQty, setWeightQty] = useState("1");
@@ -531,6 +541,12 @@ export function PosWorkspace({
         },
       ];
     });
+
+    // Remet le focus dans la recherche après CHAQUE ajout (clic souris, scan
+    // direct ou choix dans le sélecteur) : la douchette USB tape dans le champ
+    // qui a le focus, donc si le clic sur un produit ou le sélecteur l'a volé,
+    // le scan suivant partait dans le vide.
+    searchInputRef.current?.focus();
   }
 
   function openSaleFlow(product: CashierProduct) {

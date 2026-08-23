@@ -17,7 +17,19 @@
       "Bash(node -e ' *)",
       "Bash(node scripts/desktop-verify-icons.mjs)",
       "Bash(rm -rf \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/alimentation\" \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/quincaillerie\" \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/station-service\" \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/restaurant-bar-maquis\" \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/commerce\" && mkdir -p \"c:/projet-dev/maquis-gestion/src/app/\\(marketing\\)/solutions/[slug]\")",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} | url_effective=%{url_effective}\\\\n\" -D - \"https://fasobar.com/robots.txt\")",
+      "Bash(curl -s \"https://fasobar.com/robots.txt\")",
+      "Bash(curl -s \"https://fasobar.com/sitemap.xml\")",
+      "Bash(curl -s \"https://fasobar.com/\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://fasobar.com/solutions/alimentation\")",
+      "Bash(curl -s \"https://fasobar.com/solutions/alimentation\")",
+      "Bash(curl -s -D - -o /dev/null \"https://www.fasobar.com/\")",
+      "Bash(gh api *)",
+      "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/commits/e8c3ea9b8da29a423ac00eb4facf2b5503900c67/status\")",
+      "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/deployments?sha=e8c3ea9b8da29a423ac00eb4facf2b5503900c67\")"
     ],
     "additionalDirectories": [
       "c:\\projet-dev\\maquis-gestion\\src\\app\\(marketing)\\solutions"
