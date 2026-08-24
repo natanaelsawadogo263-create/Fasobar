@@ -67,7 +67,11 @@
       "Bash(npx --yes supabase db query --linked \"select pg_get_functiondef\\(oid\\) from pg_proc where proname = 'schedule_client_deletion';\")",
       "Bash(npx --yes supabase db query --linked \"select pg_get_functiondef\\(oid\\) as def from pg_proc where proname = 'schedule_client_deletion';\")",
       "Read(//tmp/**)",
-      "Bash(mkdir -p \"C:/Users/HP745G6/AppData/Local/Temp/claude/c--projet-dev-maquis-gestion/9d353006-26f3-46e4-b746-9e293bc07147/scratchpad\")"
+      "Bash(mkdir -p \"C:/Users/HP745G6/AppData/Local/Temp/claude/c--projet-dev-maquis-gestion/9d353006-26f3-46e4-b746-9e293bc07147/scratchpad\")",
+      "Bash(git rev-list *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(Object.keys\\(p.scripts\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(git config *)",
+      "PowerShell(Get-Process -Name git -ErrorAction SilentlyContinue)"
     ],
     "additionalDirectories": [
       "c:\\projet-dev\\maquis-gestion\\src\\app\\(marketing)\\solutions"

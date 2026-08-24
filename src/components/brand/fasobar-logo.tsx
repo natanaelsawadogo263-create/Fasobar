@@ -8,6 +8,8 @@ type FasoBarLogoProps = {
   /** `dark` = fond sombre (header, sidebar) — le pictogramme s’éclaircit */
   tone?: "light" | "dark";
   markOnly?: boolean;
+  /** Agrandit uniquement le pictogramme (px), sans toucher à la taille du texte du preset `size`. */
+  markSize?: number;
 };
 
 const SIZES = {
@@ -23,8 +25,10 @@ export function FasoBarLogo({
   stacked = false,
   tone = "light",
   markOnly = false,
+  markSize,
 }: FasoBarLogoProps) {
   const s = SIZES[size];
+  const mark = markSize ?? s.mark;
   const onDark = tone === "dark";
   const fasoClass = onDark ? "text-white" : "text-slate-900";
   const barClass = onDark ? "text-emerald-400" : "text-emerald-700";
@@ -36,8 +40,8 @@ export function FasoBarLogo({
       <img
         src={onDark ? FASOBAR_LOGO_ON_DARK_SRC : FASOBAR_LOGO_SRC}
         alt={markOnly ? "FasoBar" : ""}
-        width={s.mark}
-        height={s.mark}
+        width={mark}
+        height={mark}
         className="shrink-0 bg-transparent object-contain"
         decoding="async"
         aria-hidden={markOnly ? undefined : true}
