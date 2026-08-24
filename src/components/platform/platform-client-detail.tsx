@@ -15,10 +15,8 @@ import {
   ChevronDown,
   Clock3,
   CreditCard,
-  HardDrive,
   KeyRound,
   Receipt,
-  ScrollText,
   Shield,
   Users,
 } from "lucide-react";
@@ -30,7 +28,6 @@ import {
   PLATFORM_TH,
   PLATFORM_TR,
   PlatformAlert,
-  PlatformBody,
   PlatformButton,
   PlatformEmptyState,
   PlatformMetaChip,
@@ -41,6 +38,7 @@ import {
   formatPlatformDateTime,
   formatPlatformXof,
 } from "@/components/platform/platform-ui";
+import { useToast } from "@/components/ui/toast";
 import { ESTABLISHMENT_TYPE_LABELS } from "@/lib/auth/constants";
 import { roleToSpaceLabel } from "@/lib/auth/roles";
 import type { EstablishmentType } from "@/lib/auth/schemas";
@@ -51,18 +49,14 @@ import {
   purgeClientOrganizationMemberAction,
   reactivateClientOrganizationAction,
   reactivateClientOwnerAccountAction,
-  reactivateMachineAction,
   restoreClientBeforeDeletionAction,
-  revokeMachineAction,
   scheduleClientDeletionAction,
   suspendClientOrganizationAction,
 } from "@/lib/platform/actions";
 import {
   PLATFORM_LICENSE_STATUS_LABELS,
-  PLATFORM_MACHINE_STATUS_LABELS,
   PLATFORM_SUBSCRIPTION_STATUS_LABELS,
   isPlatformLicenseStatus,
-  isPlatformMachineStatus,
   isPlatformSubscriptionStatus,
 } from "@/lib/platform/access";
 import type { PlatformClientDetail } from "@/lib/platform/client-detail-queries";
@@ -73,11 +67,8 @@ type TabId =
   | "employees"
   | "trial"
   | "subscription"
-  | "machines"
   | "licenses"
-  | "payments"
-  | "audit"
-  | "access";
+  | "payments";
 
 type ModalKind =
   | "suspend"
@@ -88,7 +79,6 @@ type ModalKind =
   | "restore"
   | "purge"
   | "extend"
-  | "revokeMachine"
   | "purgeMember"
   | null;
 
@@ -98,11 +88,8 @@ const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
   { id: "employees", label: "Employés", icon: Users },
   { id: "trial", label: "Essai", icon: Clock3 },
   { id: "subscription", label: "Abonnement", icon: CreditCard },
-  { id: "machines", label: "Machines", icon: HardDrive },
   { id: "licenses", label: "Licences", icon: KeyRound },
   { id: "payments", label: "Paiements", icon: Receipt },
-  { id: "audit", label: "Audit", icon: ScrollText },
-  { id: "access", label: "Accès", icon: KeyRound },
 ];
 
 const TRIAL_STATUS_LABELS: Record<string, string> = {
@@ -180,7 +167,6 @@ function tabCount(
   counts: {
     establishments: number;
     employees: number;
-    machines: number;
     licenses: number;
     payments: number;
   },
@@ -190,8 +176,6 @@ function tabCount(
       return counts.establishments;
     case "employees":
       return counts.employees;
-    case "machines":
-      return counts.machines;
     case "licenses":
       return counts.licenses;
     case "payments":
@@ -213,12 +197,11 @@ export function PlatformClientDetailView({
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("identity");
   const [modal, setModal] = useState<ModalKind>(null);
-  const [machineId, setMachineId] = useState<string | null>(null);
   const [purgeMemberId, setPurgeMemberId] = useState<string | null>(null);
   const [purgeMemberName, setPurgeMemberName] = useState<string>("");
   const [reason, setReason] = useState("");
   const [extraDays, setExtraDays] = useState("7");
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [actionsOpen, setActionsOpen] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
@@ -230,15 +213,12 @@ export function PlatformClientDetailView({
     employees,
     trial,
     subscription,
-    machines,
     licenses,
     payments,
-    auditEvents,
   } = detail;
 
   function closeModal() {
     setModal(null);
-    setMachineId(null);
     setPurgeMemberId(null);
     setPurgeMemberName("");
     setReason("");
@@ -246,14 +226,13 @@ export function PlatformClientDetailView({
   }
 
   function runModalAction() {
-    setMessage(null);
     startTransition(async () => {
       let result: { ok: boolean; error?: string };
 
       switch (modal) {
         case "suspend":
           if (!reason.trim()) {
-            setMessage("Motif obligatoire.");
+            toast.error("Motif obligatoire.");
             return;
           }
           result = await suspendClientOrganizationAction({
@@ -269,7 +248,7 @@ export function PlatformClientDetailView({
           break;
         case "deactivateOwner":
           if (!reason.trim()) {
-            setMessage("Motif obligatoire.");
+            toast.error("Motif obligatoire.");
             return;
           }
           result = await deactivateClientOwnerAccountAction({
@@ -296,7 +275,7 @@ export function PlatformClientDetailView({
           break;
         case "purge":
           if (!reason.trim()) {
-            setMessage("Saisissez le nom exact de l’organisation.");
+            toast.error("Saisissez le nom exact de l’organisation.");
             return;
           }
           result = await purgeClientOrganizationAction({
@@ -304,7 +283,7 @@ export function PlatformClientDetailView({
             confirmationName: reason,
           });
           if (result.ok) {
-            setMessage("Organisation purgée.");
+            toast.success("Organisation purgée.");
             closeModal();
             router.push("/platform/clients");
             router.refresh();
@@ -314,7 +293,7 @@ export function PlatformClientDetailView({
         case "extend": {
           const days = Number(extraDays);
           if (!Number.isFinite(days) || days <= 0) {
-            setMessage("Nombre de jours invalide.");
+            toast.error("Nombre de jours invalide.");
             return;
           }
           result = await extendOrganizationTrialAction({
@@ -324,23 +303,13 @@ export function PlatformClientDetailView({
           });
           break;
         }
-        case "revokeMachine":
-          if (!machineId) {
-            setMessage("Machine introuvable.");
-            return;
-          }
-          result = await revokeMachineAction({
-            machineId,
-            reason: reason || undefined,
-          });
-          break;
         case "purgeMember":
           if (!purgeMemberId) {
-            setMessage("Compte introuvable.");
+            toast.error("Compte introuvable.");
             return;
           }
           if (reason.trim().length < 3) {
-            setMessage("Motif obligatoire (3 caractères minimum).");
+            toast.error("Motif obligatoire (3 caractères minimum).");
             return;
           }
           result = await purgeClientOrganizationMemberAction({
@@ -354,11 +323,11 @@ export function PlatformClientDetailView({
       }
 
       if (!result.ok) {
-        setMessage(result.error ?? "Action impossible.");
+        toast.error(result.error ?? "Action impossible.");
         return;
       }
 
-      setMessage("Action effectuée.");
+      toast.success("Action effectuée.");
       closeModal();
       router.refresh();
     });
@@ -373,22 +342,14 @@ export function PlatformClientDetailView({
     restore: "Restaurer avant suppression",
     purge: "Supprimer définitivement",
     extend: "Prolonger l’essai",
-    revokeMachine: "Révoquer la machine",
     purgeMember: "Supprimer définitivement le compte",
   };
-
-  const messageTone =
-    message &&
-    /effectuée|purgée|réactivée|réuss/i.test(message)
-      ? "success"
-      : "error";
 
   const displayName =
     identity.ownerName ?? identity.organizationName ?? "Client sans nom";
   const tabCounts = {
     establishments: establishments.length,
     employees: employees.length,
-    machines: machines.length,
     licenses: licenses.length,
     payments: payments.length,
   };
@@ -419,21 +380,19 @@ export function PlatformClientDetailView({
 
   return (
     <PlatformPage>
-      <div className="shrink-0 border-b border-slate-200/80 bg-white/80 backdrop-blur-sm">
-        {(error || message) && (
+      {/* Toute la fiche (en-tête + onglets + contenu) défile comme un seul
+          document — évite qu'une zone interne trop contrainte en hauteur
+          finisse réduite à un filet non scrollable sur les petits écrans. */}
+      <div className="app-scroll min-h-0 flex-1 overflow-y-auto">
+        {error && (
           <div className="space-y-2 px-4 pt-3 lg:px-6">
-            {error ? (
-              <PlatformAlert tone="error">
-                Impossible de charger la fiche : {error}
-              </PlatformAlert>
-            ) : null}
-            {message ? (
-              <PlatformAlert tone={messageTone}>{message}</PlatformAlert>
-            ) : null}
+            <PlatformAlert tone="error">
+              Impossible de charger la fiche : {error}
+            </PlatformAlert>
           </div>
         )}
 
-        <div className="px-4 py-3 lg:px-6 lg:py-4">
+        <div className="px-4 py-2.5 lg:px-6 lg:py-3">
           <Link
             href="/platform/clients"
             className="inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-500 transition hover:text-emerald-700"
@@ -442,18 +401,18 @@ export function PlatformClientDetailView({
             Retour aux clients
           </Link>
 
-          <div className="mt-3 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm lg:p-5">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="mt-2 rounded-2xl border border-slate-200/90 bg-white p-3.5 shadow-sm lg:p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0 flex-1">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[13px] font-bold text-emerald-800 ring-1 ring-emerald-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-[12px] font-bold text-emerald-800 ring-1 ring-emerald-100">
                     {clientInitials(displayName)}
                   </div>
                   <div className="min-w-0">
-                    <h1 className="truncate text-[18px] font-semibold tracking-tight text-slate-900">
+                    <h1 className="truncate text-[16px] font-semibold tracking-tight text-slate-900">
                       {displayName}
                     </h1>
-                    <p className="mt-0.5 truncate text-[13px] text-slate-500">
+                    <p className="truncate text-[12px] text-slate-500">
                       {identity.organizationName}
                       {identity.ownerEmail ? (
                         <>
@@ -465,7 +424,7 @@ export function PlatformClientDetailView({
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <PlatformStatusBadge status={identity.accessStatus} />
                   <PlatformMetaChip>
                     {establishments.length} établissement
@@ -475,10 +434,6 @@ export function PlatformClientDetailView({
                     {employees.length} employé
                     {employees.length > 1 ? "s" : ""}
                   </PlatformMetaChip>
-                  <PlatformMetaChip>
-                    {machines.length} machine
-                    {machines.length > 1 ? "s" : ""}
-                  </PlatformMetaChip>
                   {trial?.endsAt ? (
                     <PlatformMetaChip>
                       Fin d’essai {formatPlatformDate(trial.endsAt)}
@@ -487,7 +442,7 @@ export function PlatformClientDetailView({
                 </div>
               </div>
 
-              <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
+              <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
                 {trial ? (
                   <PlatformButton
                     tone="primary"
@@ -580,8 +535,8 @@ export function PlatformClientDetailView({
           </div>
         </div>
 
-        <div className="border-t border-slate-100 px-4 lg:px-6">
-          <div className="-mb-px flex gap-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="sticky top-0 z-10 border-y border-slate-100 bg-white/95 px-4 backdrop-blur-sm lg:px-6">
+          <div className="flex flex-wrap gap-1 pt-0.5">
             {TABS.map((item) => {
               const Icon = item.icon;
               const active = tab === item.id;
@@ -591,7 +546,7 @@ export function PlatformClientDetailView({
                   key={item.id}
                   type="button"
                   onClick={() => setTab(item.id)}
-                  className={`inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-[12px] font-semibold transition ${
+                  className={`inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-[12px] font-semibold transition ${
                     active
                       ? "border-emerald-600 text-emerald-800"
                       : "border-transparent text-slate-500 hover:border-slate-200 hover:text-slate-800"
@@ -611,9 +566,8 @@ export function PlatformClientDetailView({
             })}
           </div>
         </div>
-      </div>
 
-      <PlatformBody className="flex flex-col">
+        <div className="flex flex-col gap-4 px-4 py-4 lg:px-6">
         {tab === "identity" ? (
           <PlatformPanel className="h-full min-h-0" title="Identité">
             <PlatformTableScroll>
@@ -923,94 +877,6 @@ export function PlatformClientDetailView({
           </PlatformPanel>
         ) : null}
 
-        {tab === "machines" ? (
-          <PlatformPanel
-            className="h-full min-h-0"
-            title="Machines"
-          >
-            {machines.length === 0 ? (
-              <PlatformEmptyState title="Aucune machine enregistrée." />
-            ) : (
-              <PlatformTableScroll>
-                <table className="w-full min-w-[720px] text-left text-[13px]">
-                  <thead className={PLATFORM_TABLE_HEAD}>
-                    <tr>
-                      <th className={PLATFORM_TH}>Device</th>
-                      <th className={PLATFORM_TH}>Établissement</th>
-                      <th className={PLATFORM_TH}>Statut</th>
-                      <th className={PLATFORM_TH}>Dernière vue</th>
-                      <th className={PLATFORM_TH}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {machines.map((m) => (
-                      <tr key={m.id} className={PLATFORM_TR}>
-                        <td className={PLATFORM_TD}>
-                          <p className="font-medium text-slate-900">
-                            {m.displayName ?? m.deviceId}
-                          </p>
-                          <p className="text-[12px] text-slate-500">
-                            {m.deviceId}
-                          </p>
-                        </td>
-                        <td className={`${PLATFORM_TD} text-slate-600`}>
-                          {m.establishmentName ?? "—"}
-                        </td>
-                        <td className={`${PLATFORM_TD} text-slate-700`}>
-                          {isPlatformMachineStatus(m.status)
-                            ? PLATFORM_MACHINE_STATUS_LABELS[m.status]
-                            : m.status}
-                        </td>
-                        <td
-                          className={`${PLATFORM_TD} tabular-nums text-slate-600`}
-                        >
-                          {formatPlatformDateTime(m.lastSeenAt)}
-                        </td>
-                        <td className={PLATFORM_TD}>
-                          {m.status !== "REVOKED" ? (
-                            <PlatformButton
-                              tone="danger"
-                              className="!px-2.5 !py-1.5"
-                              onClick={() => {
-                                setMachineId(m.id);
-                                setModal("revokeMachine");
-                              }}
-                            >
-                              Révoquer
-                            </PlatformButton>
-                          ) : (
-                            <PlatformButton
-                              tone="success"
-                              className="!px-2.5 !py-1.5"
-                              disabled={pending}
-                              onClick={() => {
-                                setMessage(null);
-                                startTransition(async () => {
-                                  const result = await reactivateMachineAction({
-                                    machineId: m.id,
-                                  });
-                                  setMessage(
-                                    result.ok
-                                      ? "Machine réactivée."
-                                      : result.error,
-                                  );
-                                  if (result.ok) router.refresh();
-                                });
-                              }}
-                            >
-                              Réactiver
-                            </PlatformButton>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </PlatformTableScroll>
-            )}
-          </PlatformPanel>
-        ) : null}
-
         {tab === "licenses" ? (
           <PlatformPanel
             className="h-full min-h-0"
@@ -1099,90 +965,8 @@ export function PlatformClientDetailView({
           </PlatformPanel>
         ) : null}
 
-        {tab === "audit" ? (
-          <PlatformPanel
-            className="h-full min-h-0"
-            title="Journal d’audit"
-          >
-            {auditEvents.length === 0 ? (
-              <PlatformEmptyState title="Aucun événement d’audit." />
-            ) : (
-              <PlatformTableScroll>
-                <table className="w-full min-w-[640px] text-left text-[13px]">
-                  <thead className={PLATFORM_TABLE_HEAD}>
-                    <tr>
-                      <th className={PLATFORM_TH}>Date</th>
-                      <th className={PLATFORM_TH}>Action</th>
-                      <th className={PLATFORM_TH}>Entité</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {auditEvents.map((e) => (
-                      <tr key={e.id} className={PLATFORM_TR}>
-                        <td
-                          className={`${PLATFORM_TD} tabular-nums text-slate-600`}
-                        >
-                          {formatPlatformDateTime(e.createdAt)}
-                        </td>
-                        <td className={`${PLATFORM_TD} font-medium text-slate-900`}>
-                          {e.action}
-                        </td>
-                        <td className={`${PLATFORM_TD} text-slate-600`}>
-                          {e.entityType ?? "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </PlatformTableScroll>
-            )}
-          </PlatformPanel>
-        ) : null}
-
-        {tab === "access" ? (
-          <PlatformPanel
-            className="h-full min-h-0"
-            title="Accès plateforme"
-          >
-            <PlatformTableScroll>
-              <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 lg:p-5">
-                <Field
-                  label="Statut actuel"
-                  value={<PlatformStatusBadge status={access.status} />}
-                />
-                <Field
-                  label="Statut précédent"
-                  value={
-                    access.previousStatus ? (
-                      <PlatformStatusBadge status={access.previousStatus} />
-                    ) : (
-                      "—"
-                    )
-                  }
-                />
-                <Field
-                  label="Dernier changement"
-                  value={formatPlatformDateTime(access.statusChangedAt)}
-                />
-                <Field
-                  label="Demande de suppression"
-                  value={
-                    access.deletionRequestedAt
-                      ? formatPlatformDateTime(access.deletionRequestedAt)
-                      : "Aucune"
-                  }
-                />
-                {access.deletionPurgeAfter ? (
-                  <Field
-                    label="Purge prévue après"
-                    value={formatPlatformDateTime(access.deletionPurgeAfter)}
-                  />
-                ) : null}
-              </div>
-            </PlatformTableScroll>
-          </PlatformPanel>
-        ) : null}
-      </PlatformBody>
+        </div>
+      </div>
 
       {modal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px]">

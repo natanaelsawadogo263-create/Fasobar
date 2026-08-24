@@ -186,6 +186,14 @@ export async function getPlatformDashboardData(): Promise<PlatformDashboardData>
       },
     );
 
+    // Une suppression programmée reste en base pendant le délai de
+    // récupération (restaurable), mais ne doit plus apparaître dans les
+    // compteurs / listes que voit le super admin au quotidien — même logique
+    // que la vue « Tous » de /platform/clients.
+    const visibleClients = clients.filter(
+      (c) => c.accessStatus !== "PENDING_DELETION",
+    );
+
     const trials = trialsResult.data ?? [];
     const activeTrials = trials.filter(
       (t) =>
@@ -205,14 +213,17 @@ export async function getPlatformDashboardData(): Promise<PlatformDashboardData>
     );
 
     return {
-      totalClients: clients.length,
-      pendingChoice: clients.filter((c) => c.accessStatus === "PENDING_CHOICE")
-        .length,
+      totalClients: visibleClients.length,
+      pendingChoice: visibleClients.filter(
+        (c) => c.accessStatus === "PENDING_CHOICE",
+      ).length,
       activeTrials: activeTrials.length,
       expiredTrials: expiredTrials.length,
-      activeClients: clients.filter((c) => c.accessStatus === "ACTIVE").length,
-      suspendedClients: clients.filter((c) => c.accessStatus === "SUSPENDED")
+      activeClients: visibleClients.filter((c) => c.accessStatus === "ACTIVE")
         .length,
+      suspendedClients: visibleClients.filter(
+        (c) => c.accessStatus === "SUSPENDED",
+      ).length,
       pendingRequests: requestsResult.error
         ? 0
         : (requestsResult.data ?? []).length,
@@ -223,7 +234,7 @@ export async function getPlatformDashboardData(): Promise<PlatformDashboardData>
         ? 0
         : (machinesResult.data ?? []).length,
       warningDaysBeforeExpiry: expiryAlerts.warningDays,
-      recentClients: clients.slice(0, 8),
+      recentClients: visibleClients.slice(0, 8),
       expiringAccess: expiryAlerts.alerts,
       error: softError,
     };

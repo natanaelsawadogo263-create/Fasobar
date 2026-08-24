@@ -11,6 +11,7 @@ import {
   PlatformPage,
   formatPlatformDateTime,
 } from "@/components/platform/platform-ui";
+import { useToast } from "@/components/ui/toast";
 import {
   reactivateMachineAction,
   revokeMachineAction,
@@ -56,7 +57,7 @@ export function PlatformMachinesWorkspace({ machines, error = null }: Props) {
   const [statusFilter, setStatusFilter] = useState<"ALL" | PlatformMachineStatus>(
     "ALL",
   );
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
 
   const statusCounts = useMemo(() => {
@@ -96,26 +97,16 @@ export function PlatformMachinesWorkspace({ machines, error = null }: Props) {
               Impossible de charger les machines : {error}
             </PlatformAlert>
           ) : null}
-          {message ? (
-            <PlatformAlert
-              tone={/révoquée|réactivée|réussi/i.test(message) ? "success" : "error"}
-            >
-              {message}
-            </PlatformAlert>
-          ) : null}
-
           <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
             <div className="shrink-0 border-b border-slate-100 px-3 py-2.5 sm:px-4">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="mr-auto text-[13px] font-semibold text-slate-900">
-                  Machines
-                  <span className="ml-1.5 font-medium text-slate-400">
-                    {filtered.length}
-                    {filtered.length !== machines.length
-                      ? `/${machines.length}`
-                      : ""}
-                  </span>
-                </h2>
+                <p className="mr-auto text-[12px] font-medium text-slate-500">
+                  {filtered.length}
+                  {filtered.length !== machines.length
+                    ? `/${machines.length}`
+                    : ""}{" "}
+                  machine{filtered.length > 1 ? "s" : ""}
+                </p>
 
                 <label className="relative block w-full max-w-[200px] flex-1 sm:w-auto">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
@@ -129,7 +120,7 @@ export function PlatformMachinesWorkspace({ machines, error = null }: Props) {
                 </label>
               </div>
 
-              <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => setStatusFilter("ALL")}
@@ -228,17 +219,16 @@ export function PlatformMachinesWorkspace({ machines, error = null }: Props) {
                               "Motif de révocation (optionnel) :",
                             );
                             if (reason === null) return;
-                            setMessage(null);
                             startTransition(async () => {
                               const result = await revokeMachineAction({
                                 machineId: row.id,
                                 reason: reason || undefined,
                               });
-                              setMessage(
-                                result.ok
-                                  ? "Machine révoquée."
-                                  : result.error ?? "Action impossible.",
-                              );
+                              if (result.ok) {
+                                toast.success("Machine révoquée.");
+                              } else {
+                                toast.error(result.error ?? "Action impossible.");
+                              }
                             });
                           }}
                         >
@@ -250,16 +240,15 @@ export function PlatformMachinesWorkspace({ machines, error = null }: Props) {
                           disabled={pending}
                           className="!px-2 !py-1 !text-[10px]"
                           onClick={() => {
-                            setMessage(null);
                             startTransition(async () => {
                               const result = await reactivateMachineAction({
                                 machineId: row.id,
                               });
-                              setMessage(
-                                result.ok
-                                  ? "Machine réactivée."
-                                  : result.error ?? "Action impossible.",
-                              );
+                              if (result.ok) {
+                                toast.success("Machine réactivée.");
+                              } else {
+                                toast.error(result.error ?? "Action impossible.");
+                              }
                             });
                           }}
                         >

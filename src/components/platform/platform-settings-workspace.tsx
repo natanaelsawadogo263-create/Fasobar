@@ -13,6 +13,7 @@ import {
   PlatformPanel,
   formatPlatformXof,
 } from "@/components/platform/platform-ui";
+import { useToast } from "@/components/ui/toast";
 import {
   updatePlatformSettingsAction,
   updateSubscriptionPlanAdminAction,
@@ -49,19 +50,11 @@ export function PlatformSettingsWorkspace({
     paymentInstructions: settings?.paymentInstructions ?? "",
     licenseMinAppVersion: settings?.licenseMinAppVersion ?? "",
   });
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
-
-  const isSuccessMessage =
-    message != null &&
-    (message.includes("enregistrés") ||
-      message.includes("mis à jour") ||
-      message.includes("activée") ||
-      message.includes("désactivée"));
 
   function saveSettings(e: FormEvent) {
     e.preventDefault();
-    setMessage(null);
     startTransition(async () => {
       const result = await updatePlatformSettingsAction({
         orangeMoneyNumber: form.orangeMoneyNumber,
@@ -74,7 +67,11 @@ export function PlatformSettingsWorkspace({
         paymentInstructions: form.paymentInstructions || null,
         licenseMinAppVersion: form.licenseMinAppVersion || null,
       });
-      setMessage(result.ok ? "Paramètres enregistrés." : result.error ?? "Action impossible.");
+      if (result.ok) {
+        toast.success("Paramètres enregistrés.");
+      } else {
+        toast.error(result.error ?? "Action impossible.");
+      }
     });
   }
 
@@ -104,18 +101,11 @@ export function PlatformSettingsWorkspace({
           </PlatformButton>
         }
         alert={
-          <>
-            {error ? (
-              <PlatformAlert tone="error">
-                Impossible de charger les paramètres : {error}
-              </PlatformAlert>
-            ) : null}
-            {message ? (
-              <PlatformAlert tone={isSuccessMessage ? "success" : "error"}>
-                {message}
-              </PlatformAlert>
-            ) : null}
-          </>
+          error ? (
+            <PlatformAlert tone="error">
+              Impossible de charger les paramètres : {error}
+            </PlatformAlert>
+          ) : null
         }
       />
 
@@ -285,21 +275,22 @@ export function PlatformSettingsWorkspace({
                               if (raw == null) return;
                               const price = Number(raw);
                               if (!Number.isFinite(price) || price < 0) {
-                                setMessage("Prix invalide.");
+                                toast.error("Prix invalide.");
                                 return;
                               }
-                              setMessage(null);
                               startTransition(async () => {
                                 const result =
                                   await updateSubscriptionPlanAdminAction({
                                     planId: plan.id,
                                     patch: { priceXof: Math.floor(price) },
                                   });
-                                setMessage(
-                                  result.ok
-                                    ? "Prix mis à jour."
-                                    : result.error ?? "Action impossible.",
-                                );
+                                if (result.ok) {
+                                  toast.success("Prix mis à jour.");
+                                } else {
+                                  toast.error(
+                                    result.error ?? "Action impossible.",
+                                  );
+                                }
                               });
                             }}
                           >
@@ -308,20 +299,23 @@ export function PlatformSettingsWorkspace({
                           <PlatformButton
                             disabled={pending}
                             onClick={() => {
-                              setMessage(null);
                               startTransition(async () => {
                                 const result =
                                   await updateSubscriptionPlanAdminAction({
                                     planId: plan.id,
                                     patch: { isActive: !plan.isActive },
                                   });
-                                setMessage(
-                                  result.ok
-                                    ? plan.isActive
+                                if (result.ok) {
+                                  toast.success(
+                                    plan.isActive
                                       ? "Formule désactivée."
-                                      : "Formule activée."
-                                    : result.error ?? "Action impossible.",
-                                );
+                                      : "Formule activée.",
+                                  );
+                                } else {
+                                  toast.error(
+                                    result.error ?? "Action impossible.",
+                                  );
+                                }
                               });
                             }}
                           >

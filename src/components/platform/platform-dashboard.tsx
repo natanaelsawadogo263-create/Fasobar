@@ -1,13 +1,14 @@
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowRight,
-  Building2,
+  Ban,
   CheckCircle2,
   Clock,
   CreditCard,
-  MonitorSmartphone,
-  Settings,
+  HelpCircle,
+  LayoutDashboard,
   TrendingUp,
   Users,
   Wallet,
@@ -15,18 +16,12 @@ import {
 
 import { InstantLink } from "@/components/layout/instant-link";
 import { PlatformExpiryAlertCard } from "@/components/platform/platform-expiry-alert-card";
-import { PlatformStatusBadge } from "@/components/platform/platform-status-badge";
 import {
-  PLATFORM_TABLE_HEAD,
-  PLATFORM_TD,
-  PLATFORM_TH,
-  PLATFORM_TR,
   PlatformAlert,
   PlatformBody,
   PlatformEmptyState,
   PlatformPage,
   PlatformPanel,
-  formatPlatformDate,
   formatPlatformXof,
 } from "@/components/platform/platform-ui";
 import type { PlatformDashboardData } from "@/lib/platform/dashboard-queries";
@@ -35,21 +30,6 @@ type PlatformDashboardProps = {
   data: PlatformDashboardData;
 };
 
-const QUICK_LINKS = [
-  {
-    href: "/platform/demandes-etablissement",
-    label: "Ouvertures",
-    icon: Building2,
-  },
-  {
-    href: "/platform/demandes-abonnement",
-    label: "Paiements",
-    icon: Wallet,
-  },
-  { href: "/platform/clients", label: "Clients", icon: Users },
-  { href: "/platform/parametres", label: "Paramètres", icon: Settings },
-] as const;
-
 function monthLabel(): string {
   return new Intl.DateTimeFormat("fr-FR", {
     month: "long",
@@ -57,12 +37,15 @@ function monthLabel(): string {
   }).format(new Date());
 }
 
-function todayLabel(): string {
-  return new Intl.DateTimeFormat("fr-FR", {
+function fullDateLabel(): string {
+  const raw = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
+    year: "numeric",
   }).format(new Date());
+  // Majuscule uniquement sur la première lettre (fr-FR renvoie tout en minuscules).
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
 function MetricTile({
@@ -70,12 +53,14 @@ function MetricTile({
   value,
   hint,
   href,
+  icon: Icon,
   tone = "neutral",
 }: {
   label: string;
   value: ReactNode;
   hint?: string;
   href?: string;
+  icon?: ComponentType<{ className?: string }>;
   tone?: "neutral" | "success" | "warning" | "info";
 }) {
   const tones = {
@@ -85,21 +70,38 @@ function MetricTile({
     info: "border-sky-200/80 bg-sky-50/40",
   } as const;
 
+  const iconTones = {
+    neutral: "bg-slate-100 text-slate-500",
+    success: "bg-emerald-100 text-emerald-700",
+    warning: "bg-amber-100 text-amber-700",
+    info: "bg-sky-100 text-sky-700",
+  } as const;
+
   const body = (
     <div
       className={`flex min-h-[5.5rem] flex-col justify-between rounded-xl border px-3.5 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)] ${tones[tone]} ${
-        href ? "transition hover:shadow-md active:scale-[0.99]" : ""
+        href ? "transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99]" : ""
       }`}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
-        {label}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+          {label}
+        </p>
+        {Icon ? (
+          <span
+            className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${iconTones[tone]}`}
+            aria-hidden
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </span>
+        ) : null}
+      </div>
       <div>
         <p className="text-[22px] font-bold tabular-nums leading-none tracking-tight text-slate-900">
           {value}
         </p>
         {hint ? (
-          <p className="mt-1 text-[11px] text-slate-500">{hint}</p>
+          <p className="mt-1 truncate text-[11px] text-slate-500">{hint}</p>
         ) : null}
       </div>
     </div>
@@ -155,26 +157,62 @@ function PriorityRow({
   );
 }
 
+const PORTFOLIO_STAT_TONES = {
+  success: {
+    card: "border-emerald-100 bg-emerald-50/50",
+    icon: "bg-emerald-100 text-emerald-700",
+  },
+  info: {
+    card: "border-sky-100 bg-sky-50/50",
+    icon: "bg-sky-100 text-sky-700",
+  },
+  warning: {
+    card: "border-amber-100 bg-amber-50/50",
+    icon: "bg-amber-100 text-amber-700",
+  },
+  orange: {
+    card: "border-orange-100 bg-orange-50/50",
+    icon: "bg-orange-100 text-orange-700",
+  },
+  danger: {
+    card: "border-rose-100 bg-rose-50/50",
+    icon: "bg-rose-100 text-rose-700",
+  },
+  neutral: {
+    card: "border-slate-200/80 bg-slate-50/60",
+    icon: "bg-slate-200/70 text-slate-500",
+  },
+} as const;
+
 function PortfolioStat({
   label,
   value,
+  icon: Icon,
   tone,
 }: {
   label: string;
   value: number;
-  tone: string;
+  icon: ComponentType<{ className?: string }>;
+  tone: keyof typeof PORTFOLIO_STAT_TONES;
 }) {
+  const t = PORTFOLIO_STAT_TONES[tone];
+
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 px-3 py-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${tone}`} />
-        <span className="min-w-0 flex-1 truncate text-[11px] text-slate-600">
+    <div className={`rounded-xl border px-3 py-2.5 ${t.card}`}>
+      <div className="flex items-center gap-2">
+        <span
+          className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${t.icon}`}
+          aria-hidden
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-slate-600">
           {label}
         </span>
-        <span className="text-[15px] font-bold tabular-nums text-slate-900">
-          {value}
-        </span>
       </div>
+      <p className="mt-2 text-[20px] font-bold tabular-nums leading-none tracking-tight text-slate-900">
+        {value}
+      </p>
     </div>
   );
 }
@@ -182,8 +220,6 @@ function PortfolioStat({
 export function PlatformDashboard({ data }: PlatformDashboardProps) {
   const pendingTotal =
     data.pendingOpeningRequests + data.pendingRequests;
-  const allClear =
-    pendingTotal === 0 && data.expiringAccess.length === 0;
 
   return (
     <PlatformPage>
@@ -196,59 +232,42 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
           ) : null}
 
           {/* En-tête exécutif */}
-          <section className="rounded-2xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
-                  Pilotage · {monthLabel()}
-                </p>
-                <h2 className="mt-1 text-[20px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
-                  Pilotage plateforme
-                </h2>
-                <p className="mt-1 capitalize text-[13px] text-slate-500">
-                  {todayLabel()}
-                </p>
-              </div>
+          <section className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-emerald-50/60 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5">
+            <div
+              className="pointer-events-none absolute -right-12 -top-20 h-48 w-48 rounded-full bg-emerald-200/25 blur-3xl"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute -bottom-24 left-1/3 h-48 w-48 rounded-full bg-sky-100/40 blur-3xl"
+              aria-hidden
+            />
 
-              <div className="flex flex-wrap items-center gap-2">
-                {allClear ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold text-emerald-800">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Aucune action urgente
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12px] font-semibold text-amber-900">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    {pendingTotal + data.expiringAccess.length} point
-                    {pendingTotal + data.expiringAccess.length > 1 ? "s" : ""}{" "}
-                    à surveiller
-                  </span>
-                )}
-                {QUICK_LINKS.map((link) => {
-                  const Icon = link.icon;
-                  return (
-                    <InstantLink
-                      key={link.href}
-                      href={link.href}
-                      prefetch
-                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px] font-semibold text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50/50 hover:text-emerald-800"
-                    >
-                      <Icon className="h-3.5 w-3.5 text-slate-400" />
-                      {link.label}
-                    </InstantLink>
-                  );
-                })}
+            <div className="relative flex min-w-0 items-center gap-3.5">
+              <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-700 text-white shadow-md shadow-emerald-700/20 sm:h-14 sm:w-14">
+                <LayoutDashboard className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.2} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                  Vue d&rsquo;ensemble
+                </p>
+                <h2 className="mt-0.5 text-[20px] font-bold tracking-tight text-slate-900 sm:text-[23px]">
+                  Aperçu de la plateforme
+                </h2>
+                <p className="mt-0.5 text-[13px] text-slate-500">
+                  {fullDateLabel()}
+                </p>
               </div>
             </div>
 
             {/* KPI — défilement mobile */}
-            <div className="-mx-1 mt-4 flex gap-2.5 overflow-x-auto px-1 pb-0.5 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0">
+            <div className="relative -mx-1 mt-4 flex gap-2.5 overflow-x-auto px-1 pb-0.5 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0">
               <div className="w-[42%] min-w-[9.5rem] shrink-0 lg:w-auto lg:min-w-0">
                 <MetricTile
                   label="Clients"
                   value={data.totalClients}
                   hint="Organisations"
                   href="/platform/clients"
+                  icon={Users}
                 />
               </div>
               <div className="w-[42%] min-w-[9.5rem] shrink-0 lg:w-auto lg:min-w-0">
@@ -257,6 +276,7 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
                   value={data.activeClients}
                   hint={`${data.suspendedClients} suspendu${data.suspendedClients > 1 ? "s" : ""}`}
                   href="/platform/abonnements"
+                  icon={CheckCircle2}
                   tone="success"
                 />
               </div>
@@ -266,6 +286,7 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
                   value={pendingTotal}
                   hint={`${data.pendingOpeningRequests} ouv. · ${data.pendingRequests} paie.`}
                   href="/platform/demandes-etablissement"
+                  icon={AlertCircle}
                   tone={pendingTotal > 0 ? "warning" : "neutral"}
                 />
               </div>
@@ -274,6 +295,7 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
                   label="CA du mois"
                   value={formatPlatformXof(data.revenueThisMonthXof)}
                   hint={`${data.paymentsThisMonth} paiement${data.paymentsThisMonth > 1 ? "s" : ""}`}
+                  icon={TrendingUp}
                   tone="info"
                 />
               </div>
@@ -284,7 +306,13 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
             {/* File d'attente */}
             <div className="lg:col-span-5">
-              <PlatformPanel title="À traiter" description="File opérationnelle" dense>
+              <PlatformPanel
+                title="À traiter"
+                description="File opérationnelle"
+                icon={AlertCircle}
+                tone={pendingTotal > 0 ? "warning" : "neutral"}
+                dense
+              >
                 <div className="space-y-2 p-3 pt-2">
                   <PriorityRow
                     href="/platform/demandes-etablissement"
@@ -310,6 +338,8 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
               <PlatformPanel
                 title="Revenus"
                 description={monthLabel()}
+                icon={TrendingUp}
+                tone="info"
                 dense
                 className="mt-4"
               >
@@ -332,17 +362,17 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
                   <InstantLink
                     href="/platform/demandes-abonnement"
                     prefetch
-                    className="flex items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-slate-600 hover:bg-slate-50"
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[12px] font-semibold text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50/50 hover:text-emerald-800"
                   >
-                    <Wallet className="h-4 w-4 text-slate-400" />
+                    <Wallet className="h-3.5 w-3.5 text-slate-400" />
                     Valider paiements
                   </InstantLink>
                   <InstantLink
                     href="/platform/abonnements"
                     prefetch
-                    className="flex items-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-slate-600 hover:bg-slate-50"
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[12px] font-semibold text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50/50 hover:text-emerald-800"
                   >
-                    <CreditCard className="h-4 w-4 text-slate-400" />
+                    <CreditCard className="h-3.5 w-3.5 text-slate-400" />
                     Voir abonnements
                   </InstantLink>
                 </div>
@@ -354,38 +384,39 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
               <PlatformPanel
                 title="Portefeuille"
                 description={`${data.totalClients} organisation${data.totalClients > 1 ? "s" : ""}`}
+                icon={Users}
                 dense
               >
                 <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-3">
                   <PortfolioStat
                     label="Abonnés actifs"
                     value={data.activeClients}
-                    tone="bg-emerald-500"
+                    icon={CheckCircle2}
+                    tone="success"
                   />
                   <PortfolioStat
                     label="Essais en cours"
                     value={data.activeTrials}
-                    tone="bg-sky-400"
+                    icon={Clock}
+                    tone="info"
                   />
                   <PortfolioStat
                     label="Choix en attente"
                     value={data.pendingChoice}
-                    tone="bg-amber-400"
+                    icon={HelpCircle}
+                    tone="warning"
                   />
                   <PortfolioStat
                     label="Essais expirés"
                     value={data.expiredTrials}
-                    tone="bg-orange-400"
+                    icon={AlertTriangle}
+                    tone="orange"
                   />
                   <PortfolioStat
                     label="Suspendus"
                     value={data.suspendedClients}
-                    tone="bg-red-400"
-                  />
-                  <PortfolioStat
-                    label="Machines actives"
-                    value={data.activeMachines}
-                    tone="bg-slate-400"
+                    icon={Ban}
+                    tone="danger"
                   />
                 </div>
                 <div className="flex flex-wrap gap-2 border-t border-slate-100 px-3 py-2.5">
@@ -397,88 +428,20 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
                     <Users className="h-3.5 w-3.5" />
                     Tous les clients
                   </InstantLink>
-                  <InstantLink
-                    href="/platform/machines"
-                    prefetch
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <MonitorSmartphone className="h-3.5 w-3.5" />
-                    Machines ({data.activeMachines})
-                  </InstantLink>
                 </div>
               </PlatformPanel>
             </div>
           </section>
 
           {/* Activité récente */}
-          <section className="grid min-h-[300px] grid-cols-1 gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <PlatformPanel
-              title="Derniers clients"
-              description="Inscriptions récentes"
-              dense
-              className="min-h-[300px]"
-              actions={
-                <InstantLink
-                  href="/platform/clients"
-                  prefetch
-                  className="text-[11px] font-semibold text-emerald-700 hover:underline"
-                >
-                  Voir tout
-                </InstantLink>
-              }
-            >
-              {data.recentClients.length === 0 ? (
-                <PlatformEmptyState
-                  title="Aucun client"
-                  description="Les nouvelles organisations apparaîtront ici."
-                />
-              ) : (
-                <div className="app-scroll min-h-0 flex-1 overflow-auto">
-                  <table className="w-full min-w-[420px] text-left text-[12.5px]">
-                    <thead className={PLATFORM_TABLE_HEAD}>
-                      <tr>
-                        <th className={`${PLATFORM_TH} !py-2`}>Propriétaire</th>
-                        <th className={`${PLATFORM_TH} !py-2`}>Organisation</th>
-                        <th className={`${PLATFORM_TH} !py-2`}>État</th>
-                        <th className={`${PLATFORM_TH} !py-2`}>Inscrit</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.recentClients.map((client) => (
-                        <tr key={client.organizationId} className={PLATFORM_TR}>
-                          <td className={`${PLATFORM_TD} !py-2.5`}>
-                            <InstantLink
-                              href={`/platform/clients/${client.organizationId}`}
-                              prefetch
-                              className="font-medium text-slate-900 hover:text-emerald-700"
-                            >
-                              {client.ownerName ?? "—"}
-                            </InstantLink>
-                          </td>
-                          <td className={`${PLATFORM_TD} !py-2.5 text-slate-600`}>
-                            {client.organizationName}
-                          </td>
-                          <td className={`${PLATFORM_TD} !py-2.5`}>
-                            <PlatformStatusBadge status={client.accessStatus} />
-                          </td>
-                          <td
-                            className={`${PLATFORM_TD} !py-2.5 tabular-nums text-slate-500`}
-                          >
-                            {formatPlatformDate(client.organizationCreatedAt)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </PlatformPanel>
-
+          <section className="grid min-h-[240px] grid-cols-1 gap-4">
             <PlatformPanel
               title="Échéances"
               description={`Renouvellements sous ${data.warningDaysBeforeExpiry} j`}
+              icon={Clock}
+              tone={data.expiringAccess.length > 0 ? "warning" : "neutral"}
               dense
-              className="min-h-[300px]"
+              className="min-h-[240px]"
               actions={
                 data.expiringAccess.length > 0 ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold tabular-nums text-amber-900">
@@ -488,16 +451,18 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
                 ) : null
               }
             >
-              <div className="app-scroll min-h-0 flex-1 space-y-2 overflow-auto p-3">
+              <div className="app-scroll min-h-0 flex-1 overflow-auto p-3">
                 {data.expiringAccess.length === 0 ? (
                   <PlatformEmptyState
                     title="Rien à renouveler"
                     description={`Aucun essai ni abonnement n'expire sous ${data.warningDaysBeforeExpiry} jours.`}
                   />
                 ) : (
-                  data.expiringAccess.map((alert) => (
-                    <PlatformExpiryAlertCard key={alert.id} alert={alert} />
-                  ))
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {data.expiringAccess.map((alert) => (
+                      <PlatformExpiryAlertCard key={alert.id} alert={alert} />
+                    ))}
+                  </div>
                 )}
               </div>
             </PlatformPanel>

@@ -2,7 +2,7 @@
 
 import { InstantLink as Link } from "@/components/layout/instant-link";
 import { useMemo, useState, useTransition } from "react";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight, Receipt as ReceiptIcon, Search } from "lucide-react";
 
 import {
   PlatformAlert,
@@ -12,6 +12,7 @@ import {
   formatPlatformDate,
   formatPlatformXof,
 } from "@/components/platform/platform-ui";
+import { useToast } from "@/components/ui/toast";
 import { cancelOrganizationSubscriptionAction } from "@/lib/platform/actions";
 import {
   PLATFORM_SUBSCRIPTION_STATUS_LABELS,
@@ -58,7 +59,7 @@ export function PlatformSubscriptionsWorkspace({
     "ALL" | PlatformSubscriptionStatus
   >("ALL");
   const [currentOnly, setCurrentOnly] = useState(true);
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
 
   const statusCounts = useMemo(() => {
@@ -97,24 +98,13 @@ export function PlatformSubscriptionsWorkspace({
               Impossible de charger les abonnements : {error}
             </PlatformAlert>
           ) : null}
-          {message ? (
-            <PlatformAlert
-              tone={/annulé|réussi|enregistr/i.test(message) ? "success" : "error"}
-            >
-              {message}
-            </PlatformAlert>
-          ) : null}
-
           <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
             <div className="shrink-0 border-b border-slate-100 px-3 py-2.5 sm:px-4">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="mr-auto text-[13px] font-semibold text-slate-900">
-                  Abonnements
-                  <span className="ml-1.5 font-medium text-slate-400">
-                    {filtered.length}
-                    {plans.length > 0 ? ` · ${plans.length} formules` : ""}
-                  </span>
-                </h2>
+                <p className="mr-auto text-[12px] font-medium text-slate-500">
+                  {filtered.length} abonnement{filtered.length > 1 ? "s" : ""}
+                  {plans.length > 0 ? ` · ${plans.length} formules` : ""}
+                </p>
 
                 <label className="relative block w-full max-w-[200px] flex-1 sm:w-auto">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
@@ -138,7 +128,7 @@ export function PlatformSubscriptionsWorkspace({
                 </label>
               </div>
 
-              <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => setStatusFilter("ALL")}
@@ -184,7 +174,7 @@ export function PlatformSubscriptionsWorkspace({
               <span className="hidden md:block">Début</span>
               <span className="hidden md:block">Fin</span>
               <span>Payé</span>
-              <span className="w-7" />
+              <span className="w-16" />
             </div>
 
             <div className="platform-subscriptions-snap app-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
@@ -233,7 +223,17 @@ export function PlatformSubscriptionsWorkspace({
                       {formatPlatformXof(row.amountPaidXof)}
                     </span>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-end gap-1">
+                      <a
+                        href={`/platform/abonnements/${row.id}/recu`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-emerald-50 hover:text-emerald-700"
+                        aria-label="Reçu de paiement"
+                        title="Reçu de paiement"
+                      >
+                        <ReceiptIcon className="h-3.5 w-3.5" />
+                      </a>
                       {row.isCurrent && row.status === "ACTIVE" ? (
                         <PlatformButton
                           tone="danger"
@@ -244,18 +244,17 @@ export function PlatformSubscriptionsWorkspace({
                               "Motif d’annulation (optionnel) :",
                             );
                             if (reason === null) return;
-                            setMessage(null);
                             startTransition(async () => {
                               const result =
                                 await cancelOrganizationSubscriptionAction({
                                   organizationId: row.organizationId,
                                   reason: reason || undefined,
                                 });
-                              setMessage(
-                                result.ok
-                                  ? "Abonnement annulé."
-                                  : result.error ?? "Action impossible.",
-                              );
+                              if (result.ok) {
+                                toast.success("Abonnement annulé.");
+                              } else {
+                                toast.error(result.error ?? "Action impossible.");
+                              }
                             });
                           }}
                         >

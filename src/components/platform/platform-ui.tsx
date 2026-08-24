@@ -137,6 +137,8 @@ export function PlatformPanel({
   title,
   description,
   actions,
+  icon: Icon,
+  tone = "neutral",
   dense = false,
 }: {
   children: ReactNode;
@@ -144,8 +146,19 @@ export function PlatformPanel({
   title?: string;
   description?: string;
   actions?: ReactNode;
+  /** Icône affichée dans un badge coloré avant le titre, pour un repérage plus rapide. */
+  icon?: ComponentType<{ className?: string }>;
+  tone?: "neutral" | "success" | "warning" | "danger" | "info";
   dense?: boolean;
 }) {
+  const iconTones = {
+    neutral: "bg-slate-100 text-slate-600",
+    success: "bg-emerald-100 text-emerald-700",
+    warning: "bg-amber-100 text-amber-700",
+    danger: "bg-rose-100 text-rose-700",
+    info: "bg-sky-100 text-sky-700",
+  } as const;
+
   return (
     <section
       className={`flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${className}`}
@@ -156,9 +169,19 @@ export function PlatformPanel({
             dense ? "px-3 py-2" : "px-4 py-3.5 lg:px-5"
           }`}
         >
-          <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2.5">
+            {Icon ? (
+              <span
+                className={`inline-flex shrink-0 items-center justify-center rounded-lg ${iconTones[tone]} ${
+                  dense ? "h-6 w-6" : "h-7 w-7"
+                }`}
+                aria-hidden
+              >
+                <Icon className={dense ? "h-3.5 w-3.5" : "h-4 w-4"} />
+              </span>
+            ) : null}
             <h3
-              className={`font-semibold text-slate-900 ${
+              className={`min-w-0 truncate font-semibold text-slate-900 ${
                 dense ? "text-[12px]" : "text-[13px]"
               }`}
             >

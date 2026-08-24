@@ -325,6 +325,11 @@ export function canApproveRequest(status: PlatformRequestStatus): boolean {
   return (APPROVABLE_REQUEST_STATUSES as readonly string[]).includes(status);
 }
 
+/** Une demande ne peut être supprimée que si elle a été refusée. */
+export function canDeleteRequest(status: PlatformRequestStatus): boolean {
+  return status === "REJECTED";
+}
+
 export function isOpenRequestStatus(status: PlatformRequestStatus): boolean {
   return (OPEN_REQUEST_STATUSES as readonly string[]).includes(status);
 }

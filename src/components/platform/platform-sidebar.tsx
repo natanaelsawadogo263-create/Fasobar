@@ -7,9 +7,7 @@ import {
   Building2,
   CreditCard,
   LayoutDashboard,
-  MonitorSmartphone,
   Settings,
-  Shield,
   Users,
   Wallet,
 } from "lucide-react";
@@ -24,7 +22,7 @@ import {
   type PlatformNavSection,
 } from "@/lib/platform/navigation";
 
-const NAV_ICONS: Record<
+export const PLATFORM_NAV_ICONS: Record<
   string,
   ComponentType<{ className?: string; strokeWidth?: number }>
 > = {
@@ -33,8 +31,6 @@ const NAV_ICONS: Record<
   "/platform/demandes-abonnement": Wallet,
   "/platform/clients": Users,
   "/platform/abonnements": CreditCard,
-  "/platform/machines": MonitorSmartphone,
-  "/platform/super-admins": Shield,
   "/platform/parametres": Settings,
 };
 
@@ -68,7 +64,7 @@ function NavLink({
   pathname: string;
   urgentSection?: boolean;
 }) {
-  const Icon = NAV_ICONS[item.href] ?? LayoutDashboard;
+  const Icon = PLATFORM_NAV_ICONS[item.href] ?? LayoutDashboard;
   const isActive =
     item.href === "/platform"
       ? pathname === "/platform"

@@ -122,6 +122,16 @@ export async function rejectSubscriptionPaymentAction(input: {
   );
 }
 
+export async function deleteSubscriptionRequestAction(input: {
+  requestId: string;
+}): Promise<PlatformActionResult> {
+  return callAdminRpc(
+    "delete_subscription_request",
+    { p_request_id: input.requestId },
+    ["/platform/demandes-abonnement", "/platform"],
+  );
+}
+
 export async function suspendClientOrganizationAction(input: {
   organizationId: string;
   reason: string;

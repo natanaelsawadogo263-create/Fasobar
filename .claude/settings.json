@@ -61,7 +61,13 @@
       "Bash(npx --yes supabase db query --linked \"select id, name, sku from public.products where sku is not null and sku !~ '^[A-Za-z0-9-]+$';\")",
       "Bash(npx --yes supabase db query --linked \"select table_name, column_name from information_schema.columns where table_schema='public' and table_name in \\('stock_items','product_packagings'\\) and column_name ilike '%barcode%';\")",
       "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/deployments?sha=8b61e00640b95c2388ce1c1ec6a9e0f4045948a4\")",
-      "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/deployments/6051595160/statuses\")"
+      "Bash(curl -s \"https://api.github.com/repos/natanaelsawadogo263-create/Fasobar/deployments/6051595160/statuses\")",
+      "Bash(npx --yes supabase db query --linked \"select proname from pg_proc where proname in \\('suspend_client_organization','reactivate_client_organization','schedule_client_deletion','restore_client_before_deletion','purge_client_organization'\\);\")",
+      "Bash(npx --yes supabase db query --linked \"select pg_get_functiondef\\(oid\\) from pg_proc where proname = 'purge_client_organization';\")",
+      "Bash(npx --yes supabase db query --linked \"select pg_get_functiondef\\(oid\\) from pg_proc where proname = 'schedule_client_deletion';\")",
+      "Bash(npx --yes supabase db query --linked \"select pg_get_functiondef\\(oid\\) as def from pg_proc where proname = 'schedule_client_deletion';\")",
+      "Read(//tmp/**)",
+      "Bash(mkdir -p \"C:/Users/HP745G6/AppData/Local/Temp/claude/c--projet-dev-maquis-gestion/9d353006-26f3-46e4-b746-9e293bc07147/scratchpad\")"
     ],
     "additionalDirectories": [
       "c:\\projet-dev\\maquis-gestion\\src\\app\\(marketing)\\solutions"

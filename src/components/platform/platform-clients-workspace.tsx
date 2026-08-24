@@ -2,7 +2,7 @@
 
 import { InstantLink as Link } from "@/components/layout/instant-link";
 import { useMemo, useState } from "react";
-import { ChevronRight, Search } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronRight, Search } from "lucide-react";
 
 import { PlatformStatusBadge } from "@/components/platform/platform-status-badge";
 import {
@@ -19,6 +19,31 @@ import {
 } from "@/lib/platform/statuses";
 
 type SortOrder = "desc" | "asc";
+
+/**
+ * Un client dont la suppression est programmée reste en base pendant le
+ * délai de récupération (30 jours par défaut, restaurable) — mais il ne
+ * doit plus encombrer la vue « Tous » du super admin, qui doit pouvoir le
+ * considérer comme supprimé au quotidien. Reste consultable via le filtre
+ * de statut dédié (« Suppression ») si besoin de le restaurer.
+ */
+const HIDDEN_FROM_ALL_VIEW: ReadonlySet<PlatformAccessStatus> = new Set([
+  "PENDING_DELETION",
+]);
+
+/** Couleur d'accent par statut — reprend la palette de PlatformStatusBadge pour que les puces de filtre s'associent visuellement aux badges de la liste. */
+const STATUS_CHIP_TONES: Record<
+  PlatformAccessStatus,
+  { dot: string; active: string }
+> = {
+  PENDING_CHOICE: { dot: "bg-amber-400", active: "bg-amber-600 text-white" },
+  TRIAL: { dot: "bg-sky-400", active: "bg-sky-600 text-white" },
+  TRIAL_EXPIRED: { dot: "bg-orange-400", active: "bg-orange-600 text-white" },
+  ACTIVE: { dot: "bg-emerald-500", active: "bg-emerald-600 text-white" },
+  EXPIRED: { dot: "bg-slate-400", active: "bg-slate-700 text-white" },
+  SUSPENDED: { dot: "bg-red-400", active: "bg-red-600 text-white" },
+  PENDING_DELETION: { dot: "bg-rose-400", active: "bg-rose-600 text-white" },
+};
 
 type PlatformClientsWorkspaceProps = {
   clients: PlatformClientRow[];
@@ -62,11 +87,20 @@ export function PlatformClientsWorkspace({
     return counts;
   }, [clients]);
 
+  const visibleInAllCount = useMemo(
+    () =>
+      clients.filter((client) => !HIDDEN_FROM_ALL_VIEW.has(client.accessStatus))
+        .length,
+    [clients],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
     const rows = clients.filter((client) => {
-      if (statusFilter !== "ALL" && client.accessStatus !== statusFilter) {
+      if (statusFilter === "ALL") {
+        if (HIDDEN_FROM_ALL_VIEW.has(client.accessStatus)) return false;
+      } else if (client.accessStatus !== statusFilter) {
         return false;
       }
       if (!q) return true;
@@ -99,17 +133,13 @@ export function PlatformClientsWorkspace({
           <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
             <div className="shrink-0 border-b border-slate-100 px-3 py-2.5 sm:px-4">
               <div className="flex flex-wrap items-center gap-2">
-                <div className="mr-auto min-w-0">
-                  <h2 className="text-[13px] font-semibold text-slate-900">
-                    Clients
-                    <span className="ml-1.5 font-medium text-slate-400">
-                      {filtered.length}
-                      {filtered.length !== clients.length
-                        ? `/${clients.length}`
-                        : ""}
-                    </span>
-                  </h2>
-                </div>
+                <p className="mr-auto min-w-0 text-[12px] font-medium text-slate-500">
+                  {filtered.length}
+                  {filtered.length !== clients.length
+                    ? `/${clients.length}`
+                    : ""}{" "}
+                  client{filtered.length > 1 ? "s" : ""}
+                </p>
 
                 <label className="relative block w-full max-w-[220px] flex-1 sm:w-auto">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
@@ -122,31 +152,37 @@ export function PlatformClientsWorkspace({
                   />
                 </label>
 
-                <select
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[12px] text-slate-700 outline-none focus:border-emerald-500"
-                >
-                  <option value="desc">Récents</option>
-                  <option value="asc">Anciens</option>
-                </select>
+                <label className="relative block shrink-0">
+                  <ArrowUpDown className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+                    className="appearance-none rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-7 text-[12px] text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  >
+                    <option value="desc">Récents</option>
+                    <option value="asc">Anciens</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                </label>
               </div>
 
-              <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => setStatusFilter("ALL")}
-                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
                     statusFilter === "ALL"
                       ? "bg-slate-900 text-white"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
                 >
-                  Tous · {clients.length}
+                  Tous · {visibleInAllCount}
                 </button>
                 {PLATFORM_ACCESS_STATUSES.map((status) => {
                   const count = statusCounts[status] ?? 0;
                   if (count === 0 && statusFilter !== status) return null;
+                  const tone = STATUS_CHIP_TONES[status];
+                  const active = statusFilter === status;
                   return (
                     <button
                       key={status}
@@ -156,12 +192,18 @@ export function PlatformClientsWorkspace({
                           prev === status ? "ALL" : status,
                         )
                       }
-                      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                        statusFilter === status
-                          ? "bg-slate-900 text-white"
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                        active
+                          ? tone.active
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
+                      <span
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                          active ? "bg-white/80" : tone.dot
+                        }`}
+                        aria-hidden
+                      />
                       {PLATFORM_ACCESS_STATUS_LABELS[status]} · {count}
                     </button>
                   );

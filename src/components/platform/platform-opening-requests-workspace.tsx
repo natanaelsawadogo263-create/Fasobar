@@ -12,6 +12,7 @@ import {
   PlatformPage,
   formatPlatformDateTime,
 } from "@/components/platform/platform-ui";
+import { useToast } from "@/components/ui/toast";
 import {
   approveEstablishmentOpeningAction,
   rejectEstablishmentOpeningAction,
@@ -29,29 +30,28 @@ export function PlatformOpeningRequestsWorkspace({
 }: Props) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [messageTone, setMessageTone] = useState<"ok" | "err">("ok");
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
 
   function run(
     organizationId: string,
     action: "approve" | "reject",
   ) {
-    setMessage(null);
     setPendingId(organizationId);
     startTransition(async () => {
       const result =
         action === "approve"
           ? await approveEstablishmentOpeningAction({ organizationId })
           : await rejectEstablishmentOpeningAction({ organizationId });
-      setMessageTone(result.ok ? "ok" : "err");
-      setMessage(
-        result.ok
-          ? action === "approve"
+      if (result.ok) {
+        toast.success(
+          action === "approve"
             ? "Demande confirmée. La personne peut maintenant ouvrir son espace."
-            : "Demande refusée."
-          : (result.error ?? "Action impossible."),
-      );
+            : "Demande refusée.",
+        );
+      } else {
+        toast.error(result.error ?? "Action impossible.");
+      }
       setPendingId(null);
       if (result.ok) router.refresh();
     });
@@ -61,11 +61,6 @@ export function PlatformOpeningRequestsWorkspace({
     <PlatformPage>
       <PlatformBody>
         {error ? <PlatformAlert tone="error">{error}</PlatformAlert> : null}
-        {message ? (
-          <PlatformAlert tone={messageTone === "ok" ? "success" : "error"}>
-            {message}
-          </PlatformAlert>
-        ) : null}
 
         {requests.length === 0 ? (
           <PlatformEmptyState title="Aucune demande en attente" />

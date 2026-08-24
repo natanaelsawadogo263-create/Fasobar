@@ -10,6 +10,7 @@ import {
   PlatformPage,
   formatPlatformDate,
 } from "@/components/platform/platform-ui";
+import { useToast } from "@/components/ui/toast";
 import {
   addPlatformAdminAction,
   removePlatformAdminAction,
@@ -29,15 +30,9 @@ export function PlatformAdminsWorkspace({
   currentUserId = null,
 }: Props) {
   const [userId, setUserId] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState("");
-
-  const isSuccessMessage =
-    message != null &&
-    (message.includes("ajouté") ||
-      message.includes("mis à jour") ||
-      message.includes("retiré"));
 
   const filtered = admins.filter((admin) => {
     const q = query.trim().toLowerCase();
@@ -58,21 +53,12 @@ export function PlatformAdminsWorkspace({
               Impossible de charger les Super Admins : {error}
             </PlatformAlert>
           ) : null}
-          {message ? (
-            <PlatformAlert tone={isSuccessMessage ? "success" : "error"}>
-              {message}
-            </PlatformAlert>
-          ) : null}
-
           <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
             <div className="shrink-0 border-b border-slate-100 px-3 py-2.5 sm:px-4">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="mr-auto text-[13px] font-semibold text-slate-900">
-                  Super Admins
-                  <span className="ml-1.5 font-medium text-slate-400">
-                    {filtered.length}
-                  </span>
-                </h2>
+                <p className="mr-auto text-[12px] font-medium text-slate-500">
+                  {filtered.length} admin{filtered.length > 1 ? "s" : ""}
+                </p>
                 <label className="relative block w-full max-w-[200px] flex-1 sm:w-auto">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                   <input
@@ -89,14 +75,13 @@ export function PlatformAdminsWorkspace({
                 className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  setMessage(null);
                   startTransition(async () => {
                     const result = await addPlatformAdminAction({ userId });
                     if (result.ok) {
-                      setMessage("Super Admin ajouté.");
+                      toast.success("Super Admin ajouté.");
                       setUserId("");
                     } else {
-                      setMessage(result.error ?? "Action impossible.");
+                      toast.error(result.error ?? "Action impossible.");
                     }
                   });
                 }}
@@ -162,7 +147,6 @@ export function PlatformAdminsWorkspace({
                           disabled={pending || isSelf}
                           className="!px-2 !py-1 !text-[10px]"
                           onClick={() => {
-                            setMessage(null);
                             startTransition(async () => {
                               const next =
                                 admin.status === "ACTIVE"
@@ -172,11 +156,13 @@ export function PlatformAdminsWorkspace({
                                 userId: admin.userId,
                                 status: next,
                               });
-                              setMessage(
-                                result.ok
-                                  ? `Statut mis à jour (${next === "ACTIVE" ? "actif" : "inactif"}).`
-                                  : result.error ?? "Action impossible.",
-                              );
+                              if (result.ok) {
+                                toast.success(
+                                  `Statut mis à jour (${next === "ACTIVE" ? "actif" : "inactif"}).`,
+                                );
+                              } else {
+                                toast.error(result.error ?? "Action impossible.");
+                              }
                             });
                           }}
                         >
@@ -196,16 +182,15 @@ export function PlatformAdminsWorkspace({
                             ) {
                               return;
                             }
-                            setMessage(null);
                             startTransition(async () => {
                               const result = await removePlatformAdminAction({
                                 userId: admin.userId,
                               });
-                              setMessage(
-                                result.ok
-                                  ? "Super Admin retiré."
-                                  : result.error ?? "Action impossible.",
-                              );
+                              if (result.ok) {
+                                toast.success("Super Admin retiré.");
+                              } else {
+                                toast.error(result.error ?? "Action impossible.");
+                              }
                             });
                           }}
                         >

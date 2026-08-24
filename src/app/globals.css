@@ -259,6 +259,48 @@ html {
     print-color-adjust: exact;
   }
 
+  /* Reçu de paiement d'abonnement (Super Admin) : page A4, isolée comme le ticket
+     thermique ci-dessus mais dimensionnée pour une feuille normale. */
+  html.printing-subscription-receipt,
+  html.printing-subscription-receipt body {
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  html.printing-subscription-receipt body {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important;
+  }
+
+  html.printing-subscription-receipt body > *:not(#print-subscription-receipt-clone) {
+    display: none !important;
+  }
+
+  html.printing-subscription-receipt #print-subscription-receipt-clone {
+    display: block !important;
+    position: static !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+  }
+
+  /* Préserve les couleurs de marque (bandeau, badges, total…) à l'impression —
+     par défaut les navigateurs suppriment les fonds colorés en PDF/papier. */
+  .subscription-receipt,
+  .subscription-receipt * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* Étiquette produit (code-barres) : format séparé de l'impression des tickets. */
   html.printing-label,
   html.printing-label body {

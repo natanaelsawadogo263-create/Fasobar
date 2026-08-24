@@ -9,14 +9,22 @@ import {
   type ReactNode,
 } from "react";
 import {
+  AlertCircle,
   ArrowLeft,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
   ExternalLink,
   FileImage,
+  ListFilter,
   Mail,
   MessageCircle,
   Phone,
   Search,
+  Trash2,
+  XCircle,
 } from "lucide-react";
+import type { ComponentType } from "react";
 
 import {
   PlatformAlert,
@@ -26,8 +34,10 @@ import {
   formatPlatformDateTime,
   formatPlatformXof,
 } from "@/components/platform/platform-ui";
+import { useToast } from "@/components/ui/toast";
 import {
   approveSubscriptionPaymentAction,
+  deleteSubscriptionRequestAction,
   getProofSignedUrlAction,
   rejectSubscriptionPaymentAction,
   requestNewPaymentProofAction,
@@ -36,6 +46,7 @@ import {
 import {
   PLATFORM_REQUEST_STATUS_LABELS,
   canApproveRequest,
+  canDeleteRequest,
   type PlatformRequestStatus,
 } from "@/lib/platform/access";
 import { toWhatsAppDigits } from "@/lib/platform/phone-utils";
@@ -71,6 +82,72 @@ function RequestStatusBadge({ status }: { status: PlatformRequestStatus }) {
     >
       {PLATFORM_REQUEST_STATUS_LABELS[status]}
     </span>
+  );
+}
+
+const KPI_TONES = {
+  warning: {
+    icon: "bg-amber-100 text-amber-700",
+    bar: "bg-amber-500",
+  },
+  info: {
+    icon: "bg-sky-100 text-sky-700",
+    bar: "bg-sky-500",
+  },
+  success: {
+    icon: "bg-emerald-100 text-emerald-700",
+    bar: "bg-emerald-500",
+  },
+  danger: {
+    icon: "bg-rose-100 text-rose-700",
+    bar: "bg-rose-500",
+  },
+} as const;
+
+function RequestKpiButton({
+  label,
+  value,
+  icon: Icon,
+  tone,
+  active,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  icon: ComponentType<{ className?: string }>;
+  tone: keyof typeof KPI_TONES;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const t = KPI_TONES[tone];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative flex items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50/80 ${
+        active ? "bg-slate-50" : ""
+      }`}
+    >
+      <span
+        className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${t.icon}`}
+        aria-hidden
+      >
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-[11px] font-medium text-slate-500">
+          {label}
+        </p>
+        <p className="mt-0.5 text-[20px] font-bold tabular-nums tracking-tight text-slate-900">
+          {value}
+        </p>
+      </div>
+      <span
+        className={`absolute inset-x-0 bottom-0 h-0.5 ${active ? t.bar : "bg-transparent"}`}
+        aria-hidden
+      />
+    </button>
   );
 }
 
@@ -151,7 +228,7 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [note, setNote] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
 
   const metrics = useMemo(() => {
@@ -214,29 +291,16 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
     action: () => Promise<{ ok: boolean; error?: string }>,
     success: string,
   ) {
-    setMessage(null);
     startTransition(async () => {
       const result = await action();
       if (!result.ok) {
-        setMessage(result.error ?? "Action impossible.");
+        toast.error(result.error ?? "Action impossible.");
         return;
       }
-      setMessage(success);
+      toast.success(success);
       setNote("");
     });
   }
-
-  const queues: { id: QueueFilter; label: string; count: number }[] = [
-    { id: "ACTION", label: "À traiter", count: metrics.action },
-    {
-      id: "PENDING_PAYMENT",
-      label: "En attente paiement",
-      count: metrics.pendingPayment,
-    },
-    { id: "APPROVED", label: "Approuvées", count: metrics.approved },
-    { id: "REJECTED", label: "Refusées", count: metrics.rejected },
-    { id: "ALL", label: "Toutes", count: metrics.total },
-  ];
 
   return (
     <PlatformPage>
@@ -247,75 +311,42 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
               Impossible de charger les demandes : {error}
             </PlatformAlert>
           ) : null}
-          {message ? (
-            <PlatformAlert
-              tone={
-                /impossible|erreur|échou/i.test(message) ? "error" : "success"
-              }
-            >
-              {message}
-            </PlatformAlert>
-          ) : null}
 
           {/* KPIs — desktop uniquement (les puces de file suffisent sur mobile) */}
           <section className="hidden shrink-0 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] lg:block">
             <div className="grid grid-cols-4 divide-x divide-slate-100">
-              <button
-                type="button"
+              <RequestKpiButton
+                label="À traiter"
+                value={metrics.action}
+                icon={AlertCircle}
+                tone="warning"
+                active={queue === "ACTION"}
                 onClick={() => setQueue("ACTION")}
-                className={`px-4 py-3 text-left transition hover:bg-slate-50/80 ${
-                  queue === "ACTION" ? "bg-slate-50" : ""
-                }`}
-              >
-                <p className="text-[11px] font-medium text-slate-500">
-                  À traiter
-                </p>
-                <p className="mt-1 text-[22px] font-semibold tabular-nums tracking-tight text-slate-900">
-                  {metrics.action}
-                </p>
-              </button>
-              <button
-                type="button"
+              />
+              <RequestKpiButton
+                label="Attente paiement"
+                value={metrics.pendingPayment}
+                icon={Clock}
+                tone="info"
+                active={queue === "PENDING_PAYMENT"}
                 onClick={() => setQueue("PENDING_PAYMENT")}
-                className={`px-4 py-3 text-left transition hover:bg-slate-50/80 ${
-                  queue === "PENDING_PAYMENT" ? "bg-slate-50" : ""
-                }`}
-              >
-                <p className="text-[11px] font-medium text-slate-500">
-                  Attente paiement
-                </p>
-                <p className="mt-1 text-[22px] font-semibold tabular-nums tracking-tight text-slate-900">
-                  {metrics.pendingPayment}
-                </p>
-              </button>
-              <button
-                type="button"
+              />
+              <RequestKpiButton
+                label="Approuvées"
+                value={metrics.approved}
+                icon={CheckCircle2}
+                tone="success"
+                active={queue === "APPROVED"}
                 onClick={() => setQueue("APPROVED")}
-                className={`px-4 py-3 text-left transition hover:bg-slate-50/80 ${
-                  queue === "APPROVED" ? "bg-slate-50" : ""
-                }`}
-              >
-                <p className="text-[11px] font-medium text-slate-500">
-                  Approuvées
-                </p>
-                <p className="mt-1 text-[22px] font-semibold tabular-nums tracking-tight text-slate-900">
-                  {metrics.approved}
-                </p>
-              </button>
-              <button
-                type="button"
+              />
+              <RequestKpiButton
+                label="Refusées"
+                value={metrics.rejected}
+                icon={XCircle}
+                tone="danger"
+                active={queue === "REJECTED"}
                 onClick={() => setQueue("REJECTED")}
-                className={`px-4 py-3 text-left transition hover:bg-slate-50/80 ${
-                  queue === "REJECTED" ? "bg-slate-50" : ""
-                }`}
-              >
-                <p className="text-[11px] font-medium text-slate-500">
-                  Refusées
-                </p>
-                <p className="mt-1 text-[22px] font-semibold tabular-nums tracking-tight text-slate-900">
-                  {metrics.rejected}
-                </p>
-              </button>
+              />
             </div>
           </section>
 
@@ -346,25 +377,28 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
                   </label>
                 </div>
 
-                <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5">
-                  {queues.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setQueue(item.id)}
-                      className={`shrink-0 rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
-                        queue === item.id
-                          ? "bg-slate-900 text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      {item.label}
-                      <span className="ml-1 tabular-nums opacity-80">
-                        {item.count}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                {/* Filtre de file — mobile uniquement (les cartes KPI ci-dessus font ce rôle sur desktop) */}
+                <label className="relative mt-2 block lg:hidden">
+                  <ListFilter className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                  <select
+                    value={queue}
+                    onChange={(e) => setQueue(e.target.value as QueueFilter)}
+                    className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-8 text-[12.5px] font-medium text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                  >
+                    <option value="ACTION">À traiter · {metrics.action}</option>
+                    <option value="PENDING_PAYMENT">
+                      Attente paiement · {metrics.pendingPayment}
+                    </option>
+                    <option value="APPROVED">
+                      Approuvées · {metrics.approved}
+                    </option>
+                    <option value="REJECTED">
+                      Refusées · {metrics.rejected}
+                    </option>
+                    <option value="ALL">Toutes · {metrics.total}</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                </label>
               </div>
 
               <div className="app-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
@@ -659,6 +693,35 @@ export function PlatformRequestsWorkspace({ requests, error = null }: Props) {
                           Refuser
                         </PlatformButton>
                       </div>
+
+                      {canDeleteRequest(selected.status) ? (
+                        <div className="mt-3 border-t border-slate-100 pt-3">
+                          <PlatformButton
+                            tone="danger"
+                            disabled={pending}
+                            className="!w-full !justify-center !gap-1.5 !py-2 !text-[11px]"
+                            onClick={() => {
+                              if (
+                                !window.confirm(
+                                  `Supprimer définitivement la demande ${selected.referenceCode} ? Cette action est irréversible.`,
+                                )
+                              ) {
+                                return;
+                              }
+                              runAction(
+                                () =>
+                                  deleteSubscriptionRequestAction({
+                                    requestId: selected.id,
+                                  }),
+                                "Demande supprimée.",
+                              );
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Supprimer la demande
+                          </PlatformButton>
+                        </div>
+                      ) : null}
                     </section>
                   </div>
                 </>

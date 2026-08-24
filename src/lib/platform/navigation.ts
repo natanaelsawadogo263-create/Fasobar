@@ -76,18 +76,6 @@ export const PLATFORM_NAV_SECTIONS: PlatformNavSection[] = [
     label: "Plateforme",
     items: [
       {
-        href: "/platform/machines",
-        label: "Machines",
-        shortLabel: "Machines",
-        enabled: true,
-      },
-      {
-        href: "/platform/super-admins",
-        label: "Super Admins",
-        shortLabel: "Admins",
-        enabled: true,
-      },
-      {
         href: "/platform/parametres",
         label: "Paramètres",
         shortLabel: "Réglages",
@@ -104,6 +92,8 @@ export const PLATFORM_NAV_ITEMS: PlatformNavItem[] =
 export type PlatformPageMeta = {
   sectionLabel: string | null;
   title: string;
+  /** Href de l'item de nav actif — sert à retrouver son icône (topbar, breadcrumb). */
+  href: string | null;
 };
 
 export function resolvePlatformPageMeta(pathname: string): PlatformPageMeta {
@@ -112,6 +102,7 @@ export function resolvePlatformPageMeta(pathname: string): PlatformPageMeta {
     return {
       sectionLabel: PLATFORM_NAV_SECTIONS[0]!.label,
       title: item.label,
+      href: item.href,
     };
   }
 
@@ -119,6 +110,7 @@ export function resolvePlatformPageMeta(pathname: string): PlatformPageMeta {
     return {
       sectionLabel: "Portefeuille",
       title: "Fiche client",
+      href: "/platform/clients",
     };
   }
 
@@ -129,6 +121,7 @@ export function resolvePlatformPageMeta(pathname: string): PlatformPageMeta {
         return {
           sectionLabel: section.label,
           title: item.label,
+          href: item.href,
         };
       }
     }
@@ -137,6 +130,7 @@ export function resolvePlatformPageMeta(pathname: string): PlatformPageMeta {
   return {
     sectionLabel: null,
     title: "Espace plateforme",
+    href: null,
   };
 }
 

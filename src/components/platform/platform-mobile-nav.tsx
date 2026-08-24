@@ -7,10 +7,8 @@ import {
   Building2,
   CreditCard,
   LayoutDashboard,
-  MonitorSmartphone,
   MoreHorizontal,
   Settings,
-  Shield,
   Users,
   Wallet,
   X,
@@ -39,8 +37,6 @@ const NAV_ICONS: Record<
   "/platform/demandes-abonnement": Wallet,
   "/platform/clients": Users,
   "/platform/abonnements": CreditCard,
-  "/platform/machines": MonitorSmartphone,
-  "/platform/super-admins": Shield,
   "/platform/parametres": Settings,
 };
 
