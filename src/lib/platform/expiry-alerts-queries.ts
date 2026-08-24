@@ -85,7 +85,7 @@ export const listPlatformExpiryAlerts = cache(
       supabase.from("organizations").select("id, name"),
       supabase
         .from("organization_platform_states")
-        .select("organization_id, billing_phone"),
+        .select("organization_id, billing_phone, status"),
       supabase
         .from("organization_trials")
         .select("id, organization_id, status, ends_at")
@@ -141,6 +141,15 @@ export const listPlatformExpiryAlerts = cache(
         s.billing_phone as string | null,
       ]),
     );
+    // Une organisation en suppression programmée (PENDING_DELETION) reste en
+    // base pendant le délai de récupération, mais ne doit plus déclencher
+    // d'alerte d'échéance visible au quotidien — même logique que les autres
+    // vues super admin (dashboard, clients, abonnements).
+    const deletedOrgIds = new Set(
+      (statesResult.data ?? [])
+        .filter((s) => s.status === "PENDING_DELETION")
+        .map((s) => s.organization_id),
+    );
     const planById = new Map(
       (plansResult.data ?? []).map((p) => [p.id, p.name as string] as const),
     );
@@ -178,6 +187,7 @@ export const listPlatformExpiryAlerts = cache(
     const alerts: PlatformExpiryAlert[] = [];
 
     for (const trial of trialsResult.data ?? []) {
+      if (deletedOrgIds.has(trial.organization_id)) continue;
       if (!inWindow(trial.ends_at)) continue;
       const ownerUserId = ownersByOrg.get(trial.organization_id) ?? null;
       const profile = ownerUserId ? profileById.get(ownerUserId) : null;
@@ -206,6 +216,7 @@ export const listPlatformExpiryAlerts = cache(
     }
 
     for (const sub of subsResult.error ? [] : (subsResult.data ?? [])) {
+      if (deletedOrgIds.has(sub.organization_id)) continue;
       if (!inWindow(sub.ends_at)) continue;
       const ownerUserId = ownersByOrg.get(sub.organization_id) ?? null;
       const profile = ownerUserId ? profileById.get(ownerUserId) : null;

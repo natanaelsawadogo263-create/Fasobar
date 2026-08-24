@@ -155,7 +155,7 @@ export function PlatformSidebar({ badges }: PlatformSidebarProps) {
       <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-3.5">
         <FasoBarLogo size="sm" tone="dark" />
         <span className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
-          Admin
+          Super Admin
         </span>
       </div>
 

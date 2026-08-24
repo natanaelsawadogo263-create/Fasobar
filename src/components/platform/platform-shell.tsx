@@ -7,6 +7,7 @@ import { PrefetchRoutes } from "@/components/layout/prefetch-routes";
 import { PlatformMobileNav } from "@/components/platform/platform-mobile-nav";
 import { PlatformSidebar } from "@/components/platform/platform-sidebar";
 import { PlatformTopbar } from "@/components/platform/platform-topbar";
+import { usePlatformNavBadgesLive } from "@/hooks/use-platform-nav-badges-live";
 import { unlockNotificationAudio } from "@/lib/admin/notification-chime";
 import type { PlatformExpiryAlert } from "@/lib/platform/expiry-alerts-types";
 import {
@@ -28,9 +29,10 @@ export function PlatformShell({
   adminName,
   expiryAlerts = [],
   warningDaysBeforeExpiry = 7,
-  navBadges,
+  navBadges: initialNavBadges,
   children,
 }: PlatformShellProps) {
+  const navBadges = usePlatformNavBadgesLive(initialNavBadges);
   const prefetchHrefs = PLATFORM_NAV_ITEMS.filter((item) => item.enabled).map(
     (item) => item.href,
   );

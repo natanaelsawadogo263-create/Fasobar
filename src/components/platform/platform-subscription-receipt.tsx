@@ -95,9 +95,9 @@ export function PlatformSubscriptionReceiptView({ receipt }: Props) {
             FASOBAR
           </p>
 
-          <div className="relative z-10 p-10 sm:p-12">
+          <div className="relative z-10 p-5 sm:p-12">
             {/* En-tête */}
-            <header className="flex flex-wrap items-start justify-between gap-6">
+            <header className="flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-6">
               <div className="flex items-center gap-3.5">
                 {/* eslint-disable-next-line @next/next/no-img-element -- logo imprimé, taille contrôlée par CSS */}
                 <img
@@ -115,7 +115,7 @@ export function PlatformSubscriptionReceiptView({ receipt }: Props) {
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="sm:text-right">
                 <span className="receipt-badge inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[10.5px] font-bold uppercase tracking-[0.06em] text-emerald-800 ring-1 ring-inset ring-emerald-200">
                   <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2.4} />
                   Paiement confirmé
@@ -173,8 +173,8 @@ export function PlatformSubscriptionReceiptView({ receipt }: Props) {
               <h2 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
                 Détail de l&rsquo;abonnement
               </h2>
-              <div className="mt-2.5 overflow-hidden rounded-xl border border-slate-200">
-                <table className="w-full border-collapse text-[12.5px]">
+              <div className="app-scroll mt-2.5 overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full min-w-[480px] border-collapse text-[12.5px]">
                   <thead>
                     <tr className="bg-slate-900 text-left text-[10px] font-semibold uppercase tracking-[0.06em] text-white">
                       <th className="py-2.5 pl-4 pr-3 font-semibold">Description</th>

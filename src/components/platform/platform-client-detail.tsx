@@ -970,7 +970,7 @@ export function PlatformClientDetailView({
 
       {modal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px]">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200/90 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
+          <div className="app-scroll max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200/90 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
             <h3 className="text-[15px] font-semibold tracking-tight text-slate-900">
               {modalTitle[modal]}
             </h3>
