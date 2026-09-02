@@ -85,6 +85,12 @@ export function InstantLink({
     if (!url || !isInternalAppHref(url)) return;
     if (isModifiedClick(event)) return;
     prefetchHref();
+    // Touch/pen : ne jamais naviguer dès le contact. Un doigt qui se pose
+    // pour scroller déclenchait l'action au lieu de laisser défiler la page.
+    // Seule la souris n'a pas cette ambiguïté (pas de scroll par glissé) —
+    // pour le tactile on laisse le vrai événement "click" décider : le
+    // navigateur ne le déclenche que pour un tap réel, jamais pour un glissé.
+    if (event.pointerType !== "mouse") return;
     if (onClick) return;
     event.preventDefault();
     started.current = true;
