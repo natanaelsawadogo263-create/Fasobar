@@ -354,7 +354,7 @@ export function AdminBarSessionsWorkspace({
           <div
             role="dialog"
             aria-modal="true"
-            className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+            className="flex max-h-[min(92dvh,720px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">

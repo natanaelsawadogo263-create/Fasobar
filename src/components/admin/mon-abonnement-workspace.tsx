@@ -130,8 +130,8 @@ export function MonAbonnementWorkspace({ data, canRenew }: Props) {
         />
       ) : null}
 
-      <div className="flex min-h-0 flex-1 items-stretch overflow-hidden p-4 sm:p-5">
-        <div className="mx-auto flex w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="app-scroll flex min-h-0 flex-1 items-stretch overflow-y-auto p-4 sm:p-5">
+        <div className="mx-auto flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           {data.error ? (
             <div className="shrink-0 border-b border-red-100 bg-red-50 px-5 py-2.5 text-[12px] text-red-800">
               {data.error}
@@ -270,7 +270,7 @@ export function MonAbonnementWorkspace({ data, canRenew }: Props) {
           </section>
 
           {/* Détail demande */}
-          <section className="min-h-0 flex-1 overflow-hidden px-5 py-4">
+          <section className="shrink-0 px-5 py-4">
             <h2 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
               Détail
             </h2>

@@ -191,7 +191,7 @@ export function PlatformSubscriptionsWorkspace({
                     <div className="min-w-0">
                       <Link
                         href={`/platform/clients/${row.organizationId}`}
-                        className="block truncate font-medium text-slate-900 hover:text-emerald-700"
+                        className="block truncate font-medium text-slate-900 underline decoration-slate-300 underline-offset-2 transition hover:text-emerald-700 hover:decoration-emerald-400 active:text-emerald-700"
                       >
                         {row.organizationName}
                       </Link>
@@ -223,12 +223,12 @@ export function PlatformSubscriptionsWorkspace({
                       {formatPlatformXof(row.amountPaidXof)}
                     </span>
 
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex items-center justify-end gap-2 md:gap-1">
                       <a
                         href={`/platform/abonnements/${row.id}/recu`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-emerald-50 hover:text-emerald-700"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-700 active:bg-emerald-50 active:text-emerald-700 md:h-7 md:w-7"
                         aria-label="Reçu de paiement"
                         title="Reçu de paiement"
                       >
@@ -238,7 +238,7 @@ export function PlatformSubscriptionsWorkspace({
                         <PlatformButton
                           tone="danger"
                           disabled={pending}
-                          className="!px-2 !py-1 !text-[10px]"
+                          className="h-9 !px-2.5 !py-1.5 !text-[11px] md:h-7 md:!px-2 md:!py-1 md:!text-[10px]"
                           onClick={() => {
                             const reason = window.prompt(
                               "Motif d’annulation (optionnel) :",
@@ -263,7 +263,7 @@ export function PlatformSubscriptionsWorkspace({
                       ) : (
                         <Link
                           href={`/platform/clients/${row.organizationId}`}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-emerald-50 hover:text-emerald-700"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-700 active:bg-emerald-50 active:text-emerald-700 md:h-7 md:w-7"
                           aria-label="Voir le client"
                         >
                           <ChevronRight className="h-4 w-4" />

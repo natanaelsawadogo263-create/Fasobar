@@ -5,6 +5,8 @@ import type {
 } from "react";
 import { Search } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
+
 export function formatPlatformDate(iso: string | null | undefined) {
   if (!iso) return "—";
   return new Intl.DateTimeFormat("fr-FR", {
@@ -351,15 +353,15 @@ export function PlatformButton({
 }) {
   const tones = {
     primary:
-      "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-600 disabled:bg-emerald-300",
+      "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-600 active:bg-emerald-800 disabled:bg-emerald-300",
     secondary:
-      "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50",
+      "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100 disabled:opacity-50",
     danger:
-      "border-red-200 bg-red-50 text-red-800 hover:bg-red-100 disabled:opacity-50",
+      "border-red-200 bg-red-50 text-red-800 hover:bg-red-100 active:bg-red-200 disabled:opacity-50",
     ghost:
-      "border-transparent bg-transparent text-slate-600 hover:bg-slate-100 disabled:opacity-50",
+      "border-transparent bg-transparent text-slate-600 hover:bg-slate-100 active:bg-slate-200 disabled:opacity-50",
     success:
-      "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 disabled:opacity-50",
+      "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 active:bg-emerald-200 disabled:opacity-50",
   } as const;
 
   return (
@@ -373,10 +375,7 @@ export function PlatformButton({
   );
 }
 
+/** Purely informational meta pill (never clickable) — a thin wrapper over the shared Badge. */
 export function PlatformMetaChip({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
-      {children}
-    </span>
-  );
+  return <Badge tone="neutral">{children}</Badge>;
 }

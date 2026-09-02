@@ -483,6 +483,7 @@ export function SupplyWorkspace({
               onClick={openCreateSupplier}
               disabled={isPending}
               title="Ajouter un fournisseur"
+              aria-label="Ajouter un fournisseur"
               className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px] font-semibold text-slate-700 active:bg-slate-50 disabled:opacity-60 sm:h-9 sm:px-3.5 sm:hover:bg-slate-50"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -1040,6 +1041,7 @@ export function SupplyWorkspace({
                             type="button"
                             onClick={() => openEditSupplier(supplier)}
                             title="Modifier"
+                            aria-label={`Modifier ${supplier.name}`}
                             className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition active:border-emerald-200 active:bg-emerald-50 active:text-emerald-800 sm:h-8 sm:w-8 sm:rounded-md sm:hover:border-emerald-200 sm:hover:bg-emerald-50 sm:hover:text-emerald-800"
                           >
                             <Pencil className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
@@ -1048,7 +1050,7 @@ export function SupplyWorkspace({
                             <button
                               type="button"
                               onClick={() => setDeactivateTarget(supplier)}
-                              className="inline-flex h-10 items-center rounded-lg px-2.5 text-[12px] font-medium text-slate-500 active:bg-slate-100 sm:h-8 sm:px-0 sm:text-[11px] sm:hover:text-slate-700"
+                              className="inline-flex h-10 items-center rounded-lg border border-slate-200 bg-white px-2.5 text-[12px] font-medium text-slate-600 transition active:bg-slate-50 sm:h-8 sm:border-0 sm:bg-transparent sm:px-0 sm:text-[11px] sm:text-slate-500 sm:hover:text-slate-700"
                             >
                               Désactiver
                             </button>
@@ -1057,7 +1059,7 @@ export function SupplyWorkspace({
                               type="button"
                               disabled={isPending}
                               onClick={() => handleReactivateSupplier(supplier)}
-                              className="inline-flex h-10 items-center rounded-lg px-2.5 text-[12px] font-medium text-emerald-700 active:bg-emerald-50 disabled:opacity-60 sm:h-8 sm:px-0 sm:text-[11px] sm:hover:underline"
+                              className="inline-flex h-10 items-center rounded-lg border border-emerald-200 bg-white px-2.5 text-[12px] font-medium text-emerald-700 transition active:bg-emerald-50 disabled:opacity-60 sm:h-8 sm:border-0 sm:bg-transparent sm:px-0 sm:text-[11px] sm:hover:underline"
                             >
                               Réactiver
                             </button>
@@ -1118,7 +1120,7 @@ export function SupplyWorkspace({
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="deactivate-supplier-title"
-            className="w-full max-w-md rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl"
+            className="app-scroll w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl max-h-[min(92dvh,480px)]"
             onClick={(event) => event.stopPropagation()}
           >
             <h2

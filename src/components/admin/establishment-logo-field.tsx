@@ -88,7 +88,7 @@ export function EstablishmentLogoField({
         </div>
 
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50">
+          <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50 active:bg-slate-100">
             <ImagePlus className="h-3.5 w-3.5" />
             {previewUrl && !removeLogo ? "Changer" : "Ajouter un logo"}
             <input
@@ -105,7 +105,7 @@ export function EstablishmentLogoField({
             <button
               type="button"
               onClick={handleRemove}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-red-700 hover:bg-red-50"
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-red-700 transition hover:bg-red-50 active:bg-red-100"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Retirer

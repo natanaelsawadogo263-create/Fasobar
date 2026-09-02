@@ -10,6 +10,7 @@ import {
   PlatformPage,
   formatPlatformDate,
 } from "@/components/platform/platform-ui";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import {
   addPlatformAdminAction,
@@ -115,37 +116,36 @@ export function PlatformAdminsWorkspace({
                   return (
                     <div
                       key={admin.id}
-                      className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-3 py-2.5 last:border-0 sm:px-4"
+                      className="border-b border-slate-100 px-3 py-3 last:border-0 sm:px-4 md:flex md:items-center md:gap-3 md:py-2.5"
                     >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium text-slate-900">
-                          {admin.fullName ?? "Sans nom"}
-                          {isSelf ? (
-                            <span className="ml-2 text-[10px] font-semibold uppercase text-emerald-700">
-                              Vous
-                            </span>
-                          ) : null}
-                        </p>
-                        <p className="truncate text-[12px] text-slate-500">
-                          {admin.email ?? "—"}
-                        </p>
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-medium text-slate-900">
+                            {admin.fullName ?? "Sans nom"}
+                            {isSelf ? (
+                              <span className="ml-2 text-[10px] font-semibold uppercase text-emerald-700">
+                                Vous
+                              </span>
+                            ) : null}
+                          </p>
+                          <p className="truncate text-[12px] text-slate-500">
+                            {admin.email ?? "—"}
+                          </p>
+                        </div>
+                        <Badge
+                          tone={admin.status === "ACTIVE" ? "emerald" : "neutral"}
+                          className="shrink-0"
+                        >
+                          {admin.status === "ACTIVE" ? "Actif" : "Inactif"}
+                        </Badge>
                       </div>
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${
-                          admin.status === "ACTIVE"
-                            ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
-                            : "bg-slate-100 text-slate-700 ring-slate-200"
-                        }`}
-                      >
-                        {admin.status === "ACTIVE" ? "Actif" : "Inactif"}
-                      </span>
-                      <span className="tabular-nums text-[11px] text-slate-400">
+                      <p className="mt-1 tabular-nums text-[11px] text-slate-400 md:mt-0 md:shrink-0">
                         {formatPlatformDate(admin.createdAt)}
-                      </span>
-                      <div className="flex gap-1">
+                      </p>
+                      <div className="mt-2.5 grid grid-cols-2 gap-2 md:mt-0 md:flex md:w-auto md:shrink-0 md:gap-1.5">
                         <PlatformButton
                           disabled={pending || isSelf}
-                          className="!px-2 !py-1 !text-[10px]"
+                          className="h-10 !text-[12px] md:h-8 md:!px-2.5 md:!py-1 md:!text-[11px]"
                           onClick={() => {
                             startTransition(async () => {
                               const next =
@@ -173,7 +173,7 @@ export function PlatformAdminsWorkspace({
                         <PlatformButton
                           tone="danger"
                           disabled={pending || isSelf}
-                          className="!px-2 !py-1 !text-[10px]"
+                          className="h-10 !text-[12px] md:h-8 md:!px-2.5 md:!py-1 md:!text-[11px]"
                           onClick={() => {
                             if (
                               !window.confirm(

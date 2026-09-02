@@ -21,6 +21,7 @@ import {
 } from "@/app/(protected)/application/stock/actions";
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
+import { ActionButton } from "@/components/ui/action-button";
 import { StockAdjustmentModal } from "@/components/stock/stock-adjustment-modal";
 import { StockEmptyState } from "@/components/stock/stock-empty-state";
 import { StockEntryModal } from "@/components/stock/stock-entry-modal";
@@ -756,32 +757,3 @@ function StatCard({
   );
 }
 
-type ActionButtonProps = {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  onClick: () => void;
-  compact?: boolean;
-};
-
-function ActionButton({
-  icon: Icon,
-  label,
-  onClick,
-  compact = false,
-}: ActionButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      className={`inline-flex items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800 ${
-        compact
-          ? "h-8 w-8"
-          : "h-8 gap-1 px-2 text-[11px] font-medium"
-      }`}
-    >
-      <Icon className="h-3.5 w-3.5" />
-      {!compact ? <span className="hidden xl:inline">{label}</span> : null}
-    </button>
-  );
-}

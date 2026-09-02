@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
   Banknote,
   BarChart3,
+  ChevronRight,
   CircleDollarSign,
   ClipboardList,
   DoorClosed,
@@ -227,11 +228,8 @@ export function AdminDashboardWorkspace({
           accent={kpis.stockAlertCount > 0 ? "border-l-orange-500" : "border-l-slate-300"}
           label="Alertes"
           value={String(kpis.stockAlertCount)}
-          sub={
-            <InstantLink href="/application/stock" className="font-medium text-emerald-700">
-              Voir le stock
-            </InstantLink>
-          }
+          sub={<span className="font-medium text-emerald-700">Voir le stock</span>}
+          href="/application/stock"
         />
       </div>
 
@@ -558,23 +556,48 @@ function MobileKpi({
   label,
   value,
   sub,
+  href,
 }: {
   accent: string;
   label: string;
   value: string;
   sub: ReactNode;
+  /** When set, the whole tile becomes a single tappable card — no buried nested link. */
+  href?: string;
 }) {
-  return (
-    <div
-      className={`w-[44%] min-w-[10rem] shrink-0 rounded-2xl border border-l-4 border-slate-200/90 bg-white px-3 py-3 shadow-sm ${accent}`}
-    >
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
+  const content = (
+    <>
+      <div className="flex items-start justify-between gap-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          {label}
+        </p>
+        {href ? (
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-emerald-600" strokeWidth={2.4} />
+        ) : null}
+      </div>
       <p className="mt-1 truncate text-[16px] font-bold tabular-nums text-slate-900">
         {value}
       </p>
       <div className="mt-0.5 text-[10px]">{sub}</div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <InstantLink
+        href={href}
+        className={`w-[44%] min-w-[10rem] shrink-0 rounded-2xl border border-l-4 border-slate-200/90 bg-white px-3 py-3 shadow-sm transition active:bg-slate-50 ${accent}`}
+      >
+        {content}
+      </InstantLink>
+    );
+  }
+
+  return (
+    <div
+      className={`w-[44%] min-w-[10rem] shrink-0 rounded-2xl border border-l-4 border-slate-200/90 bg-white px-3 py-3 shadow-sm ${accent}`}
+    >
+      {content}
     </div>
   );
 }

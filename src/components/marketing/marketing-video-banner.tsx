@@ -26,6 +26,11 @@ export function MarketingVideoBanner() {
     return () => window.clearInterval(id);
   }, []);
 
+  // This frame already carries its own headline, features and price baked
+  // into the picture — overlaying the usual title/paragraph on top of it
+  // makes the two texts collide. Fade that text block out while it's shown.
+  const isOfferFrame = FRAMES[active].includes("offre-kit");
+
   return (
     <section className="relative isolate w-full shrink-0 bg-[#07110e] text-white">
       <div className="relative min-h-[540px] w-full sm:min-h-[520px] lg:aspect-[21/9] lg:min-h-[460px]">
@@ -46,7 +51,12 @@ export function MarketingVideoBanner() {
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(7,17,14,0.78)_0%,rgba(7,17,14,0.35)_38%,transparent_65%)]" />
 
         <div className="relative z-10 flex h-full max-w-6xl flex-col justify-end gap-6 px-4 py-8 sm:px-6 sm:py-10 lg:mx-auto lg:flex-row lg:items-end lg:justify-between lg:gap-8">
-        <div className="max-w-md">
+        <div
+          aria-hidden={isOfferFrame}
+          className={`max-w-md transition-opacity duration-700 ease-out ${
+            isOfferFrame ? "pointer-events-none opacity-0" : "opacity-100"
+          }`}
+        >
           <FasoBarLogo size="lg" tone="dark" />
           <p className="mt-4 text-[12px] font-semibold uppercase tracking-[0.2em] text-amber-300">
             FasoBar · Tous commerces

@@ -325,7 +325,7 @@ export function AdminSettingsWorkspace({
               </div>
             </div>
           ) : migrationMissing ? (
-            <div className="flex flex-1 items-start gap-3 p-5">
+            <div className="app-scroll flex min-h-0 flex-1 items-start gap-3 overflow-y-auto p-5">
               <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
                 <AlertTriangle className="h-5 w-5" />
               </span>

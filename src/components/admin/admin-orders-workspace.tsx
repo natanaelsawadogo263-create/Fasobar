@@ -464,7 +464,13 @@ export function AdminOrdersWorkspace({
                         kitchenStatus={order.kitchenStatus}
                       />
                     </div>
-                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                    <div
+                      className={`mt-2.5 grid gap-2 ${
+                        order.receiptId || (canManageOrders && isCancellable(order))
+                          ? "grid-cols-2"
+                          : "grid-cols-1"
+                      }`}
+                    >
                       <Link
                         href={`/application/commandes/${order.id}`}
                         className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-[13px] font-semibold text-slate-800 active:bg-slate-100"
@@ -486,18 +492,14 @@ export function AdminOrdersWorkspace({
                         >
                           Annuler
                         </button>
-                      ) : (
-                        <span className="inline-flex h-11 items-center justify-center rounded-xl border border-dashed border-slate-200 text-[12px] text-slate-400">
-                          —
-                        </span>
-                      )}
+                      ) : null}
                     </div>
                     {order.receiptId &&
                     canManageOrders &&
                     isCancellable(order) ? (
                       <button
                         type="button"
-                        className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-xl border border-red-200 bg-red-50 text-[12px] font-semibold text-red-700 active:bg-red-100"
+                        className="mt-2 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-white text-[12px] font-semibold text-red-700 active:bg-red-50"
                         onClick={() => openCancelModal(order)}
                       >
                         Annuler la commande

@@ -714,16 +714,16 @@ export function ExpensesWorkspace({
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/45 p-0 sm:items-center sm:p-4">
           <form
             action={handleCancelAction}
-            className="w-full max-w-md rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+            className="flex max-h-[min(92dvh,560px)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
           >
-            <div className="border-b border-slate-100 px-5 py-4">
+            <div className="shrink-0 border-b border-slate-100 px-5 py-4">
               <h2 className="text-[16px] font-bold text-slate-900">Annuler la dépense</h2>
               <p className="mt-0.5 text-[12px] text-slate-500">
                 {selected.label} · {formatPriceXof(selected.amount)}. L&apos;historique est
                 conservé.
               </p>
             </div>
-            <div className="space-y-3 px-5 py-4">
+            <div className="app-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
               {formError ? <AlertMessage message={formError} /> : null}
               <input type="hidden" name="expenseId" value={selected.id} />
               <TextField
@@ -734,7 +734,7 @@ export function ExpensesWorkspace({
                 required
               />
             </div>
-            <div className="border-t border-slate-100 px-5 py-3">
+            <div className="shrink-0 border-t border-slate-100 px-5 py-3">
               <ModalFooter onCancel={() => setModal(null)} submitLabel="Confirmer l'annulation" />
             </div>
           </form>

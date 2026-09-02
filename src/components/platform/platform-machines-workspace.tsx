@@ -193,7 +193,7 @@ export function PlatformMachinesWorkspace({ machines, error = null }: Props) {
 
                     <Link
                       href={`/platform/clients/${row.organizationId}`}
-                      className="truncate text-slate-700 hover:text-emerald-700"
+                      className="truncate text-slate-700 underline decoration-slate-300 underline-offset-2 transition hover:text-emerald-700 hover:decoration-emerald-400 active:text-emerald-700"
                     >
                       {row.organizationName}
                     </Link>
@@ -213,7 +213,7 @@ export function PlatformMachinesWorkspace({ machines, error = null }: Props) {
                         <PlatformButton
                           tone="danger"
                           disabled={pending}
-                          className="!px-2 !py-1 !text-[10px]"
+                          className="h-9 !px-2.5 !py-1.5 !text-[11px] md:h-7 md:!px-2 md:!py-1 md:!text-[10px]"
                           onClick={() => {
                             const reason = window.prompt(
                               "Motif de révocation (optionnel) :",
@@ -238,7 +238,7 @@ export function PlatformMachinesWorkspace({ machines, error = null }: Props) {
                         <PlatformButton
                           tone="success"
                           disabled={pending}
-                          className="!px-2 !py-1 !text-[10px]"
+                          className="h-9 !px-2.5 !py-1.5 !text-[11px] md:h-7 md:!px-2 md:!py-1 md:!text-[10px]"
                           onClick={() => {
                             startTransition(async () => {
                               const result = await reactivateMachineAction({

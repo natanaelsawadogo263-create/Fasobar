@@ -23,6 +23,7 @@ import {
 } from "@/app/(protected)/application/produits/actions";
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { AlertMessage } from "@/components/auth/alert-message";
+import { ActionButton } from "@/components/ui/action-button";
 import { useToast } from "@/components/ui/toast";
 import {
   EXPAND_PANEL_CLASS,
@@ -823,22 +824,3 @@ function DepartmentBadge({
   );
 }
 
-type ActionButtonProps = {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  onClick: () => void;
-};
-
-function ActionButton({ icon: Icon, label, onClick }: ActionButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      className="inline-flex h-7 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-medium text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
-    >
-      <Icon className="h-3 w-3" />
-      <span className="hidden xl:inline">{label}</span>
-    </button>
-  );
-}
