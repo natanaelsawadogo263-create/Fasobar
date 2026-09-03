@@ -42,7 +42,37 @@ self.addEventListener("push", (event) => {
     data: { href: payload.href || "/" },
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    (async () => {
+      // Si un onglet FasoBar est déjà ouvert et visible au premier plan, la
+      // cloche in-app (Realtime) a déjà sonné pour cet événement — afficher
+      // en plus la notification système ferait sonner deux fois pour la même
+      // opération. On ne montre le push que si aucune fenêtre visible n'est
+      // là pour l'avoir déjà signalé (app fermée, en arrière-plan, écran
+      // verrouillé).
+      const clientsList = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      const hasVisibleClient = clientsList.some(
+        (client) => client.visibilityState === "visible",
+      );
+      if (hasVisibleClient) return;
+
+      await self.registration.showNotification(title, options);
+
+      // Pastille rouge sur l'icône de l'app (PWA installée sur l'écran
+      // d'accueil / le bureau uniquement — un simple onglet de navigateur ne
+      // peut pas l'afficher, c'est une limite du navigateur, pas de FasoBar).
+      if (self.navigator && "setAppBadge" in self.navigator) {
+        try {
+          await self.navigator.setAppBadge();
+        } catch {
+          // ignore
+        }
+      }
+    })(),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -51,6 +81,14 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     (async () => {
+      if (self.navigator && "clearAppBadge" in self.navigator) {
+        try {
+          await self.navigator.clearAppBadge();
+        } catch {
+          // ignore
+        }
+      }
+
       const clientsList = await self.clients.matchAll({
         type: "window",
         includeUncontrolled: true,
