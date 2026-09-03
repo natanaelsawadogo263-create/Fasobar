@@ -493,7 +493,7 @@ export function PlatformClientDetailView({
                         {identity.ownerProfileStatus !== "INACTIVE" ? (
                           <button
                             type="button"
-                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50"
+                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
                             onClick={() => openModal("deactivateOwner")}
                           >
                             Désactiver le compte
@@ -503,7 +503,7 @@ export function PlatformClientDetailView({
                         access.status !== "PENDING_DELETION" ? (
                           <button
                             type="button"
-                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50"
+                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
                             onClick={() => openModal("suspend")}
                           >
                             Suspendre SaaS
@@ -512,7 +512,7 @@ export function PlatformClientDetailView({
                         {access.status !== "PENDING_DELETION" ? (
                           <button
                             type="button"
-                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50"
+                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
                             onClick={() => openModal("delete")}
                           >
                             Planifier suppression
@@ -520,7 +520,7 @@ export function PlatformClientDetailView({
                         ) : (
                           <button
                             type="button"
-                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50"
+                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
                             onClick={() => openModal("purge")}
                           >
                             Supprimer définitivement

@@ -600,7 +600,7 @@ export function StockEntryModal({
                           key={key}
                           type="button"
                           onClick={() => setConversionFactor(String(preset.factor))}
-                          className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-100"
+                          className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 transition hover:bg-emerald-100 active:bg-emerald-200"
                         >
                           {preset.label}
                         </button>

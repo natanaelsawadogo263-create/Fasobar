@@ -135,7 +135,7 @@ export function PlatformSubscriptionsWorkspace({
                   className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
                     statusFilter === "ALL"
                       ? "bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 active:bg-slate-300"
                   }`}
                 >
                   Tous · {statusCounts.total}
@@ -155,7 +155,7 @@ export function PlatformSubscriptionsWorkspace({
                       className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
                         statusFilter === status
                           ? "bg-slate-900 text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200 active:bg-slate-300"
                       }`}
                     >
                       {PLATFORM_SUBSCRIPTION_STATUS_LABELS[status]} · {count}

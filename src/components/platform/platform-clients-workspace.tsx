@@ -173,7 +173,7 @@ export function PlatformClientsWorkspace({
                   className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
                     statusFilter === "ALL"
                       ? "bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 active:bg-slate-300"
                   }`}
                 >
                   Tous · {visibleInAllCount}
@@ -195,7 +195,7 @@ export function PlatformClientsWorkspace({
                       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
                         active
                           ? tone.active
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200 active:bg-slate-300"
                       }`}
                     >
                       <span

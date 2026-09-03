@@ -147,7 +147,7 @@ export function StockItemFormModal({
                           productId: "",
                         }))
                       }
-                      className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-orange-900 transition hover:bg-orange-100"
+                      className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-orange-900 transition hover:bg-orange-100 active:bg-orange-200"
                     >
                       {suggestion.name}
                     </button>

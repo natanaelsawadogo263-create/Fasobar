@@ -71,7 +71,8 @@
       "Bash(git rev-list *)",
       "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(Object.keys\\(p.scripts\\).join\\('\\\\n'\\)\\)\")",
       "Bash(git config *)",
-      "PowerShell(Get-Process -Name git -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-Process -Name git -ErrorAction SilentlyContinue)",
+      "Bash(git commit -m 'fix\\(mobile\\): add touch press feedback to remaining buttons *)"
     ],
     "additionalDirectories": [
       "c:\\projet-dev\\maquis-gestion\\src\\app\\(marketing)\\solutions"
