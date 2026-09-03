@@ -59,10 +59,19 @@ export function AdminNotificationsBell({
   const [isPending, startTransition] = useTransition();
   const panelRef = useRef<HTMLDivElement>(null);
   const live = useAdminNotificationsLive(establishmentId);
+  // Notifications déjà lues (sessions précédentes) : on ne les réaffiche
+  // plus dans la liste. Celles qu'on vient tout juste de lire en ouvrant la
+  // cloche restent visibles le temps de cette ouverture (pour qu'on puisse
+  // encore les consulter/cliquer), puis disparaissent à la fermeture.
+  const justReadIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     live.setOpen(open);
   }, [open, live.setOpen]);
+
+  useEffect(() => {
+    if (!open) justReadIdsRef.current = new Set();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -83,14 +92,26 @@ export function AdminNotificationsBell({
     // plus jouer de son lui-même.
     live.unlock();
     const next = !open;
-    setOpen(next);
-    if (next && live.unreadCount > 0) {
-      live.markAllReadLocal();
-      startTransition(async () => {
-        await markAdminNotificationsReadAction();
-      });
+    if (next) {
+      // Ce qui est encore non lu à l'instant de l'ouverture reste affiché
+      // pendant cette consultation, même une fois marqué comme lu juste
+      // en dessous.
+      justReadIdsRef.current = new Set(
+        live.items.filter((item) => !item.read).map((item) => item.id),
+      );
+      if (live.unreadCount > 0) {
+        live.markAllReadLocal();
+        startTransition(async () => {
+          await markAdminNotificationsReadAction();
+        });
+      }
     }
+    setOpen(next);
   }
+
+  const visibleItems = live.items.filter(
+    (item) => !item.read || justReadIdsRef.current.has(item.id),
+  );
 
   return (
     <div className="relative" ref={panelRef}>
@@ -130,13 +151,13 @@ export function AdminNotificationsBell({
           </div>
 
           <div className="max-h-[22rem] overflow-y-auto">
-            {live.items.length === 0 ? (
+            {visibleItems.length === 0 ? (
               <p className="px-4 py-8 text-center text-[13px] text-slate-500">
                 Aucune notification pour le moment.
               </p>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {live.items.map((item) => {
+                {visibleItems.map((item) => {
                   const Icon = kindIcon(item.kind);
                   const content = (
                     <>
