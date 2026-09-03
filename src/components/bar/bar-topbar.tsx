@@ -3,12 +3,15 @@
 import { InstantLink as Link } from "@/components/layout/instant-link";
 import { Circle, Home, UserRound } from "lucide-react";
 
+import { AdminNotificationsBell } from "@/components/admin/admin-notifications-bell";
+import { EnablePushButton } from "@/components/notifications/enable-push-button";
 import { signOutAction } from "@/lib/auth/actions";
 import { FullscreenButton } from "@/components/ui/fullscreen-button";
 import { LiveClock } from "@/components/ui/live-clock";
 
 type BarTopbarProps = {
   establishmentName: string;
+  establishmentId?: string;
   managerName?: string;
   hasOwnSession?: boolean;
   sessionOpenedAt?: string;
@@ -17,6 +20,7 @@ type BarTopbarProps = {
 
 export function BarTopbar({
   establishmentName,
+  establishmentId,
   managerName = "Responsable Bar",
   hasOwnSession = false,
   sessionOpenedAt,
@@ -77,6 +81,12 @@ export function BarTopbar({
           )}
         </span>
       </Link>
+
+      <EnablePushButton />
+
+      {establishmentId ? (
+        <AdminNotificationsBell establishmentId={establishmentId} />
+      ) : null}
 
       <div className="hidden lg:block">
         <LiveClock />

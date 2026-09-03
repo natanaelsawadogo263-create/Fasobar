@@ -76,7 +76,14 @@
       "Bash(git remote *)",
       "Bash(cmdkey /list)",
       "Bash(gh auth *)",
-      "Read(//c/Users/HP745G6/**)"
+      "Read(//c/Users/HP745G6/**)",
+      "Bash(node -e \"console.log\\(require.resolve\\('web-push/package.json'\\)\\)\")",
+      "Bash(node -e \"console.log\\('CRON_SECRET=' + require\\('crypto'\\).randomBytes\\(32\\).toString\\('hex'\\)\\)\")",
+      "Bash(vercel whoami *)",
+      "Bash(vercel project *)",
+      "Bash(command -v supabase)",
+      "Bash(supabase --version)",
+      "Bash(supabase projects *)"
     ],
     "additionalDirectories": [
       "c:\\projet-dev\\maquis-gestion\\src\\app\\(marketing)\\solutions"

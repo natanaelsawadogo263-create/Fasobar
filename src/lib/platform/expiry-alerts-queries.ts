@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cache } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -61,11 +62,15 @@ async function fetchOwnerEmails(userIds: string[]): Promise<Map<string, string>>
  * Alertes super admin : essais / abonnements qui expirent dans ≤ warningDays
  * (défaut 7 j, issu de platform_settings).
  * Cache React : 1 seule exécution par requête (layout + dashboard).
+ *
+ * `client` optionnel : par défaut le client lié à la session cookie (RLS
+ * "je suis un Super Admin actif"). Le job de dispatch push (cron, sans
+ * session navigateur) passe le client service role à la place.
  */
 export const listPlatformExpiryAlerts = cache(
-  async (): Promise<PlatformExpiryAlertsResult> => {
+  async (client?: SupabaseClient): Promise<PlatformExpiryAlertsResult> => {
   try {
-    const supabase = await createClient();
+    const supabase = client ?? (await createClient());
     const now = new Date();
 
     const [

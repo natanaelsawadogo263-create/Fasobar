@@ -7,6 +7,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, LayoutDashboard, LogOut } fro
 
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
 import { LiveClock } from "@/components/ui/live-clock";
+import { EnablePushButton } from "@/components/notifications/enable-push-button";
 import { PLATFORM_NAV_ICONS } from "@/components/platform/platform-sidebar";
 import { PlatformExpiryAlertsBell } from "@/components/platform/platform-expiry-alerts-bell";
 import { signOutAction } from "@/lib/auth/actions";
@@ -150,6 +151,8 @@ export function PlatformTopbar({
               </span>
             </Link>
           ) : null}
+
+          <EnablePushButton />
 
           <PlatformExpiryAlertsBell
             alerts={expiryAlerts}

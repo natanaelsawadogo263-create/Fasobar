@@ -4,6 +4,7 @@ import { Building2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 import { AdminNotificationsBell } from "@/components/admin/admin-notifications-bell";
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
+import { EnablePushButton } from "@/components/notifications/enable-push-button";
 import { signOutAction } from "@/lib/auth/actions";
 import { FullscreenButton } from "@/components/ui/fullscreen-button";
 import { LiveClock } from "@/components/ui/live-clock";
@@ -83,6 +84,8 @@ export function AdminTopbar({
       <div className="hidden md:block">
         <FullscreenButton />
       </div>
+
+      {showNotifications ? <EnablePushButton /> : null}
 
       {showNotifications ? (
         <AdminNotificationsBell establishmentId={establishmentId} />
