@@ -83,7 +83,8 @@
       "Bash(vercel project *)",
       "Bash(command -v supabase)",
       "Bash(supabase --version)",
-      "Bash(supabase projects *)"
+      "Bash(supabase projects *)",
+      "Bash(git commit *)"
     ],
     "additionalDirectories": [
       "c:\\projet-dev\\maquis-gestion\\src\\app\\(marketing)\\solutions"
