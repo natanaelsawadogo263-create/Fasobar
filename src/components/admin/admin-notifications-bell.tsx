@@ -115,7 +115,7 @@ export function AdminNotificationsBell({
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-50 mt-2 w-[min(100vw-1.5rem,22rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10">
+        <div className="fixed inset-x-3 top-[calc(3.5rem+0.5rem)] z-50 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10 md:absolute md:inset-x-auto md:top-auto md:right-0 md:mt-2 md:w-[min(100vw-1.5rem,22rem)]">
           <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5">
             <p className="text-[13px] font-semibold text-slate-900">
               Notifications

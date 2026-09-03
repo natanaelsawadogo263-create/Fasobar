@@ -97,7 +97,7 @@ export function PlatformExpiryAlertsBell({
       {open ? (
         <div
           id={panelId}
-          className="absolute right-0 z-50 mt-2 w-[min(100vw-1.5rem,24rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10"
+          className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+3.5rem+0.5rem)] z-50 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10 md:absolute md:inset-x-auto md:top-auto md:right-0 md:mt-2 md:w-[min(100vw-1.5rem,24rem)]"
         >
           <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5">
             <div>
