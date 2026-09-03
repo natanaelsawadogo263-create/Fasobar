@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/dispatch-push",
-      "schedule": "* * * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }
