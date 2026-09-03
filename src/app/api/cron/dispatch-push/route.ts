@@ -64,6 +64,11 @@ async function sendOne(
   }
 }
 
+// GET : appelé par le cron quotidien Vercel (filet de sécurité, échéances
+// Super Admin incluses). POST : appelé instantanément par le Database
+// Webhook Supabase dès qu'une ligne est insérée dans admin_notifications —
+// même logique dans les deux cas (elle retraite tout ce qui est en attente,
+// peu importe ce qui a déclenché l'appel).
 export async function GET(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -210,3 +215,5 @@ export async function GET(request: Request) {
     notificationsProcessed: pendingNotifs?.length ?? 0,
   });
 }
+
+export const POST = GET;
