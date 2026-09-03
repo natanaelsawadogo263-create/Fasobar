@@ -449,10 +449,24 @@ html {
   inset: 0;
   height: 100%;
   width: 100%;
-  object-fit: cover;
-  object-position: center center;
+  /* Sur mobile, le conteneur est très haut et étroit (portrait) alors que
+     ces visuels sont larges (3:2) — en "cover" ils sont massivement
+     recadrés sur les côtés, coupant le texte incrusté dans l'image (ex.
+     "KIT COMPLET"). En "contain" l'image entière reste visible, avec le
+     fond sombre du bandeau qui comble les bords. À partir de lg, le
+     conteneur redevient large (21:9, proche du 3:2 de l'image) donc
+     "cover" y reste adapté sans recadrage agressif. */
+  object-fit: contain;
+  object-position: center top;
   opacity: 0;
   transition: opacity 0.9s ease;
+}
+
+@media (min-width: 1024px) {
+  .fb-banner-frame {
+    object-fit: cover;
+    object-position: center center;
+  }
 }
 
 .fb-banner-frame.is-active {
