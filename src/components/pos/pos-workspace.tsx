@@ -377,6 +377,12 @@ export function PosWorkspace({
     return sorted;
   }, [liveProducts, serviceScope]);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // Verrou synchrone anti double-soumission : `isPending` (useTransition) ne
+  // repasse pas forcément à `true` avant le prochain tap sur un appareil lent
+  // ou un réseau très faible — sans ce verrou, deux/trois taps rapprochés
+  // pouvaient déclencher autant d'appels serveur (donc autant de commandes
+  // "Nouvelle commande #…" en double dans les notifications admin).
+  const submitLockRef = useRef(false);
   const [isPending, startTransition] = useTransition();
   const [isOpening, startOpenTransition] = useTransition();
   const [isResolvingSale, startSaleResolve] = useTransition();
@@ -821,6 +827,9 @@ export function PosWorkspace({
       return;
     }
 
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+
     const snapshot = cart;
     const snapshotType = orderType;
     const formData = buildFormData(targetStatus);
@@ -880,6 +889,8 @@ export function PosWorkspace({
             : "Impossible d'enregistrer la commande. Réessayez.",
           "error",
         );
+      } finally {
+        submitLockRef.current = false;
       }
     });
   }
@@ -968,6 +979,8 @@ export function PosWorkspace({
 
   function handleConfirmCheckout(amountReceived: number) {
     if (!checkoutDraft) return;
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
 
     startTransition(async () => {
       setCheckoutError(null);
@@ -1018,6 +1031,8 @@ export function PosWorkspace({
         });
       } catch (error) {
         setCheckoutError("L’encaissement n’a pas abouti. Réessayez.");
+      } finally {
+        submitLockRef.current = false;
       }
     });
   }
