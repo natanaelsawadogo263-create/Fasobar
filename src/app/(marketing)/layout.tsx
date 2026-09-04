@@ -22,7 +22,8 @@ const ORGANIZATION_JSON_LD = {
   url: SITE_URL,
   logo: `${SITE_URL}/brand/fasobar-icon-512.png`,
   description:
-    "FasoBar est un logiciel de gestion pour commerces et établissements : caisse, stock, produits, approvisionnements, équipe et rapports.",
+    "FasoBar est l’application de gestion de stock et de caisse pour les commerces et établissements du Burkina Faso : produits, approvisionnements, équipe et rapports.",
+  areaServed: "BF",
   contactPoint: [
     {
       "@type": "ContactPoint",

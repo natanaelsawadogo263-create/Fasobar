@@ -62,9 +62,9 @@ export function MarketingVideoBanner() {
             FasoBar · Tous commerces
           </p>
           <h1 className="mt-2 text-[28px] font-semibold leading-[1.12] tracking-tight sm:text-[40px] lg:text-[44px]">
-            Le logiciel de gestion de votre commerce.
+            L’application de gestion de stock et de caisse
             <span className="block text-emerald-300">
-              Stock, caisse et ventes, un seul outil.
+              pour votre commerce au Burkina Faso.
             </span>
           </h1>
           <p className="mt-3 max-w-sm text-[14px] leading-relaxed text-slate-200/85 sm:text-[15px]">

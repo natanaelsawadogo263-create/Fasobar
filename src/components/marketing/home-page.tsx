@@ -75,7 +75,14 @@ export function MarketingHomePage() {
             Ce que vous pilotez.
           </h2>
           <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-slate-600">
-            L’essentiel du quotidien, sans pages inutiles.
+            L’essentiel du quotidien, sans pages inutiles — dont la{" "}
+            <Link
+              href="/gestion-de-stock-burkina-faso"
+              className="font-medium text-emerald-700 hover:underline"
+            >
+              gestion de stock
+            </Link>
+            .
           </p>
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {MARKETING_FEATURES.map((feature, index) => {

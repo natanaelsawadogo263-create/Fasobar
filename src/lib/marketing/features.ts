@@ -5,7 +5,7 @@ export const MARKETING_FEATURES = [
     body: "Encaissez sur caisse tactile, imprimez le ticket ou le reçu, clôturez la session.",
   },
   {
-    title: "Stock",
+    title: "Gestion de stock",
     body: "Quantités, seuils et ruptures, visibles en temps réel.",
   },
   {

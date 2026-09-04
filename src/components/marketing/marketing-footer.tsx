@@ -12,8 +12,8 @@ export function MarketingFooter() {
         <div>
           <FasoBarLogo size="sm" tone="dark" />
           <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-emerald-100/70">
-            Logiciel de gestion pour commerces et établissements — caisse,
-            stock, produits et rapports, dans un seul outil.
+            Application de gestion de stock et de caisse pour les commerces
+            du Burkina Faso — produits et rapports, dans un seul outil.
           </p>
         </div>
 
@@ -23,6 +23,9 @@ export function MarketingFooter() {
           </p>
           <div className="mt-3 flex flex-col gap-2 text-[13px]">
             <FooterLink href="/fonctionnalites">Fonctionnalités</FooterLink>
+            <FooterLink href="/gestion-de-stock-burkina-faso">
+              Gestion de stock
+            </FooterLink>
             <FooterLink href="/tarifs">Tarifs</FooterLink>
             <FooterLink href="/telecharger">Télécharger</FooterLink>
           </div>

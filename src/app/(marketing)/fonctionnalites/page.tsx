@@ -15,9 +15,9 @@ import { buildPageMetadata } from "@/lib/marketing/seo";
 
 export const metadata: Metadata = buildPageMetadata({
   path: "/fonctionnalites",
-  title: "Fonctionnalités",
+  title: "Fonctionnalités de gestion de stock et de caisse",
   description:
-    "Caisse, stock, produits, approvisionnements, équipe et rapports : ce que FasoBar gère réellement pour votre commerce.",
+    "Gestion de stock, caisse, produits, approvisionnements, équipe et rapports : ce que l’application FasoBar gère réellement pour votre commerce au Burkina Faso.",
 });
 
 const FEATURES = [
@@ -28,7 +28,7 @@ const FEATURES = [
   },
   {
     icon: Package,
-    title: "Stock",
+    title: "Gestion de stock",
     body: "Quantités, seuils d’alerte et ruptures, visibles en temps réel. Le stock se met à jour à chaque vente et à chaque réception.",
   },
   {
@@ -63,8 +63,8 @@ export default function FonctionnalitesPage() {
     <>
       <PageHero
         kicker="Fonctionnalités"
-        title="Ce que FasoBar gère pour votre commerce"
-        subtitle="Un seul outil pour la caisse, le stock, les produits et l’équipe — sans pages inutiles. Chaque fonctionnalité listée ici est réellement présente dans FasoBar."
+        title="La gestion de stock et de caisse pour votre commerce"
+        subtitle="Un seul outil pour la gestion de stock, la caisse, les produits et l’équipe — sans pages inutiles. Chaque fonctionnalité listée ici est réellement présente dans FasoBar."
       />
 
       <section className="bg-white py-14 sm:py-20">
@@ -89,7 +89,14 @@ export default function FonctionnalitesPage() {
           </div>
 
           <p className="mt-10 text-[13px] text-slate-500">
-            Votre activité a ses propres habitudes ?{" "}
+            Tout savoir sur la{" "}
+            <Link
+              href="/gestion-de-stock-burkina-faso"
+              className="font-medium text-emerald-700 hover:underline"
+            >
+              gestion de stock avec FasoBar
+            </Link>
+            , ou votre activité a ses propres habitudes ?{" "}
             <Link
               href="/solutions"
               className="font-medium text-emerald-700 hover:underline"

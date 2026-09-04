@@ -22,6 +22,21 @@ export default function SolutionsPage() {
         subtitle="Le socle est le même — caisse, stock, produits, approvisionnements, équipe et rapports — mais chaque secteur a ses propres habitudes. Choisissez le vôtre."
       />
 
+      <section className="bg-white py-8">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <p className="text-[13px] text-slate-500">
+            Envie de creuser un point précis ?{" "}
+            <Link
+              href="/gestion-de-stock-burkina-faso"
+              className="font-medium text-emerald-700 hover:underline"
+            >
+              Voir la gestion de stock avec FasoBar
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
       <section className="bg-white py-14 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="grid gap-4 sm:grid-cols-2">

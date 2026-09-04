@@ -19,7 +19,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = buildPageMetadata({
   path: "/",
   description:
-    "FasoBar est un logiciel de gestion pour commerces et établissements : caisse, stock, produits, approvisionnements, équipe et rapports. Pensé pour les commerçants du Burkina Faso et d’Afrique.",
+    "FasoBar est l’application de gestion de stock, caisse et ventes pour les commerces du Burkina Faso : produits, approvisionnements, équipe et rapports. Pensée pour les commerçants du Burkina Faso et d’Afrique.",
 });
 
 const ORGANIZATION_JSON_LD = {
@@ -29,7 +29,8 @@ const ORGANIZATION_JSON_LD = {
   url: SITE_URL,
   logo: `${SITE_URL}/brand/fasobar-icon-512.png`,
   description:
-    "FasoBar est un logiciel de gestion pour commerces et établissements : caisse, stock, produits, approvisionnements, équipe et rapports.",
+    "FasoBar est l’application de gestion de stock et de caisse pour les commerces et établissements du Burkina Faso : produits, approvisionnements, équipe et rapports.",
+  areaServed: "BF",
   contactPoint: [
     {
       "@type": "ContactPoint",
@@ -56,7 +57,8 @@ const SOFTWARE_APPLICATION_JSON_LD = {
   operatingSystem: "Web, Windows",
   url: SITE_URL,
   description:
-    "Logiciel de gestion pour commerces et établissements : caisse, stock, produits, approvisionnements, équipe et rapports.",
+    "Application de gestion de stock, de caisse et de ventes pour les commerces et établissements du Burkina Faso : produits, approvisionnements, équipe et rapports.",
+  areaServed: "BF",
 };
 
 type HomePageProps = {
