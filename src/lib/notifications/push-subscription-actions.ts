@@ -2,6 +2,10 @@
 
 import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  isAllowedPushEndpoint,
+  isValidPushKey,
+} from "@/lib/notifications/push-endpoint";
 
 export type PushSubscriptionInput = {
   endpoint: string;
@@ -30,7 +34,14 @@ export async function savePushSubscriptionAction(
   const endpoint = input.endpoint?.trim();
   const p256dh = input.keys?.p256dh?.trim();
   const auth = input.keys?.auth?.trim();
-  if (!endpoint || !p256dh || !auth) {
+  if (
+    !endpoint ||
+    !p256dh ||
+    !auth ||
+    !isAllowedPushEndpoint(endpoint) ||
+    !isValidPushKey(p256dh) ||
+    !isValidPushKey(auth)
+  ) {
     return { ok: false, error: "Abonnement push invalide." };
   }
 

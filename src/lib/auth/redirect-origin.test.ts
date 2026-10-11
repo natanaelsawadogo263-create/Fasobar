@@ -61,5 +61,7 @@ describe("sanitizeAuthNextPath", () => {
   it("refuse les open redirects", () => {
     expect(sanitizeAuthNextPath("//evil.test")).toBe("/application");
     expect(sanitizeAuthNextPath("https://evil.test")).toBe("/application");
+    expect(sanitizeAuthNextPath("/\\evil.test")).toBe("/application");
+    expect(sanitizeAuthNextPath("/\tevil")).toBe("/application");
   });
 });

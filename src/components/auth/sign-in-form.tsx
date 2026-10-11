@@ -18,12 +18,14 @@ type SignInFormProps = {
   initialCloudReachable?: boolean | null;
   /** Erreur affichée avant toute tentative de connexion (ex. lien e-mail invalide). */
   authError?: string | null;
+  authNotice?: string | null;
 };
 
 export function SignInForm({
   desktopMode = false,
   initialCloudReachable = null,
   authError = null,
+  authNotice = null,
 }: SignInFormProps) {
   const [state, formAction] = useActionState(signInAction, initialState);
   const [cloudReachable, setCloudReachable] = useState(initialCloudReachable);
@@ -86,6 +88,7 @@ export function SignInForm({
 
         <form action={formAction} className="mt-5 space-y-3">
           {authError ? <AlertMessage message={authError} /> : null}
+          {authNotice ? <AlertMessage message={authNotice} tone="success" /> : null}
           {state.error ? <AlertMessage message={state.error} /> : null}
 
           <FormField

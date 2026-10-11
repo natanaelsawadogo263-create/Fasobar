@@ -96,6 +96,13 @@ export async function GET(request: NextRequest) {
     }
 
     console.error("[auth/callback:exchangeCode]", error.code, error.message);
+
+    // Lien de confirmation d'inscription ouvert sur un autre appareil /
+    // navigateur : Supabase a déjà confirmé l'adresse avant la redirection,
+    // seul l'échange de session échoue. On invite à se connecter.
+    if (searchParams.get("flow") === "signup") {
+      return buildRedirect(request, "/connexion?confirmed=1");
+    }
   }
 
   return buildRedirect(request, "/?error=auth");

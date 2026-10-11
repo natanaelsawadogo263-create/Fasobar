@@ -27,7 +27,15 @@ export function sanitizeAuthNextPath(
   nextPath: string | null | undefined,
   fallback = "/application",
 ): string {
-  if (!nextPath || !nextPath.startsWith("/") || nextPath.startsWith("//")) {
+  if (
+    !nextPath ||
+    !nextPath.startsWith("/") ||
+    nextPath.startsWith("//") ||
+    // Les navigateurs traitent `\` comme `/` : `/\evil.com` = `//evil.com`.
+    nextPath.includes("\\") ||
+    // Caractères de contrôle (tab, retour ligne…) ignorés par les navigateurs.
+    /[\u0000-\u001f\u007f]/.test(nextPath)
+  ) {
     return fallback;
   }
   return nextPath;

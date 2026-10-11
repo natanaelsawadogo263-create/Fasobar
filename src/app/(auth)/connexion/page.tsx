@@ -5,7 +5,7 @@ import { ConnexionScreen } from "@/components/auth/connexion-screen";
 import { redirectIfAuthenticated } from "@/lib/auth/session";
 
 type ConnexionPageProps = {
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; confirmed?: string }>;
 };
 
 export default async function ConnexionPage({ searchParams }: ConnexionPageProps) {
@@ -22,5 +22,10 @@ export default async function ConnexionPage({ searchParams }: ConnexionPageProps
       ? "Le lien de réinitialisation est invalide ou a expiré. Demandez un nouveau lien."
       : null;
 
-  return <ConnexionScreen authError={authError} />;
+  const authNotice =
+    params?.confirmed === "1"
+      ? "Adresse e-mail confirmée. Vous pouvez maintenant vous connecter."
+      : null;
+
+  return <ConnexionScreen authError={authError} authNotice={authNotice} />;
 }

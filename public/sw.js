@@ -77,7 +77,17 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const href = (event.notification.data && event.notification.data.href) || "/";
+  const rawHref = (event.notification.data && event.notification.data.href) || "/";
+  // Uniquement des chemins internes à l'app (jamais un site externe).
+  let href = "/";
+  try {
+    const target = new URL(rawHref, self.location.origin);
+    if (target.origin === self.location.origin) {
+      href = target.pathname + target.search + target.hash;
+    }
+  } catch {
+    href = "/";
+  }
 
   event.waitUntil(
     (async () => {

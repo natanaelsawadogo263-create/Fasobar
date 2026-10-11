@@ -1,10 +1,13 @@
 import "server-only";
 
+import { createHash, timingSafeEqual } from "node:crypto";
+
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 
 import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase/admin";
 import { listPlatformExpiryAlerts } from "@/lib/platform/expiry-alerts-queries";
+import { isAllowedPushEndpoint } from "@/lib/notifications/push-endpoint";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +31,11 @@ type AdminNotificationRow = {
 function isAuthorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
-  return request.headers.get("authorization") === `Bearer ${secret}`;
+  const provided = request.headers.get("authorization") ?? "";
+  // Comparaison à temps constant (hash pour égaliser les longueurs).
+  const expectedHash = createHash("sha256").update(`Bearer ${secret}`).digest();
+  const providedHash = createHash("sha256").update(provided).digest();
+  return timingSafeEqual(expectedHash, providedHash);
 }
 
 function vapidConfigured(): boolean {
@@ -42,6 +49,10 @@ async function sendOne(
   sub: PushSubscriptionRow,
   payload: { title: string; body: string; href: string; tag: string },
 ): Promise<boolean> {
+  // Ligne invalide (ex. URL interne) : ne jamais l'appeler, la supprimer.
+  if (!isAllowedPushEndpoint(sub.endpoint)) {
+    return false;
+  }
   try {
     await webpush.sendNotification(
       {
@@ -49,6 +60,7 @@ async function sendOne(
         keys: { p256dh: sub.p256dh, auth: sub.auth },
       },
       JSON.stringify(payload),
+      { timeout: 10_000 },
     );
     return true;
   } catch (error) {
