@@ -140,6 +140,9 @@ export async function listDeliveryOrders(
     statuses?: DeliveryOrderStatus[];
     courierId?: string;
     limit?: number;
+    /** Livrées à partir de cette date (ISO) — historique. */
+    deliveredSince?: string;
+    orderBy?: "created_at" | "delivered_at";
   } = {},
 ): Promise<DeliveryOrder[]> {
   const supabase = await createClient();
@@ -148,7 +151,7 @@ export async function listDeliveryOrders(
     .from("delivery_orders")
     .select(ORDER_SELECT)
     .eq("establishment_id", workspace.establishmentId)
-    .order("created_at", { ascending: false })
+    .order(options.orderBy ?? "created_at", { ascending: false })
     .limit(options.limit ?? 100);
 
   if (options.statuses?.length) {
@@ -156,6 +159,9 @@ export async function listDeliveryOrders(
   }
   if (options.courierId) {
     query = query.eq("courier_id", options.courierId);
+  }
+  if (options.deliveredSince) {
+    query = query.gte("delivered_at", options.deliveredSince);
   }
 
   const { data, error } = await query;

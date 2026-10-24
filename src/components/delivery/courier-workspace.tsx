@@ -26,6 +26,7 @@ import {
   completeDeliveryOrderAction,
   releaseDeliveryOrderAction,
 } from "@/app/(protected)/application/livreur/actions";
+import { CourierHistory } from "@/components/delivery/courier-history";
 import { CourierOrderCard, type StockShortage } from "@/components/delivery/courier-order-card";
 import { Badge } from "@/components/ui/badge";
 import { ModalFooter } from "@/components/ui/modal-footer";
@@ -36,6 +37,7 @@ import {
   COURIER_MOVEMENT_LABELS,
   formatDeliveryOrderNumber,
   formatDeliveryQuantity,
+  type CourierHistoryPeriodId,
 } from "@/lib/delivery/constants";
 import type {
   CourierMovement,
@@ -52,11 +54,15 @@ type CourierWorkspaceProps = {
   availableOrders: DeliveryOrder[];
   myOrders: DeliveryOrder[];
   deliveredToday: DeliveryOrder[];
+  history: DeliveryOrder[];
+  historyPeriod: CourierHistoryPeriodId;
+  historyLimitReached: boolean;
+  initialTab?: Tab;
   stock: CourierStockLine[];
   movements: CourierMovement[];
 };
 
-type Tab = "available" | "mine" | "delivered" | "stock";
+type Tab = "available" | "mine" | "history" | "stock";
 
 type ActionResult = { success?: string; error?: string };
 
@@ -100,11 +106,6 @@ function elapsedSince(iso: string | null, now: number | null, prefix: string): s
   return `${prefix} il y a ${hours} h${rest > 0 ? ` ${String(rest).padStart(2, "0")}` : ""}`;
 }
 
-function formatTimeFr(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-
 function firstName(fullName: string): string {
   return fullName.trim().split(/\s+/)[0] || fullName;
 }
@@ -115,6 +116,10 @@ export function CourierWorkspace({
   availableOrders,
   myOrders,
   deliveredToday,
+  history,
+  historyPeriod,
+  historyLimitReached,
+  initialTab,
   stock,
   movements,
 }: CourierWorkspaceProps) {
@@ -123,7 +128,9 @@ export function CourierWorkspace({
   const now = useNow();
   const [isPending, startTransition] = useTransition();
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>(myOrders.length > 0 ? "mine" : "available");
+  const [tab, setTab] = useState<Tab>(
+    initialTab ?? (myOrders.length > 0 ? "mine" : "available"),
+  );
   const [confirm, setConfirm] = useState<PendingConfirm | null>(null);
 
   const deliveredTodayValue = deliveredToday.reduce((sum, order) => sum + order.totalAmount, 0);
@@ -188,7 +195,7 @@ export function CourierWorkspace({
   const tabs: Array<{ id: Tab; label: string; count: number }> = [
     { id: "available", label: "À prendre", count: availableOrders.length },
     { id: "mine", label: "En cours", count: myOrders.length },
-    { id: "delivered", label: "Livrées", count: deliveredToday.length },
+    { id: "history", label: "Historique", count: history.length },
     { id: "stock", label: "Mon stock", count: stock.length },
   ];
 
@@ -359,48 +366,13 @@ export function CourierWorkspace({
           </Section>
         ) : null}
 
-        {tab === "delivered" ? (
-          <Section title="Livrées aujourd’hui" description="Récapitulatif de vos livraisons finalisées du jour.">
-            {deliveredToday.length === 0 ? (
-              <EmptyState
-                icon={CheckCircle2}
-                title="Aucune livraison finalisée aujourd’hui"
-                text="Vos livraisons confirmées apparaîtront ici avec le montant encaissé."
-              />
-            ) : (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <ul className="divide-y divide-slate-100">
-                  {deliveredToday.map((order) => (
-                    <li key={order.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="text-[14px] font-semibold text-slate-900">
-                          {formatDeliveryOrderNumber(order.orderNumber)}
-                          {order.customerName ? (
-                            <span className="font-normal text-slate-500"> · {order.customerName}</span>
-                          ) : null}
-                        </p>
-                        <p className="truncate text-[11px] text-slate-500">
-                          Livrée à {formatTimeFr(order.deliveredAt)}
-                          {order.deliveryAddress ? ` · ${order.deliveryAddress}` : ""}
-                        </p>
-                      </div>
-                      <p className="shrink-0 text-[14px] font-bold tabular-nums text-slate-900">
-                        {formatPriceXof(order.totalAmount)}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3 text-[13px]">
-                  <span className="font-semibold text-slate-600">
-                    Total · {deliveredToday.length} livraison{deliveredToday.length > 1 ? "s" : ""}
-                  </span>
-                  <span className="text-[15px] font-bold tabular-nums text-emerald-700">
-                    {formatPriceXof(deliveredTodayValue)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </Section>
+        {tab === "history" ? (
+          <CourierHistory
+            history={history}
+            period={historyPeriod}
+            limitReached={historyLimitReached}
+            now={now}
+          />
         ) : null}
 
         {tab === "stock" ? (

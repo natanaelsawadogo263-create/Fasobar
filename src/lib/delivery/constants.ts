@@ -39,3 +39,32 @@ export const DELIVERY_PATHS = [
   "/application/livreur",
   "/application/livreurs",
 ] as const;
+
+/** Historique des livraisons du livreur : périodes proposées (jours, aujourd'hui inclus). */
+export const COURIER_HISTORY_PERIODS = [
+  { id: "aujourdhui", label: "Aujourd’hui", days: 1 },
+  { id: "7j", label: "7 jours", days: 7 },
+  { id: "30j", label: "30 jours", days: 30 },
+  { id: "90j", label: "90 jours", days: 90 },
+] as const;
+
+export type CourierHistoryPeriodId = (typeof COURIER_HISTORY_PERIODS)[number]["id"];
+
+export const DEFAULT_COURIER_HISTORY_PERIOD: CourierHistoryPeriodId = "7j";
+
+/** Nombre maximal de livraisons chargées dans l'historique. */
+export const COURIER_HISTORY_LIMIT = 500;
+
+export function parseCourierHistoryPeriod(value: unknown): CourierHistoryPeriodId {
+  const match = COURIER_HISTORY_PERIODS.find((period) => period.id === value);
+  return match?.id ?? DEFAULT_COURIER_HISTORY_PERIOD;
+}
+
+/** Début (minuit local) de la période : aujourd'hui puis les jours précédents. */
+export function courierHistoryStart(periodId: CourierHistoryPeriodId, now: Date = new Date()): Date {
+  const period = COURIER_HISTORY_PERIODS.find((item) => item.id === periodId);
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - ((period?.days ?? 7) - 1));
+  return start;
+}

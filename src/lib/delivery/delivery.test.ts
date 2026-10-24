@@ -8,6 +8,7 @@ import {
   resolveUserSpace,
   roleToSpaceLabel,
 } from "@/lib/auth/roles";
+import { courierHistoryStart, parseCourierHistoryPeriod } from "@/lib/delivery/constants";
 import { createDeliveryOrderSchema, toRpcItems } from "@/lib/delivery/schemas";
 import { getNavigationForSpace, isPathAllowedForSpace } from "@/lib/navigation/space-navigation";
 import { createEmployeeAccountSchema } from "@/lib/users/schemas";
@@ -110,5 +111,20 @@ describe("formulaire de commande", () => {
     if (!parsed.success) return;
     expect(parsed.data.customerName).toBeUndefined();
     expect(toRpcItems(parsed.data.items)).toEqual([{ product_id: PRODUCT_ID, quantity: 2 }]);
+  });
+});
+
+describe("historique des livraisons du livreur", () => {
+  it("période inconnue ou absente → 7 jours par défaut", () => {
+    expect(parseCourierHistoryPeriod(undefined)).toBe("7j");
+    expect(parseCourierHistoryPeriod("n'importe quoi")).toBe("7j");
+    expect(parseCourierHistoryPeriod("30j")).toBe("30j");
+  });
+
+  it("le début de période inclut aujourd'hui, à minuit", () => {
+    const now = new Date(2026, 9, 25, 15, 30);
+    expect(courierHistoryStart("aujourdhui", now)).toEqual(new Date(2026, 9, 25, 0, 0, 0, 0));
+    expect(courierHistoryStart("7j", now)).toEqual(new Date(2026, 9, 19, 0, 0, 0, 0));
+    expect(courierHistoryStart("30j", now)).toEqual(new Date(2026, 8, 26, 0, 0, 0, 0));
   });
 });
