@@ -80,3 +80,10 @@ export type CourierMovement = {
   note: string | null;
   createdAt: string;
 };
+
+/** Livraisons finalisées d'une journée (date locale AAAA-MM-JJ). */
+export type DeliveryDailyTotal = {
+  date: string;
+  deliveries: number;
+  value: number;
+};

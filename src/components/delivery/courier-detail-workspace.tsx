@@ -9,6 +9,11 @@ import {
   type CourierStockOption,
 } from "@/components/delivery/courier-stock-modal";
 import { DeliveryOrderCard } from "@/components/delivery/delivery-order-card";
+import {
+  DeliveryDailyTable,
+  DeliveryPeriodFilter,
+  type DeliveryPeriodValue,
+} from "@/components/delivery/delivery-period-filter";
 import { Badge } from "@/components/ui/badge";
 import { useDeliveryOrdersLive } from "@/hooks/use-delivery-orders-live";
 import {
@@ -16,10 +21,12 @@ import {
   formatDeliveryOrderNumber,
   formatDeliveryQuantity,
 } from "@/lib/delivery/constants";
+import { deliveryPeriodSearch } from "@/lib/delivery/period";
 import type {
   CourierMovement,
   CourierStockLine,
   CourierSummary,
+  DeliveryDailyTotal,
   DeliveryOrder,
 } from "@/lib/delivery/types";
 import { formatPriceXof } from "@/lib/products/constants";
@@ -28,13 +35,15 @@ import { formatDateTimeFr } from "@/lib/sales/constants";
 type CourierDetailWorkspaceProps = {
   establishmentId: string;
   courier: CourierSummary;
+  daily: DeliveryDailyTotal[];
+  period: DeliveryPeriodValue;
   stock: CourierStockLine[];
   movements: CourierMovement[];
   orders: DeliveryOrder[];
   allocateOptions: CourierStockOption[];
 };
 
-type Tab = "stock" | "history" | "deliveries";
+type Tab = "daily" | "deliveries" | "history" | "stock";
 
 const MOVEMENT_TONES = {
   ALLOCATION: "emerald",
@@ -45,13 +54,15 @@ const MOVEMENT_TONES = {
 export function CourierDetailWorkspace({
   establishmentId,
   courier,
+  daily,
+  period,
   stock,
   movements,
   orders,
   allocateOptions,
 }: CourierDetailWorkspaceProps) {
   useDeliveryOrdersLive(establishmentId);
-  const [tab, setTab] = useState<Tab>("stock");
+  const [tab, setTab] = useState<Tab>("daily");
   const [modal, setModal] = useState<"allocate" | "return" | null>(null);
 
   const returnOptions: CourierStockOption[] = stock
@@ -63,16 +74,17 @@ export function CourierDetailWorkspace({
     .filter((option) => option.available > 0);
 
   const tabs: Array<{ id: Tab; label: string }> = [
+    { id: "daily", label: "Par jour" },
+    { id: "deliveries", label: `Livraisons (${orders.length})` },
+    { id: "history", label: "Mouvements" },
     { id: "stock", label: "Stock actuel" },
-    { id: "history", label: "Historique" },
-    { id: "deliveries", label: "Livraisons" },
   ];
 
   return (
     <div className="h-full min-h-0 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-3 py-3 sm:gap-5 sm:px-4 sm:py-4 lg:px-6 lg:py-5">
         <Link
-          href="/application/livreurs"
+          href={`/application/livreurs?${deliveryPeriodSearch(period)}`}
           className="inline-flex w-fit items-center gap-1 text-[13px] font-medium text-slate-600 hover:text-slate-900"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -110,23 +122,35 @@ export function CourierDetailWorkspace({
           </div>
         </header>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <DeliveryPeriodFilter period={period} basePath={`/application/livreurs/${courier.id}`} />
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
           {[
-            { label: "Total remis", value: formatDeliveryQuantity(courier.allocated) },
-            { label: "Total livré", value: formatDeliveryQuantity(courier.delivered) },
-            { label: "Total rendu", value: formatDeliveryQuantity(courier.returned) },
-            { label: "Doit lui rester", value: formatDeliveryQuantity(courier.inHand) },
             {
-              label: `${courier.deliveriesCount} livraison${courier.deliveriesCount > 1 ? "s" : ""}`,
+              label: "Chiffre d’affaires",
               value: formatPriceXof(courier.deliveredValue),
+              hint: "sur la période",
+              highlight: true,
             },
+            { label: "Livraisons effectuées", value: String(courier.deliveriesCount), hint: "sur la période" },
+            { label: "Articles remis", value: formatDeliveryQuantity(courier.allocated), hint: "sur la période" },
+            { label: "Articles livrés", value: formatDeliveryQuantity(courier.delivered), hint: "sur la période" },
+            { label: "Articles rendus", value: formatDeliveryQuantity(courier.returned), hint: "sur la période" },
+            { label: "Doit lui rester", value: formatDeliveryQuantity(courier.inHand), hint: "actuellement" },
           ].map((card) => (
             <div
               key={card.label}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm"
+              className={`rounded-xl border px-4 py-3.5 shadow-sm ${
+                card.highlight ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-white"
+              }`}
             >
               <p className="text-[11px] font-medium text-slate-500">{card.label}</p>
-              <p className="mt-1 text-[18px] font-bold text-slate-900">{card.value}</p>
+              <p
+                className={`mt-1 text-[18px] font-bold ${card.highlight ? "text-emerald-800" : "text-slate-900"}`}
+              >
+                {card.value}
+              </p>
+              <p className="text-[10px] text-slate-400">{card.hint}</p>
             </div>
           ))}
         </div>
@@ -145,6 +169,8 @@ export function CourierDetailWorkspace({
             </button>
           ))}
         </div>
+
+        {tab === "daily" ? <DeliveryDailyTable daily={daily} /> : null}
 
         {tab === "stock" ? (
           stock.length === 0 ? (
@@ -179,7 +205,7 @@ export function CourierDetailWorkspace({
 
         {tab === "history" ? (
           movements.length === 0 ? (
-            <Empty text="Aucun mouvement pour l’instant." />
+            <Empty text="Aucun mouvement sur cette période." />
           ) : (
             <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
               <table className="w-full min-w-[640px] text-[13px]">
@@ -232,7 +258,7 @@ export function CourierDetailWorkspace({
 
         {tab === "deliveries" ? (
           orders.length === 0 ? (
-            <Empty text="Aucune livraison pour l’instant." />
+            <Empty text="Aucune livraison sur cette période." />
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {orders.map((order) => (

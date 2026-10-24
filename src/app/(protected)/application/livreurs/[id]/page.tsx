@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 
 import { CourierDetailWorkspace } from "@/components/delivery/courier-detail-workspace";
 import { requireDeliveryManagerContext } from "@/lib/auth/workspace-context";
+import { resolveDeliveryPeriod } from "@/lib/delivery/period";
 import {
+  getCourierPeriodReport,
   getCourierStock,
   listCourierMovements,
-  listCourierSummaries,
   listDeliveryOrders,
   listDeliveryProducts,
 } from "@/lib/delivery/queries";
@@ -18,27 +19,37 @@ export const metadata: Metadata = {
 
 type LivreurDetailPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function LivreurDetailPage({ params }: LivreurDetailPageProps) {
+export default async function LivreurDetailPage({ params, searchParams }: LivreurDetailPageProps) {
   const { id } = await params;
   await requireCloudOnlineForDesktop(`/application/livreurs/${id}`);
   const workspace = await requireDeliveryManagerContext();
+  const period = resolveDeliveryPeriod(await searchParams);
 
   // Ne liste que les livreurs de l'établissement courant : un id étranger → 404.
-  const couriers = await listCourierSummaries(workspace);
-  const courier = couriers.find((item) => item.id === id);
+  const report = await getCourierPeriodReport(workspace, period, id);
+  const courier = report.couriers[0];
   if (!courier) {
     notFound();
   }
 
-  const [stock, movements, orders, products] = await Promise.all([
+  const [stock, movements, inProgress, delivered, products] = await Promise.all([
     getCourierStock(workspace, courier.id),
-    listCourierMovements(workspace, courier.id),
+    listCourierMovements(workspace, courier.id, 500, period),
     listDeliveryOrders(workspace, {
-      statuses: ["ACCEPTED", "DELIVERED"],
+      statuses: ["ACCEPTED"],
       courierId: courier.id,
       limit: 100,
+    }),
+    listDeliveryOrders(workspace, {
+      statuses: ["DELIVERED"],
+      courierId: courier.id,
+      deliveredSince: period.start.toISOString(),
+      deliveredBefore: period.end.toISOString(),
+      orderBy: "delivered_at",
+      limit: 500,
     }),
     listDeliveryProducts(workspace),
   ]);
@@ -47,9 +58,11 @@ export default async function LivreurDetailPage({ params }: LivreurDetailPagePro
     <CourierDetailWorkspace
       establishmentId={workspace.establishmentId}
       courier={courier}
+      daily={report.daily}
+      period={{ preset: period.preset, from: period.from, to: period.to }}
       stock={stock}
       movements={movements}
-      orders={orders}
+      orders={[...inProgress, ...delivered]}
       allocateOptions={products
         .filter((product) => product.stockQuantity > 0)
         .map((product) => ({

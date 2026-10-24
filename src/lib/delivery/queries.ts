@@ -7,10 +7,12 @@ import type {
   CourierStockLine,
   CourierStockMovementType,
   CourierSummary,
+  DeliveryDailyTotal,
   DeliveryOrder,
   DeliveryOrderStatus,
   DeliveryProductOption,
 } from "@/lib/delivery/types";
+import { toLocalIsoDate } from "@/lib/delivery/period";
 import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -142,6 +144,8 @@ export async function listDeliveryOrders(
     limit?: number;
     /** Livrées à partir de cette date (ISO) — historique. */
     deliveredSince?: string;
+    /** Livrées avant cette date (ISO, exclue). */
+    deliveredBefore?: string;
     orderBy?: "created_at" | "delivered_at";
   } = {},
 ): Promise<DeliveryOrder[]> {
@@ -162,6 +166,9 @@ export async function listDeliveryOrders(
   }
   if (options.deliveredSince) {
     query = query.gte("delivered_at", options.deliveredSince);
+  }
+  if (options.deliveredBefore) {
+    query = query.lt("delivered_at", options.deliveredBefore);
   }
 
   const { data, error } = await query;
@@ -264,35 +271,103 @@ export async function getCourierStock(
     .sort((a, b) => a.productName.localeCompare(b.productName, "fr"));
 }
 
-export async function listCourierSummaries(
-  workspace: WorkspaceContext,
-): Promise<CourierSummary[]> {
-  const supabase = await createClient();
+/** Bornes d'une période d'analyse : `start` inclus, `end` exclu. */
+export type PeriodBounds = { start: Date; end: Date };
 
-  const [couriers, movementsResult, stockResult, ordersResult] = await Promise.all([
+const PAGE_SIZE = 1000;
+
+/**
+ * Lit toutes les lignes d'une requête, par pages de 1000 (limite PostgREST) :
+ * les totaux d'une longue période ne sont jamais tronqués.
+ */
+async function fetchAllRows<T>(
+  label: string,
+  build: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await build(offset, offset + PAGE_SIZE - 1);
+    if (error) {
+      console.error(label, error.message);
+      break;
+    }
+    rows.push(...((data ?? []) as T[]));
+    if (!data || data.length < PAGE_SIZE) break;
+  }
+  return rows;
+}
+
+export type CourierPeriodReport = {
+  couriers: CourierSummary[];
+  /** Livraisons et chiffre d'affaires par jour (jours sans livraison omis), du plus récent au plus ancien. */
+  daily: DeliveryDailyTotal[];
+};
+
+/**
+ * Synthèse par livreur. Avec une période : remis / livré / rendu, livraisons
+ * et valeur livrée sur la période ; « doit lui rester » et « en cours »
+ * restent l'état actuel. Sans période : depuis le début.
+ */
+export async function getCourierPeriodReport(
+  workspace: WorkspaceContext,
+  period: PeriodBounds | null,
+  courierId?: string,
+): Promise<CourierPeriodReport> {
+  const supabase = await createClient();
+  const startIso = period?.start.toISOString();
+  const endIso = period?.end.toISOString();
+
+  type MovementRow = { courier_id: string; type: CourierStockMovementType; quantity: number | string };
+  type StockRow = { courier_id: string; quantity: number | string };
+  type InProgressRow = { courier_id: string | null };
+  type DeliveredRow = { courier_id: string | null; total_amount: number | string; delivered_at: string | null };
+
+  const [allCouriers, movements, stockRows, inProgressRows, deliveredRows] = await Promise.all([
     listCouriers(workspace),
-    supabase
-      .from("courier_stock_movements")
-      .select("courier_id, type, quantity")
-      .eq("establishment_id", workspace.establishmentId),
-    supabase
-      .from("courier_stock")
-      .select("courier_id, quantity")
-      .eq("establishment_id", workspace.establishmentId),
-    supabase
-      .from("delivery_orders")
-      .select("courier_id, status, total_amount")
-      .eq("establishment_id", workspace.establishmentId)
-      .in("status", ["ACCEPTED", "DELIVERED"]),
+    fetchAllRows<MovementRow>("[getCourierPeriodReport:movements]", (from, to) => {
+      let query = supabase
+        .from("courier_stock_movements")
+        .select("courier_id, type, quantity")
+        .eq("establishment_id", workspace.establishmentId);
+      if (courierId) query = query.eq("courier_id", courierId);
+      if (startIso && endIso) query = query.gte("created_at", startIso).lt("created_at", endIso);
+      return query.order("id").range(from, to);
+    }),
+    fetchAllRows<StockRow>("[getCourierPeriodReport:stock]", (from, to) => {
+      let query = supabase
+        .from("courier_stock")
+        .select("courier_id, quantity")
+        .eq("establishment_id", workspace.establishmentId);
+      if (courierId) query = query.eq("courier_id", courierId);
+      return query.order("courier_id").order("product_id").range(from, to);
+    }),
+    fetchAllRows<InProgressRow>("[getCourierPeriodReport:inProgress]", (from, to) => {
+      let query = supabase
+        .from("delivery_orders")
+        .select("courier_id")
+        .eq("establishment_id", workspace.establishmentId)
+        .eq("status", "ACCEPTED");
+      if (courierId) query = query.eq("courier_id", courierId);
+      return query.order("id").range(from, to);
+    }),
+    fetchAllRows<DeliveredRow>("[getCourierPeriodReport:delivered]", (from, to) => {
+      let query = supabase
+        .from("delivery_orders")
+        .select("courier_id, total_amount, delivered_at")
+        .eq("establishment_id", workspace.establishmentId)
+        .eq("status", "DELIVERED");
+      if (courierId) query = query.eq("courier_id", courierId);
+      if (startIso && endIso) query = query.gte("delivered_at", startIso).lt("delivered_at", endIso);
+      return query.order("id").range(from, to);
+    }),
   ]);
 
-  for (const result of [movementsResult, stockResult, ordersResult]) {
-    if (result.error) console.error("[listCourierSummaries]", result.error.message);
-  }
-
   const totals = new Map<string, Omit<CourierSummary, keyof Courier>>();
-  const ensure = (courierId: string) => {
-    let entry = totals.get(courierId);
+  const ensure = (id: string) => {
+    let entry = totals.get(id);
     if (!entry) {
       entry = {
         allocated: 0,
@@ -303,54 +378,81 @@ export async function listCourierSummaries(
         inProgressCount: 0,
         deliveredValue: 0,
       };
-      totals.set(courierId, entry);
+      totals.set(id, entry);
     }
     return entry;
   };
 
-  for (const row of movementsResult.data ?? []) {
-    const entry = ensure(row.courier_id as string);
+  for (const row of movements) {
+    const entry = ensure(row.courier_id);
     const quantity = Math.abs(Number(row.quantity));
-    const type = row.type as CourierStockMovementType;
-    if (type === "ALLOCATION") entry.allocated += quantity;
-    else if (type === "RETURN") entry.returned += quantity;
+    if (row.type === "ALLOCATION") entry.allocated += quantity;
+    else if (row.type === "RETURN") entry.returned += quantity;
     else entry.delivered += quantity;
   }
 
-  for (const row of stockResult.data ?? []) {
-    ensure(row.courier_id as string).inHand += Number(row.quantity);
+  for (const row of stockRows) {
+    ensure(row.courier_id).inHand += Number(row.quantity);
   }
 
-  for (const row of ordersResult.data ?? []) {
+  for (const row of inProgressRows) {
+    if (row.courier_id) ensure(row.courier_id).inProgressCount += 1;
+  }
+
+  const byDay = new Map<string, DeliveryDailyTotal>();
+  for (const row of deliveredRows) {
     if (!row.courier_id) continue;
-    const entry = ensure(row.courier_id as string);
-    if (row.status === "DELIVERED") {
-      entry.deliveriesCount += 1;
-      entry.deliveredValue += Number(row.total_amount);
-    } else {
-      entry.inProgressCount += 1;
+    const value = Number(row.total_amount);
+    const entry = ensure(row.courier_id);
+    entry.deliveriesCount += 1;
+    entry.deliveredValue += value;
+
+    if (row.delivered_at) {
+      const date = toLocalIsoDate(new Date(row.delivered_at));
+      const day = byDay.get(date) ?? { date, deliveries: 0, value: 0 };
+      day.deliveries += 1;
+      day.value += value;
+      byDay.set(date, day);
     }
   }
 
-  return couriers.map((courier) => ({ ...courier, ...ensure(courier.id) }));
+  const couriers = (courierId ? allCouriers.filter((item) => item.id === courierId) : allCouriers).map(
+    (courier) => ({ ...courier, ...ensure(courier.id) }),
+  );
+  const daily = [...byDay.values()].sort((a, b) => b.date.localeCompare(a.date));
+
+  return { couriers, daily };
+}
+
+export async function listCourierSummaries(
+  workspace: WorkspaceContext,
+): Promise<CourierSummary[]> {
+  return (await getCourierPeriodReport(workspace, null)).couriers;
 }
 
 export async function listCourierMovements(
   workspace: WorkspaceContext,
   courierId: string,
   limit = 200,
+  period?: PeriodBounds,
 ): Promise<CourierMovement[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("courier_stock_movements")
     .select(
       "id, type, product_name, quantity, quantity_before, quantity_after, note, created_at, delivery_orders(order_number)",
     )
     .eq("establishment_id", workspace.establishmentId)
-    .eq("courier_id", courierId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .eq("courier_id", courierId);
+
+  if (period) {
+    query = query
+      .gte("created_at", period.start.toISOString())
+      .lt("created_at", period.end.toISOString());
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
 
   if (error) {
     console.error("[listCourierMovements]", error.message);

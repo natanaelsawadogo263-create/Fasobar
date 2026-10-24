@@ -5,24 +5,34 @@ import Link from "next/link";
 import { ChevronRight, PackagePlus } from "lucide-react";
 
 import {
+  DeliveryDailyTable,
+  DeliveryPeriodFilter,
+  type DeliveryPeriodValue,
+} from "@/components/delivery/delivery-period-filter";
+import {
   CourierStockModal,
   type CourierStockOption,
 } from "@/components/delivery/courier-stock-modal";
 import { Badge } from "@/components/ui/badge";
 import { useDeliveryOrdersLive } from "@/hooks/use-delivery-orders-live";
 import { formatDeliveryQuantity } from "@/lib/delivery/constants";
-import type { CourierSummary } from "@/lib/delivery/types";
+import { deliveryPeriodSearch } from "@/lib/delivery/period";
+import type { CourierSummary, DeliveryDailyTotal } from "@/lib/delivery/types";
 import { formatPriceXof } from "@/lib/products/constants";
 
 type CouriersAdminWorkspaceProps = {
   establishmentId: string;
   couriers: CourierSummary[];
+  daily: DeliveryDailyTotal[];
+  period: DeliveryPeriodValue;
   stockOptions: CourierStockOption[];
 };
 
 export function CouriersAdminWorkspace({
   establishmentId,
   couriers,
+  daily,
+  period,
   stockOptions,
 }: CouriersAdminWorkspaceProps) {
   useDeliveryOrdersLive(establishmentId);
@@ -47,24 +57,42 @@ export function CouriersAdminWorkspace({
               Livreurs
             </h1>
             <p className="mt-0.5 text-[12px] text-slate-500 sm:text-[13px]">
-              Stock remis à chaque livreur, livraisons effectuées et ce qui doit leur rester.
+              Livraisons et chiffre d’affaires par période, stock remis à chaque livreur et ce qui doit leur rester.
             </p>
           </div>
         </header>
 
+        <DeliveryPeriodFilter period={period} basePath="/application/livreurs" />
+
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
-            { label: "Articles chez les livreurs", value: formatDeliveryQuantity(totals.inHand) },
-            { label: "Livraisons en cours", value: String(totals.inProgress) },
-            { label: "Livraisons effectuées", value: String(totals.deliveries) },
-            { label: "Valeur livrée", value: formatPriceXof(totals.value) },
+            {
+              label: "Chiffre d’affaires livré",
+              value: formatPriceXof(totals.value),
+              hint: "sur la période",
+              highlight: true,
+            },
+            { label: "Livraisons effectuées", value: String(totals.deliveries), hint: "sur la période" },
+            { label: "Livraisons en cours", value: String(totals.inProgress), hint: "actuellement" },
+            {
+              label: "Articles chez les livreurs",
+              value: formatDeliveryQuantity(totals.inHand),
+              hint: "actuellement",
+            },
           ].map((card) => (
             <div
               key={card.label}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm"
+              className={`rounded-xl border px-4 py-3.5 shadow-sm ${
+                card.highlight ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-white"
+              }`}
             >
               <p className="text-[11px] font-medium text-slate-500">{card.label}</p>
-              <p className="mt-1 text-[18px] font-bold text-slate-900">{card.value}</p>
+              <p
+                className={`mt-1 text-[18px] font-bold ${card.highlight ? "text-emerald-800" : "text-slate-900"}`}
+              >
+                {card.value}
+              </p>
+              <p className="text-[10px] text-slate-400">{card.hint}</p>
             </div>
           ))}
         </div>
@@ -83,9 +111,9 @@ export function CouriersAdminWorkspace({
                   <th className="px-3 py-2 text-right font-semibold">Remis</th>
                   <th className="px-3 py-2 text-right font-semibold">Livrés</th>
                   <th className="px-3 py-2 text-right font-semibold">Rendus</th>
-                  <th className="px-3 py-2 text-right font-semibold">Doit lui rester</th>
+                  <th className="px-3 py-2 text-right font-semibold">Doit lui rester*</th>
                   <th className="px-3 py-2 text-right font-semibold">Livraisons</th>
-                  <th className="px-3 py-2 text-right font-semibold">Valeur livrée</th>
+                  <th className="px-3 py-2 text-right font-semibold">Chiffre d’affaires</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -111,7 +139,9 @@ export function CouriersAdminWorkspace({
                       {formatDeliveryQuantity(courier.inHand)}
                     </td>
                     <td className="px-3 py-2.5 text-right">{courier.deliveriesCount}</td>
-                    <td className="px-3 py-2.5 text-right">{formatPriceXof(courier.deliveredValue)}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold">
+                      {formatPriceXof(courier.deliveredValue)}
+                    </td>
                     <td className="px-3 py-2.5">
                       <div className="flex justify-end gap-1.5">
                         <button
@@ -124,7 +154,7 @@ export function CouriersAdminWorkspace({
                           Remettre
                         </button>
                         <Link
-                          href={`/application/livreurs/${courier.id}`}
+                          href={`/application/livreurs/${courier.id}?${deliveryPeriodSearch(period)}`}
                           className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
                           Détail
@@ -136,8 +166,14 @@ export function CouriersAdminWorkspace({
                 ))}
               </tbody>
             </table>
+            <p className="border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500">
+              Remis, livrés, rendus, livraisons et chiffre d’affaires : sur la période. * Doit lui
+              rester : stock actuel.
+            </p>
           </section>
         )}
+
+        <DeliveryDailyTable daily={daily} />
       </div>
 
       {allocateFor ? (
