@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 
 import { CourierWorkspace } from "@/components/delivery/courier-workspace";
 import { requireDeliveryCourierContext } from "@/lib/auth/workspace-context";
-import { getCourierStock, listDeliveryOrders } from "@/lib/delivery/queries";
+import {
+  getCourierStock,
+  listCourierMovements,
+  listDeliveryOrders,
+} from "@/lib/delivery/queries";
 import { requireCloudOnlineForDesktop } from "@/lib/desktop/require-cloud-online";
 
 export const metadata: Metadata = {
@@ -19,7 +23,7 @@ export default async function LivreurPage() {
   await requireCloudOnlineForDesktop("/application/livreur");
   const workspace = await requireDeliveryCourierContext();
 
-  const [availableOrders, myOrders, myDelivered, stock] = await Promise.all([
+  const [availableOrders, myOrders, myDelivered, stock, movements] = await Promise.all([
     listDeliveryOrders(workspace, { statuses: ["PENDING"], limit: 100 }),
     listDeliveryOrders(workspace, {
       statuses: ["ACCEPTED"],
@@ -32,6 +36,7 @@ export default async function LivreurPage() {
       limit: 100,
     }),
     getCourierStock(workspace, workspace.userId),
+    listCourierMovements(workspace, workspace.userId, 30),
   ]);
 
   const today = startOfToday();
@@ -47,6 +52,7 @@ export default async function LivreurPage() {
       myOrders={myOrders}
       deliveredToday={deliveredToday}
       stock={stock}
+      movements={movements}
     />
   );
 }

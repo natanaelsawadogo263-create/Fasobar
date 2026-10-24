@@ -11,6 +11,7 @@ import { usePathname } from "next/navigation";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { BarShell } from "@/components/bar/bar-shell";
 import { CashierSecondaryShell } from "@/components/cashier/cashier-secondary-shell";
+import { CourierShell } from "@/components/delivery/courier-shell";
 import { FasoBarCashierShell } from "@/components/fasobar/fasobar-cashier-shell";
 import { SpaceShell } from "@/components/layout/space-shell";
 import { PompisteShell } from "@/components/station/pompiste-shell";
@@ -192,6 +193,12 @@ export function ApplicationShell({
       >
         {children}
       </BarShell>
+    );
+  } else if (space === "delivery" && activityCode === "ecommerce") {
+    shell = (
+      <CourierShell establishmentName={establishmentName} courierName={cashierName || "Livreur"}>
+        {children}
+      </CourierShell>
     );
   } else if (space === "cashier_kitchen" && activityCode === "gas_station") {
     shell = (
