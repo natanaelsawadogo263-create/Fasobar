@@ -20,6 +20,36 @@ export const DELIVERY_ORDER_STATUS_TONES: Record<
   CANCELLED: "neutral",
 };
 
+/** Étape affichée : « Livrée » se dédouble en « à encaisser » / « encaissée ». */
+export type DeliveryOrderStage = "PENDING" | "ACCEPTED" | "TO_CASH" | "CASHED" | "CANCELLED";
+
+export function deliveryOrderStage(order: {
+  status: DeliveryOrderStatus;
+  cashedAt: string | null;
+}): DeliveryOrderStage {
+  if (order.status === "DELIVERED") return order.cashedAt ? "CASHED" : "TO_CASH";
+  return order.status;
+}
+
+export const DELIVERY_ORDER_STAGE_LABELS: Record<DeliveryOrderStage, string> = {
+  PENDING: "En attente d’un livreur",
+  ACCEPTED: "En cours de livraison",
+  TO_CASH: "Livrée · à encaisser",
+  CASHED: "Encaissée",
+  CANCELLED: "Annulée",
+};
+
+export const DELIVERY_ORDER_STAGE_TONES: Record<
+  DeliveryOrderStage,
+  "amber" | "sky" | "orange" | "emerald" | "neutral"
+> = {
+  PENDING: "amber",
+  ACCEPTED: "sky",
+  TO_CASH: "orange",
+  CASHED: "emerald",
+  CANCELLED: "neutral",
+};
+
 export const COURIER_MOVEMENT_LABELS: Record<CourierStockMovementType, string> = {
   ALLOCATION: "Remise",
   RETURN: "Retour",

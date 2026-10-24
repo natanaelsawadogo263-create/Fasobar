@@ -6,6 +6,7 @@ import { requireDeliveryOrderDeskMutationContext } from "@/lib/auth/workspace-co
 import { DELIVERY_PATHS, formatDeliveryOrderNumber } from "@/lib/delivery/constants";
 import {
   cancelDeliveryOrderSchema,
+  cashDeliveryOrderSchema,
   createDeliveryOrderSchema,
   toRpcItems,
 } from "@/lib/delivery/schemas";
@@ -13,6 +14,13 @@ import { toUserFacingError } from "@/lib/errors/user-facing";
 import { createClient } from "@/lib/supabase/server";
 
 export type DeliveryActionResult = { success?: string; error?: string };
+
+/** Pages qui affichent ventes et fond de caisse, à rafraîchir après un encaissement. */
+const CASH_IN_PATHS = [
+  "/application/caisse/session",
+  "/application/ventes",
+  "/application/tableau-de-bord",
+] as const;
 
 function revalidateDelivery() {
   for (const path of DELIVERY_PATHS) {
@@ -56,6 +64,41 @@ export async function createDeliveryOrderAction(input: {
       ? `Commande ${formatDeliveryOrderNumber(orderNumber)} envoyée aux livreurs.`
       : "Commande envoyée aux livreurs.",
   };
+}
+
+/** La caisse encaisse une livraison livrée : la vente est enregistrée dans sa session. */
+export async function cashDeliveryOrderAction(input: {
+  orderId: string;
+  method: string;
+  amountReceived?: number;
+  transactionReference?: string;
+}): Promise<DeliveryActionResult> {
+  await requireDeliveryOrderDeskMutationContext();
+
+  const parsed = cashDeliveryOrderSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Encaissement invalide." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cash_delivery_order", {
+    p_order_id: parsed.data.orderId,
+    p_method: parsed.data.method,
+    p_amount_received: parsed.data.amountReceived ?? null,
+    p_transaction_reference: parsed.data.transactionReference ?? null,
+    p_provider: null,
+  });
+
+  if (error) {
+    console.error("[cashDeliveryOrderAction]", error.message);
+    return { error: toUserFacingError(error.message) };
+  }
+
+  revalidateDelivery();
+  for (const path of CASH_IN_PATHS) {
+    revalidatePath(path);
+  }
+  return { success: "Commande encaissée : la vente est enregistrée." };
 }
 
 export async function cancelDeliveryOrderAction(input: {

@@ -3,8 +3,9 @@ import { MapPin, Phone, User } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
-  DELIVERY_ORDER_STATUS_LABELS,
-  DELIVERY_ORDER_STATUS_TONES,
+  DELIVERY_ORDER_STAGE_LABELS,
+  DELIVERY_ORDER_STAGE_TONES,
+  deliveryOrderStage,
   formatDeliveryOrderNumber,
   formatDeliveryQuantity,
 } from "@/lib/delivery/constants";
@@ -30,8 +31,8 @@ export function DeliveryOrderCard({ order, showCourier = false, actions }: Deliv
           <p className="text-[11px] text-slate-500">{formatDateTimeFr(order.createdAt)}</p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <Badge tone={DELIVERY_ORDER_STATUS_TONES[order.status]}>
-            {DELIVERY_ORDER_STATUS_LABELS[order.status]}
+          <Badge tone={DELIVERY_ORDER_STAGE_TONES[deliveryOrderStage(order)]}>
+            {DELIVERY_ORDER_STAGE_LABELS[deliveryOrderStage(order)]}
           </Badge>
           <p className="text-[15px] font-bold text-slate-900">{formatPriceXof(order.totalAmount)}</p>
         </div>
@@ -84,6 +85,7 @@ export function DeliveryOrderCard({ order, showCourier = false, actions }: Deliv
         <p className="text-[12px] text-slate-600">
           Livreur : <span className="font-semibold text-slate-800">{order.courierName}</span>
           {order.deliveredAt ? ` · livrée le ${formatDateTimeFr(order.deliveredAt)}` : null}
+          {order.cashedAt ? ` · encaissée le ${formatDateTimeFr(order.cashedAt)}` : null}
         </p>
       ) : null}
 

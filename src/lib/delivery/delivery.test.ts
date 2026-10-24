@@ -8,8 +8,16 @@ import {
   resolveUserSpace,
   roleToSpaceLabel,
 } from "@/lib/auth/roles";
-import { courierHistoryStart, parseCourierHistoryPeriod } from "@/lib/delivery/constants";
-import { createDeliveryOrderSchema, toRpcItems } from "@/lib/delivery/schemas";
+import {
+  courierHistoryStart,
+  deliveryOrderStage,
+  parseCourierHistoryPeriod,
+} from "@/lib/delivery/constants";
+import {
+  cashDeliveryOrderSchema,
+  createDeliveryOrderSchema,
+  toRpcItems,
+} from "@/lib/delivery/schemas";
 import { getNavigationForSpace, isPathAllowedForSpace } from "@/lib/navigation/space-navigation";
 import { createEmployeeAccountSchema } from "@/lib/users/schemas";
 
@@ -143,5 +151,32 @@ describe("menu de l'espace livreur", () => {
     for (const href of hrefs) {
       expect(isPathAllowedForSpace(href, "delivery", "BOTH", "ecommerce")).toBe(true);
     }
+  });
+});
+
+describe("encaissement des livraisons par la caisse", () => {
+  const ORDER_ID = "00000000-0000-4000-8000-000000000020";
+
+  it("une livraison livrée reste « à encaisser » tant que la caisse ne l'a pas encaissée", () => {
+    expect(deliveryOrderStage({ status: "DELIVERED", cashedAt: null })).toBe("TO_CASH");
+    expect(deliveryOrderStage({ status: "DELIVERED", cashedAt: "2026-10-25T10:00:00Z" })).toBe("CASHED");
+    expect(deliveryOrderStage({ status: "ACCEPTED", cashedAt: null })).toBe("ACCEPTED");
+  });
+
+  it("valide le mode de paiement ; le montant reçu ne compte qu'en espèces", () => {
+    const cash = cashDeliveryOrderSchema.parse({ orderId: ORDER_ID, method: "CASH", amountReceived: 10000 });
+    expect(cash.amountReceived).toBe(10000);
+
+    const momo = cashDeliveryOrderSchema.parse({
+      orderId: ORDER_ID,
+      method: "ORANGE_MONEY",
+      amountReceived: 10000,
+      transactionReference: " CI123 ",
+    });
+    expect(momo.amountReceived).toBeUndefined();
+    expect(momo.transactionReference).toBe("CI123");
+
+    expect(cashDeliveryOrderSchema.safeParse({ orderId: ORDER_ID, method: "BITCOIN" }).success).toBe(false);
+    expect(cashDeliveryOrderSchema.safeParse({ orderId: "x", method: "CASH" }).success).toBe(false);
   });
 });

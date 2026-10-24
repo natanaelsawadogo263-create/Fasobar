@@ -31,7 +31,7 @@ export default async function LivreurPage({ searchParams }: LivreurPageProps) {
   await requireCloudOnlineForDesktop("/application/livreur");
   const workspace = await requireDeliveryCourierContext();
 
-  const [availableOrders, myOrders, deliveredToday, stock] = await Promise.all([
+  const [availableOrders, myOrders, deliveredToday, toRemit, stock] = await Promise.all([
     listDeliveryOrders(workspace, { statuses: ["PENDING"], limit: 100 }),
     listDeliveryOrders(workspace, {
       statuses: ["ACCEPTED"],
@@ -45,6 +45,13 @@ export default async function LivreurPage({ searchParams }: LivreurPageProps) {
       orderBy: "delivered_at",
       limit: 500,
     }),
+    // Livrées mais pas encore encaissées par la caisse : argent à remettre.
+    listDeliveryOrders(workspace, {
+      statuses: ["DELIVERED"],
+      courierId: workspace.userId,
+      cashed: false,
+      limit: 500,
+    }),
     getCourierStock(workspace, workspace.userId),
   ]);
 
@@ -55,7 +62,8 @@ export default async function LivreurPage({ searchParams }: LivreurPageProps) {
       inProgressCount={myOrders.length}
       toCollectValue={myOrders.reduce((sum, order) => sum + order.totalAmount, 0)}
       deliveredTodayCount={deliveredToday.length}
-      deliveredTodayValue={deliveredToday.reduce((sum, order) => sum + order.totalAmount, 0)}
+      toRemitCount={toRemit.length}
+      toRemitValue={toRemit.reduce((sum, order) => sum + order.totalAmount, 0)}
       stock={stock}
     />
   );

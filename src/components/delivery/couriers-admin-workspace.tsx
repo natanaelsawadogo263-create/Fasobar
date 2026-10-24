@@ -28,6 +28,14 @@ type CouriersAdminWorkspaceProps = {
   stockOptions: CourierStockOption[];
 };
 
+type CardTone = "default" | "emerald" | "orange";
+
+const CARD_TONES: Record<CardTone, { box: string; value: string }> = {
+  default: { box: "border-slate-200 bg-white", value: "text-slate-900" },
+  emerald: { box: "border-emerald-200 bg-emerald-50/60", value: "text-emerald-800" },
+  orange: { box: "border-orange-200 bg-orange-50/60", value: "text-orange-800" },
+};
+
 export function CouriersAdminWorkspace({
   establishmentId,
   couriers,
@@ -43,9 +51,11 @@ export function CouriersAdminWorkspace({
       inHand: acc.inHand + courier.inHand,
       deliveries: acc.deliveries + courier.deliveriesCount,
       value: acc.value + courier.deliveredValue,
+      cashed: acc.cashed + courier.cashedValue,
+      toCash: acc.toCash + courier.toCashValue,
       inProgress: acc.inProgress + courier.inProgressCount,
     }),
-    { inHand: 0, deliveries: 0, value: 0, inProgress: 0 },
+    { inHand: 0, deliveries: 0, value: 0, cashed: 0, toCash: 0, inProgress: 0 },
   );
 
   return (
@@ -64,32 +74,34 @@ export function CouriersAdminWorkspace({
 
         <DeliveryPeriodFilter period={period} basePath="/application/livreurs" />
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {([
             {
-              label: "Chiffre d’affaires livré",
-              value: formatPriceXof(totals.value),
-              hint: "sur la période",
-              highlight: true,
+              label: "Chiffre d’affaires encaissé",
+              value: formatPriceXof(totals.cashed),
+              hint: `sur ${formatPriceXof(totals.value)} livrés`,
+              tone: "emerald",
             },
             { label: "Livraisons effectuées", value: String(totals.deliveries), hint: "sur la période" },
+            {
+              label: "Reste à encaisser",
+              value: formatPriceXof(totals.toCash),
+              hint: "argent chez les livreurs",
+              tone: totals.toCash > 0 ? "orange" : "default",
+            },
             { label: "Livraisons en cours", value: String(totals.inProgress), hint: "actuellement" },
             {
               label: "Articles chez les livreurs",
               value: formatDeliveryQuantity(totals.inHand),
               hint: "actuellement",
             },
-          ].map((card) => (
+          ] as Array<{ label: string; value: string; hint: string; tone?: CardTone }>).map((card) => (
             <div
               key={card.label}
-              className={`rounded-xl border px-4 py-3.5 shadow-sm ${
-                card.highlight ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-white"
-              }`}
+              className={`rounded-xl border px-4 py-3.5 shadow-sm ${CARD_TONES[card.tone ?? "default"].box}`}
             >
               <p className="text-[11px] font-medium text-slate-500">{card.label}</p>
-              <p
-                className={`mt-1 text-[18px] font-bold ${card.highlight ? "text-emerald-800" : "text-slate-900"}`}
-              >
+              <p className={`mt-1 text-[18px] font-bold ${CARD_TONES[card.tone ?? "default"].value}`}>
                 {card.value}
               </p>
               <p className="text-[10px] text-slate-400">{card.hint}</p>
@@ -113,7 +125,8 @@ export function CouriersAdminWorkspace({
                   <th className="px-3 py-2 text-right font-semibold">Rendus</th>
                   <th className="px-3 py-2 text-right font-semibold">Doit lui rester*</th>
                   <th className="px-3 py-2 text-right font-semibold">Livraisons</th>
-                  <th className="px-3 py-2 text-right font-semibold">Chiffre d’affaires</th>
+                  <th className="px-3 py-2 text-right font-semibold">Encaissé</th>
+                  <th className="px-3 py-2 text-right font-semibold">À encaisser*</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -140,7 +153,14 @@ export function CouriersAdminWorkspace({
                     </td>
                     <td className="px-3 py-2.5 text-right">{courier.deliveriesCount}</td>
                     <td className="px-3 py-2.5 text-right font-semibold">
-                      {formatPriceXof(courier.deliveredValue)}
+                      {formatPriceXof(courier.cashedValue)}
+                    </td>
+                    <td
+                      className={`px-3 py-2.5 text-right font-semibold ${
+                        courier.toCashValue > 0 ? "text-orange-700" : "text-slate-400"
+                      }`}
+                    >
+                      {formatPriceXof(courier.toCashValue)}
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex justify-end gap-1.5">
@@ -167,8 +187,8 @@ export function CouriersAdminWorkspace({
               </tbody>
             </table>
             <p className="border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500">
-              Remis, livrés, rendus, livraisons et chiffre d’affaires : sur la période. * Doit lui
-              rester : stock actuel.
+              Remis, livrés, rendus, livraisons et encaissé : sur la période. * Doit lui rester et
+              à encaisser : situation actuelle.
             </p>
           </section>
         )}

@@ -23,7 +23,9 @@ type CourierWorkspaceProps = {
   inProgressCount: number;
   toCollectValue: number;
   deliveredTodayCount: number;
-  deliveredTodayValue: number;
+  /** Livrées non encaissées par la caisse (toutes dates). */
+  toRemitCount: number;
+  toRemitValue: number;
   stock: CourierStockLine[];
 };
 
@@ -38,7 +40,8 @@ export function CourierWorkspace({
   inProgressCount,
   toCollectValue,
   deliveredTodayCount,
-  deliveredTodayValue,
+  toRemitCount,
+  toRemitValue,
   stock,
 }: CourierWorkspaceProps) {
   const router = useRouter();
@@ -100,11 +103,15 @@ export function CourierWorkspace({
         />
         <StatCard
           icon={Wallet}
-          tone="slate"
-          label="Encaissé"
-          value={formatPriceXof(deliveredTodayValue)}
-          hint="aujourd’hui"
-          href="/application/livreur/historique?periode=aujourdhui"
+          tone={toRemitCount > 0 ? "amber" : "slate"}
+          label="À remettre"
+          value={formatPriceXof(toRemitValue)}
+          hint={
+            toRemitCount > 0
+              ? `${toRemitCount} livraison${toRemitCount > 1 ? "s" : ""} · à la caisse`
+              : "rien à remettre"
+          }
+          href="/application/livreur/historique?periode=30j"
         />
       </section>
 

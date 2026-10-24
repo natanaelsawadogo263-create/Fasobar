@@ -79,7 +79,7 @@ export function useCourierOrderActions() {
       }
       subtitle={
         confirm.kind === "complete"
-          ? "La commande a été remise au client et le montant encaissé."
+          ? "La commande a été remise au client et vous avez reçu le paiement."
           : "La commande redeviendra disponible pour les autres livreurs."
       }
       onClose={() => {
@@ -98,13 +98,14 @@ export function useCourierOrderActions() {
       {confirm.kind === "complete" ? (
         <div className="grid gap-2 text-[13px] text-slate-700">
           <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2.5">
-            <span className="font-semibold text-emerald-900">Montant encaissé</span>
+            <span className="font-semibold text-emerald-900">Montant reçu du client</span>
             <span className="text-[16px] font-bold tabular-nums text-emerald-800">
               {formatPriceXof(confirm.order.totalAmount)}
             </span>
           </div>
           <p className="text-[12px] text-slate-500">
-            Les articles livrés seront retirés de votre stock. Cette action est définitive.
+            Les articles livrés seront retirés de votre stock. Remettez ensuite cet argent à la
+            caisse, qui encaissera la commande.
           </p>
         </div>
       ) : (

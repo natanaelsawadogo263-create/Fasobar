@@ -55,6 +55,6 @@ export async function completeDeliveryOrderAction(orderId: string) {
   return runCourierRpc(
     "complete_delivery_order",
     orderId,
-    "Livraison finalisée. Votre stock a été mis à jour.",
+    "Livraison finalisée. Remettez l’argent à la caisse pour l’encaissement.",
   );
 }

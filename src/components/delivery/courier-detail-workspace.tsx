@@ -51,6 +51,14 @@ const MOVEMENT_TONES = {
   DELIVERY: "sky",
 } as const;
 
+type CardTone = "default" | "emerald" | "orange";
+
+const CARD_TONES: Record<CardTone, { box: string; value: string }> = {
+  default: { box: "border-slate-200 bg-white", value: "text-slate-900" },
+  emerald: { box: "border-emerald-200 bg-emerald-50/60", value: "text-emerald-800" },
+  orange: { box: "border-orange-200 bg-orange-50/60", value: "text-orange-800" },
+};
+
 export function CourierDetailWorkspace({
   establishmentId,
   courier,
@@ -124,30 +132,32 @@ export function CourierDetailWorkspace({
 
         <DeliveryPeriodFilter period={period} basePath={`/application/livreurs/${courier.id}`} />
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-          {[
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {([
             {
-              label: "Chiffre d’affaires",
-              value: formatPriceXof(courier.deliveredValue),
-              hint: "sur la période",
-              highlight: true,
+              label: "Chiffre d’affaires encaissé",
+              value: formatPriceXof(courier.cashedValue),
+              hint: `sur ${formatPriceXof(courier.deliveredValue)} livrés`,
+              tone: "emerald",
+            },
+            {
+              label: "Reste à encaisser",
+              value: formatPriceXof(courier.toCashValue),
+              hint: `${courier.toCashCount} livraison${courier.toCashCount > 1 ? "s" : ""} · actuellement`,
+              tone: courier.toCashValue > 0 ? "orange" : "default",
             },
             { label: "Livraisons effectuées", value: String(courier.deliveriesCount), hint: "sur la période" },
             { label: "Articles remis", value: formatDeliveryQuantity(courier.allocated), hint: "sur la période" },
             { label: "Articles livrés", value: formatDeliveryQuantity(courier.delivered), hint: "sur la période" },
             { label: "Articles rendus", value: formatDeliveryQuantity(courier.returned), hint: "sur la période" },
             { label: "Doit lui rester", value: formatDeliveryQuantity(courier.inHand), hint: "actuellement" },
-          ].map((card) => (
+          ] as Array<{ label: string; value: string; hint: string; tone?: CardTone }>).map((card) => (
             <div
               key={card.label}
-              className={`rounded-xl border px-4 py-3.5 shadow-sm ${
-                card.highlight ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-white"
-              }`}
+              className={`rounded-xl border px-4 py-3.5 shadow-sm ${CARD_TONES[card.tone ?? "default"].box}`}
             >
               <p className="text-[11px] font-medium text-slate-500">{card.label}</p>
-              <p
-                className={`mt-1 text-[18px] font-bold ${card.highlight ? "text-emerald-800" : "text-slate-900"}`}
-              >
+              <p className={`mt-1 text-[18px] font-bold ${CARD_TONES[card.tone ?? "default"].value}`}>
                 {card.value}
               </p>
               <p className="text-[10px] text-slate-400">{card.hint}</p>

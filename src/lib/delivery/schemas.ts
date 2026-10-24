@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { paymentMethodSchema } from "@/lib/payments/schemas";
+
 const quantitySchema = z.coerce
   .number({ message: "Quantité invalide." })
   .positive("La quantité doit être supérieure à 0.")
@@ -44,6 +46,23 @@ export const deliveryOrderIdSchema = z.object({
 export const cancelDeliveryOrderSchema = deliveryOrderIdSchema.extend({
   reason: optionalText(300),
 });
+
+/** Encaissement d'une livraison par la caisse. */
+export const cashDeliveryOrderSchema = deliveryOrderIdSchema
+  .extend({
+    method: paymentMethodSchema,
+    amountReceived: z.coerce
+      .number({ message: "Montant reçu invalide." })
+      .int("Montant reçu invalide.")
+      .min(0, "Montant reçu invalide.")
+      .optional(),
+    transactionReference: optionalText(100),
+  })
+  .transform((value) => ({
+    ...value,
+    // Le montant reçu (rendu monnaie) ne concerne que les espèces.
+    amountReceived: value.method === "CASH" ? value.amountReceived : undefined,
+  }));
 
 export type DeliveryItemsInput = z.infer<typeof deliveryItemsSchema>;
 

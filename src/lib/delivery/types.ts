@@ -33,6 +33,8 @@ export type DeliveryOrder = {
   createdAt: string;
   acceptedAt: string | null;
   deliveredAt: string | null;
+  /** Encaissée par la caisse (vente enregistrée). Null = livrée mais pas encore encaissée. */
+  cashedAt: string | null;
   cancelledAt: string | null;
   cancelReason: string | null;
   items: DeliveryOrderLine[];
@@ -66,7 +68,13 @@ export type CourierSummary = Courier & {
   inHand: number;
   deliveriesCount: number;
   inProgressCount: number;
+  /** Valeur des livraisons de la période (encaissées ou non). */
   deliveredValue: number;
+  /** Part encaissée par la caisse : le chiffre d'affaires réel. */
+  cashedValue: number;
+  /** Livrées mais pas encore encaissées (état actuel, toutes dates) : argent chez le livreur. */
+  toCashCount: number;
+  toCashValue: number;
 };
 
 export type CourierMovement = {
@@ -86,4 +94,6 @@ export type DeliveryDailyTotal = {
   date: string;
   deliveries: number;
   value: number;
+  /** Part encaissée par la caisse. */
+  cashedValue: number;
 };

@@ -133,13 +133,16 @@ function formatDayLabel(isoDate: string): string {
 export function DeliveryDailyTable({ daily }: { daily: DeliveryDailyTotal[] }) {
   const totalDeliveries = daily.reduce((sum, day) => sum + day.deliveries, 0);
   const totalValue = daily.reduce((sum, day) => sum + day.value, 0);
-  const maxValue = Math.max(...daily.map((day) => day.value), 1);
+  const totalCashed = daily.reduce((sum, day) => sum + day.cashedValue, 0);
+  const maxValue = Math.max(...daily.map((day) => day.cashedValue), 1);
 
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <header className="border-b border-slate-100 px-4 py-3">
         <h2 className="text-[14px] font-bold text-slate-900">Chiffre d’affaires par jour</h2>
-        <p className="text-[11px] text-slate-500">Livraisons finalisées sur la période sélectionnée.</p>
+        <p className="text-[11px] text-slate-500">
+          Livraisons de la période ; « Encaissé » ne compte que ce que la caisse a encaissé.
+        </p>
       </header>
       {daily.length === 0 ? (
         <p className="px-4 py-8 text-center text-[13px] text-slate-500">
@@ -147,12 +150,13 @@ export function DeliveryDailyTable({ daily }: { daily: DeliveryDailyTotal[] }) {
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[480px] text-[13px]">
+          <table className="w-full min-w-[560px] text-[13px]">
             <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-2 font-semibold">Jour</th>
                 <th className="px-3 py-2 text-right font-semibold">Livraisons</th>
-                <th className="px-4 py-2 text-right font-semibold">Chiffre d’affaires</th>
+                <th className="px-3 py-2 text-right font-semibold">Montant livré</th>
+                <th className="px-4 py-2 text-right font-semibold">Encaissé</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -162,16 +166,19 @@ export function DeliveryDailyTable({ daily }: { daily: DeliveryDailyTotal[] }) {
                     {formatDayLabel(day.date)}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{day.deliveries}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">
+                    {formatPriceXof(day.value)}
+                  </td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center justify-end gap-3">
                       <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-slate-100 sm:block">
                         <span
                           className="block h-full rounded-full bg-emerald-500"
-                          style={{ width: `${Math.max((day.value / maxValue) * 100, 2)}%` }}
+                          style={{ width: `${Math.max((day.cashedValue / maxValue) * 100, 2)}%` }}
                         />
                       </span>
                       <span className="font-semibold tabular-nums text-slate-900">
-                        {formatPriceXof(day.value)}
+                        {formatPriceXof(day.cashedValue)}
                       </span>
                     </div>
                   </td>
@@ -182,8 +189,11 @@ export function DeliveryDailyTable({ daily }: { daily: DeliveryDailyTotal[] }) {
               <tr>
                 <td className="px-4 py-2.5 text-slate-700">Total</td>
                 <td className="px-3 py-2.5 text-right tabular-nums">{totalDeliveries}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-emerald-700">
+                <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">
                   {formatPriceXof(totalValue)}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-emerald-700">
+                  {formatPriceXof(totalCashed)}
                 </td>
               </tr>
             </tfoot>

@@ -1,30 +1,36 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Minus, Plus, Search, Send, Trash2 } from "lucide-react";
+import { Lock, Minus, Plus, Search, Send, Trash2, Wallet } from "lucide-react";
 
 import {
   cancelDeliveryOrderAction,
   createDeliveryOrderAction,
 } from "@/app/(protected)/application/livraisons/actions";
+import { DeliveryCashModal } from "@/components/delivery/delivery-cash-modal";
 import { DeliveryOrderCard } from "@/components/delivery/delivery-order-card";
+import { InstantLink } from "@/components/layout/instant-link";
 import { useToast } from "@/components/ui/toast";
 import { useDeliveryOrdersLive } from "@/hooks/use-delivery-orders-live";
-import type { DeliveryOrder, DeliveryOrderStatus, DeliveryProductOption } from "@/lib/delivery/types";
+import { deliveryOrderStage, type DeliveryOrderStage } from "@/lib/delivery/constants";
+import type { DeliveryOrder, DeliveryProductOption } from "@/lib/delivery/types";
 import { formatPriceXof } from "@/lib/products/constants";
 
 type DeliveryDeskWorkspaceProps = {
   establishmentId: string;
   products: DeliveryProductOption[];
   orders: DeliveryOrder[];
+  /** Session de caisse ouverte : obligatoire pour encaisser. */
+  hasOpenCashSession: boolean;
 };
 
 type CartLine = { productId: string; quantity: number };
 
-const TABS: Array<{ id: DeliveryOrderStatus; label: string }> = [
+const TABS: Array<{ id: DeliveryOrderStage; label: string }> = [
   { id: "PENDING", label: "En attente" },
   { id: "ACCEPTED", label: "En cours" },
-  { id: "DELIVERED", label: "Livrées" },
+  { id: "TO_CASH", label: "À encaisser" },
+  { id: "CASHED", label: "Encaissées" },
   { id: "CANCELLED", label: "Annulées" },
 ];
 
@@ -35,6 +41,7 @@ export function DeliveryDeskWorkspace({
   establishmentId,
   products,
   orders,
+  hasOpenCashSession,
 }: DeliveryDeskWorkspaceProps) {
   useDeliveryOrdersLive(establishmentId);
   const toast = useToast();
@@ -46,7 +53,8 @@ export function DeliveryDeskWorkspace({
   const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [note, setNote] = useState("");
-  const [tab, setTab] = useState<DeliveryOrderStatus>("PENDING");
+  const [tab, setTab] = useState<DeliveryOrderStage>("PENDING");
+  const [cashing, setCashing] = useState<DeliveryOrder | null>(null);
 
   const productById = useMemo(
     () => new Map(products.map((product) => [product.id, product])),
@@ -65,17 +73,21 @@ export function DeliveryDeskWorkspace({
   }, 0);
 
   const counts = useMemo(() => {
-    const result: Record<DeliveryOrderStatus, number> = {
+    const result: Record<DeliveryOrderStage, number> = {
       PENDING: 0,
       ACCEPTED: 0,
-      DELIVERED: 0,
+      TO_CASH: 0,
+      CASHED: 0,
       CANCELLED: 0,
     };
-    for (const order of orders) result[order.status] += 1;
+    for (const order of orders) result[deliveryOrderStage(order)] += 1;
     return result;
   }, [orders]);
 
-  const visibleOrders = orders.filter((order) => order.status === tab);
+  const visibleOrders = orders.filter((order) => deliveryOrderStage(order) === tab);
+  const toCashTotal = orders
+    .filter((order) => deliveryOrderStage(order) === "TO_CASH")
+    .reduce((sum, order) => sum + order.totalAmount, 0);
 
   function addProduct(productId: string) {
     setCart((current) => {
@@ -143,10 +155,27 @@ export function DeliveryDeskWorkspace({
             Livraisons
           </h1>
           <p className="mt-0.5 text-[12px] text-slate-500 sm:text-[13px]">
-            Choisissez les articles commandés puis cliquez sur « Commander » : tous les livreurs
-            connectés la reçoivent.
+            Créez la commande : tous les livreurs connectés la reçoivent. Une fois livrée, le
+            livreur vous remet l’argent et vous l’encaissez ici.
           </p>
         </header>
+
+        {counts.TO_CASH > 0 ? (
+          <button
+            type="button"
+            onClick={() => setTab("TO_CASH")}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-left transition hover:bg-orange-100"
+          >
+            <span className="flex items-center gap-2 text-[13px] font-semibold text-orange-900">
+              <Wallet className="h-4 w-4" />
+              {counts.TO_CASH} commande{counts.TO_CASH > 1 ? "s" : ""} livrée
+              {counts.TO_CASH > 1 ? "s" : ""} à encaisser
+            </span>
+            <span className="text-[15px] font-bold tabular-nums text-orange-900">
+              {formatPriceXof(toCashTotal)}
+            </span>
+          </button>
+        ) : null}
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           {/* Nouvelle commande */}
@@ -309,6 +338,21 @@ export function DeliveryDeskWorkspace({
               ))}
             </div>
 
+            {tab === "TO_CASH" && !hasOpenCashSession ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="flex items-center gap-2 text-[13px] font-medium text-amber-900">
+                  <Lock className="h-4 w-4" />
+                  Ouvrez votre session de caisse pour encaisser.
+                </p>
+                <InstantLink
+                  href="/application/caisse/session"
+                  className="inline-flex h-9 items-center rounded-lg bg-amber-600 px-3 text-[13px] font-semibold text-white transition hover:bg-amber-700"
+                >
+                  Ouvrir la session
+                </InstantLink>
+              </div>
+            ) : null}
+
             {visibleOrders.length === 0 ? (
               <p className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-[13px] text-slate-500">
                 Aucune commande ici.
@@ -320,7 +364,18 @@ export function DeliveryDeskWorkspace({
                   order={order}
                   showCourier
                   actions={
-                    order.status === "PENDING" || order.status === "ACCEPTED" ? (
+                    deliveryOrderStage(order) === "TO_CASH" ? (
+                      <button
+                        type="button"
+                        onClick={() => setCashing(order)}
+                        disabled={!hasOpenCashSession}
+                        title={hasOpenCashSession ? undefined : "Ouvrez votre session de caisse"}
+                        className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-[13px] font-semibold text-white shadow-sm transition active:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:hover:bg-emerald-700"
+                      >
+                        <Wallet className="h-4 w-4" />
+                        Encaisser
+                      </button>
+                    ) : order.status === "PENDING" || order.status === "ACCEPTED" ? (
                       <button
                         type="button"
                         onClick={() => cancelOrder(order.id)}
@@ -337,6 +392,8 @@ export function DeliveryDeskWorkspace({
           </section>
         </div>
       </div>
+
+      {cashing ? <DeliveryCashModal order={cashing} onClose={() => setCashing(null)} /> : null}
     </div>
   );
 }

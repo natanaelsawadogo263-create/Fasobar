@@ -29,6 +29,7 @@ type OrderRow = {
   created_at: string;
   accepted_at: string | null;
   delivered_at: string | null;
+  cashed_at: string | null;
   cancelled_at: string | null;
   cancel_reason: string | null;
   delivery_order_items:
@@ -43,7 +44,7 @@ type OrderRow = {
 };
 
 const ORDER_SELECT =
-  "id, order_number, status, customer_name, customer_phone, delivery_address, note, total_amount, courier_id, created_at, accepted_at, delivered_at, cancelled_at, cancel_reason, delivery_order_items(product_id, product_name, unit_price, quantity, line_total)";
+  "id, order_number, status, customer_name, customer_phone, delivery_address, note, total_amount, courier_id, created_at, accepted_at, delivered_at, cashed_at, cancelled_at, cancel_reason, delivery_order_items(product_id, product_name, unit_price, quantity, line_total)";
 
 /**
  * Noms des employés : la RLS `profiles` ne laisse lire que l'admin.
@@ -83,6 +84,7 @@ function mapOrder(row: OrderRow, names: Map<string, string>): DeliveryOrder {
     createdAt: row.created_at,
     acceptedAt: row.accepted_at,
     deliveredAt: row.delivered_at,
+    cashedAt: row.cashed_at,
     cancelledAt: row.cancelled_at,
     cancelReason: row.cancel_reason,
     items: (row.delivery_order_items ?? []).map((item) => ({
@@ -147,6 +149,8 @@ export async function listDeliveryOrders(
     /** Livrées avant cette date (ISO, exclue). */
     deliveredBefore?: string;
     orderBy?: "created_at" | "delivered_at";
+    /** true : encaissées seulement ; false : pas encore encaissées. */
+    cashed?: boolean;
   } = {},
 ): Promise<DeliveryOrder[]> {
   const supabase = await createClient();
@@ -169,6 +173,11 @@ export async function listDeliveryOrders(
   }
   if (options.deliveredBefore) {
     query = query.lt("delivered_at", options.deliveredBefore);
+  }
+  if (options.cashed === true) {
+    query = query.not("cashed_at", "is", null);
+  } else if (options.cashed === false) {
+    query = query.is("cashed_at", null);
   }
 
   const { data, error } = await query;
@@ -323,9 +332,15 @@ export async function getCourierPeriodReport(
   type MovementRow = { courier_id: string; type: CourierStockMovementType; quantity: number | string };
   type StockRow = { courier_id: string; quantity: number | string };
   type InProgressRow = { courier_id: string | null };
-  type DeliveredRow = { courier_id: string | null; total_amount: number | string; delivered_at: string | null };
+  type DeliveredRow = {
+    courier_id: string | null;
+    total_amount: number | string;
+    delivered_at: string | null;
+    cashed_at: string | null;
+  };
+  type ToCashRow = { courier_id: string | null; total_amount: number | string };
 
-  const [allCouriers, movements, stockRows, inProgressRows, deliveredRows] = await Promise.all([
+  const [allCouriers, movements, stockRows, inProgressRows, deliveredRows, toCashRows] = await Promise.all([
     listCouriers(workspace),
     fetchAllRows<MovementRow>("[getCourierPeriodReport:movements]", (from, to) => {
       let query = supabase
@@ -356,11 +371,22 @@ export async function getCourierPeriodReport(
     fetchAllRows<DeliveredRow>("[getCourierPeriodReport:delivered]", (from, to) => {
       let query = supabase
         .from("delivery_orders")
-        .select("courier_id, total_amount, delivered_at")
+        .select("courier_id, total_amount, delivered_at, cashed_at")
         .eq("establishment_id", workspace.establishmentId)
         .eq("status", "DELIVERED");
       if (courierId) query = query.eq("courier_id", courierId);
       if (startIso && endIso) query = query.gte("delivered_at", startIso).lt("delivered_at", endIso);
+      return query.order("id").range(from, to);
+    }),
+    // Argent encore chez les livreurs : livrées non encaissées, toutes dates.
+    fetchAllRows<ToCashRow>("[getCourierPeriodReport:toCash]", (from, to) => {
+      let query = supabase
+        .from("delivery_orders")
+        .select("courier_id, total_amount")
+        .eq("establishment_id", workspace.establishmentId)
+        .eq("status", "DELIVERED")
+        .is("cashed_at", null);
+      if (courierId) query = query.eq("courier_id", courierId);
       return query.order("id").range(from, to);
     }),
   ]);
@@ -377,6 +403,9 @@ export async function getCourierPeriodReport(
         deliveriesCount: 0,
         inProgressCount: 0,
         deliveredValue: 0,
+        cashedValue: 0,
+        toCashCount: 0,
+        toCashValue: 0,
       };
       totals.set(id, entry);
     }
@@ -403,17 +432,27 @@ export async function getCourierPeriodReport(
   for (const row of deliveredRows) {
     if (!row.courier_id) continue;
     const value = Number(row.total_amount);
+    const cashed = row.cashed_at ? value : 0;
     const entry = ensure(row.courier_id);
     entry.deliveriesCount += 1;
     entry.deliveredValue += value;
+    entry.cashedValue += cashed;
 
     if (row.delivered_at) {
       const date = toLocalIsoDate(new Date(row.delivered_at));
-      const day = byDay.get(date) ?? { date, deliveries: 0, value: 0 };
+      const day = byDay.get(date) ?? { date, deliveries: 0, value: 0, cashedValue: 0 };
       day.deliveries += 1;
       day.value += value;
+      day.cashedValue += cashed;
       byDay.set(date, day);
     }
+  }
+
+  for (const row of toCashRows) {
+    if (!row.courier_id) continue;
+    const entry = ensure(row.courier_id);
+    entry.toCashCount += 1;
+    entry.toCashValue += Number(row.total_amount);
   }
 
   const couriers = (courierId ? allCouriers.filter((item) => item.id === courierId) : allCouriers).map(

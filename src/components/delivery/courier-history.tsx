@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, CheckCircle2, ChevronDown, Loader2, MapPin, Wallet } from "lucide-react";
 
 import { CourierPage, useNow } from "@/components/delivery/courier-ui";
+import { Badge } from "@/components/ui/badge";
 import {
   COURIER_HISTORY_LIMIT,
   COURIER_HISTORY_PERIODS,
@@ -135,7 +136,7 @@ export function CourierHistory({ history, period, limitReached }: CourierHistory
 
       <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
         <Summary icon={CheckCircle2} label="Livraisons" value={String(history.length)} />
-        <Summary icon={Wallet} label="Encaissé" value={formatPriceXof(totalValue)} />
+        <Summary icon={Wallet} label="Montant livré" value={formatPriceXof(totalValue)} />
         <Summary icon={CalendarDays} label="Jours actifs" value={String(activeDays)} />
         <p className="col-span-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
           Période : {periodLabel.toLowerCase()}
@@ -212,9 +213,16 @@ function HistoryRow({ order }: { order: DeliveryOrder }) {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <p className="text-[14px] font-bold tabular-nums text-slate-900">
-              {formatPriceXof(order.totalAmount)}
-            </p>
+            <div className="text-right">
+              <p className="text-[14px] font-bold tabular-nums text-slate-900">
+                {formatPriceXof(order.totalAmount)}
+              </p>
+              {order.cashedAt ? (
+                <Badge tone="emerald">Remis à la caisse</Badge>
+              ) : (
+                <Badge tone="orange">À remettre</Badge>
+              )}
+            </div>
             <ChevronDown className="h-4 w-4 text-slate-400 transition group-open:rotate-180" />
           </div>
         </summary>
