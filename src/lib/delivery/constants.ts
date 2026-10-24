@@ -37,6 +37,9 @@ export function formatDeliveryQuantity(quantity: number): string {
 export const DELIVERY_PATHS = [
   "/application/livraisons",
   "/application/livreur",
+  "/application/livreur/en-cours",
+  "/application/livreur/historique",
+  "/application/livreur/stock",
   "/application/livreurs",
 ] as const;
 

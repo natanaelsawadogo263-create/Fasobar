@@ -81,7 +81,12 @@ export function getNavigationForSpace(
 
   if (space === "delivery") {
     return isEcommerce
-      ? [{ href: "/application/livreur", label: "Mes livraisons", enabled: true }]
+      ? [
+          { href: "/application/livreur", label: "Commandes à prendre", enabled: true },
+          { href: "/application/livreur/en-cours", label: "Livraisons en cours", enabled: true },
+          { href: "/application/livreur/historique", label: "Historique", enabled: true },
+          { href: "/application/livreur/stock", label: "Mon stock", enabled: true },
+        ]
       : [];
   }
 

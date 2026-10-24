@@ -55,9 +55,11 @@ describe("accès aux pages livraisons", () => {
     expect(isPathAllowedForSpace("/application/stock", "delivery", "BOTH", "ecommerce")).toBe(false);
     expect(isPathAllowedForSpace("/application/caisse", "delivery", "BOTH", "ecommerce")).toBe(false);
     expect(isPathAllowedForSpace("/application/utilisateurs", "delivery", "BOTH", "ecommerce")).toBe(false);
-    expect(getNavigationForSpace("delivery", "BOTH", "ecommerce").map((i) => i.href)).toEqual([
-      "/application/livreur",
-    ]);
+    expect(
+      getNavigationForSpace("delivery", "BOTH", "ecommerce").every((i) =>
+        i.href.startsWith("/application/livreur"),
+      ),
+    ).toBe(true);
   });
 
   it("la caissière e-commerce gère les livraisons, pas les livreurs", () => {
@@ -126,5 +128,20 @@ describe("historique des livraisons du livreur", () => {
     expect(courierHistoryStart("aujourdhui", now)).toEqual(new Date(2026, 9, 25, 0, 0, 0, 0));
     expect(courierHistoryStart("7j", now)).toEqual(new Date(2026, 9, 19, 0, 0, 0, 0));
     expect(courierHistoryStart("30j", now)).toEqual(new Date(2026, 8, 26, 0, 0, 0, 0));
+  });
+});
+
+describe("menu de l'espace livreur", () => {
+  it("propose les 4 pages du livreur, toutes autorisées", () => {
+    const hrefs = getNavigationForSpace("delivery", "BOTH", "ecommerce").map((item) => item.href);
+    expect(hrefs).toEqual([
+      "/application/livreur",
+      "/application/livreur/en-cours",
+      "/application/livreur/historique",
+      "/application/livreur/stock",
+    ]);
+    for (const href of hrefs) {
+      expect(isPathAllowedForSpace(href, "delivery", "BOTH", "ecommerce")).toBe(true);
+    }
   });
 });

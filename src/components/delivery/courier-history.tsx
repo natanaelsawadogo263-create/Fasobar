@@ -4,6 +4,7 @@ import { useMemo, useTransition, type ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, CheckCircle2, ChevronDown, Loader2, MapPin, Wallet } from "lucide-react";
 
+import { CourierPage, useNow } from "@/components/delivery/courier-ui";
 import {
   COURIER_HISTORY_LIMIT,
   COURIER_HISTORY_PERIODS,
@@ -18,8 +19,6 @@ type CourierHistoryProps = {
   history: DeliveryOrder[];
   period: CourierHistoryPeriodId;
   limitReached: boolean;
-  /** Heure courante côté client (null au rendu serveur). */
-  now: number | null;
 };
 
 type DayGroup = {
@@ -67,7 +66,8 @@ function deliveryDuration(order: DeliveryOrder): string | null {
   return `${Math.floor(minutes / 60)} h${rest > 0 ? ` ${String(rest).padStart(2, "0")}` : ""}`;
 }
 
-export function CourierHistory({ history, period, limitReached, now }: CourierHistoryProps) {
+export function CourierHistory({ history, period, limitReached }: CourierHistoryProps) {
+  const now = useNow();
   const router = useRouter();
   const [isLoading, startTransition] = useTransition();
 
@@ -92,24 +92,23 @@ export function CourierHistory({ history, period, limitReached, now }: CourierHi
   function selectPeriod(id: CourierHistoryPeriodId) {
     if (id === period) return;
     startTransition(() => {
-      router.replace(`/application/livreur?onglet=historique&periode=${id}`, { scroll: false });
+      router.replace(`/application/livreur/historique?periode=${id}`, { scroll: false });
     });
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h2 className="text-[15px] font-bold tracking-tight text-slate-900">Historique des livraisons</h2>
-          <p className="text-[12px] text-slate-500">Toutes vos livraisons finalisées, jour par jour.</p>
-        </div>
-        {isLoading ? (
+    <CourierPage
+      title="Historique des livraisons"
+      description="Toutes vos livraisons finalisées, jour par jour."
+      aside={
+        isLoading ? (
           <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             Chargement…
           </span>
-        ) : null}
-      </div>
+        ) : null
+      }
+    >
 
       <div className="flex gap-1.5 overflow-x-auto pb-0.5" role="radiogroup" aria-label="Période">
         {COURIER_HISTORY_PERIODS.map((item) => {
@@ -189,7 +188,7 @@ export function CourierHistory({ history, period, limitReached, now }: CourierHi
           </div>
         ))
       )}
-    </section>
+    </CourierPage>
   );
 }
 

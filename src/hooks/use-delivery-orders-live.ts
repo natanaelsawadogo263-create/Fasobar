@@ -17,15 +17,17 @@ const FALLBACK_POLL_MS = 30_000;
  */
 export function useDeliveryOrdersLive(
   establishmentId: string,
-  options: { chimeOnNew?: boolean } = {},
+  options: { chimeOnNew?: boolean; onChange?: () => void } = {},
 ) {
   const router = useRouter();
   const chimeOnNew = Boolean(options.chimeOnNew);
   const chimeRef = useRef(chimeOnNew);
+  const onChangeRef = useRef(options.onChange);
 
   useEffect(() => {
     chimeRef.current = chimeOnNew;
-  }, [chimeOnNew]);
+    onChangeRef.current = options.onChange;
+  }, [chimeOnNew, options.onChange]);
 
   useEffect(() => {
     if (!establishmentId) return;
@@ -37,7 +39,10 @@ export function useDeliveryOrdersLive(
 
     const scheduleRefresh = () => {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => router.refresh(), REFRESH_DEBOUNCE_MS);
+      timer = setTimeout(() => {
+        router.refresh();
+        onChangeRef.current?.();
+      }, REFRESH_DEBOUNCE_MS);
     };
 
     const channel = supabase.channel(`delivery-orders-${establishmentId}`).on(
@@ -66,7 +71,10 @@ export function useDeliveryOrdersLive(
     });
 
     const poll = setInterval(() => {
-      if (document.visibilityState === "visible") router.refresh();
+      if (document.visibilityState === "visible") {
+        router.refresh();
+        onChangeRef.current?.();
+      }
     }, FALLBACK_POLL_MS);
 
     return () => {

@@ -196,7 +196,13 @@ export function ApplicationShell({
     );
   } else if (space === "delivery" && activityCode === "ecommerce") {
     shell = (
-      <CourierShell establishmentName={establishmentName} courierName={cashierName || "Livreur"}>
+      <CourierShell
+        establishmentId={establishmentId}
+        establishmentName={establishmentName}
+        userId={userId}
+        courierName={cashierName || "Livreur"}
+        navItems={navItems}
+      >
         {children}
       </CourierShell>
     );
