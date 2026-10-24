@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, PackagePlus, UserPlus } from "lucide-react";
+import { ChevronRight, PackagePlus } from "lucide-react";
 
 import {
   CourierStockModal,
@@ -50,14 +50,6 @@ export function CouriersAdminWorkspace({
               Stock remis à chaque livreur, livraisons effectuées et ce qui doit leur rester.
             </p>
           </div>
-          <Link
-            href="/application/utilisateurs?create=1"
-            className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[13px] font-semibold text-white shadow-sm active:bg-emerald-500 sm:px-4"
-          >
-            <UserPlus className="h-4 w-4" />
-            <span className="hidden sm:inline">Créer un livreur</span>
-            <span className="sm:hidden">Créer</span>
-          </Link>
         </header>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
