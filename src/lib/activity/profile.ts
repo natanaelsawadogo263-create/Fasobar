@@ -1,6 +1,7 @@
 import {
   BUSINESS_ACTIVITIES,
   isBusinessActivityId,
+  isEcommerceActivity,
   isFoodServiceActivity,
   type BusinessActivityId,
 } from "@/lib/auth/activities";
@@ -228,6 +229,9 @@ const RETAIL_OVERRIDES: Partial<
     clientPlaceholder: "Véhicule / client (optionnel)",
     ticketTitle: "Vente en cours",
   },
+  ecommerce: {
+    dashboardHint: "Pilotage des ventes, du stock et de la caisse.",
+  },
   other: {
     dashboardHint: "Pilotage des ventes, du stock et de la caisse.",
   },
@@ -264,6 +268,9 @@ export function getInvitableSpacesForActivity(
 ) {
   const profile = getActivityProfile(activityCode);
   return INVITABLE_SPACES.filter((space) => {
+    if (space.id === "delivery") {
+      return isEcommerceActivity(activityCode);
+    }
     if (space.id === "bar_manager") {
       if (isRetailShopOps(activityCode)) return true;
       if (profile.kind === "retail") return false;
@@ -300,5 +307,6 @@ export function displaySpaceLabel(
   if (space === "bar_manager") {
     return profile.stockManagerLabel;
   }
+  if (space === "delivery") return "Livreur";
   return "Administration";
 }

@@ -1,6 +1,6 @@
 import { isRetailShopOps } from "@/lib/activity/ops-model";
 
-export type UserSpace = "admin" | "cashier_kitchen" | "bar_manager";
+export type UserSpace = "admin" | "cashier_kitchen" | "bar_manager" | "delivery";
 
 export const ADMIN_ROLES = new Set(["OWNER", "ADMIN", "MANAGER"]);
 export const BAR_MANAGER_ROLES = new Set(["BAR_MANAGER"]);
@@ -9,6 +9,8 @@ export const CASHIER_KITCHEN_ROLES = new Set([
   "CASHIER",
   "KITCHEN_MANAGER",
 ]);
+/** Livreur — établissements e-commerce uniquement. */
+export const DELIVERY_ROLES = new Set(["DELIVERY_AGENT"]);
 
 export const INVITABLE_SPACES = [
   {
@@ -29,18 +31,26 @@ export const INVITABLE_SPACES = [
     description: "Commandes boissons, stock Bar et pertes.",
     role: "BAR_MANAGER" as const,
   },
+  {
+    id: "delivery" as const,
+    label: "Livreur",
+    description: "Accepte les commandes, livre et gère son stock de livraison.",
+    role: "DELIVERY_AGENT" as const,
+  },
 ];
 
 export const SPACE_LABELS: Record<UserSpace, string> = {
   admin: "Administration",
   cashier_kitchen: "Cuisine",
   bar_manager: "Bar",
+  delivery: "Livreur",
 };
 
 export const SPACE_HOME_PATHS: Record<UserSpace, string> = {
   admin: "/application/tableau-de-bord",
   cashier_kitchen: "/application/caisse",
   bar_manager: "/application/bar",
+  delivery: "/application/livreur",
 };
 
 export function membershipRoleIsCashierKitchen(role: string): boolean {
@@ -74,6 +84,10 @@ export function resolveEffectiveRole(
       : organizationRole;
   }
 
+  if (DELIVERY_ROLES.has(organizationRole) || DELIVERY_ROLES.has(establishmentRole)) {
+    return DELIVERY_ROLES.has(establishmentRole) ? establishmentRole : organizationRole;
+  }
+
   return organizationRole || establishmentRole || "MEMBER";
 }
 
@@ -93,6 +107,10 @@ export function resolveUserSpace(
 
   if (membershipRoleIsCashierKitchen(role)) {
     return "cashier_kitchen";
+  }
+
+  if (DELIVERY_ROLES.has(role)) {
+    return "delivery";
   }
 
   return "admin";
@@ -131,8 +149,8 @@ export function canOperateCashRegister(
 }
 
 export function inviteSpaceToRole(
-  space: "admin" | "cashier_kitchen" | "bar_manager",
-): "ADMIN" | "CASHIER_KITCHEN" | "BAR_MANAGER" {
+  space: UserSpace,
+): "ADMIN" | "CASHIER_KITCHEN" | "BAR_MANAGER" | "DELIVERY_AGENT" {
   const match = INVITABLE_SPACES.find((item) => item.id === space);
   return match?.role ?? "CASHIER_KITCHEN";
 }
@@ -148,6 +166,10 @@ export function roleToSpaceLabel(role: string): string {
 
   if (membershipRoleIsCashierKitchen(role)) {
     return SPACE_LABELS.cashier_kitchen;
+  }
+
+  if (DELIVERY_ROLES.has(role)) {
+    return SPACE_LABELS.delivery;
   }
 
   return role;

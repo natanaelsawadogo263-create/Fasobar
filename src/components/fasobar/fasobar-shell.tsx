@@ -13,6 +13,7 @@ import type { NavItem } from "@/lib/navigation/space-navigation";
 type FasoBarShellProps = {
   children: ReactNode;
   navItems?: NavItem[];
+  showDeliveryLink?: boolean;
 };
 
 const CASHIER_PRIMARY = [
@@ -22,7 +23,11 @@ const CASHIER_PRIMARY = [
   "/application/caisse/session",
 ];
 
-export function FasoBarShell({ children, navItems = [] }: FasoBarShellProps) {
+export function FasoBarShell({
+  children,
+  navItems = [],
+  showDeliveryLink = false,
+}: FasoBarShellProps) {
   const pathname = usePathname();
   const isCaisse =
     pathname === "/application/caisse" || pathname.startsWith("/application/caisse?");
@@ -31,7 +36,7 @@ export function FasoBarShell({ children, navItems = [] }: FasoBarShellProps) {
 
   return (
     <div className="fasobar-shell app-shell flex h-dvh w-full max-w-full flex-col overflow-hidden bg-[#f4f6f9]">
-      <FasoBarTopbar />
+      <FasoBarTopbar showDeliveryLink={showDeliveryLink} />
       {isCaisse ? <MobileCaisseFilters /> : null}
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className="hidden h-full shrink-0 md:flex">

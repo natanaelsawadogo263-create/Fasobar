@@ -12,6 +12,7 @@ import {
   type ExpenseArea,
 } from "@/lib/expenses/schemas";
 import type { ExpenseActionState } from "@/lib/expenses/types";
+import type { UserSpace } from "@/lib/auth/roles";
 import { hardwarePermissions } from "@/lib/hardware/permissions";
 
 function revalidateExpensePages() {
@@ -41,17 +42,17 @@ function mapExpenseRpcError(message: string): string {
 }
 
 function resolveAreaForSpace(
-  space: "admin" | "cashier_kitchen" | "bar_manager",
+  space: UserSpace,
   requested: ExpenseArea,
 ): ExpenseArea {
   if (space === "bar_manager") return "BAR";
-  if (space === "cashier_kitchen") return "CAISSE";
+  if (space === "cashier_kitchen" || space === "delivery") return "CAISSE";
   return requested;
 }
 
 /** Bar / Caisse–Cuisine : pas de catégorie côté UI (défaut OTHER à la création). */
 function resolveCategoryForSpace(
-  space: "admin" | "cashier_kitchen" | "bar_manager",
+  space: UserSpace,
   requested: unknown,
 ) {
   if (space === "admin") return requested;

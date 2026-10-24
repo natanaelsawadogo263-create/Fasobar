@@ -338,6 +338,11 @@ const RETAIL_OVERRIDES: Partial<
       "Autre",
     ],
   },
+  ecommerce: {
+    namePlaceholder: "Ex : nom de l’article",
+    units: SHOP_UNITS,
+    suggestedCategories: ["Général", "Autre"],
+  },
   other: {
     namePlaceholder: "Ex : nom de l’article",
     units: SHOP_UNITS,

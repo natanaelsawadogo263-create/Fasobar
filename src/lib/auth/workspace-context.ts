@@ -31,7 +31,7 @@ import {
   requireOrganizationBusinessAccess,
 } from "@/lib/platform/saas-gate";
 import { createClient } from "@/lib/supabase/server";
-import { isBusinessActivityId } from "@/lib/auth/activities";
+import { isBusinessActivityId, isEcommerceActivity } from "@/lib/auth/activities";
 import { isRetailShopOps } from "@/lib/activity/ops-model";
 import { isRetailActivity } from "@/lib/activity/profile";
 import {
@@ -90,6 +90,7 @@ const MEMBERSHIP_ROLE_PRIORITY = [
   "CASHIER_KITCHEN",
   "CASHIER",
   "KITCHEN_MANAGER",
+  "DELIVERY_AGENT",
 ] as const;
 
 function readRelatedEntity<T extends NamedEntity>(
@@ -876,6 +877,54 @@ export async function requireBarManagerContext(): Promise<WorkspaceContext> {
 
 export async function requireBarManagerMutationContext(): Promise<WorkspaceContext> {
   return withMutationAccess(await requireBarManagerContext());
+}
+
+/** E-commerce : livreur connecté (espace Livreur). */
+export async function requireDeliveryCourierContext(): Promise<WorkspaceContext> {
+  const context = await requireWorkspaceContext();
+
+  if (!isEcommerceActivity(context.activityCode) || context.userSpace !== "delivery") {
+    redirectDenied(context);
+  }
+
+  return context;
+}
+
+export async function requireDeliveryCourierMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireDeliveryCourierContext());
+}
+
+/** E-commerce : admin — livreurs, remises et retours de stock. */
+export async function requireDeliveryManagerContext(): Promise<WorkspaceContext> {
+  const context = await requireWorkspaceContext();
+
+  if (!isEcommerceActivity(context.activityCode) || !isAdminWorkspace(context)) {
+    redirectDenied(context);
+  }
+
+  return context;
+}
+
+export async function requireDeliveryManagerMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireDeliveryManagerContext());
+}
+
+/** E-commerce : saisie des commandes à livrer (caissière ou admin). */
+export async function requireDeliveryOrderDeskContext(): Promise<WorkspaceContext> {
+  const context = await requireWorkspaceContext();
+
+  if (
+    !isEcommerceActivity(context.activityCode) ||
+    (context.userSpace !== "cashier_kitchen" && !isAdminWorkspace(context))
+  ) {
+    redirectDenied(context);
+  }
+
+  return context;
+}
+
+export async function requireDeliveryOrderDeskMutationContext(): Promise<WorkspaceContext> {
+  return withMutationAccess(await requireDeliveryOrderDeskContext());
 }
 
 /** Accès page Dépenses (Admin, Bar, Caisse–Cuisine). */

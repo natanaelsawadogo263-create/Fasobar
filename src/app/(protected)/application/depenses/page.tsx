@@ -1,6 +1,7 @@
 import { DepensesPageSuspense } from "@/app/(protected)/application/depenses/depenses-page-content";
 import { requireSpacePathAccess } from "@/lib/auth/workspace-context";
 import { isRetailShopOps } from "@/lib/activity/ops-model";
+import type { UserSpace } from "@/lib/auth/roles";
 import {
   expenseFiltersSchema,
   type ExpenseArea,
@@ -19,12 +20,12 @@ type DepensesPageProps = {
 type ExpensePeriodFilter = "day" | "week" | "month" | "custom";
 
 function lockedAreaForSpace(
-  space: "admin" | "cashier_kitchen" | "bar_manager",
+  space: UserSpace,
   activityCode?: string | null,
 ): ExpenseArea | null {
   if (isRetailShopOps(activityCode) && space === "bar_manager") return null;
   if (space === "bar_manager") return "BAR";
-  if (space === "cashier_kitchen") return "CAISSE";
+  if (space === "cashier_kitchen" || space === "delivery") return "CAISSE";
   return null;
 }
 

@@ -27,6 +27,7 @@ export function isHomeNavItem(item: Pick<NavItem, "href" | "label">): boolean {
     item.href === "/application/caisse" ||
     item.href === "/application" ||
     item.href === "/application/station/employes" ||
+    item.href === "/application/livreur" ||
     item.href === "/platform"
   );
 }
@@ -76,6 +77,13 @@ export function getNavigationForSpace(
   const retail = profile.kind === "retail";
 
   const isGasStation = activityCode === "gas_station";
+  const isEcommerce = activityCode === "ecommerce";
+
+  if (space === "delivery") {
+    return isEcommerce
+      ? [{ href: "/application/livreur", label: "Mes livraisons", enabled: true }]
+      : [];
+  }
 
   if (isGasStation && space === "admin") {
     return [
@@ -110,6 +118,12 @@ export function getNavigationForSpace(
       { href: "/application/stock", label: profile.stockNavLabel, enabled: true },
       { href: "/application/approvisionnements", label: "Approvisionnements", enabled: true },
       { href: "/application/ventes", label: "Ventes", enabled: true },
+      ...(isEcommerce
+        ? [
+            { href: "/application/livraisons", label: "Livraisons", enabled: true },
+            { href: "/application/livreurs", label: "Livreurs", enabled: true },
+          ]
+        : []),
       { href: "/application/caisses", label: "Caisses", enabled: true },
       { href: "/application/depenses", label: "Dépenses", enabled: true },
       { href: "/application/utilisateurs", label: "Utilisateurs", enabled: true },
@@ -126,6 +140,9 @@ export function getNavigationForSpace(
         label: profile.openTicketsNavLabel,
         enabled: true,
       },
+      ...(isEcommerce
+        ? [{ href: "/application/livraisons", label: "Livraisons", enabled: true }]
+        : []),
       { href: "/application/caisse/session", label: "Ma session", enabled: true },
     ];
   }
@@ -212,9 +229,37 @@ export function isPathAllowedForSpace(
 ): boolean {
   const retail = isRetailActivity(activityCode);
   const isGasStation = activityCode === "gas_station";
+  const isEcommerce = activityCode === "ecommerce";
 
   if (pathname.startsWith("/application/station") && !isGasStation) {
     return false;
+  }
+
+  // Livraisons / livreurs : établissements e-commerce uniquement.
+  if (
+    (pathname.startsWith("/application/livraisons") ||
+      pathname.startsWith("/application/livreur")) &&
+    !isEcommerce
+  ) {
+    return false;
+  }
+
+  if (space === "delivery") {
+    return (
+      isEcommerce &&
+      (pathname === "/application/livreur" ||
+        pathname.startsWith("/application/livreur/") ||
+        pathname === "/application" ||
+        pathname.startsWith("/application/mode-hors-connexion"))
+    );
+  }
+
+  if (
+    isEcommerce &&
+    space === "cashier_kitchen" &&
+    pathname.startsWith("/application/livraisons")
+  ) {
+    return true;
   }
 
   if (isGasStation) {

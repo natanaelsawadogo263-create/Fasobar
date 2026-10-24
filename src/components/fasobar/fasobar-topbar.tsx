@@ -1,7 +1,7 @@
 "use client";
 
 import { InstantLink } from "@/components/layout/instant-link";
-import { ArrowLeft, Lock, LogOut, Package } from "lucide-react";
+import { ArrowLeft, Lock, LogOut, Package, Truck } from "lucide-react";
 
 import { getActivityPages } from "@/lib/activity/pages";
 import { signOutAction } from "@/lib/auth/actions";
@@ -14,7 +14,12 @@ import { LiveClock } from "@/components/ui/live-clock";
 const iconBtn =
   "inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-200 transition active:bg-white/10 md:h-9 md:w-9 md:rounded-lg md:hover:bg-white/10";
 
-export function FasoBarTopbar() {
+type FasoBarTopbarProps = {
+  /** E-commerce : accès direct aux commandes à livrer. */
+  showDeliveryLink?: boolean;
+};
+
+export function FasoBarTopbar({ showDeliveryLink = false }: FasoBarTopbarProps) {
   const ctx = useFasoBarCashier();
   const pages = getActivityPages(ctx?.caisseFilters?.activityCode);
   const openCount = ctx?.openOrdersCount ?? 0;
@@ -95,6 +100,17 @@ export function FasoBarTopbar() {
             </span>
           ) : null}
         </InstantLink>
+
+        {showDeliveryLink ? (
+          <InstantLink
+            href="/application/livraisons"
+            className={iconBtn}
+            title="Livraisons"
+            aria-label="Livraisons"
+          >
+            <Truck className="h-4 w-4" />
+          </InstantLink>
+        ) : null}
 
         {sessionOpen ? (
           <button

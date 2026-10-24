@@ -80,6 +80,12 @@ export const BUSINESS_ACTIVITIES = [
     icon: "fuel",
   },
   {
+    id: "ecommerce",
+    label: "E-commerce / Vente en ligne",
+    description: "Commandes en ligne, réseaux sociaux et livraisons.",
+    icon: "cart",
+  },
+  {
     id: "other",
     label: "Autre commerce",
     description: "Une activité qui ne figure pas dans la liste.",
@@ -124,4 +130,10 @@ export function isGasStationActivity(
   activityId: string | null | undefined,
 ): activityId is "gas_station" {
   return activityId === "gas_station";
+}
+
+export function isEcommerceActivity(
+  activityId: string | null | undefined,
+): activityId is "ecommerce" {
+  return activityId === "ecommerce";
 }

@@ -90,6 +90,7 @@ export function ApplicationShell({
   );
 
   const retailShop = isRetailShopOps(activityCode);
+  const ecommerceCashier = space === "cashier_kitchen" && activityCode === "ecommerce";
 
   let shell: ReactNode;
 
@@ -138,7 +139,11 @@ export function ApplicationShell({
     );
   } else if (space === "cashier_kitchen" && isCashierSecondaryRoute(pathname)) {
     shell = <CashierSecondaryShell>{children}</CashierSecondaryShell>;
-  } else if (space === "cashier_kitchen" && isFasoBarCashierRoute(pathname)) {
+  } else if (
+    space === "cashier_kitchen" &&
+    (isFasoBarCashierRoute(pathname) ||
+      (ecommerceCashier && pathname.startsWith("/application/livraisons")))
+  ) {
     shell = (
       <FasoBarCashierShell
         establishmentId={establishmentId}
@@ -146,6 +151,7 @@ export function ApplicationShell({
         establishmentName={establishmentName}
         cashierName={cashierName}
         navItems={navItems}
+        showDeliveryLink={ecommerceCashier}
       >
         {children}
       </FasoBarCashierShell>

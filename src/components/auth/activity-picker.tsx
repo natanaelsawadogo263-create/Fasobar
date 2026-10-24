@@ -17,6 +17,7 @@ import {
   Warehouse,
   Wrench,
   Fuel,
+  ShoppingCart,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,6 +40,7 @@ const ICONS: Record<(typeof BUSINESS_ACTIVITIES)[number]["icon"], LucideIcon> = 
   utensils: UtensilsCrossed,
   warehouse: Warehouse,
   fuel: Fuel,
+  cart: ShoppingCart,
   more: MoreHorizontal,
 };
 

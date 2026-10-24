@@ -5,7 +5,7 @@ import {
   normalizeLoginIdentifier,
 } from "@/lib/auth/login-identifier";
 
-export const employeeSpaceSchema = z.enum(["admin", "cashier_kitchen", "bar_manager"]);
+export const employeeSpaceSchema = z.enum(["admin", "cashier_kitchen", "bar_manager", "delivery"]);
 
 export const createEmployeeAccountSchema = z.object({
   fullName: z.string().trim().min(2, "Le nom complet est obligatoire."),

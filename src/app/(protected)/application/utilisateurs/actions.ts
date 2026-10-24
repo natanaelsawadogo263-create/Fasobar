@@ -6,6 +6,7 @@ import { randomUUID } from "crypto";
 import { mapAuthError, mapGenericError } from "@/lib/auth/errors";
 import { toUserFacingError, USER_ERROR_MESSAGE } from "@/lib/errors/user-facing";
 import { inviteSpaceToRole } from "@/lib/auth/roles";
+import { isEcommerceActivity } from "@/lib/auth/activities";
 import { createEmployeeAuthUser } from "@/lib/auth/employee-sign-in";
 import { requireAdminMutationContext } from "@/lib/auth/workspace-context";
 import { createClient } from "@/lib/supabase/server";
@@ -163,6 +164,10 @@ export async function createEmployeeAccountAction(
       error:
         "Cet espace employé n’est pas ouvert pour cet établissement. Modifiez les espaces dans Paramètres.",
     };
+  }
+
+  if (parsed.data.space === "delivery" && !isEcommerceActivity(workspace.activityCode)) {
+    return { error: "Les comptes livreurs sont réservés aux établissements e-commerce." };
   }
 
   if (!isAdminClientConfigured()) {
