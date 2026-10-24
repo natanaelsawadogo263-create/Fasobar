@@ -81,9 +81,14 @@ export function PlatformTopbar({
   useEffect(() => {
     if (!userMenuOpen) return;
     function onPointerDown(event: MouseEvent) {
+      const target = event.target as Node;
+      // La confirmation de déconnexion est rendue hors du menu (portail).
+      const inSignOutConfirm =
+        target instanceof Element && target.closest("[data-sign-out-confirm]") !== null;
       if (
         userMenuRef.current &&
-        !userMenuRef.current.contains(event.target as Node)
+        !userMenuRef.current.contains(target) &&
+        !inSignOutConfirm
       ) {
         setUserMenuOpen(false);
       }
