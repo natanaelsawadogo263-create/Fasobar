@@ -5,7 +5,7 @@ import { Building2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { AdminNotificationsBell } from "@/components/admin/admin-notifications-bell";
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
 import { EnablePushButton } from "@/components/notifications/enable-push-button";
-import { signOutAction } from "@/lib/auth/actions";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 import { FullscreenButton } from "@/components/ui/fullscreen-button";
 import { LiveClock } from "@/components/ui/live-clock";
 
@@ -91,7 +91,7 @@ export function AdminTopbar({
         <AdminNotificationsBell establishmentId={establishmentId} />
       ) : null}
 
-      <form action={signOutAction} className="shrink-0">
+      <SignOutForm className="shrink-0">
         <button
           type="submit"
           className="flex h-11 items-center gap-2 rounded-xl px-0.5 text-left active:bg-slate-50 md:h-auto md:rounded-lg md:px-1 md:py-0.5 md:hover:bg-slate-50"
@@ -105,7 +105,7 @@ export function AdminTopbar({
             <span className="block text-[11px] text-slate-500">{roleSubtitle}</span>
           </span>
         </button>
-      </form>
+      </SignOutForm>
     </header>
   );
 }

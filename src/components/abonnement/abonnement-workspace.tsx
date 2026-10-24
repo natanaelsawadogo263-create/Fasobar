@@ -17,7 +17,7 @@ import {
   PLATFORM_SUBSCRIPTION_STATUS_LABELS,
 } from "@/lib/platform/access";
 import { PLATFORM_ACCESS_STATUS_LABELS } from "@/lib/platform/statuses";
-import { signOutAction } from "@/lib/auth/actions";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
@@ -176,7 +176,7 @@ export function AbonnementWorkspace({
             Retour
           </Link>
         ) : (
-          <form action={signOutAction} className="shrink-0">
+          <SignOutForm className="shrink-0">
             <button
               type="submit"
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-medium text-slate-700 hover:bg-slate-50"
@@ -184,7 +184,7 @@ export function AbonnementWorkspace({
               <LogOut className="h-3.5 w-3.5" />
               Quitter
             </button>
-          </form>
+          </SignOutForm>
         )}
       </header>
 

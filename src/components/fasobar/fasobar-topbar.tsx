@@ -4,7 +4,7 @@ import { InstantLink } from "@/components/layout/instant-link";
 import { ArrowLeft, Lock, LogOut, Package, Truck } from "lucide-react";
 
 import { getActivityPages } from "@/lib/activity/pages";
-import { signOutAction } from "@/lib/auth/actions";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 import { FasoBarLogo } from "@/components/brand/fasobar-logo";
 import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
 import { DesktopSyncIndicator } from "@/components/pos/desktop-sync-indicator";
@@ -143,7 +143,7 @@ export function FasoBarTopbar({ showDeliveryLink = false }: FasoBarTopbarProps) 
           />
         </div>
 
-        <form action={signOutAction} className="flex items-center">
+        <SignOutForm className="flex items-center">
           <button
             type="submit"
             title="Déconnexion"
@@ -160,7 +160,7 @@ export function FasoBarTopbar({ showDeliveryLink = false }: FasoBarTopbarProps) 
             ) : null}
             <LogOut className="hidden h-3.5 w-3.5 text-slate-400 xl:inline" />
           </button>
-        </form>
+        </SignOutForm>
       </div>
     </header>
   );

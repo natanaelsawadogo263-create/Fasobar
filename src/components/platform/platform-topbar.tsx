@@ -10,7 +10,7 @@ import { LiveClock } from "@/components/ui/live-clock";
 import { EnablePushButton } from "@/components/notifications/enable-push-button";
 import { PLATFORM_NAV_ICONS } from "@/components/platform/platform-sidebar";
 import { PlatformExpiryAlertsBell } from "@/components/platform/platform-expiry-alerts-bell";
-import { signOutAction } from "@/lib/auth/actions";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 import {
   resolvePlatformPageMeta,
   totalPendingActions,
@@ -220,7 +220,7 @@ export function PlatformTopbar({
                     {adminEmail}
                   </p>
                 </div>
-                <form action={signOutAction}>
+                <SignOutForm>
                   <button
                     type="submit"
                     role="menuitem"
@@ -229,7 +229,7 @@ export function PlatformTopbar({
                     <LogOut className="h-3.5 w-3.5 text-slate-400" />
                     Se déconnecter
                   </button>
-                </form>
+                </SignOutForm>
               </div>
             ) : null}
           </div>

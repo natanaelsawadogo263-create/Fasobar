@@ -1,6 +1,6 @@
 import { InstantLink as Link } from "@/components/layout/instant-link";
 
-import { signOutAction } from "@/lib/auth/actions";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getWorkspaceContext } from "@/lib/auth/workspace-context";
 import { getOrganizationSaasAccess } from "@/lib/platform/saas-gate";
@@ -84,14 +84,14 @@ export default async function AccesSaasBloquePage() {
           </div>
         )}
 
-        <form action={signOutAction} className="mt-6">
+        <SignOutForm className="mt-6">
           <button
             type="submit"
             className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-[13px] font-medium text-slate-700 hover:bg-slate-50"
           >
             Se déconnecter
           </button>
-        </form>
+        </SignOutForm>
       </div>
     </div>
   );

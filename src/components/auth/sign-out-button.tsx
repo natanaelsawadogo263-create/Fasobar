@@ -2,7 +2,7 @@
 
 import { LogOut } from "lucide-react";
 
-import { signOutAction } from "@/lib/auth/actions";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 
 type SignOutButtonProps = {
   variant?: "default" | "dark" | "ghost";
@@ -19,7 +19,7 @@ export function SignOutButton({
   const isGhost = variant === "ghost";
 
   return (
-    <form action={signOutAction}>
+    <SignOutForm>
       <button
         type="submit"
         title={label}
@@ -39,6 +39,6 @@ export function SignOutButton({
           label
         )}
       </button>
-    </form>
+    </SignOutForm>
   );
 }

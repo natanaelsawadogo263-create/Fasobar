@@ -5,7 +5,7 @@ import { Circle, Home, UserRound } from "lucide-react";
 
 import { AdminNotificationsBell } from "@/components/admin/admin-notifications-bell";
 import { EnablePushButton } from "@/components/notifications/enable-push-button";
-import { signOutAction } from "@/lib/auth/actions";
+import { SignOutForm } from "@/components/auth/sign-out-form";
 import { FullscreenButton } from "@/components/ui/fullscreen-button";
 import { LiveClock } from "@/components/ui/live-clock";
 
@@ -96,7 +96,7 @@ export function BarTopbar({
         <FullscreenButton />
       </div>
 
-      <form action={signOutAction} className="shrink-0">
+      <SignOutForm className="shrink-0">
         <button
           type="submit"
           className="inline-flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-1.5 shadow-sm transition active:bg-slate-50 md:h-auto md:pr-3 md:hover:border-slate-300 md:hover:bg-slate-50"
@@ -109,7 +109,7 @@ export function BarTopbar({
             {managerName}
           </span>
         </button>
-      </form>
+      </SignOutForm>
     </header>
   );
 }
