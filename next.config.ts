@@ -74,6 +74,8 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "8mb",
     },
+    // Rappels de mise à jour Next.js : uniquement pour les correctifs de sécurité.
+    agentUpgrade: "security",
   },
   images: {
     remotePatterns: [
