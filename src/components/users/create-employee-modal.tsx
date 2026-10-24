@@ -93,7 +93,15 @@ export function CreateEmployeeModal({
     formData.set("idempotencyKey", idempotencyKey);
 
     startTransition(async () => {
-      const result = await createEmployeeAccountAction({}, formData);
+      let result: Awaited<ReturnType<typeof createEmployeeAccountAction>>;
+      try {
+        result = await createEmployeeAccountAction({}, formData);
+      } catch {
+        // Réponse serveur illisible (session expirée, coupure réseau, nouvelle version).
+        setError("Connexion au serveur interrompue. Rechargez la page puis réessayez.");
+        submittedRef.current = false;
+        return;
+      }
 
       if (result.error) {
         setError(result.error);

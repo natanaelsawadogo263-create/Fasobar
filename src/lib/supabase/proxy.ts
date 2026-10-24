@@ -67,6 +67,14 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Server Action : jamais de redirection HTML ici — le client attend une
+  // réponse RSC (sinon « An unexpected response was received from the server »).
+  // Les actions vérifient elles-mêmes la session (requireWorkspaceContext →
+  // redirect("/connexion")), et Next transmet cette redirection proprement.
+  if (request.headers.has("next-action")) {
+    return supabaseResponse;
+  }
+
   if (isProtectedPath(pathname) && !user) {
     // Desktop offline: opaque local session cookie — full validation in page/server.
     const hasLocalSession = Boolean(
