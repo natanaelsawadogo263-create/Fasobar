@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Banknote, Clock, Plus, Printer, Trash2 } from "lucide-react";
+import { Banknote, Clock, Plus, Printer, Send, Trash2 } from "lucide-react";
 
 import { OrderItemRow } from "@/components/pos/order-item-row";
 import { OrderReferenceBlock } from "@/components/pos/order-reference-block";
@@ -30,6 +30,8 @@ type ActiveOrderPanelProps = {
   retailMode?: boolean;
   ticketTitle?: string;
   clientPlaceholder?: string;
+  /** "delivery" (e-commerce) : le bouton principal envoie la commande aux livreurs. */
+  checkoutMode?: "cash" | "delivery";
 };
 
 export function ActiveOrderPanel({
@@ -53,7 +55,9 @@ export function ActiveOrderPanel({
   retailMode = false,
   ticketTitle = "Commande active",
   clientPlaceholder,
+  checkoutMode = "cash",
 }: ActiveOrderPanelProps) {
+  const deliveryMode = checkoutMode === "delivery";
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const isEmpty = cart.length === 0;
   const total = Math.max(subtotal - discountAmount, 0);
@@ -151,11 +155,15 @@ export function ActiveOrderPanel({
           type="button"
           disabled={actionsDisabled}
           onClick={onCheckout}
-          title="Encaisser maintenant (F8)"
+          title={deliveryMode ? "Envoyer la commande aux livreurs (F8)" : "Encaisser maintenant (F8)"}
           className="mt-2 inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-lg bg-[#059669] px-2 text-[13px] font-bold text-white transition active:bg-[#047857] disabled:cursor-not-allowed disabled:bg-[#e5e7eb] disabled:text-[#9ca3af]"
         >
-          <Banknote className="h-4 w-4 shrink-0" strokeWidth={2} />
-          {isPending ? "…" : "Encaisser"}
+          {deliveryMode ? (
+            <Send className="h-4 w-4 shrink-0" strokeWidth={2} />
+          ) : (
+            <Banknote className="h-4 w-4 shrink-0" strokeWidth={2} />
+          )}
+          {isPending ? "…" : deliveryMode ? "Commander" : "Encaisser"}
         </button>
       </div>
 

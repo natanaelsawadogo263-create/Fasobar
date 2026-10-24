@@ -17,6 +17,7 @@ import {
 import { FasoBarCaisseBridge } from "@/components/fasobar/fasobar-caisse-bridge";
 import { StepperNumberInput } from "@/components/ui/form-controls";
 import { useFasoBarCashier } from "@/components/fasobar/fasobar-cashier-context";
+import { PosDeliveryOrderModal } from "@/components/delivery/pos-delivery-order-modal";
 import { ActiveOrderPanel } from "@/components/pos/active-order-panel";
 import { OpenOrdersDrawer } from "@/components/pos/open-orders-drawer";
 import { PosToast } from "@/components/pos/pos-toast";
@@ -40,6 +41,7 @@ import {
 import { saleLineKey, stockQtyFromAmount } from "@/lib/catalog/sale-stock";
 import { usesOptionalProductLots } from "@/lib/activity/catalog";
 import { usesTradeCatalog } from "@/lib/activity/ops-model";
+import { isEcommerceActivity } from "@/lib/auth/activities";
 import { formatPriceXof } from "@/lib/orders/constants";
 import { refreshSoon } from "@/lib/ops/client-refresh";
 import { CAISSE_CATEGORIES } from "@/lib/caisse/catalog";
@@ -361,6 +363,9 @@ export function PosWorkspace({
   const router = useRouter();
   const cashierCtx = useFasoBarCashier();
   const browseWithoutSession = Boolean(cashierCtx?.adminReturnHref);
+  // E-commerce : « Commander » envoie le panier aux livreurs ; l'encaissement
+  // se fait à la remise de l'argent par le livreur (page Livraisons).
+  const deliveryCheckout = isEcommerceActivity(activityCode);
   // Catalogue tenu à jour en direct (autre appareil du même établissement qui
   // modifie un produit/le stock pendant que la caisse est ouverte) — initialisé
   // avec le catalogue SSR, remplacé quand la synchronisation temps réel arrive.
@@ -391,6 +396,7 @@ export function PosWorkspace({
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showOpenOrders, setShowOpenOrders] = useState(false);
   const [checkoutDraft, setCheckoutDraft] = useState<CheckoutDraft | null>(null);
+  const [deliveryOrderOpen, setDeliveryOrderOpen] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState<CashCheckoutSuccess | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("products");
@@ -947,6 +953,10 @@ export function PosWorkspace({
 
   function handleCheckout() {
     if (cart.length === 0) return;
+    if (deliveryCheckout) {
+      setDeliveryOrderOpen(true);
+      return;
+    }
     if (!session && !browseWithoutSession) {
       showToast("Ouvrez une session de caisse pour encaisser.", "error");
       return;
@@ -1052,7 +1062,7 @@ export function PosWorkspace({
     onSearch: () => searchInputRef.current?.focus(),
     onOpenOrders: () => setShowOpenOrders(true),
     onCheckout: () => {
-      if (cart.length > 0 && !isPending && !checkoutDraft) handleCheckout();
+      if (cart.length > 0 && !isPending && !checkoutDraft && !deliveryOrderOpen) handleCheckout();
     },
     onEscape: () => {
       if (checkoutDraft && !checkoutSuccess && !isPending) {
@@ -1082,6 +1092,7 @@ export function PosWorkspace({
     onHold: handleHold,
     onPrintAddition: handlePrintAddition,
     onCheckout: handleCheckout,
+    checkoutMode: deliveryCheckout ? ("delivery" as const) : ("cash" as const),
     onClear: clearCart,
     onNewOrder: handleNewOrder,
   };
@@ -1163,7 +1174,7 @@ export function PosWorkspace({
             onClick={handleCheckout}
             className="min-h-12 shrink-0 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
-            Encaisser
+            {deliveryCheckout ? "Commander" : "Encaisser"}
           </button>
         </div>
       ) : null}
@@ -1233,6 +1244,21 @@ export function PosWorkspace({
           openCheckoutForSavedOrder(order);
         }}
       />
+
+      {deliveryOrderOpen ? (
+        <PosDeliveryOrderModal
+          cart={cart}
+          total={totalAmount}
+          initialCustomerName={tableReference}
+          onClose={() => setDeliveryOrderOpen(false)}
+          onSent={(message) => {
+            setDeliveryOrderOpen(false);
+            clearCart();
+            setMobileTab("products");
+            showToast(message, "success");
+          }}
+        />
+      ) : null}
 
       {checkoutDraft ? (
         <CashCheckoutModal
