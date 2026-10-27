@@ -307,6 +307,8 @@ export async function getReceiptById(
     .select("*")
     .eq("id", receiptId)
     .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+    // Une caisse n'ouvre que ses propres reçus ; l'admin voit tout.
+    .match(workspace.userSpace === "cashier_kitchen" ? { issued_by: workspace.userId } : {})
     .maybeSingle();
 
   if (error || !receipt) {

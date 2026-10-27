@@ -143,6 +143,8 @@ export async function listDeliveryOrders(
   options: {
     statuses?: DeliveryOrderStatus[];
     courierId?: string;
+    /** Commandes envoyées par cet utilisateur (une caisse ne voit que les siennes). */
+    createdBy?: string;
     limit?: number;
     /** Livrées à partir de cette date (ISO) — historique. */
     deliveredSince?: string;
@@ -167,6 +169,9 @@ export async function listDeliveryOrders(
   }
   if (options.courierId) {
     query = query.eq("courier_id", options.courierId);
+  }
+  if (options.createdBy) {
+    query = query.eq("created_by", options.createdBy);
   }
   if (options.deliveredSince) {
     query = query.gte("delivered_at", options.deliveredSince);

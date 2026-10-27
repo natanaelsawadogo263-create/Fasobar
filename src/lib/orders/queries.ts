@@ -423,6 +423,7 @@ export async function countCashierOpenOrders(
     .from("orders")
     .select("status")
     .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+    .eq("created_by", workspace.userId)
     .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"])
     .neq("payment_status", "PAID")
     .limit(200);
@@ -449,6 +450,7 @@ export function getCashierServiceDayStartIso(referenceIso?: string): string {
  * Commandes caissière de la session / journée :
  * - ouvertes & en attente (non payées)
  * - terminées / payées du jour
+ * Chaque caisse ne voit que ses propres commandes (`created_by`).
  */
 export async function listCashierOrders(
   workspace: WorkspaceContext,
@@ -484,6 +486,7 @@ export async function listCashierOrders(
     .from("orders")
     .select(selectClause)
     .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+    .eq("created_by", workspace.userId)
     .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"])
     .neq("payment_status", "PAID")
     .order("created_at", { ascending: false })
@@ -496,6 +499,7 @@ export async function listCashierOrders(
         .select(selectClause)
         .eq("organization_id", workspace.organizationId)
         .eq("establishment_id", workspace.establishmentId)
+        .eq("created_by", workspace.userId)
         .eq("payment_status", "PAID")
         .neq("status", "CANCELLED")
         .gte("updated_at", dayStartIso)
@@ -611,11 +615,16 @@ export async function getOrderById(
   const orderSelectPlain =
     "id, order_number, table_reference, customer_reference, order_type, status, payment_status, bar_status, kitchen_status, subtotal, discount_amount, total_amount, notes, created_at, updated_at, cancelled_at, cancellation_reason";
 
+  // Une caisse n'ouvre que ses propres commandes ; l'admin voit tout.
+  const ownerFilter: Record<string, string> =
+    workspace.userSpace === "cashier_kitchen" ? { created_by: workspace.userId } : {};
+
   let orderResult = await supabase
     .from("orders")
     .select(orderSelectWithProfile)
     .eq("id", orderId)
     .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+    .match(ownerFilter)
     .maybeSingle();
 
   if (orderResult.error) {
@@ -624,6 +633,7 @@ export async function getOrderById(
       .select(orderSelectPlain)
       .eq("id", orderId)
       .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+      .match(ownerFilter)
       .maybeSingle();
   }
 

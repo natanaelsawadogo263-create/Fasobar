@@ -88,6 +88,11 @@ export async function listExpenses(
     .order("created_at", { ascending: false })
     .limit(limit);
 
+  // Une caisse ne voit que ses propres dépenses ; l'admin voit tout.
+  if (workspace.userSpace === "cashier_kitchen") {
+    query = query.eq("created_by", workspace.userId);
+  }
+
   if (filters.area) {
     query = query.eq("area", filters.area);
   }

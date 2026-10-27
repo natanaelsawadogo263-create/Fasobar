@@ -249,11 +249,12 @@ export function listLocalCashierOrders(
         (SELECT r.id FROM local_receipts r WHERE r.order_id = o.id LIMIT 1) AS receipt_id
        FROM local_orders o
        WHERE o.establishment_id = ?
+         AND (o.created_by = ? OR o.created_by IS NULL)
          AND o.status IN ('OPEN', 'READY_TO_PAY', 'DRAFT')
          AND o.payment_status <> 'PAID'
        ORDER BY o.created_at DESC`,
     )
-    .all(workspace.establishmentId);
+    .all(workspace.establishmentId, workspace.userId);
 
   const finalized = includeFinalized
     ? db
@@ -263,11 +264,12 @@ export function listLocalCashierOrders(
             (SELECT r.id FROM local_receipts r WHERE r.order_id = o.id LIMIT 1) AS receipt_id
            FROM local_orders o
            WHERE o.establishment_id = ?
+             AND (o.created_by = ? OR o.created_by IS NULL)
              AND o.payment_status = 'PAID'
              AND o.created_at >= ?
            ORDER BY o.created_at DESC`,
         )
-        .all(workspace.establishmentId, dayStart)
+        .all(workspace.establishmentId, workspace.userId, dayStart)
     : [];
 
   const seen = new Set<string>();
