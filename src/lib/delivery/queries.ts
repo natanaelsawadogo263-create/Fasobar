@@ -39,12 +39,17 @@ type OrderRow = {
         unit_price: number;
         quantity: number | string;
         line_total: number;
+        sale_unit_name?: string | null;
+        stock_quantity?: number | string | null;
       }>
     | null;
 };
 
-const ORDER_SELECT =
-  "id, order_number, status, customer_name, customer_phone, delivery_address, note, total_amount, courier_id, created_at, accepted_at, delivered_at, cashed_at, cancelled_at, cancel_reason, delivery_order_items(product_id, product_name, unit_price, quantity, line_total)";
+const ORDER_COLUMNS =
+  "id, order_number, status, customer_name, customer_phone, delivery_address, note, total_amount, courier_id, created_at, accepted_at, delivered_at, cashed_at, cancelled_at, cancel_reason";
+const ORDER_SELECT = `${ORDER_COLUMNS}, delivery_order_items(product_id, product_name, unit_price, quantity, line_total, sale_unit_name, stock_quantity)`;
+/** Base sans la migration « formats en gros » : lignes à l'unité seulement. */
+const LEGACY_ORDER_SELECT = `${ORDER_COLUMNS}, delivery_order_items(product_id, product_name, unit_price, quantity, line_total)`;
 
 /**
  * Noms des employés : la RLS `profiles` ne laisse lire que l'admin.
@@ -90,8 +95,10 @@ function mapOrder(row: OrderRow, names: Map<string, string>): DeliveryOrder {
     items: (row.delivery_order_items ?? []).map((item) => ({
       productId: item.product_id,
       productName: item.product_name,
+      saleUnitName: item.sale_unit_name?.trim() || null,
       unitPrice: Number(item.unit_price),
       quantity: Number(item.quantity),
+      stockQuantity: Number(item.stock_quantity ?? item.quantity),
       lineTotal: Number(item.line_total),
     })),
   };
@@ -157,35 +164,41 @@ export async function listDeliveryOrders(
 ): Promise<DeliveryOrder[]> {
   const supabase = await createClient();
 
-  let query = supabase
-    .from("delivery_orders")
-    .select(ORDER_SELECT)
-    .eq("establishment_id", workspace.establishmentId)
-    .order(options.orderBy ?? "created_at", { ascending: false })
-    .limit(options.limit ?? 100);
+  const run = (select: string) => {
+    let query = supabase
+      .from("delivery_orders")
+      .select(select)
+      .eq("establishment_id", workspace.establishmentId)
+      .order(options.orderBy ?? "created_at", { ascending: false })
+      .limit(options.limit ?? 100);
 
-  if (options.statuses?.length) {
-    query = query.in("status", options.statuses);
-  }
-  if (options.courierId) {
-    query = query.eq("courier_id", options.courierId);
-  }
-  if (options.createdBy) {
-    query = query.eq("created_by", options.createdBy);
-  }
-  if (options.deliveredSince) {
-    query = query.gte("delivered_at", options.deliveredSince);
-  }
-  if (options.deliveredBefore) {
-    query = query.lt("delivered_at", options.deliveredBefore);
-  }
-  if (options.cashed === true) {
-    query = query.not("cashed_at", "is", null);
-  } else if (options.cashed === false) {
-    query = query.is("cashed_at", null);
-  }
+    if (options.statuses?.length) {
+      query = query.in("status", options.statuses);
+    }
+    if (options.courierId) {
+      query = query.eq("courier_id", options.courierId);
+    }
+    if (options.createdBy) {
+      query = query.eq("created_by", options.createdBy);
+    }
+    if (options.deliveredSince) {
+      query = query.gte("delivered_at", options.deliveredSince);
+    }
+    if (options.deliveredBefore) {
+      query = query.lt("delivered_at", options.deliveredBefore);
+    }
+    if (options.cashed === true) {
+      query = query.not("cashed_at", "is", null);
+    } else if (options.cashed === false) {
+      query = query.is("cashed_at", null);
+    }
+    return query;
+  };
 
-  const { data, error } = await query;
+  let { data, error } = await run(ORDER_SELECT);
+  if (error && /sale_unit_name|stock_quantity/.test(error.message ?? "")) {
+    ({ data, error } = await run(LEGACY_ORDER_SELECT));
+  }
   if (error) {
     console.error("[listDeliveryOrders]", error.message);
     return [];
@@ -257,7 +270,7 @@ export async function getCourierStock(
   const reserved = new Map<string, number>();
   for (const order of reservedOrders) {
     for (const item of order.items) {
-      reserved.set(item.productId, (reserved.get(item.productId) ?? 0) + item.quantity);
+      reserved.set(item.productId, (reserved.get(item.productId) ?? 0) + item.stockQuantity);
     }
   }
 

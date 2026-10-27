@@ -58,10 +58,16 @@ export function CourierWorkspace({
   }, [stock]);
 
   function shortagesFor(order: DeliveryOrder): StockShortage[] {
-    return order.items
-      .map((item) => ({
-        productName: item.productName,
-        missing: item.quantity - (freeStock.get(item.productId) ?? 0),
+    const needed = new Map<string, { productName: string; quantity: number }>();
+    for (const item of order.items) {
+      const entry = needed.get(item.productId) ?? { productName: item.productName, quantity: 0 };
+      entry.quantity += item.stockQuantity;
+      needed.set(item.productId, entry);
+    }
+    return [...needed.entries()]
+      .map(([productId, entry]) => ({
+        productName: entry.productName,
+        missing: entry.quantity - (freeStock.get(productId) ?? 0),
       }))
       .filter((item) => item.missing > 0);
   }

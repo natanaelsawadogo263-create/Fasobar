@@ -56,6 +56,14 @@ export const COURIER_MOVEMENT_LABELS: Record<CourierStockMovementType, string> =
   DELIVERY: "Livraison",
 };
 
+/** « Savon » ou « Savon · Carton de 12 » quand la ligne est vendue en gros. */
+export function formatDeliveryLineName(item: {
+  productName: string;
+  saleUnitName?: string | null;
+}): string {
+  return item.saleUnitName ? `${item.productName} · ${item.saleUnitName}` : item.productName;
+}
+
 export function formatDeliveryOrderNumber(orderNumber: number): string {
   return `L-${String(orderNumber).padStart(4, "0")}`;
 }
@@ -93,11 +101,11 @@ export function parseCourierHistoryPeriod(value: unknown): CourierHistoryPeriodI
   return match?.id ?? DEFAULT_COURIER_HISTORY_PERIOD;
 }
 
-/** Début (minuit local) de la période : aujourd'hui puis les jours précédents. */
+/** Début (minuit à Ouagadougou, UTC) de la période : aujourd'hui puis les jours précédents. */
 export function courierHistoryStart(periodId: CourierHistoryPeriodId, now: Date = new Date()): Date {
   const period = COURIER_HISTORY_PERIODS.find((item) => item.id === periodId);
   const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - ((period?.days ?? 7) - 1));
+  start.setUTCHours(0, 0, 0, 0);
+  start.setUTCDate(start.getUTCDate() - ((period?.days ?? 7) - 1));
   return start;
 }

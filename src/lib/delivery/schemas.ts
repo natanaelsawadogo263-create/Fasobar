@@ -12,6 +12,8 @@ export const deliveryItemsSchema = z
     z.object({
       productId: z.string().uuid("Article invalide."),
       quantity: quantitySchema,
+      /** Format vendu (carton, pack…) ; absent = à l'unité. */
+      saleUnitId: z.string().uuid("Format de vente invalide.").optional(),
     }),
   )
   .min(1, "Ajoutez au moins un article.")
@@ -68,5 +70,9 @@ export type DeliveryItemsInput = z.infer<typeof deliveryItemsSchema>;
 
 /** Format attendu par les fonctions SQL (`p_items`). */
 export function toRpcItems(items: DeliveryItemsInput) {
-  return items.map((item) => ({ product_id: item.productId, quantity: item.quantity }));
+  return items.map((item) => ({
+    product_id: item.productId,
+    quantity: item.quantity,
+    ...(item.saleUnitId ? { unit_level_id: item.saleUnitId } : {}),
+  }));
 }

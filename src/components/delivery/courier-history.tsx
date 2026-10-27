@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   COURIER_HISTORY_LIMIT,
   COURIER_HISTORY_PERIODS,
+  formatDeliveryLineName,
   formatDeliveryOrderNumber,
   formatDeliveryQuantity,
   type CourierHistoryPeriodId,
@@ -234,10 +235,10 @@ function HistoryRow({ order }: { order: DeliveryOrder }) {
           ) : null}
           <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/60 text-[12px]">
             {order.items.map((item) => (
-              <li key={item.productId} className="flex items-center justify-between gap-3 px-3 py-1.5">
+              <li key={`${item.productId}:${item.saleUnitName ?? ""}`} className="flex items-center justify-between gap-3 px-3 py-1.5">
                 <span className="min-w-0 truncate text-slate-700">
                   <span className="font-semibold">{formatDeliveryQuantity(item.quantity)} ×</span>{" "}
-                  {item.productName}
+                  {formatDeliveryLineName(item)}
                 </span>
                 <span className="shrink-0 tabular-nums text-slate-500">
                   {formatPriceXof(item.lineTotal)}

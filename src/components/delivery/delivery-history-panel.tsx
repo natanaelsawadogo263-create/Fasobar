@@ -12,6 +12,7 @@ import {
   DELIVERY_ORDER_STAGE_LABELS,
   DELIVERY_ORDER_STAGE_TONES,
   deliveryOrderStage,
+  formatDeliveryLineName,
   formatDeliveryOrderNumber,
   formatDeliveryQuantity,
 } from "@/lib/delivery/constants";
@@ -114,7 +115,7 @@ export function DeliveryHistoryPanel({ period, orders }: DeliveryHistoryPanelPro
     for (const order of visible) {
       for (const item of order.items) {
         const entry = map.get(item.productId) ?? { name: item.productName, quantity: 0, value: 0 };
-        entry.quantity += item.quantity;
+        entry.quantity += item.stockQuantity;
         entry.value += item.lineTotal;
         map.set(item.productId, entry);
       }
@@ -293,10 +294,10 @@ export function DeliveryHistoryPanel({ period, orders }: DeliveryHistoryPanelPro
                         <div className="flex flex-col gap-2 px-4 pb-3">
                           <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-slate-50/60 text-[13px]">
                             {order.items.map((item) => (
-                              <li key={item.productId} className="flex items-center justify-between gap-3 px-3 py-2">
+                              <li key={`${item.productId}:${item.saleUnitName ?? ""}`} className="flex items-center justify-between gap-3 px-3 py-2">
                                 <span className="min-w-0 truncate text-slate-800">
                                   <span className="font-semibold">{formatDeliveryQuantity(item.quantity)} ×</span>{" "}
-                                  {item.productName}
+                                  {formatDeliveryLineName(item)}
                                 </span>
                                 <span className="shrink-0 tabular-nums text-slate-600">
                                   {formatPriceXof(item.lineTotal)}

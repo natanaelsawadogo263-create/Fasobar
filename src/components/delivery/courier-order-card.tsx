@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 import { AlertTriangle, Clock3, MapPin, Navigation, Phone, StickyNote, User } from "lucide-react";
 
-import { formatDeliveryOrderNumber, formatDeliveryQuantity } from "@/lib/delivery/constants";
+import {
+  formatDeliveryLineName,
+  formatDeliveryOrderNumber,
+  formatDeliveryQuantity,
+} from "@/lib/delivery/constants";
 import type { DeliveryOrder } from "@/lib/delivery/types";
 import { formatPriceXof } from "@/lib/products/constants";
 
@@ -98,10 +102,10 @@ export function CourierOrderCard({
 
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100 text-[13px]">
           {order.items.map((item) => (
-            <li key={item.productId} className="flex items-center justify-between gap-3 px-3 py-2">
+            <li key={`${item.productId}:${item.saleUnitName ?? ""}`} className="flex items-center justify-between gap-3 px-3 py-2">
               <span className="min-w-0 truncate text-slate-800">
                 <span className="font-semibold">{formatDeliveryQuantity(item.quantity)} ×</span>{" "}
-                {item.productName}
+                {formatDeliveryLineName(item)}
               </span>
               <span className="shrink-0 tabular-nums text-slate-500">
                 {formatPriceXof(item.lineTotal)}

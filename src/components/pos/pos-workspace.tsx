@@ -1259,6 +1259,7 @@ export function PosWorkspace({
       {deliveryOrderOpen ? (
         <PosDeliveryOrderModal
           cart={cart}
+          savedOrderId={orderId}
           total={totalAmount}
           initialCustomerName={tableReference}
           onClose={() => setDeliveryOrderOpen(false)}

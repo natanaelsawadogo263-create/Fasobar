@@ -122,6 +122,22 @@ describe("formulaire de commande", () => {
     expect(parsed.data.customerName).toBeUndefined();
     expect(toRpcItems(parsed.data.items)).toEqual([{ product_id: PRODUCT_ID, quantity: 2 }]);
   });
+
+  it("transmet le format en gros (carton…) avec la ligne", () => {
+    const CARTON_ID = "33333333-3333-4333-8333-333333333333";
+    const parsed = createDeliveryOrderSchema.safeParse({
+      items: [
+        { productId: PRODUCT_ID, quantity: 3 },
+        { productId: PRODUCT_ID, quantity: 1, saleUnitId: CARTON_ID },
+      ],
+    });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(toRpcItems(parsed.data.items)).toEqual([
+      { product_id: PRODUCT_ID, quantity: 3 },
+      { product_id: PRODUCT_ID, quantity: 1, unit_level_id: CARTON_ID },
+    ]);
+  });
 });
 
 describe("historique des livraisons du livreur", () => {
@@ -132,10 +148,10 @@ describe("historique des livraisons du livreur", () => {
   });
 
   it("le début de période inclut aujourd'hui, à minuit", () => {
-    const now = new Date(2026, 9, 25, 15, 30);
-    expect(courierHistoryStart("aujourdhui", now)).toEqual(new Date(2026, 9, 25, 0, 0, 0, 0));
-    expect(courierHistoryStart("7j", now)).toEqual(new Date(2026, 9, 19, 0, 0, 0, 0));
-    expect(courierHistoryStart("30j", now)).toEqual(new Date(2026, 8, 26, 0, 0, 0, 0));
+    const now = new Date(Date.UTC(2026, 9, 25, 15, 30)); // heure de Ouagadougou (UTC)
+    expect(courierHistoryStart("aujourdhui", now)).toEqual(new Date(Date.UTC(2026, 9, 25, 0, 0, 0, 0)));
+    expect(courierHistoryStart("7j", now)).toEqual(new Date(Date.UTC(2026, 9, 19, 0, 0, 0, 0)));
+    expect(courierHistoryStart("30j", now)).toEqual(new Date(Date.UTC(2026, 8, 26, 0, 0, 0, 0)));
   });
 });
 

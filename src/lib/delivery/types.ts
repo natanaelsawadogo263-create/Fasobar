@@ -14,8 +14,14 @@ export type DeliveryProductOption = {
 export type DeliveryOrderLine = {
   productId: string;
   productName: string;
+  /** Format en gros (ex. « Carton de 12 ») ; null = vendu à l'unité. */
+  saleUnitName: string | null;
+  /** Prix d'un exemplaire du format vendu. */
   unitPrice: number;
+  /** Quantité dans le format vendu (ex. 2 cartons). */
   quantity: number;
+  /** Quantité en unités de stock (ex. 24 pièces) : ce qui sort du stock du livreur. */
+  stockQuantity: number;
   lineTotal: number;
 };
 

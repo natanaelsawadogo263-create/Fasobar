@@ -6,6 +6,7 @@ import {
   DELIVERY_ORDER_STAGE_LABELS,
   DELIVERY_ORDER_STAGE_TONES,
   deliveryOrderStage,
+  formatDeliveryLineName,
   formatDeliveryOrderNumber,
   formatDeliveryQuantity,
 } from "@/lib/delivery/constants";
@@ -67,10 +68,10 @@ export function DeliveryOrderCard({ order, showCourier = false, actions }: Deliv
 
       <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-slate-50/60 text-[13px]">
         {order.items.map((item) => (
-          <li key={item.productId} className="flex items-center justify-between gap-3 px-3 py-2">
+          <li key={`${item.productId}:${item.saleUnitName ?? ""}`} className="flex items-center justify-between gap-3 px-3 py-2">
             <span className="min-w-0 truncate text-slate-800">
               <span className="font-semibold">{formatDeliveryQuantity(item.quantity)} ×</span>{" "}
-              {item.productName}
+              {formatDeliveryLineName(item)}
             </span>
             <span className="shrink-0 text-slate-600">{formatPriceXof(item.lineTotal)}</span>
           </li>

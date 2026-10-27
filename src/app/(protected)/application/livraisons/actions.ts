@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { ensureImplicitAdminCashSession } from "@/app/(protected)/application/caisse/payment-actions";
 import { requireDeliveryOrderDeskMutationContext } from "@/lib/auth/workspace-context";
 import { DELIVERY_PATHS, formatDeliveryOrderNumber } from "@/lib/delivery/constants";
 import {
@@ -18,6 +19,7 @@ export type DeliveryActionResult = { success?: string; error?: string };
 /** Pages qui affichent ventes et fond de caisse, à rafraîchir après un encaissement. */
 const CASH_IN_PATHS = [
   "/application/caisse/session",
+  "/application/commandes-ouvertes",
   "/application/ventes",
   "/application/tableau-de-bord",
 ] as const;
@@ -34,6 +36,8 @@ export async function createDeliveryOrderAction(input: {
   customerPhone?: string;
   deliveryAddress?: string;
   note?: string;
+  /** Commande caisse enregistrée (« En attente ») transformée en livraison : elle est clôturée. */
+  replacesOrderId?: string;
 }): Promise<DeliveryActionResult> {
   const workspace = await requireDeliveryOrderDeskMutationContext();
 
@@ -43,6 +47,21 @@ export async function createDeliveryOrderAction(input: {
   }
 
   const supabase = await createClient();
+
+  // Formats en gros : la base doit connaître l'unité vendue, sinon le carton partirait au prix unitaire.
+  if (parsed.data.items.some((item) => item.saleUnitId)) {
+    const { error: columnError } = await supabase
+      .from("delivery_order_items")
+      .select("stock_quantity")
+      .limit(1);
+    if (columnError) {
+      console.error("[createDeliveryOrderAction] formats en gros:", columnError.message);
+      return {
+        error: "La livraison en gros n’est pas encore activée sur le serveur. Livrez à l’unité pour le moment.",
+      };
+    }
+  }
+
   const { data, error } = await supabase.rpc("create_delivery_order", {
     p_establishment_id: workspace.establishmentId,
     p_items: toRpcItems(parsed.data.items),
@@ -57,8 +76,25 @@ export async function createDeliveryOrderAction(input: {
     return { error: toUserFacingError(error.message) };
   }
 
-  revalidateDelivery();
   const orderNumber = Number((data as { order_number?: number } | null)?.order_number);
+
+  // Sans ça, la commande d'origine resterait ouverte et compterait en double.
+  const replacesOrderId = input.replacesOrderId?.trim();
+  if (replacesOrderId && /^[0-9a-f-]{36}$/i.test(replacesOrderId)) {
+    const { error: cancelError } = await supabase.rpc("cancel_order", {
+      p_order_id: replacesOrderId,
+      p_reason: Number.isFinite(orderNumber)
+        ? `Envoyée en livraison ${formatDeliveryOrderNumber(orderNumber)}`
+        : "Envoyée en livraison",
+    });
+    if (cancelError) {
+      console.warn("[createDeliveryOrderAction] commande d'origine:", cancelError.message);
+    }
+    revalidatePath("/application/commandes-ouvertes");
+    revalidatePath("/application/caisse");
+  }
+
+  revalidateDelivery();
   return {
     success: Number.isFinite(orderNumber)
       ? `Commande ${formatDeliveryOrderNumber(orderNumber)} envoyée aux livreurs.`
@@ -78,6 +114,12 @@ export async function cashDeliveryOrderAction(input: {
   const parsed = cashDeliveryOrderSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Encaissement invalide." };
+  }
+
+  // L'admin n'ouvre pas de session à la main : elle est ouverte pour lui si besoin.
+  const ensureError = await ensureImplicitAdminCashSession();
+  if (ensureError?.error) {
+    return { error: ensureError.error };
   }
 
   const supabase = await createClient();

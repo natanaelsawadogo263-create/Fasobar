@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition, type FormEvent } from "react";
-import { AlertTriangle } from "lucide-react";
 
 import { createDeliveryOrderAction } from "@/app/(protected)/application/livraisons/actions";
 import { ModalFooter } from "@/components/ui/modal-footer";
@@ -12,6 +11,8 @@ import { formatPriceXof } from "@/lib/products/constants";
 
 type PosDeliveryOrderModalProps = {
   cart: CartLine[];
+  /** Commande caisse déjà enregistrée dont vient le panier (sera clôturée). */
+  savedOrderId?: string;
   total: number;
   /** Nom saisi dans le champ client de la caisse (pré-rempli). */
   initialCustomerName?: string;
@@ -38,17 +39,13 @@ function formatLocalPhone(value: string): string {
     .replace(/(\d{2})(?=\d)/g, "$1 ");
 }
 
-/** Lignes vendues en lot (carton, pack…) : prix différent de l'unité, non pris en charge en livraison. */
-function packedLines(cart: CartLine[]): CartLine[] {
-  return cart.filter((line) => line.saleUnitId && (line.stockFactor ?? 1) !== 1);
-}
-
 /**
  * Caisse e-commerce : « Commander » envoie le panier aux livreurs (commande à
  * livrer). L'encaissement se fait plus tard, quand le livreur rapporte l'argent.
  */
 export function PosDeliveryOrderModal({
   cart,
+  savedOrderId,
   total,
   initialCustomerName = "",
   onClose,
@@ -61,22 +58,26 @@ export function PosDeliveryOrderModal({
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const packed = packedLines(cart);
-
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isPending || packed.length > 0 || cart.length === 0) return;
+    if (isPending || cart.length === 0) return;
     setError(null);
 
     startTransition(async () => {
       let result: { success?: string; error?: string };
       try {
         result = await createDeliveryOrderAction({
-          items: cart.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+          // Le format vendu (carton, pack…) part avec la ligne : prix de gros et stock en unités.
+          items: cart.map((line) => ({
+            productId: line.productId,
+            quantity: line.quantity,
+            ...(line.saleUnitId ? { saleUnitId: line.saleUnitId } : {}),
+          })),
           customerName,
           customerPhone: customerPhone.trim() ? `${PHONE_PREFIX} ${customerPhone.trim()}` : "",
           deliveryAddress,
           note,
+          replacesOrderId: savedOrderId || undefined,
         });
       } catch {
         result = { error: "Connexion au serveur interrompue. Rechargez la page puis réessayez." };
@@ -106,7 +107,7 @@ export function PosDeliveryOrderModal({
           submitLabel={`Commander · ${formatPriceXof(total)}`}
           pendingLabel="Envoi…"
           isPending={isPending}
-          submitDisabled={packed.length > 0 || cart.length === 0}
+          submitDisabled={cart.length === 0}
         />
       }
     >
@@ -131,14 +132,6 @@ export function PosDeliveryOrderModal({
             <span className="tabular-nums text-emerald-700">{formatPriceXof(total)}</span>
           </li>
         </ul>
-
-        {packed.length > 0 ? (
-          <p className="flex items-start gap-2 rounded-lg bg-orange-50 px-3 py-2 text-[12px] text-orange-900">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            Les livraisons se font à l’unité. Remplacez dans le panier les lots (carton, pack…) :{" "}
-            {packed.map((line) => line.name).join(", ")}.
-          </p>
-        ) : null}
 
         <div className="grid gap-2 sm:grid-cols-2">
           <input
