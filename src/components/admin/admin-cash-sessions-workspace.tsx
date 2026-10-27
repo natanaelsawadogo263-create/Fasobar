@@ -402,9 +402,6 @@ export function AdminCashSessionsWorkspace({
             <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4">
               <div className="min-w-0">
                 <h2 className="text-[16px] font-bold text-slate-900">Détail de la session</h2>
-                <p className="mt-0.5 text-[12px] text-slate-500">
-                  Lecture seule — paiements et reçus liés à cette caisse.
-                </p>
               </div>
               <button
                 type="button"

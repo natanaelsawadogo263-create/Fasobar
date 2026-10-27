@@ -32,7 +32,6 @@ export function CourierStock({ stock, movements }: CourierStockProps) {
   return (
     <CourierPage
       title="Mon stock"
-      description="Articles remis par l’administrateur. « Réservé » = déjà engagé dans vos livraisons en cours."
     >
       <Section title="Stock en main">
         {stock.length === 0 ? (
@@ -82,7 +81,7 @@ export function CourierStock({ stock, movements }: CourierStockProps) {
         )}
       </Section>
 
-      <Section title="Derniers mouvements" description="Remises, retours et livraisons sur votre stock.">
+      <Section title="Derniers mouvements">
         {movements.length === 0 ? (
           <EmptyState icon={Boxes} title="Aucun mouvement" text="L’historique de votre stock apparaîtra ici." />
         ) : (

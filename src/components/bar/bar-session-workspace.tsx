@@ -81,15 +81,9 @@ export function BarSessionWorkspace({
       ) : null}
 
       <section className="space-y-3">
-        <div>
-          <h2 className="text-[15px] font-semibold text-slate-900">
-            Bilan calculé par FasoBar
-          </h2>
-          <p className="mt-0.5 text-[12px] text-slate-500">
-            Vérifiez ce bilan — aucun inventaire physique complet n&apos;est demandé
-            ici.
-          </p>
-        </div>
+        <h2 className="text-[15px] font-semibold text-slate-900">
+          Bilan calculé par FasoBar
+        </h2>
 
         {summary ? (
           <BarSessionBilanView summary={summary} />

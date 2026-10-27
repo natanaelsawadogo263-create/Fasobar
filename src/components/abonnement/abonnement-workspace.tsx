@@ -312,9 +312,6 @@ export function AbonnementWorkspace({
             <h2 className="text-[14px] font-semibold text-slate-900">
               {canOpenApp ? "Formule à renouveler" : "Choisir une formule"}
             </h2>
-            <p className="mt-1 text-[13px] text-slate-500">
-              Mensuelle ou annuelle — le montant à payer suit votre choix.
-            </p>
 
             {data.plans.length === 0 ? (
               <p className="mt-4 text-[13px] text-slate-500">

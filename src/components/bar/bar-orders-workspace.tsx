@@ -209,9 +209,6 @@ export function BarOrdersWorkspace({
           <h1 className="text-[20px] font-bold tracking-tight text-slate-900 lg:text-[22px]">
             Commandes boissons
           </h1>
-          <p className="mt-0.5 text-[12px] text-slate-500">
-            Tous les détails de chaque commande (articles, quantités, notes, totaux).
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <button

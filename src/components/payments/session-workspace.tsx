@@ -63,7 +63,6 @@ export function SessionWorkspace({
             <h1 className="text-xl font-bold text-slate-900">
               Ma session — {establishmentName}
             </h1>
-            <p className="text-sm text-slate-500">Résumé de votre session en cours</p>
           </div>
           <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800">
             Session ouverte

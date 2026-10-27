@@ -140,9 +140,6 @@ export function DeliveryDailyTable({ daily }: { daily: DeliveryDailyTotal[] }) {
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <header className="border-b border-slate-100 px-4 py-3">
         <h2 className="text-[14px] font-bold text-slate-900">Chiffre d’affaires par jour</h2>
-        <p className="text-[11px] text-slate-500">
-          Livraisons de la période ; « Encaissé » ne compte que ce que la caisse a encaissé.
-        </p>
       </header>
       {daily.length === 0 ? (
         <p className="px-4 py-8 text-center text-[13px] text-slate-500">

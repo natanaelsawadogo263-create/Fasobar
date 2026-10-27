@@ -267,7 +267,6 @@ export function AdminSettingsWorkspace({
             <div className="app-scroll min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
               <SectionHeader
                 title="Sécurité du compte"
-                description="Mot de passe administrateur et accès employés."
               />
               <div className="mt-5 space-y-3">
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
@@ -352,7 +351,6 @@ export function AdminSettingsWorkspace({
                 <div className={section === "general" ? "space-y-6" : "hidden"}>
                   <SectionHeader
                     title="Établissement"
-                    description="Informations affichées dans l'application et sur les documents."
                   />
 
                   <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
@@ -427,7 +425,6 @@ export function AdminSettingsWorkspace({
                 <div className={section === "spaces" ? "space-y-6" : "hidden"}>
                   <SectionHeader
                     title="Espaces de l’établissement"
-                    description="Choisissez si FasoBar gère les boissons, la nourriture, ou les deux."
                   />
                   <input type="hidden" name="serviceScope" value={serviceScope} />
                   <div className="grid gap-3">
@@ -487,7 +484,6 @@ export function AdminSettingsWorkspace({
                 <div className={section === "receipt" ? "space-y-6" : "hidden"}>
                   <SectionHeader
                     title="Reçu de caisse"
-                    description="Logo et textes imprimés sur les reçus et additions."
                   />
                   <EstablishmentLogoField existingUrl={settings?.logoUrl} />
                   <TextField
@@ -516,7 +512,6 @@ export function AdminSettingsWorkspace({
                 <div className={section === "stock" ? "space-y-6" : "hidden"}>
                   <SectionHeader
                     title="Stock"
-                    description="Seuil minimum appliqué par défaut aux nouveaux articles."
                   />
                   <div className="max-w-xs">
                     <NumberField
@@ -557,19 +552,10 @@ export function AdminSettingsWorkspace({
   );
 }
 
-function SectionHeader({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
+function SectionHeader({ title }: { title: string }) {
   return (
-    <div>
-      <h2 className="text-[15px] font-semibold tracking-tight text-slate-900">
-        {title}
-      </h2>
-      <p className="mt-1 text-[12px] text-slate-500">{description}</p>
-    </div>
+    <h2 className="text-[15px] font-semibold tracking-tight text-slate-900">
+      {title}
+    </h2>
   );
 }

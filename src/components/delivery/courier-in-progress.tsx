@@ -35,7 +35,6 @@ export function CourierInProgress({ orders }: CourierInProgressProps) {
   return (
     <CourierPage
       title="Livraisons en cours"
-      description="Une fois la commande remise au client et payée, confirmez la livraison : votre stock est mis à jour."
       aside={
         orders.length > 0 ? (
           <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-800">

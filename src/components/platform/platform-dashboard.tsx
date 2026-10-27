@@ -308,7 +308,6 @@ export function PlatformDashboard({ data }: PlatformDashboardProps) {
             <div className="lg:col-span-5">
               <PlatformPanel
                 title="À traiter"
-                description="File opérationnelle"
                 icon={AlertCircle}
                 tone={pendingTotal > 0 ? "warning" : "neutral"}
                 dense

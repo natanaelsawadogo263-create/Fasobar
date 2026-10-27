@@ -100,7 +100,6 @@ export function CourierHistory({ history, period, limitReached }: CourierHistory
   return (
     <CourierPage
       title="Historique des livraisons"
-      description="Toutes vos livraisons finalisées, jour par jour."
       aside={
         isLoading ? (
           <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">

@@ -69,7 +69,6 @@ export function CourierWorkspace({
   return (
     <CourierPage
       title={`Bonjour ${firstName(courierName)}`}
-      description="Acceptez une commande, livrez-la, puis confirmez la livraison."
       aside={
         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">
           <Radio className="h-3.5 w-3.5 animate-pulse" />
@@ -117,7 +116,6 @@ export function CourierWorkspace({
 
       <Section
         title="Commandes à prendre"
-        description="La première personne qui accepte prend la commande. Les plus anciennes sont en haut."
       >
         {availableOrders.length === 0 ? (
           <EmptyState

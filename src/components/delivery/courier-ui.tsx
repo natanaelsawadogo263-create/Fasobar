@@ -36,12 +36,10 @@ export function elapsedSince(iso: string | null, now: number | null, prefix: str
 /** Conteneur commun des pages du livreur. */
 export function CourierPage({
   title,
-  description,
   aside,
   children,
 }: {
   title: string;
-  description?: string;
   aside?: ReactNode;
   children: ReactNode;
 }) {
@@ -49,12 +47,7 @@ export function CourierPage({
     <div className="h-full min-h-0 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 sm:pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-4 sm:pt-5">
         <header className="flex flex-wrap items-end justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-[20px] font-bold tracking-tight text-slate-900 sm:text-[24px]">{title}</h1>
-            {description ? (
-              <p className="mt-0.5 text-[12px] text-slate-500 sm:text-[13px]">{description}</p>
-            ) : null}
-          </div>
+          <h1 className="min-w-0 text-[20px] font-bold tracking-tight text-slate-900 sm:text-[24px]">{title}</h1>
           {aside}
         </header>
         {children}
@@ -65,19 +58,14 @@ export function CourierPage({
 
 export function Section({
   title,
-  description,
   children,
 }: {
   title: string;
-  description?: string;
   children: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-3">
-      <div>
-        <h2 className="text-[15px] font-bold tracking-tight text-slate-900">{title}</h2>
-        {description ? <p className="text-[12px] text-slate-500">{description}</p> : null}
-      </div>
+      <h2 className="text-[15px] font-bold tracking-tight text-slate-900">{title}</h2>
       {children}
     </section>
   );

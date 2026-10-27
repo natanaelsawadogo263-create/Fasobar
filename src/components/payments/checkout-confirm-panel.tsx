@@ -49,9 +49,6 @@ export function CheckoutConfirmPanel({
             <span className="text-xl">✓</span>
           </div>
           <h2 className="mt-3 text-base font-bold text-slate-900">Prêt à encaisser</h2>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            Vérifiez les informations et confirmez l&apos;encaissement de cette commande.
-          </p>
         </div>
 
         <dl className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">

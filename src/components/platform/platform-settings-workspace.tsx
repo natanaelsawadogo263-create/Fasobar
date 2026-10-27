@@ -118,7 +118,6 @@ export function PlatformSettingsWorkspace({
           >
             <PlatformPanel
               title="Paiement"
-              description="Coordonnées Orange Money et instructions affichées aux clients."
             >
               <div className="space-y-3 p-4 lg:px-5 lg:pb-5">
                 <label className={labelClass}>
@@ -167,7 +166,6 @@ export function PlatformSettingsWorkspace({
 
             <PlatformPanel
               title="Essai"
-              description="Durée par défaut pour tous les nouveaux clients FasoBar. Pour un client précis, prolongez depuis sa fiche."
             >
               <div className="space-y-3 p-4 lg:px-5 lg:pb-5">
                 <label className="inline-flex items-center gap-2 text-[13px] text-slate-700">
@@ -223,7 +221,6 @@ export function PlatformSettingsWorkspace({
 
             <PlatformPanel
               title="Abonnements / plans"
-              description="Prix et activation des formules proposées aux clients."
               className="lg:col-span-2"
             >
               <div className="p-4 lg:px-5 lg:pb-5">
@@ -331,7 +328,6 @@ export function PlatformSettingsWorkspace({
 
             <PlatformPanel
               title="Licences"
-              description="Contraintes techniques pour les applications licenciées."
             >
               <div className="space-y-3 p-4 lg:px-5 lg:pb-5">
                 <label className={labelClass}>
@@ -367,7 +363,6 @@ export function PlatformSettingsWorkspace({
 
             <PlatformPanel
               title="Suppression"
-              description="Délai de récupération avant purge définitive d’un compte client."
             >
               <div className="space-y-3 p-4 lg:px-5 lg:pb-5">
                 <label className={labelClass}>

@@ -66,9 +66,6 @@ export function CouriersAdminWorkspace({
             <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
               Livreurs
             </h1>
-            <p className="mt-0.5 text-[12px] text-slate-500 sm:text-[13px]">
-              Livraisons et chiffre d’affaires par période, stock remis à chaque livreur et ce qui doit leur rester.
-            </p>
           </div>
         </header>
 

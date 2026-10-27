@@ -606,9 +606,6 @@ export function ExpensesWorkspace({
                 <h2 className="text-[16px] font-bold text-slate-900">
                   {modal === "edit" ? "Modifier la dépense" : "Nouvelle dépense"}
                 </h2>
-                <p className="mt-0.5 text-[12px] text-slate-500">
-                  Montants en XOF entiers. Aucun impact sur le stock.
-                </p>
               </div>
               <button
                 type="button"

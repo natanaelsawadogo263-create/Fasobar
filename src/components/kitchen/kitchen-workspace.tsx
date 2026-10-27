@@ -183,7 +183,6 @@ export function KitchenWorkspace({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Cuisine</h1>
-            <p className="text-sm text-slate-500">Suivez et gérez les commandes en cuisine</p>
           </div>
           <div className="flex flex-wrap gap-4">
             {stats.map((stat) => (

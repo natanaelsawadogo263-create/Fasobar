@@ -84,9 +84,6 @@ export function BarDashboardWorkspace({
             <h1 className="text-[22px] font-bold tracking-tight text-slate-900">
               Tableau de bord
             </h1>
-            <p className="mt-0.5 text-[13px] text-slate-500">
-              Vue d&apos;ensemble du bar — commandes et stock
-            </p>
           </div>
 
           {ownSession ? (
