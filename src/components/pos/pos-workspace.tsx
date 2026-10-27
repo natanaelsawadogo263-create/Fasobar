@@ -3,7 +3,16 @@
 import { useEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { InstantLink } from "@/components/layout/instant-link";
-import { ClipboardList, LayoutGrid, ShoppingBag, Timer } from "lucide-react";
+import {
+  Box,
+  Boxes,
+  Calculator,
+  ChevronRight,
+  ClipboardList,
+  LayoutGrid,
+  ShoppingBag,
+  Timer,
+} from "lucide-react";
 
 import {
   getProductSaleUnitsAction,
@@ -205,7 +214,7 @@ function HardwareOrSalePicker({
           {simple ? "Ajouter au ticket" : shopLots ? "Unité ou lot ?" : "Comment le client achète"}
         </p>
         <h2 className="mt-1 text-[16px] font-semibold text-slate-900">{product.name}</h2>
-        {salePickerHint(choices, choiceOptions) ? (
+        {detailChoice && salePickerHint(choices, choiceOptions) ? (
           <p className="mt-1 text-[13px] text-slate-500">{salePickerHint(choices, choiceOptions)}</p>
         ) : null}
 
@@ -233,15 +242,18 @@ function HardwareOrSalePicker({
             </button>
           </div>
         ) : (
-          <div className="mt-3 grid gap-2">
-            {choices.map((unit) => (
+          <div className="mt-4 grid gap-2.5">
+            {choices.map((unit) => {
+              const Icon = unit.kind === "pack" ? Boxes : unit.kind === "detail" ? Calculator : Box;
+              const selected = saleMode === unit.kind;
+              return (
               <button
                 key={`${unit.kind}-${unit.id || unit.title}`}
                 type="button"
-                className={`flex min-h-14 flex-col justify-center rounded-xl border px-4 py-2 text-left ${
-                  saleMode === unit.kind
+                className={`group flex min-h-[4.25rem] w-full items-center gap-3 rounded-xl border-2 px-3 py-2.5 text-left shadow-sm transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 ${
+                  selected
                     ? "border-emerald-600 bg-emerald-50"
-                    : "border-slate-200"
+                    : "border-slate-200 bg-white hover:border-emerald-400 hover:bg-emerald-50/50 hover:shadow-md"
                 }`}
                 onClick={() => {
                   if (unit.kind === "pack") {
@@ -257,19 +269,32 @@ function HardwareOrSalePicker({
                   onAmount("");
                 }}
               >
-                <span className="flex w-full items-center justify-between gap-2">
-                  <span className="text-[14px] font-semibold text-slate-900">{unit.title}</span>
-                  {unit.kind !== "detail" ? (
-                    <span className="text-[14px] font-bold tabular-nums text-emerald-700">
-                      {formatPriceXof(unit.price)}
-                    </span>
+                <span
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${
+                    unit.kind === "pack"
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-emerald-100 text-emerald-700"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-semibold text-slate-900">
+                    {unit.title}
+                  </span>
+                  {unit.hint ? (
+                    <span className="mt-0.5 block truncate text-[12px] text-slate-500">{unit.hint}</span>
                   ) : null}
                 </span>
-                {unit.hint ? (
-                  <span className="mt-0.5 text-[12px] text-slate-500">{unit.hint}</span>
+                {unit.kind !== "detail" ? (
+                  <span className="shrink-0 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[14px] font-bold tabular-nums text-white">
+                    {formatPriceXof(unit.price)}
+                  </span>
                 ) : null}
+                <ChevronRight className="h-5 w-5 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-emerald-600" />
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
 

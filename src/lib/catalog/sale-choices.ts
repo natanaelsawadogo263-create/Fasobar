@@ -14,6 +14,14 @@ export type CashierSaleChoice = SaleUnitOption & {
   kind: CashierSaleKind;
 };
 
+/** « Carton de 12 » (lots nommés avec leur quantité) ou « carton » + « de 12 ». */
+function packDisplayName(name: string, factor: number): string {
+  const trimmed = name.trim();
+  return new RegExp(`\\bde\\s+${factor}$`, "i").test(trimmed)
+    ? trimmed
+    : `${trimmed} de ${factor}`;
+}
+
 function roundCfa(value: number): number {
   return Math.max(1, Math.round(value));
 }
@@ -54,6 +62,8 @@ export function buildCashierSaleChoices(
   const priced = deriveMissingPrices(raw, product.sellingPrice);
   const choices: CashierSaleChoice[] = [];
   let unitChoice: CashierSaleChoice | null = null;
+  const baseName =
+    priced.find((unit) => unit.factor <= 1)?.name.trim().toLowerCase() || "unité";
 
   for (const unit of priced) {
     if (unit.price <= 0) continue;
@@ -62,8 +72,8 @@ export function buildCashierSaleChoices(
         ...unit,
         allowDecimal: false,
         kind: "pack",
-        title: `${packLabel} · ${unit.name} de ${unit.factor}`,
-        hint: `${roundCfa(unit.price)} F le ${unit.name}`,
+        title: `${packLabel} · ${packDisplayName(unit.name, unit.factor)}`,
+        hint: `${unit.factor} ${/[sx]$/.test(baseName) ? baseName : `${baseName}s`} · ${roundCfa(unit.price / unit.factor)} F / ${baseName}`,
       });
       continue;
     }
@@ -72,7 +82,7 @@ export function buildCashierSaleChoices(
       allowDecimal: false,
       kind: "unit",
       title: `Unité · ${unit.name}`,
-      hint: `${roundCfa(unit.price)} F / ${unit.name}`,
+      hint: "Vente à l’unité",
     };
     choices.push(unitChoice);
   }

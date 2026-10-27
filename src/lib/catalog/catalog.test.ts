@@ -92,6 +92,27 @@ describe("socle commerce unités", () => {
     );
     expect(choices.map((item) => item.kind)).toEqual(["unit", "pack"]);
     expect(choices[1]?.title).toContain("Lot · carton de 5");
+    expect(choices[1]?.hint).toBe("5 bidons · 4000 F / bidon");
+  });
+
+  it("n'écrit pas deux fois la quantité d'un lot nommé « Carton de 5 »", () => {
+    const choices = buildCashierSaleChoices(
+      {
+        sellingPrice: 1000,
+        unit: "pièce",
+        saleUnits: [
+          { id: "u", name: "Pièce", price: 1000, factor: 1 },
+          { id: "c5", name: "Carton de 5", price: 4000, factor: 5 },
+          { id: "c7", name: "Carton de 7", price: 5500, factor: 7 },
+        ],
+      },
+      { shopLots: true },
+    );
+    expect(choices.map((item) => item.title)).toEqual([
+      "Unité · Pièce",
+      "Lot · Carton de 5",
+      "Lot · Carton de 7",
+    ]);
   });
 
   it("propose Unité et Gros à la caisse", () => {
