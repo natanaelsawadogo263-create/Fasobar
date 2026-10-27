@@ -1,7 +1,6 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { redirect } from "next/navigation";
 
 import { toUserFacingError } from "@/lib/errors/user-facing";
 import {
@@ -251,7 +250,6 @@ export async function closeCashSessionAction(
       revalidatePaymentPages();
       const supabaseLocal = await createClient();
       await supabaseLocal.auth.signOut();
-      redirect("/");
     } catch (error) {
       return {
         error:
@@ -260,6 +258,7 @@ export async function closeCashSessionAction(
             : "Impossible de fermer la caisse.",
       };
     }
+    return { success: "Caisse fermée." };
   }
 
   const supabase = await createClient();
@@ -277,7 +276,10 @@ export async function closeCashSessionAction(
   revalidateCashSessionOps();
   revalidatePaymentPages();
   await supabase.auth.signOut();
-  redirect("/");
+  // Pas de redirect() ici : rendre l'accueil dans la même réponse, juste après la
+  // déconnexion, donnait « An unexpected response was received from the server ».
+  // Le navigateur recharge l'accueil lui-même (voir closeSessionAndLeave).
+  return { success: "Caisse fermée." };
 }
 
 /**

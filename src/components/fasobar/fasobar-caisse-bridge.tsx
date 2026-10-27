@@ -65,8 +65,10 @@ export function FasoBarCaisseBridge({
       serviceScope,
       activityCode,
     });
-    setOnCloseSession(() => onCloseSessionRef.current);
-    setOnOpenOrders(() => onOpenOrdersRef.current);
+    // Le contexte stocke le handler tel quel : on passe une fonction qui APPELLE
+    // le handler courant (et non une fonction qui le renvoie sans l'exécuter).
+    setOnCloseSession(() => onCloseSessionRef.current?.());
+    setOnOpenOrders(() => onOpenOrdersRef.current?.());
   }, [
     setCaisseFilters,
     setOnCloseSession,

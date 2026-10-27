@@ -112,16 +112,26 @@ export function FasoBarTopbar({ showDeliveryLink = false }: FasoBarTopbarProps) 
           </InstantLink>
         ) : null}
 
-        {sessionOpen ? (
+        {sessionOpen && ctx?.onCloseSession ? (
           <button
             type="button"
-            onClick={ctx?.onCloseSession}
+            onClick={() => ctx.onCloseSession?.()}
             className={`${iconBtn} text-red-400 md:hover:bg-red-500/10`}
             title="Fermer la caisse"
             aria-label="Fermer la caisse"
           >
             <Lock className="h-4 w-4" />
           </button>
+        ) : sessionOpen && !ctx?.adminReturnHref ? (
+          // Hors de l'écran caisse : la clôture se fait depuis « Ma session ».
+          <InstantLink
+            href="/application/caisse/session"
+            className={`${iconBtn} text-red-400 md:hover:bg-red-500/10`}
+            title="Fermer la caisse"
+            aria-label="Fermer la caisse"
+          >
+            <Lock className="h-4 w-4" />
+          </InstantLink>
         ) : null}
 
         {ctx?.adminReturnHref ? (

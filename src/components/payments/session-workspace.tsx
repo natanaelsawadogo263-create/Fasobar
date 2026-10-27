@@ -51,7 +51,10 @@ export function SessionWorkspace({
       const result = await closeCashSessionAction({}, formData);
       if (result?.error) {
         setError(result.error);
+        return;
       }
+      // Caisse fermée et session déconnectée : rechargement complet vers l'accueil.
+      window.location.assign("/");
     });
   }
 
