@@ -23,6 +23,21 @@ type PosDeliveryOrderModalProps = {
 const inputClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20";
 
+/** Indicatif du Burkina Faso, affiché devant le numéro du client. */
+const PHONE_PREFIX = "+226";
+
+/**
+ * Garde les 8 chiffres du numéro, groupés par deux (« 70 12 34 56 »). Retire
+ * l'indicatif s'il est collé avec le numéro (+226, 00226 ou 226 suivi de 8 chiffres).
+ */
+function formatLocalPhone(value: string): string {
+  let digits = value.replace(/\D/g, "");
+  if (/^(00)?226\d{8}$/.test(digits)) digits = digits.slice(-8);
+  return digits
+    .slice(0, 8)
+    .replace(/(\d{2})(?=\d)/g, "$1 ");
+}
+
 /** Lignes vendues en lot (carton, pack…) : prix différent de l'unité, non pris en charge en livraison. */
 function packedLines(cart: CartLine[]): CartLine[] {
   return cart.filter((line) => line.saleUnitId && (line.stockFactor ?? 1) !== 1);
@@ -59,7 +74,7 @@ export function PosDeliveryOrderModal({
         result = await createDeliveryOrderAction({
           items: cart.map((line) => ({ productId: line.productId, quantity: line.quantity })),
           customerName,
-          customerPhone,
+          customerPhone: customerPhone.trim() ? `${PHONE_PREFIX} ${customerPhone.trim()}` : "",
           deliveryAddress,
           note,
         });
@@ -133,14 +148,21 @@ export function PosDeliveryOrderModal({
             maxLength={120}
             className={inputClass}
           />
-          <input
-            value={customerPhone}
-            onChange={(event) => setCustomerPhone(event.target.value)}
-            placeholder="Téléphone du client"
-            inputMode="tel"
-            maxLength={40}
-            className={inputClass}
-          />
+          <div className="relative">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-medium text-slate-500">
+              {PHONE_PREFIX}
+            </span>
+            <input
+              value={customerPhone}
+              onChange={(event) => setCustomerPhone(formatLocalPhone(event.target.value))}
+              placeholder="00 00 00 00"
+              aria-label="Téléphone du client"
+              title="Téléphone du client"
+              inputMode="tel"
+              maxLength={20}
+              className={`${inputClass} pl-14`}
+            />
+          </div>
           <input
             value={deliveryAddress}
             onChange={(event) => setDeliveryAddress(event.target.value)}
