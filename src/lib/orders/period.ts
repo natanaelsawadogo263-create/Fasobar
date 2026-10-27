@@ -1,41 +1,54 @@
 import type { AdminOrderPeriodFilter } from "@/lib/orders/schemas";
 
-/** Date locale YYYY-MM-DD (évite le décalage UTC de toISOString). */
+/**
+ * Périodes (jour, semaine, mois) calculées à l'heure de Ouagadougou (UTC+0, sans
+ * heure d'été), quel que soit le fuseau de l'appareil ou du serveur : un PC réglé
+ * sur un autre fuseau ne doit pas décaler les filtres. Les objets `Date` manipulés
+ * ici représentent minuit UTC du jour concerné.
+ */
+
+/** Date YYYY-MM-DD à l'heure de Ouagadougou. */
 export function toLocalIsoDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 
+/** YYYY-MM-DD → minuit (Ouagadougou) de ce jour. */
 export function parseLocalIsoDate(value: string): Date {
   const [y, m, d] = value.split("-").map(Number);
-  if (!y || !m || !d) return new Date();
-  return new Date(y, m - 1, d);
+  if (!y || !m || !d) return startOfDay(new Date());
+  return new Date(Date.UTC(y, m - 1, d));
 }
 
-/** Semaine ISO locale : lundi → dimanche. */
-export function startOfWeekMonday(date: Date): Date {
-  const result = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const day = result.getDay();
-  const offset = day === 0 ? -6 : 1 - day;
-  result.setDate(result.getDate() + offset);
+function startOfDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
   return result;
 }
 
+/** Semaine : lundi → dimanche. */
+export function startOfWeekMonday(date: Date): Date {
+  const day = startOfDay(date);
+  const offset = day.getUTCDay() === 0 ? -6 : 1 - day.getUTCDay();
+  return addDays(day, offset);
+}
+
 export function endOfWeekSunday(date: Date): Date {
-  const start = startOfWeekMonday(date);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  return end;
+  return addDays(startOfWeekMonday(date), 6);
 }
 
 export function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 }
 
 export function endOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
 }
 
 export function resolveOrderPeriodRange(
@@ -74,17 +87,17 @@ export function shiftOrderPeriodAnchor(
   const anchor = parseLocalIsoDate(anchorIso);
 
   if (period === "day") {
-    anchor.setDate(anchor.getDate() + direction);
-    return toLocalIsoDate(anchor);
+    return toLocalIsoDate(addDays(anchor, direction));
   }
 
   if (period === "week") {
-    anchor.setDate(anchor.getDate() + direction * 7);
-    return toLocalIsoDate(anchor);
+    return toLocalIsoDate(addDays(anchor, direction * 7));
   }
 
-  anchor.setMonth(anchor.getMonth() + direction);
-  return toLocalIsoDate(anchor);
+  // Mois : on part du 1er pour éviter les débordements (31 → mois suivant).
+  return toLocalIsoDate(
+    new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + direction, 1)),
+  );
 }
 
 export function formatOrderPeriodLabel(
@@ -103,6 +116,7 @@ export function formatOrderPeriodLabel(
       day: "numeric",
       month: "long",
       year: "numeric",
+      timeZone: "UTC",
     });
   }
 
@@ -110,11 +124,13 @@ export function formatOrderPeriodLabel(
     const start = fromDate.toLocaleDateString("fr-FR", {
       day: "numeric",
       month: "short",
+      timeZone: "UTC",
     });
     const end = toDate.toLocaleDateString("fr-FR", {
       day: "numeric",
       month: "short",
       year: "numeric",
+      timeZone: "UTC",
     });
     return `${start} – ${end}`;
   }
@@ -122,5 +138,6 @@ export function formatOrderPeriodLabel(
   return fromDate.toLocaleDateString("fr-FR", {
     month: "long",
     year: "numeric",
+    timeZone: "UTC",
   });
 }

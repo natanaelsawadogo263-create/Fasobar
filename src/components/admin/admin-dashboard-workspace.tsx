@@ -56,8 +56,9 @@ function trendLabel(today: number, yesterday: number): {
   flat: boolean;
 } {
   if (yesterday <= 0) {
+    // Pas de pourcentage possible sans base hier.
     return {
-      text: today > 0 ? "+100 % vs hier" : "Comme hier",
+      text: today > 0 ? "Rien hier" : "Comme hier",
       up: today > 0,
       flat: today === 0,
     };
@@ -125,6 +126,12 @@ export function AdminDashboardWorkspace({
 
   const deptTotal = salesByDept.bar + salesByDept.kitchen + salesByDept.other;
   const hasSeriesSales = salesSeries.values.some((value) => value > 0);
+  // Bénéfice indisponible : sans vente, ou sans prix d'achat connu (approvisionnement).
+  const profitHint = kpis.profitAvailable
+    ? "Ventes − coût d’achat (appro)"
+    : kpis.salesToday > 0
+      ? "Ajoutez un approvisionnement"
+      : "Après la 1re vente";
 
   function setPeriod(period: AdminDashboardPeriod) {
     const params = new URLSearchParams();
@@ -217,9 +224,7 @@ export function AdminDashboardWorkspace({
           sub={
             <span className="text-slate-400">
               {retail
-                ? kpis.profitAvailable
-                  ? "Ventes − coût d’achat (appro)"
-                  : "Après 1re vente + appro"
+                ? profitHint
                 : `${openSessionsCount} ouverte${openSessionsCount > 1 ? "s" : ""}`}
             </span>
           }
@@ -278,11 +283,7 @@ export function AdminDashboardWorkspace({
           }
           sub={
             retail ? (
-              <span className="text-slate-500">
-                {kpis.profitAvailable
-                  ? "Ventes − coût d’achat (appro)"
-                  : "Après 1re vente + appro"}
-              </span>
+              <span className="text-slate-500">{profitHint}</span>
             ) : openSessionsCount > 0 ? (
               <span className="inline-flex items-center gap-1 text-slate-500">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -315,9 +316,10 @@ export function AdminDashboardWorkspace({
         />
       </div>
 
+      {/* Même disposition à toutes les tailles : en plein écran, les panneaux grandissent et le graphique remplit le sien. */}
       <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto pb-1 lg:grid-cols-12 lg:gap-4 lg:overflow-hidden">
         <Panel
-          className="min-h-0 lg:col-span-5"
+          className="lg:col-span-5 lg:h-full lg:min-h-0"
           title={profile.topProductsTitle}
         >
           {topProducts.length === 0 ? (
@@ -373,33 +375,43 @@ export function AdminDashboardWorkspace({
         </Panel>
 
         <Panel
-          className="min-h-0 lg:col-span-3"
+          className="lg:col-span-3 lg:h-full lg:min-h-0"
           title={analysisTitle(analysisPeriod)}
         >
-          {retail && !hasSeriesSales && kpis.salesToday === 0 && kpis.ordersToday === 0 ? (
+          {retail && !hasSeriesSales && kpis.periodOrders === 0 ? (
             <EmptyState
               icon={<BarChart3 className="h-5 w-5" />}
               message={emptySalesMessage(analysisPeriod)}
               hint="L’analyse se remplit dès les premières ventes."
             />
           ) : (
-            <div className="flex min-h-0 flex-1 flex-col justify-center gap-5 overflow-hidden p-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden p-4">
               {retail ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <MiniStat label="Ventes" value={String(kpis.ordersToday)} />
-                  <MiniStat label="CA" value={formatPriceXof(kpis.salesToday)} />
-                  <MiniStat label="Dépenses" value={formatPriceXof(kpis.expensesToday)} />
-                  <MiniStat
-                    label="Bénéfice"
-                    value={
-                      kpis.profitAvailable && kpis.profitToday !== null
-                        ? formatPriceXof(kpis.profitToday)
-                        : "—"
-                    }
-                  />
-                </div>
+                <>
+                  <SalesBars series={salesSeries} />
+                  {/* Chiffres de la période choisie (jour, semaine ou mois). */}
+                  <div className="grid shrink-0 grid-cols-2 gap-2">
+                    <MiniStat label="Ventes" value={String(kpis.periodOrders)} />
+                    <MiniStat label="CA" value={formatPriceXof(kpis.periodSales)} />
+                    {analysisPeriod === "day" ? (
+                      <>
+                        <MiniStat label="Dépenses" value={formatPriceXof(kpis.expensesToday)} />
+                        <MiniStat
+                          label="Bénéfice"
+                          value={
+                            kpis.profitAvailable && kpis.profitToday !== null
+                              ? formatPriceXof(kpis.profitToday)
+                              : "—"
+                          }
+                        />
+                      </>
+                    ) : null}
+                  </div>
+                </>
               ) : (
-                <div className="space-y-2.5">
+                <>
+                <SalesBars series={salesSeries} />
+                <div className="shrink-0 space-y-2.5">
                   {hasBarService(serviceScope) ? (
                     <DeptBar
                       icon={<Wine className="h-3.5 w-3.5" />}
@@ -433,13 +445,14 @@ export function AdminDashboardWorkspace({
                     </p>
                   ) : null}
                 </div>
+                </>
               )}
             </div>
           )}
         </Panel>
 
         <Panel
-          className="min-h-0 lg:col-span-4"
+          className="lg:col-span-4 lg:h-full lg:min-h-0"
           title="Activité récente"
         >
           {activity.length === 0 ? (
@@ -516,6 +529,39 @@ function QuickLink({
       <span className="text-emerald-700">{icon}</span>
       {label}
     </InstantLink>
+  );
+}
+
+/** Ventes de la période : barres par heure (jour) ou par jour (semaine, mois). */
+function SalesBars({ series }: { series: AdminDashboardData["salesSeries"] }) {
+  // Jour : seules les heures d'ouverture habituelles, pour des barres lisibles.
+  const entries = series.values
+    .map((value, index) => ({ value, label: series.labels[index] ?? "" }))
+    .filter((_, index) => series.granularity !== "hour" || (index >= 6 && index <= 23));
+  const max = Math.max(...entries.map((entry) => entry.value), 1);
+  const step = Math.ceil(entries.length / 6);
+
+  // Le graphique occupe toute la hauteur disponible du panneau.
+  return (
+    <div className="flex min-h-[7rem] flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 items-end gap-0.5">
+        {entries.map((entry, index) => (
+          <div
+            key={entry.label || index}
+            title={`${entry.label} · ${formatPriceXof(entry.value)}`}
+            className={`min-w-0 flex-1 rounded-t ${entry.value > 0 ? "bg-emerald-500" : "bg-slate-100"}`}
+            style={{ height: `${Math.max((entry.value / max) * 100, 4)}%` }}
+          />
+        ))}
+      </div>
+      <div className="mt-1 flex gap-0.5 text-[9px] text-slate-400">
+        {entries.map((entry, index) => (
+          <span key={entry.label || index} className="min-w-0 flex-1 text-center">
+            {index % step === 0 ? entry.label : ""}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -652,7 +698,7 @@ function Panel({
 }) {
   return (
     <section
-      className={`flex min-h-[240px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm lg:h-full lg:min-h-0 ${className}`}
+      className={`flex min-h-[240px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm ${className}`}
     >
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2.5">
         <h2 className="text-[13px] font-semibold text-slate-900">{title}</h2>

@@ -2,6 +2,8 @@ import "server-only";
 
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { listSaleOrderSurpluses } from "@/lib/profit/sale-surplus";
+import { selectOrderItemsByOrderIds } from "@/lib/sales/order-items-chunked";
+import { dayRangeToIso, listPaidOrdersInRange } from "@/lib/sales/paid-orders";
 import type { SalesFiltersInput } from "@/lib/sales/schemas";
 import type {
   AdminSalesPageData,
@@ -38,16 +40,6 @@ const EMPTY_DATA: AdminSalesPageData = {
   saleSurpluses: [],
 };
 
-type PaidOrderRow = {
-  id: string;
-  order_number: number;
-  total_amount: number;
-  created_at: string;
-  updated_at: string;
-  created_by: string;
-  profiles: { full_name: string } | { full_name: string }[] | null;
-};
-
 type OrderItemRow = {
   order_id: string;
   product_id: string;
@@ -67,36 +59,11 @@ export async function getAdminSalesData(
 ): Promise<AdminSalesPageData> {
   const supabase = await createClient();
 
-  let query = supabase
-    .from("orders")
-    .select(
-      "id, order_number, total_amount, created_at, updated_at, created_by, profiles!orders_created_by_fkey(full_name)",
-    )
-    .eq("organization_id", workspace.organizationId)
-    .eq("establishment_id", workspace.establishmentId)
-    .eq("payment_status", "PAID")
-    .order("updated_at", { ascending: false })
-    .limit(150);
-
-  if (filters.cashierId) {
-    query = query.eq("created_by", filters.cashierId);
-  }
-
-  if (filters.from) {
-    query = query.gte("updated_at", `${filters.from}T00:00:00.000Z`);
-  }
-
-  if (filters.to) {
-    query = query.lte("updated_at", `${filters.to}T23:59:59.999Z`);
-  }
-
-  const { data, error } = await query;
-
-  if (error || !data) {
-    return EMPTY_DATA;
-  }
-
-  const orderRows = data as unknown as PaidOrderRow[];
+  // Datées au paiement (reçu), toutes lues : plus de plafond à 150 ventes.
+  const orderRows = await listPaidOrdersInRange(supabase, workspace, {
+    ...dayRangeToIso(filters.from, filters.to),
+    cashierId: filters.cashierId,
+  });
 
   if (orderRows.length === 0) {
     return EMPTY_DATA;
@@ -106,22 +73,18 @@ export async function getAdminSalesData(
 
   // Lecture articles : client service role si dispo (évite les trous RLS sur order_items).
   const itemsClient = isAdminClientConfigured() ? createAdminClient() : supabase;
-  const { data: itemRows } = await itemsClient
-    .from("order_items")
-    .select(
-      "order_id, product_id, product_name_snapshot, quantity, line_total, departments(code, name)",
-    )
-    .eq("organization_id", workspace.organizationId)
-    .eq("establishment_id", workspace.establishmentId)
-    .in("order_id", orderIds);
-
-  const items = (itemRows ?? []) as Array<
+  const { data: items } = await selectOrderItemsByOrderIds<
     OrderItemRow & {
       departments?: { code: string; name: string } | { code: string; name: string }[] | null;
     }
-  >;
+  >(
+    itemsClient,
+    workspace.establishmentId,
+    orderIds,
+    "order_id, product_id, product_name_snapshot, quantity, line_total, departments(code, name)",
+  );
 
-  const totalRevenue = orderRows.reduce((sum, row) => sum + row.total_amount, 0);
+  const totalRevenue = orderRows.reduce((sum, row) => sum + row.totalAmount, 0);
   const paidOrderCount = orderRows.length;
 
   let barRevenue = 0;
@@ -175,49 +138,49 @@ export async function getAdminSalesData(
   const orders: SalesOrderRow[] = [];
 
   for (const row of orderRows) {
-    const profile = readSingle(row.profiles);
-    const cashierId = row.created_by;
-    const cashierName = profile?.full_name ?? "—";
-    const paidAt = row.updated_at ?? row.created_at;
+    const cashierId = row.createdBy;
+    const cashierName = row.cashierName ?? "—";
+    const paidAt = row.paidAt;
 
     const cashierEntry = cashierAgg.get(cashierId);
     if (cashierEntry) {
       cashierEntry.orderCount += 1;
-      cashierEntry.revenue += row.total_amount;
+      cashierEntry.revenue += row.totalAmount;
     } else {
       cashierAgg.set(cashierId, {
         cashierId,
         cashierName,
         orderCount: 1,
-        revenue: row.total_amount,
+        revenue: row.totalAmount,
       });
     }
 
+    // Heure et jour de Ouagadougou (UTC).
     const hour = new Date(paidAt).getUTCHours();
     const hourEntry = hourAgg.get(hour);
     if (hourEntry) {
-      hourEntry.revenue += row.total_amount;
+      hourEntry.revenue += row.totalAmount;
       hourEntry.orderCount += 1;
     } else {
-      hourAgg.set(hour, { hour, revenue: row.total_amount, orderCount: 1 });
+      hourAgg.set(hour, { hour, revenue: row.totalAmount, orderCount: 1 });
     }
 
-    const dayKey = paidAt.slice(0, 10);
+    const dayKey = new Date(paidAt).toISOString().slice(0, 10);
     const dayEntry = dayAgg.get(dayKey);
     if (dayEntry) {
-      dayEntry.revenue += row.total_amount;
+      dayEntry.revenue += row.totalAmount;
       dayEntry.orderCount += 1;
     } else {
-      dayAgg.set(dayKey, { date: dayKey, revenue: row.total_amount, orderCount: 1 });
+      dayAgg.set(dayKey, { date: dayKey, revenue: row.totalAmount, orderCount: 1 });
     }
 
     orders.push({
       id: row.id,
-      orderNumber: row.order_number,
+      orderNumber: row.orderNumber,
       paidAt,
       cashierName,
       itemCount: Math.round((itemCountByOrder.get(row.id) ?? 0) * 1000) / 1000,
-      totalAmount: row.total_amount,
+      totalAmount: row.totalAmount,
       surplus: null,
       costAmount: null,
     });

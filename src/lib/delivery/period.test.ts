@@ -6,8 +6,8 @@ import {
   resolveDeliveryPeriod,
 } from "@/lib/delivery/period";
 
-// Dimanche 25 octobre 2026, 15 h 30 (heure locale).
-const NOW = new Date(2026, 9, 25, 15, 30);
+// Dimanche 25 octobre 2026, 15 h 30 à Ouagadougou (UTC), quel que soit le fuseau de la machine.
+const NOW = new Date(Date.UTC(2026, 9, 25, 15, 30));
 
 describe("période d'analyse des livraisons", () => {
   it("par défaut : aujourd'hui, de minuit à minuit", () => {
@@ -15,8 +15,8 @@ describe("période d'analyse des livraisons", () => {
     expect(period.preset).toBe("jour");
     expect(period.from).toBe("2026-10-25");
     expect(period.to).toBe("2026-10-25");
-    expect(period.start).toEqual(new Date(2026, 9, 25));
-    expect(period.end).toEqual(new Date(2026, 9, 26));
+    expect(period.start).toEqual(new Date(Date.UTC(2026, 9, 25)));
+    expect(period.end).toEqual(new Date(Date.UTC(2026, 9, 26)));
   });
 
   it("la semaine commence le lundi", () => {
@@ -28,7 +28,7 @@ describe("période d'analyse des livraisons", () => {
   it("le mois commence le 1er", () => {
     const period = resolveDeliveryPeriod({ periode: "mois" }, NOW);
     expect(period.from).toBe("2026-10-01");
-    expect(period.end).toEqual(new Date(2026, 9, 26));
+    expect(period.end).toEqual(new Date(Date.UTC(2026, 9, 26)));
   });
 
   it("plage libre : dernier jour inclus, dates inversées remises dans l'ordre", () => {
@@ -39,7 +39,7 @@ describe("période d'analyse des livraisons", () => {
     expect(period.preset).toBe("personnalise");
     expect(period.from).toBe("2026-09-01");
     expect(period.to).toBe("2026-10-10");
-    expect(period.end).toEqual(new Date(2026, 9, 11));
+    expect(period.end).toEqual(new Date(Date.UTC(2026, 9, 11)));
   });
 
   it("dates invalides → aujourd'hui", () => {

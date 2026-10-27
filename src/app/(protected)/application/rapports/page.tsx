@@ -9,7 +9,7 @@ type RapportsPageProps = {
 function defaultPeriod(): { from: string; to: string } {
   const today = new Date();
   const from = new Date(today);
-  from.setDate(today.getDate() - 29);
+  from.setUTCDate(today.getUTCDate() - 29);
   return {
     from: from.toISOString().slice(0, 10),
     to: today.toISOString().slice(0, 10),

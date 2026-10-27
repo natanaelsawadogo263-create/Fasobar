@@ -9,6 +9,7 @@ import {
   loadProductUnitCostsFromSupply,
   stockQtySold,
 } from "@/lib/profit/product-unit-cost";
+import { selectOrderItemsByOrderIds } from "@/lib/sales/order-items-chunked";
 
 export type SaleLineSurplus = {
   productName: string;
@@ -67,24 +68,22 @@ export async function listSaleOrderSurpluses(
   const client = isAdminClientConfigured() ? createAdminClient() : supabase;
   const orderIds = orders.map((order) => order.id);
 
-  const withPrice = await client
-    .from("order_items")
-    .select(
-      "order_id, product_id, product_name_snapshot, quantity, line_total, unit_price_snapshot, stock_quantity, sale_unit_factor",
-    )
-    .eq("establishment_id", establishmentId)
-    .in("order_id", orderIds);
+  const withPrice = await selectOrderItemsByOrderIds<OrderItemRow>(
+    client,
+    establishmentId,
+    orderIds,
+    "order_id, product_id, product_name_snapshot, quantity, line_total, unit_price_snapshot, stock_quantity, sale_unit_factor",
+  );
 
-  let items: OrderItemRow[] = (withPrice.data ?? []) as OrderItemRow[];
+  let items: OrderItemRow[] = withPrice.data;
   if (withPrice.error) {
-    const fallback = await client
-      .from("order_items")
-      .select(
-        "order_id, product_id, product_name_snapshot, quantity, line_total, stock_quantity, sale_unit_factor",
-      )
-      .eq("establishment_id", establishmentId)
-      .in("order_id", orderIds);
-    items = (fallback.data ?? []) as OrderItemRow[];
+    const fallback = await selectOrderItemsByOrderIds<OrderItemRow>(
+      client,
+      establishmentId,
+      orderIds,
+      "order_id, product_id, product_name_snapshot, quantity, line_total, stock_quantity, sale_unit_factor",
+    );
+    items = fallback.data;
   }
 
   const productIds = [

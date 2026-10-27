@@ -11,6 +11,11 @@ import {
   toLocalIsoDate,
 } from "@/lib/orders/period";
 import { getCashierServiceDayStartIso } from "@/lib/orders/queries";
+import { PAYMENT_METHOD_LABELS } from "@/lib/payments/constants";
+import type { PaymentMethod } from "@/lib/payments/schemas";
+import { selectOrderItemsByOrderIds } from "@/lib/sales/order-items-chunked";
+import { listPaidOrdersInRange, type PaidOrder } from "@/lib/sales/paid-orders";
+import { MOVEMENT_TYPE_LABELS } from "@/lib/stock/constants";
 import { sumSoldGoodsCost } from "@/lib/profit/cost-of-goods";
 import {
   hasEstablishmentSupplyHistory,
@@ -31,6 +36,9 @@ export type AdminDashboardKpis = {
   expensesToday: number;
   profitToday: number | null;
   profitAvailable: boolean;
+  /** Ventes payées et chiffre d'affaires de la période d'analyse (jour, semaine ou mois). */
+  periodOrders: number;
+  periodSales: number;
 };
 
 export type AdminTopProduct = {
@@ -97,8 +105,25 @@ type PaidOrderRow = {
   id: string;
   total_amount: number | null;
   created_at: string | null;
+  /** Heure du paiement (reçu). */
   updated_at: string | null;
 };
+
+type DashboardItemRow = {
+  product_name_snapshot: string | null;
+  quantity: number | string | null;
+  line_total: number | null;
+  departments: { code: string } | { code: string }[] | null;
+};
+
+function toPaidOrderRows(orders: PaidOrder[]): PaidOrderRow[] {
+  return orders.map((order) => ({
+    id: order.id,
+    total_amount: order.totalAmount,
+    created_at: order.createdAt,
+    updated_at: order.paidAt,
+  }));
+}
 
 function startOfDayIso(reference = new Date()): string {
   return getCashierServiceDayStartIso(reference.toISOString());
@@ -119,21 +144,13 @@ function periodBoundsIso(period: AdminDashboardPeriod): {
   const range = resolveOrderPeriodRange(period);
   const fromDate = range.from ?? toLocalIsoDate(new Date());
   const toDate = range.to ?? fromDate;
-  const from = parseLocalIsoDate(fromDate);
+  // Dates à minuit UTC = minuit à Ouagadougou.
   const toExclusive = parseLocalIsoDate(toDate);
-  toExclusive.setDate(toExclusive.getDate() + 1);
+  toExclusive.setUTCDate(toExclusive.getUTCDate() + 1);
 
   return {
-    fromIso: new Date(
-      Date.UTC(from.getFullYear(), from.getMonth(), from.getDate()),
-    ).toISOString(),
-    toExclusiveIso: new Date(
-      Date.UTC(
-        toExclusive.getFullYear(),
-        toExclusive.getMonth(),
-        toExclusive.getDate(),
-      ),
-    ).toISOString(),
+    fromIso: parseLocalIsoDate(fromDate).toISOString(),
+    toExclusiveIso: toExclusive.toISOString(),
     fromDate,
     toDate,
   };
@@ -166,10 +183,9 @@ function buildSalesSeries(
     for (const order of paidOrders) {
       const stamp = order.updated_at ?? order.created_at;
       if (!stamp) continue;
-      const d = new Date(stamp);
-      const local = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-      const diff = Math.floor(
-        (local.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000),
+      const day = parseLocalIsoDate(stamp.slice(0, 10));
+      const diff = Math.round(
+        (day.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000),
       );
       if (diff >= 0 && diff < 7) values[diff] += order.total_amount ?? 0;
     }
@@ -178,7 +194,7 @@ function buildSalesSeries(
 
   const start = parseLocalIsoDate(fromDate);
   const end = parseLocalIsoDate(toDate);
-  const dayCount = end.getDate();
+  const dayCount = end.getUTCDate();
   const values = Array.from({ length: dayCount }, () => 0);
   const labels = values.map((_, i) => String(i + 1));
   for (const order of paidOrders) {
@@ -187,8 +203,8 @@ function buildSalesSeries(
     const d = new Date(stamp);
     const day = d.getUTCDate();
     if (
-      d.getUTCFullYear() === start.getFullYear() &&
-      d.getUTCMonth() === start.getMonth() &&
+      d.getUTCFullYear() === start.getUTCFullYear() &&
+      d.getUTCMonth() === start.getUTCMonth() &&
       day >= 1 &&
       day <= dayCount
     ) {
@@ -235,29 +251,21 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
     profitAvailable,
   ] = await Promise.all([
     listDashboardStockAlerts(workspace, 5),
-    supabase
-      .from("orders")
-      .select("id, total_amount, created_at, updated_at")
-      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
-      .eq("payment_status", "PAID")
-      .gte("updated_at", todayStart)
-      .lt("updated_at", tomorrowStart),
-    supabase
-      .from("orders")
-      .select("id, total_amount")
-      .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
-      .eq("payment_status", "PAID")
-      .gte("updated_at", yesterdayStart)
-      .lt("updated_at", todayStart),
+    // Ventes datées au paiement (reçu), comme les pages Ventes et Rapports.
+    listPaidOrdersInRange(supabase, workspace, {
+      fromIso: todayStart,
+      toExclusiveIso: tomorrowStart,
+    }).then(toPaidOrderRows),
+    listPaidOrdersInRange(supabase, workspace, {
+      fromIso: yesterdayStart,
+      toExclusiveIso: todayStart,
+    }).then(toPaidOrderRows),
     period === "day"
-      ? Promise.resolve({ data: null as PaidOrderRow[] | null })
-      : supabase
-          .from("orders")
-          .select("id, total_amount, created_at, updated_at")
-          .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
-          .eq("payment_status", "PAID")
-          .gte("updated_at", bounds.fromIso)
-          .lt("updated_at", bounds.toExclusiveIso),
+      ? Promise.resolve(null)
+      : listPaidOrdersInRange(supabase, workspace, {
+          fromIso: bounds.fromIso,
+          toExclusiveIso: bounds.toExclusiveIso,
+        }).then(toPaidOrderRows),
     supabase
       .from("cash_register_sessions")
       .select(
@@ -325,10 +333,9 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
   ]);
 
   const stockItems = stockAlertsResult.alerts;
-  const paidToday = (todayPaidOrders.data ?? []) as PaidOrderRow[];
-  const paidYesterday = yesterdayPaidOrders.data ?? [];
-  const paidForAnalysis =
-    period === "day" ? paidToday : ((periodPaidOrders.data ?? []) as PaidOrderRow[]);
+  const paidToday = todayPaidOrders;
+  const paidYesterday = yesterdayPaidOrders;
+  const paidForAnalysis = period === "day" ? paidToday : (periodPaidOrders ?? []);
 
   const salesToday = paidToday.reduce((sum, row) => sum + (row.total_amount ?? 0), 0);
   const salesYesterday = paidYesterday.reduce(
@@ -341,7 +348,6 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
   );
 
   const orderIds = paidForAnalysis.map((order) => order.id);
-  const sampleOrderIds = orderIds.slice(0, 120);
   const todayOrderIds = paidToday.map((row) => row.id);
   const hasSalesToday = todayOrderIds.length > 0;
   const canShowProfit = isProfitReady({
@@ -353,12 +359,13 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
     canShowProfit
       ? sumSoldGoodsCost(workspace.establishmentId, todayOrderIds)
       : Promise.resolve(0),
-    orderIds.length > 0
-      ? supabase
-          .from("order_items")
-          .select("product_name_snapshot, quantity, line_total, departments(code)")
-          .in("order_id", sampleOrderIds)
-      : Promise.resolve({ data: [] as Array<Record<string, unknown>> }),
+    // Toutes les ventes de la période (avant : 120 au plus, d'où des top produits faux).
+    selectOrderItemsByOrderIds<DashboardItemRow>(
+      supabase,
+      workspace.establishmentId,
+      orderIds,
+      "product_name_snapshot, quantity, line_total, departments(code)",
+    ),
   ]);
 
   // Bénéfice du jour = ventes − coût d’achat des produits vendus.
@@ -457,7 +464,9 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
     activity.push({
       id: `pay-${payment.id}`,
       title: "Encaissement",
-      detail: `${payment.amount_applied?.toLocaleString("fr-FR")} FCFA · ${payment.method}`,
+      detail: `${payment.amount_applied?.toLocaleString("fr-FR")} FCFA · ${
+        PAYMENT_METHOD_LABELS[payment.method as PaymentMethod] ?? payment.method
+      }`,
       at: payment.received_at,
       kind: "payment",
     });
@@ -471,7 +480,10 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
     const name = Array.isArray(item) ? item[0]?.name : item?.name;
     activity.push({
       id: `mov-${movement.id}`,
-      title: movement.type === "PURCHASE" ? "Entrée stock" : "Mouvement stock",
+      title:
+        movement.type === "PURCHASE"
+          ? "Entrée stock"
+          : `Stock · ${MOVEMENT_TYPE_LABELS[movement.type] ?? "mouvement"}`,
       detail: `${name ?? "Article"} · ${movement.quantity}`,
       at: movement.created_at,
       kind: "stock",
@@ -521,6 +533,8 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
       expensesToday,
       profitToday,
       profitAvailable: canShowProfit,
+      periodOrders: paidForAnalysis.length,
+      periodSales: paidForAnalysis.reduce((sum, row) => sum + (row.total_amount ?? 0), 0),
     },
     liveOps,
     stockAlerts: stockItems,

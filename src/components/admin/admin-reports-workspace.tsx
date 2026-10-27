@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Truck,
   Wallet,
+  Warehouse,
   Wine,
 } from "lucide-react";
 
@@ -58,6 +59,21 @@ const REPORT_ICONS: Partial<
   activite_utilisateurs: Activity,
 };
 
+function ReportIcon({
+  type,
+  retail,
+  className,
+}: {
+  type: ReportType;
+  retail: boolean;
+  className?: string;
+}) {
+  // En boutique, le stock n'est pas un stock de boissons : pas d'icône de verre.
+  if (type === "stock_boissons" && retail) return <Warehouse className={className} />;
+  const Icon = REPORT_ICONS[type] ?? BarChart3;
+  return <Icon className={className} />;
+}
+
 const REPORT_GROUPS: Array<{ label: string; types: ReportType[] }> = [
   { label: "Commercial", types: ["ventes", "produits_vendus", "benefices"] },
   {
@@ -75,17 +91,18 @@ function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** Préréglages à l'heure de Ouagadougou (UTC), quel que soit le fuseau de l'appareil. */
 function periodPresets(): Array<{ id: string; label: string; from?: string; to?: string }> {
   const today = new Date();
   const end = toIsoDate(today);
 
   const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - 6);
+  startOfWeek.setUTCDate(today.getUTCDate() - 6);
 
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const startOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
 
   const start30 = new Date(today);
-  start30.setDate(today.getDate() - 29);
+  start30.setUTCDate(today.getUTCDate() - 29);
 
   return [
     { id: "today", label: "Aujourd'hui", from: end, to: end },
@@ -223,6 +240,9 @@ export function AdminReportsWorkspace({
   );
 
   const activeOption = optionsById.get(report.type);
+  // Libellé adapté à l'activité (ex. « Stock magasin » en boutique).
+  const reportTitle = activeOption?.label ?? report.title;
+  const retail = isRetailActivity(activityCode);
 
   const periodLabel = useMemo(() => {
     if (filters.from && filters.to) {
@@ -287,7 +307,7 @@ export function AdminReportsWorkspace({
       ["Établissement", establishment.name],
       ...(establishment.address ? [["Adresse", establishment.address]] : []),
       ...(establishment.phone ? [["Téléphone", establishment.phone]] : []),
-      ["Rapport", report.title],
+      ["Rapport", reportTitle],
       ["Période", periodLabel],
       ["Exporté le", exportedAt],
       [],
@@ -355,7 +375,7 @@ export function AdminReportsWorkspace({
           {establishment.phone ? (
             <p className="text-xs text-slate-600">Tél. {establishment.phone}</p>
           ) : null}
-          <p className="mt-2 text-sm font-semibold text-slate-900">{report.title}</p>
+          <p className="mt-2 text-sm font-semibold text-slate-900">{reportTitle}</p>
           <p className="text-xs text-slate-600">
             Période : {periodLabel}
             {printStamp ? (
@@ -491,7 +511,6 @@ export function AdminReportsWorkspace({
                   </p>
                   <div className="space-y-0.5">
                     {items.map((option) => {
-                      const Icon = REPORT_ICONS[option.id] ?? BarChart3;
                       const active = report.type === option.id;
                       return (
                         <button
@@ -511,7 +530,7 @@ export function AdminReportsWorkspace({
                                 : "bg-slate-100 text-slate-500"
                             }`}
                           >
-                            <Icon className="h-3.5 w-3.5" />
+                            <ReportIcon type={option.id} retail={retail} className="h-3.5 w-3.5" />
                           </span>
                           <span className="truncate text-[12px] font-semibold">
                             {option.label}
@@ -547,17 +566,12 @@ export function AdminReportsWorkspace({
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  {(() => {
-                    const Icon = REPORT_ICONS[report.type] ?? BarChart3;
-                    return (
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-emerald-50 text-emerald-700">
-                        <Icon className="h-3.5 w-3.5" />
-                      </span>
-                    );
-                  })()}
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-emerald-50 text-emerald-700">
+                    <ReportIcon type={report.type} retail={retail} className="h-3.5 w-3.5" />
+                  </span>
                   <div className="min-w-0">
                     <h2 className="text-[14px] font-semibold tracking-tight text-slate-900">
-                      {report.title}
+                      {reportTitle}
                     </h2>
                     <p className="text-[11px] text-slate-500">
                       {activeOption?.description ?? report.description}

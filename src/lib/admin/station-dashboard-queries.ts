@@ -6,6 +6,7 @@ import type { AdminPumpSessionListItem } from "@/lib/admin/station-sessions-quer
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import {
   formatOrderPeriodLabel,
+  parseLocalIsoDate,
   resolveOrderPeriodRange,
   toLocalIsoDate,
 } from "@/lib/orders/period";
@@ -76,19 +77,22 @@ function previousPeriodRange(
   period: StationDashboardPeriod,
   anchor = toLocalIsoDate(new Date()),
 ): { from: string; to: string } {
-  const anchorDate = new Date(`${anchor}T12:00:00`);
+  // Heure de Ouagadougou (UTC), comme toutes les périodes.
+  const anchorDate = parseLocalIsoDate(anchor);
   if (period === "day") {
-    anchorDate.setDate(anchorDate.getDate() - 1);
+    anchorDate.setUTCDate(anchorDate.getUTCDate() - 1);
     const day = toLocalIsoDate(anchorDate);
     return { from: day, to: day };
   }
   if (period === "week") {
-    anchorDate.setDate(anchorDate.getDate() - 7);
+    anchorDate.setUTCDate(anchorDate.getUTCDate() - 7);
     const weekAnchor = toLocalIsoDate(anchorDate);
     const range = resolveOrderPeriodRange("week", weekAnchor);
     return { from: range.from ?? weekAnchor, to: range.to ?? weekAnchor };
   }
-  anchorDate.setMonth(anchorDate.getMonth() - 1);
+  // 1er du mois précédent (évite le débordement du 31 vers le mois suivant).
+  anchorDate.setUTCDate(1);
+  anchorDate.setUTCMonth(anchorDate.getUTCMonth() - 1);
   const monthAnchor = toLocalIsoDate(anchorDate);
   const range = resolveOrderPeriodRange("month", monthAnchor);
   return { from: range.from ?? monthAnchor, to: range.to ?? monthAnchor };

@@ -1,6 +1,7 @@
 /**
  * Période d'analyse des livraisons (admin) : jour, semaine, mois ou plage libre.
- * Dates au format `AAAA-MM-JJ`, en heure locale du serveur ; `end` est exclusif.
+ * Dates au format `AAAA-MM-JJ`, à l'heure de Ouagadougou (UTC+0) quel que soit le
+ * fuseau du serveur ou de l'appareil ; `end` est exclusif.
  */
 
 export const DELIVERY_PERIOD_PRESETS = [
@@ -28,17 +29,21 @@ const DEFAULT_PRESET: DeliveryPeriodPresetId = "jour";
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function toLocalIsoDate(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${month}-${day}`;
 }
 
 function parseLocalIsoDate(value: unknown): Date | null {
   if (typeof value !== "string" || !ISO_DATE.test(value)) return null;
   const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
+  const date = new Date(Date.UTC(year, month - 1, day));
   // Rejette les dates impossibles (ex. 2026-02-31).
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
     return null;
   }
   return date;
@@ -46,13 +51,13 @@ function parseLocalIsoDate(value: unknown): Date | null {
 
 function startOfDay(date: Date): Date {
   const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
+  copy.setUTCHours(0, 0, 0, 0);
   return copy;
 }
 
 function addDays(date: Date, days: number): Date {
   const copy = new Date(date);
-  copy.setDate(copy.getDate() + days);
+  copy.setUTCDate(copy.getUTCDate() + days);
   return copy;
 }
 
@@ -63,12 +68,12 @@ export function deliveryPresetRange(
 ): { from: string; to: string } {
   const today = startOfDay(now);
   if (preset === "semaine") {
-    const mondayOffset = (today.getDay() + 6) % 7;
+    const mondayOffset = (today.getUTCDay() + 6) % 7;
     return { from: toLocalIsoDate(addDays(today, -mondayOffset)), to: toLocalIsoDate(today) };
   }
   if (preset === "mois") {
     return {
-      from: toLocalIsoDate(new Date(today.getFullYear(), today.getMonth(), 1)),
+      from: toLocalIsoDate(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))),
       to: toLocalIsoDate(today),
     };
   }
@@ -121,6 +126,7 @@ export function formatDeliveryPeriodLabel(period: Pick<DeliveryPeriod, "from" | 
       day: "numeric",
       month: "short",
       year: withYear ? "numeric" : undefined,
+      timeZone: "UTC",
     }) ?? value;
 
   if (period.from === period.to) return format(period.from, true);

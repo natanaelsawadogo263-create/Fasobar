@@ -9,6 +9,7 @@ import {
   loadProductUnitCostsFromSupply,
   stockQtySold,
 } from "@/lib/profit/product-unit-cost";
+import { selectOrderItemsByOrderIds } from "@/lib/sales/order-items-chunked";
 
 type OrderItemLine = {
   product_id: string;
@@ -39,22 +40,22 @@ export async function sumSoldGoodsCost(
   const supabase = await createClient();
   const itemsClient = isAdminClientConfigured() ? createAdminClient() : supabase;
 
-  const withStock = await itemsClient
-    .from("order_items")
-    .select(
-      "product_id, quantity, line_total, department_id, stock_quantity, sale_unit_factor",
-    )
-    .eq("establishment_id", establishmentId)
-    .in("order_id", orderIds);
+  const withStock = await selectOrderItemsByOrderIds<OrderItemLine>(
+    itemsClient,
+    establishmentId,
+    orderIds,
+    "product_id, quantity, line_total, department_id, stock_quantity, sale_unit_factor",
+  );
 
-  let items: OrderItemLine[] = (withStock.data ?? []) as OrderItemLine[];
+  let items: OrderItemLine[] = withStock.data;
   if (withStock.error) {
-    const fallback = await itemsClient
-      .from("order_items")
-      .select("product_id, quantity, department_id")
-      .eq("establishment_id", establishmentId)
-      .in("order_id", orderIds);
-    items = (fallback.data ?? []) as OrderItemLine[];
+    const fallback = await selectOrderItemsByOrderIds<OrderItemLine>(
+      itemsClient,
+      establishmentId,
+      orderIds,
+      "product_id, quantity, department_id",
+    );
+    items = fallback.data;
   }
 
   if (options.departmentCode) {
