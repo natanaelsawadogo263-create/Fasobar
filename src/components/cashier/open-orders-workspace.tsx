@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { InstantLink as Link } from "@/components/layout/instant-link";
 import { ClipboardList, Plus, Search } from "lucide-react";
 
+import { OpenOrdersDeliveries } from "@/components/delivery/open-orders-deliveries";
 import { OrderPrepBadges } from "@/components/ops/order-prep-badges";
+import type { DeliveryOrder } from "@/lib/delivery/types";
 import { getActivityPages } from "@/lib/activity/pages";
 import {
   formatOrderNumber,
@@ -27,6 +29,8 @@ type OpenOrdersWorkspaceProps = {
   activityCode?: string | null;
   /** Sync temps réel multi-appareils (même établissement). */
   establishmentId?: string;
+  /** E-commerce : livraisons envoyées par cette caisse, avec leur statut. */
+  deliveries?: DeliveryOrder[];
 };
 
 function isFinalized(order: OpenOrderListItem): boolean {
@@ -303,8 +307,11 @@ export function OpenOrdersWorkspace({
   canOperateCashRegister = false,
   activityCode = null,
   establishmentId,
+  deliveries: deliveryOrders,
 }: OpenOrdersWorkspaceProps) {
   const router = useRouter();
+  const watchDeliveries = deliveryOrders !== undefined;
+  const deliveries = deliveryOrders ?? [];
   const pages = getActivityPages(activityCode);
 
   // Multi-appareils : une commande créée/encaissée depuis un autre appareil
@@ -349,6 +356,20 @@ export function OpenOrdersWorkspace({
         scheduleRefresh,
       );
 
+    // Statut des livraisons (accepté, livré, encaissé) mis à jour en direct.
+    if (watchDeliveries) {
+      channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "delivery_orders",
+          filter: `establishment_id=eq.${establishmentId}`,
+        },
+        scheduleRefresh,
+      );
+    }
+
     void bindRealtimeAuth(supabase).then((unbind) => {
       if (cancelled) return;
       unbindAuth = unbind;
@@ -361,7 +382,7 @@ export function OpenOrdersWorkspace({
       unbindAuth?.();
       void supabase.removeChannel(channel);
     };
-  }, [establishmentId, router]);
+  }, [establishmentId, router, watchDeliveries]);
 
   // Un seul groupe « à encaisser » (tickets ouverts, mis de côté ou prêts) + « terminées ».
   const toEncaisserOrders = orders.filter((order) => !isFinalized(order));
@@ -389,6 +410,9 @@ export function OpenOrdersWorkspace({
             <p className="mt-0.5 text-[12px] text-slate-500 sm:text-sm">
               {establishmentName} · {openCount} à encaisser · {doneCount} terminée
               {doneCount > 1 ? "s" : ""}
+              {deliveries.length > 0
+                ? ` · ${deliveries.length} livraison${deliveries.length > 1 ? "s" : ""}`
+                : null}
             </p>
           </div>
           {canOperateCashRegister ? (
@@ -415,7 +439,7 @@ export function OpenOrdersWorkspace({
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-5">
-        {orders.length === 0 ? (
+        {orders.length === 0 && deliveries.length === 0 ? (
           <div className="flex flex-col items-center rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
             <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
               <ClipboardList className="h-7 w-7" />
@@ -435,6 +459,7 @@ export function OpenOrdersWorkspace({
               orders={toEncaisserOrders}
               {...sectionCommonProps}
             />
+            <OpenOrdersDeliveries deliveries={deliveries} />
             <OrdersSection
               title="Terminées"
               emptyLabel="Aucune commande terminée."
