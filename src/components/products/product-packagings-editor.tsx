@@ -16,6 +16,7 @@ import {
   SHOP_PACKAGING_DEFAULT_UNITS,
   SHOP_PACKAGING_UNITS,
   packagingDisplayName,
+  shopLotDisplayName,
 } from "@/lib/products/constants";
 import type { BarPackagingUnit } from "@/lib/products/schemas";
 import type { ProductPackaging } from "@/lib/products/types";
@@ -60,9 +61,26 @@ export function ProductPackagingsEditor({
       setError("Indiquez le prix de vente du lot.");
       return;
     }
+    if (
+      packagings.some(
+        (item) =>
+          item.packagingUnit === packagingUnit &&
+          Number(item.conversionFactor) === Number(unitsPerPack),
+      )
+    ) {
+      setError(
+        `Ce ${packagingLabel.toLowerCase()} de ${unitsPerPack} existe déjà. Retirez-le d’abord pour le modifier.`,
+      );
+      return;
+    }
     const formData = new FormData();
     formData.set("productId", productId);
-    formData.set("name", packagingDisplayName(packagingUnit));
+    formData.set(
+      "name",
+      shopLots
+        ? shopLotDisplayName(packagingUnit, Number(unitsPerPack))
+        : packagingDisplayName(packagingUnit),
+    );
     formData.set("packagingUnit", packagingUnit);
     formData.set("conversionFactor", unitsPerPack);
     if (shopLots) {

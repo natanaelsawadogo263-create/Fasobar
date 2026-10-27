@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { mapGenericError } from "@/lib/auth/errors";
 import { slugifyFromName } from "@/lib/auth/slugs";
@@ -18,6 +19,7 @@ import {
   BAR_PACKAGING_LABELS,
   inferFractionableFromUnit,
   packagingDisplayName,
+  shopLotDisplayName,
 } from "@/lib/products/constants";
 import {
   deactivateLotUnitByName,
@@ -30,6 +32,7 @@ import {
 } from "@/lib/products/persist-unit";
 import { isDepartmentAllowed } from "@/lib/settings/service-scope";
 import {
+  barPackagingUnitSchema,
   createProductSchema,
   toggleProductStatusSchema,
   updateProductPriceSchema,
@@ -721,9 +724,13 @@ async function createProductActionInner(
     parsed.data.packagingUnit &&
     parsed.data.unitsPerPack
   ) {
+    const shopLots = usesOptionalProductLots(workspace.activityCode);
+    const packagingName = shopLots
+      ? shopLotDisplayName(parsed.data.packagingUnit, parsed.data.unitsPerPack)
+      : packagingDisplayName(parsed.data.packagingUnit);
     const { error: packagingError } = await supabase.rpc("upsert_product_packaging", {
       p_product_id: createdId,
-      p_name: packagingDisplayName(parsed.data.packagingUnit),
+      p_name: packagingName,
       p_packaging_unit: parsed.data.packagingUnit,
       p_conversion_factor: parsed.data.unitsPerPack,
       p_packaging_id: null,
@@ -734,7 +741,7 @@ async function createProductActionInner(
         organization_id: workspace.organizationId,
         establishment_id: workspace.establishmentId,
         product_id: createdId,
-        name: packagingDisplayName(parsed.data.packagingUnit),
+        name: packagingName,
         packaging_unit: parsed.data.packagingUnit,
         base_unit: parsed.data.unit,
         conversion_factor: parsed.data.unitsPerPack,
@@ -760,7 +767,7 @@ async function createProductActionInner(
         await ensureProductLotUnits(writeClient, workspace, {
           productId: createdId,
           baseUnit: parsed.data.unit,
-          lotName: BAR_PACKAGING_LABELS[parsed.data.packagingUnit],
+          lotName: packagingName,
           unitsPerLot: parsed.data.unitsPerPack,
           sellingPrice: parsed.data.sellingPrice,
           lotSellingPrice: parsed.data.lotSellingPrice ?? 0,
@@ -773,6 +780,49 @@ async function createProductActionInner(
         packagingWarning =
           packagingWarning ??
           "Produit enregistré. Le lot n’a pas pu être lié à la caisse. Reconfigurez-le en modification.";
+      }
+    }
+  }
+
+  // Boutiques : autres formats de gros saisis dès la création (« Carton de 24 »…).
+  if (
+    parsed.data.departmentCode === "BAR" &&
+    parsed.data.packagingUnit &&
+    parsed.data.unitsPerPack &&
+    usesOptionalProductLots(workspace.activityCode)
+  ) {
+    const extraLots = parseExtraLots(formData.get("extraLots"));
+    const seen = new Set([`${parsed.data.packagingUnit}:${parsed.data.unitsPerPack}`]);
+    for (const lot of extraLots) {
+      const key = `${lot.packagingUnit}:${lot.unitsPerPack}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const lotName = shopLotDisplayName(lot.packagingUnit, lot.unitsPerPack);
+      const { error: lotPackError } = await supabase.rpc("upsert_product_packaging", {
+        p_product_id: createdId,
+        p_name: lotName,
+        p_packaging_unit: lot.packagingUnit,
+        p_conversion_factor: lot.unitsPerPack,
+        p_packaging_id: null,
+      });
+      try {
+        if (lotPackError) throw new Error(lotPackError.message);
+        await ensureProductLotUnits(writeClient, workspace, {
+          productId: createdId,
+          baseUnit: parsed.data.unit,
+          lotName,
+          unitsPerLot: lot.unitsPerPack,
+          sellingPrice: parsed.data.sellingPrice,
+          lotSellingPrice: lot.lotSellingPrice,
+        });
+      } catch (lotError) {
+        console.warn(
+          "[createProductAction] extra lot:",
+          lotError instanceof Error ? lotError.message : lotError,
+        );
+        packagingWarning =
+          packagingWarning ??
+          `Produit enregistré. Le ${lotName.toLowerCase()} n’a pas pu être ajouté : ajoutez-le en modification.`;
       }
     }
   }
@@ -1251,12 +1301,40 @@ export async function upsertPackagingAction(
 
   const supabase = await createClient();
   const writeClient = getProductWriteClient() ?? supabase;
+  const shopLots = usesOptionalProductLots(workspace.activityCode);
+  const shopLotLabel =
+    BAR_PACKAGING_LABELS[parsed.data.packagingUnit as keyof typeof BAR_PACKAGING_LABELS];
+  // Boutiques : plusieurs lots du même type possibles, distingués par leur quantité.
+  const packagingName =
+    shopLots && shopLotLabel
+      ? shopLotDisplayName(
+          parsed.data.packagingUnit as keyof typeof BAR_PACKAGING_LABELS,
+          parsed.data.conversionFactor,
+        )
+      : parsed.data.name;
+
+  // Même nom déjà présent (ex. lot désactivé puis recréé) : on le met à jour au lieu d'échouer.
+  let packagingId = parsed.data.packagingId ?? null;
+  if (!packagingId) {
+    const { data: sameName } = await writeClient
+      .from("product_packagings")
+      .select("id, name")
+      .eq("product_id", parsed.data.productId)
+      .eq("organization_id", workspace.organizationId)
+      .eq("establishment_id", workspace.establishmentId);
+    const target = packagingName.trim().toLowerCase();
+    packagingId =
+      ((sameName ?? []) as Array<{ id: string; name: string }>).find(
+        (row) => row.name.trim().toLowerCase() === target,
+      )?.id ?? null;
+  }
+
   const { error } = await supabase.rpc("upsert_product_packaging", {
     p_product_id: parsed.data.productId,
-    p_name: parsed.data.name,
+    p_name: packagingName,
     p_packaging_unit: parsed.data.packagingUnit,
     p_conversion_factor: parsed.data.conversionFactor,
-    p_packaging_id: parsed.data.packagingId ?? null,
+    p_packaging_id: packagingId,
   });
 
   if (error) {
@@ -1268,7 +1346,7 @@ export async function upsertPackagingAction(
     return { error: error.message || mapGenericError(error) };
   }
 
-  if (usesOptionalProductLots(workspace.activityCode)) {
+  if (shopLots) {
     const { data: product } = await writeClient
       .from("products")
       .select("unit, selling_price")
@@ -1281,9 +1359,7 @@ export async function upsertPackagingAction(
         await ensureProductLotUnits(writeClient, workspace, {
           productId: parsed.data.productId,
           baseUnit: product.unit as ProductUnit,
-          lotName:
-            BAR_PACKAGING_LABELS[parsed.data.packagingUnit as keyof typeof BAR_PACKAGING_LABELS] ??
-            parsed.data.name,
+          lotName: packagingName,
           unitsPerLot: parsed.data.conversionFactor,
           sellingPrice: Number(product.selling_price) || 0,
           lotSellingPrice: parsed.data.lotSellingPrice ?? 0,
@@ -1303,6 +1379,26 @@ export async function upsertPackagingAction(
   revalidatePath("/application/approvisionnements");
   revalidatePath("/application/bar/approvisionnements");
   return { success: "Conditionnement enregistré." };
+}
+
+const extraLotsSchema = z
+  .array(
+    z.object({
+      packagingUnit: barPackagingUnitSchema,
+      unitsPerPack: z.coerce.number().int().min(2).max(100000),
+      lotSellingPrice: z.coerce.number().positive().max(1_000_000_000),
+    }),
+  )
+  .max(20);
+
+function parseExtraLots(raw: FormDataEntryValue | null) {
+  if (typeof raw !== "string" || raw.trim() === "") return [];
+  try {
+    const parsed = extraLotsSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function deactivatePackagingAction(

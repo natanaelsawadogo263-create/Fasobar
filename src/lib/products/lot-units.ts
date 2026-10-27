@@ -335,9 +335,13 @@ export async function repairShopSaleUnitsIfNeeded(
   if (listed.error && !isMissingUnitLevelsError(listed.error)) return;
 
   const lotPack = lots[0]!;
+  const typeLabel =
+    BAR_PACKAGING_LABELS[lotPack.packagingUnit as keyof typeof BAR_PACKAGING_LABELS];
+  // Anciens lots nommés « carton » → « Carton » ; nouveaux nommés « Carton de 24 ».
   const lotLabel =
-    BAR_PACKAGING_LABELS[lotPack.packagingUnit as keyof typeof BAR_PACKAGING_LABELS] ??
-    lotPack.name;
+    typeLabel && normalizeLotName(lotPack.name) === normalizeLotName(typeLabel)
+      ? typeLabel
+      : lotPack.name;
   const lotRow = (listed.data ?? []).find((row) => !row.is_base);
   const lotPrice = lotRow?.selling_price ?? null;
   if (!lotPrice || lotPrice <= 0) return;

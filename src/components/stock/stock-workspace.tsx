@@ -314,16 +314,19 @@ export function StockWorkspace({
                 Perte
               </button>
             ) : null}
-            <button
-              type="button"
-              onClick={() => openModal("entry")}
-              disabled={isPending}
-              className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:h-9 sm:hover:bg-emerald-500"
-            >
-              <ArrowDownToLine className="h-3.5 w-3.5" />
-              <span className="sm:hidden">Entrée</span>
-              <span className="hidden sm:inline">Nouvelle entrée</span>
-            </button>
+            {/* Boutiques : le stock entre par l'approvisionnement, pas de saisie libre ici. */}
+            {retail ? null : (
+              <button
+                type="button"
+                onClick={() => openModal("entry")}
+                disabled={isPending}
+                className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[12px] font-semibold text-white shadow-sm active:bg-emerald-500 disabled:opacity-60 sm:h-9 sm:hover:bg-emerald-500"
+              >
+                <ArrowDownToLine className="h-3.5 w-3.5" />
+                <span className="sm:hidden">Entrée</span>
+                <span className="hidden sm:inline">Nouvelle entrée</span>
+              </button>
+            )}
           </div>
         ) : null}
       </header>

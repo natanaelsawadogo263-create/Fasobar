@@ -117,6 +117,11 @@ export function packagingDisplayName(unit: BarPackagingUnit): string {
   return BAR_PACKAGING_LABELS[unit].toLowerCase();
 }
 
+/** Boutiques : nom du lot avec sa quantité, pour en avoir plusieurs du même type (« Carton de 12 », « Carton de 24 »). */
+export function shopLotDisplayName(unit: BarPackagingUnit, unitsPerLot: number): string {
+  return `${BAR_PACKAGING_LABELS[unit]} de ${unitsPerLot}`;
+}
+
 export const MANAGEMENT_ROLES = new Set(["OWNER", "ADMIN", "MANAGER"]);
 
 export function formatProductUnitDisplay(

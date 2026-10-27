@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 
 import { AlertMessage } from "@/components/auth/alert-message";
 import { ProductImageField, type ProductImageAssets } from "@/components/products/product-image-field";
@@ -38,6 +39,12 @@ import type { CategoryOption, ProductListItem, ProductPackaging } from "@/lib/pr
 import type { BarPackagingUnit, DepartmentCode, ProductUnit } from "@/lib/products/schemas";
 
 const FORM_ID = "product-form";
+
+export type ShopLotDraft = {
+  packagingUnit: BarPackagingUnit;
+  unitsPerPack: number;
+  lotSellingPrice: number;
+};
 const NEW_CATEGORY_VALUE = "__new__";
 
 export type ProductFormState = {
@@ -52,6 +59,8 @@ export type ProductFormState = {
   packagingUnit: BarPackagingUnit;
   unitsPerPack: number;
   lotSellingPrice: number;
+  /** Boutiques, création : autres formats de gros en plus du premier. */
+  extraLots?: ShopLotDraft[];
   sku: string;
   barcode: string;
   purchasePrice: number;
@@ -120,6 +129,16 @@ export function ProductFormModal({
   const shopLots = retail && catalog.showPackaging;
   const packagingChoices = shopLots ? SHOP_PACKAGING_UNITS : BAR_PACKAGING_UNITS;
   const [comesInLot, setComesInLot] = useState(formState.unitsPerPack > 1);
+  const extraLots = formState.extraLots ?? [];
+
+  function updateExtraLot(index: number, patch: Partial<ShopLotDraft>) {
+    onChange((current) => ({
+      ...current,
+      extraLots: (current.extraLots ?? []).map((lot, i) =>
+        i === index ? { ...lot, ...patch } : lot,
+      ),
+    }));
+  }
   const [newCategoryName, setNewCategoryName] = useState("");
   const creatingCategory = formState.categoryId === NEW_CATEGORY_VALUE;
   const departmentLabels: Record<DepartmentCode, string> = {
@@ -249,6 +268,26 @@ export function ProductFormModal({
             );
             return;
           }
+          const seen = new Set([`${formState.packagingUnit}:${formState.unitsPerPack}`]);
+          for (const lot of extraLots) {
+            const label = BAR_PACKAGING_LABELS[lot.packagingUnit].toLowerCase();
+            if (!(lot.unitsPerPack >= 2)) {
+              onClientValidationError?.(
+                `Indiquez combien de ${baseUnitLabel.toLowerCase()}s contient le ${label} (au moins 2).`,
+              );
+              return;
+            }
+            if (!(lot.lotSellingPrice > 0)) {
+              onClientValidationError?.(`Indiquez le prix de gros du ${label} de ${lot.unitsPerPack}.`);
+              return;
+            }
+            const key = `${lot.packagingUnit}:${lot.unitsPerPack}`;
+            if (seen.has(key)) {
+              onClientValidationError?.(`Le ${label} de ${lot.unitsPerPack} est saisi deux fois.`);
+              return;
+            }
+            seen.add(key);
+          }
         }
 
         const formData = new FormData();
@@ -285,6 +324,9 @@ export function ProductFormModal({
             formData.set("unitsPerPack", String(formState.unitsPerPack));
             if (shopLots) {
               formData.set("lotSellingPrice", String(formState.lotSellingPrice));
+              if (extraLots.length > 0) {
+                formData.set("extraLots", JSON.stringify(extraLots));
+              }
             }
           }
         }
@@ -859,25 +901,24 @@ export function ProductFormModal({
 
         {isBar && isCreate && (!retail || catalog.showPackaging) ? (
           <FormSection
-            title={shopLots ? "Vient en lot ? (optionnel)" : "Conditionnement"}
+            title={shopLots ? "Vente en gros (optionnel)" : "Conditionnement"}
             compact
           >
             {shopLots ? (
               <>
                 <p className="text-[11px] leading-snug text-slate-500">
-                  Sachets d’eau en pack, huile en carton de 5 bidons… Le stock se
-                  compte à l’unité. En caisse : vente à l’unité ou en gros.
+                  Le stock se compte à l’unité. En caisse : vente à l’unité ou en gros.
                 </p>
                 <ToggleField
                   id="comesInLot"
                   name="comesInLot"
-                  label="Ce produit vient en lot"
+                  label="Se vend aussi en gros (pack, carton…)"
                   checked={comesInLot}
                   onChange={(enabled) => {
                     setComesInLot(enabled);
                     onChange((current) => {
                       if (!enabled) {
-                        return { ...current, unitsPerPack: 0, lotSellingPrice: 0 };
+                        return { ...current, unitsPerPack: 0, lotSellingPrice: 0, extraLots: [] };
                       }
                       const suggestion = suggestedShopLot(current.unit);
                       return {
@@ -899,7 +940,7 @@ export function ProductFormModal({
               <SelectField
                 id="packagingUnit"
                 name="packagingUnit"
-                label={shopLots ? "Type de lot" : "Format d’achat"}
+                label={shopLots ? "Vendu en gros par" : "Format d’achat"}
                 required={!retail}
                 value={formState.packagingUnit}
                 onChange={(event) => {
@@ -949,7 +990,7 @@ export function ProductFormModal({
               <PriceField
                 id="lotSellingPrice"
                 name="lotSellingPrice"
-                label={`Prix du ${packagingLabel.toLowerCase()}`}
+                label={`Prix de gros (1 ${packagingLabel.toLowerCase()})`}
                 placeholder="Ex : 20000"
                 required
                 value={formState.lotSellingPrice === 0 ? "" : formState.lotSellingPrice}
@@ -975,6 +1016,100 @@ export function ProductFormModal({
                   ? " — à l’appro, 1 lot ajoute ce nombre en stock."
                   : ""}
               </p>
+            ) : null}
+
+            {shopLots && isCreate ? (
+              <div className="space-y-2">
+                {extraLots.map((lot, index) => {
+                  const label = BAR_PACKAGING_LABELS[lot.packagingUnit].toLowerCase();
+                  return (
+                    <div
+                      key={index}
+                      className="space-y-2 rounded-lg border border-slate-200 bg-slate-50/70 p-2.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11px] font-semibold text-slate-700">
+                          Autre format en gros
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onChange((current) => ({
+                              ...current,
+                              extraLots: (current.extraLots ?? []).filter((_, i) => i !== index),
+                            }))
+                          }
+                          className="inline-flex min-h-9 items-center gap-1 px-1 text-[11px] font-semibold text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Retirer
+                        </button>
+                      </div>
+                      <div className="grid gap-2.5 sm:grid-cols-2">
+                        <SelectField
+                          id={`extraLotUnit-${index}`}
+                          name={`extraLotUnit-${index}`}
+                          label="Vendu en gros par"
+                          value={lot.packagingUnit}
+                          onChange={(event) =>
+                            updateExtraLot(index, {
+                              packagingUnit: event.target.value as BarPackagingUnit,
+                            })
+                          }
+                        >
+                          {SHOP_PACKAGING_UNITS.map((unit) => (
+                            <option key={unit} value={unit}>
+                              {BAR_PACKAGING_LABELS[unit]}
+                            </option>
+                          ))}
+                        </SelectField>
+                        <NumberField
+                          id={`extraLotQty-${index}`}
+                          name={`extraLotQty-${index}`}
+                          label={`${baseUnitLabel}s / ${label}`}
+                          min={0}
+                          step={1}
+                          placeholder="24"
+                          value={lot.unitsPerPack === 0 ? "" : lot.unitsPerPack}
+                          onChange={(event) =>
+                            updateExtraLot(index, {
+                              unitsPerPack: event.target.value === "" ? 0 : Number(event.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <PriceField
+                        id={`extraLotPrice-${index}`}
+                        name={`extraLotPrice-${index}`}
+                        label={`Prix de gros (1 ${label})`}
+                        placeholder="Ex : 40000"
+                        value={lot.lotSellingPrice === 0 ? "" : lot.lotSellingPrice}
+                        onChange={(event) =>
+                          updateExtraLot(index, {
+                            lotSellingPrice: event.target.value === "" ? 0 : Number(event.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChange((current) => ({
+                      ...current,
+                      extraLots: [
+                        ...(current.extraLots ?? []),
+                        { packagingUnit: current.packagingUnit, unitsPerPack: 0, lotSellingPrice: 0 },
+                      ],
+                    }))
+                  }
+                  className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-50 sm:min-h-9"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Ajouter un autre format en gros
+                </button>
+              </div>
             ) : null}
               </>
             ) : null}

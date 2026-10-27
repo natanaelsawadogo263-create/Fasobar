@@ -15,11 +15,11 @@ describe("catalogue produit par activité", () => {
     expect(catalog.namePlaceholder).toContain("Flag");
   });
 
-  it("organise la pharmacie sans casier ni département bar", () => {
+  it("organise la pharmacie sans département bar, avec vente en gros optionnelle", () => {
     const catalog = getCatalogFormProfile("pharmacy");
     expect(catalog.kind).toBe("retail");
     expect(catalog.hideDepartment).toBe(true);
-    expect(catalog.showPackaging).toBe(false);
+    expect(catalog.showPackaging).toBe(true);
     expect(catalog.defaultUnit).toBe("PIECE");
     expect(catalog.suggestedCategories).toContain("Médicaments");
     expect(catalog.units).toContain("PIECE");
@@ -86,10 +86,13 @@ describe("catalogue produit par activité", () => {
     expect(catalog.showReference).toBe(false);
   });
 
-  it("active les lots optionnels seulement pour le supermarché", () => {
+  it("active la vente en gros optionnelle dans toutes les boutiques", () => {
     expect(usesOptionalProductLots("supermarket")).toBe(true);
+    expect(usesOptionalProductLots("pharmacy")).toBe(true);
+    expect(usesOptionalProductLots("ecommerce")).toBe(true);
+    expect(usesOptionalProductLots("clothing")).toBe(true);
+    expect(usesOptionalProductLots("gas_station")).toBe(true);
     expect(usesOptionalProductLots("restaurant")).toBe(false);
-    expect(usesOptionalProductLots("pharmacy")).toBe(false);
     expect(usesOptionalProductLots("hardware")).toBe(false);
     expect(usesOptionalProductLots("wholesale")).toBe(false);
   });

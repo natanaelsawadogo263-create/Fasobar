@@ -95,7 +95,8 @@ const RETAIL_BASE: CatalogFormProfile = {
   showPurchasePrice: false,
   referenceLabel: "Référence",
   referencePlaceholder: "Code / référence (optionnel)",
-  showPackaging: false,
+  // Vente en gros (lot) possible dans toutes les boutiques.
+  showPackaging: true,
   defaultUnit: "PIECE",
   units: SHOP_UNITS,
   suggestedCategories: ["Général", "Autre"],
@@ -326,7 +327,6 @@ const RETAIL_OVERRIDES: Partial<
     namePlaceholder: "Ex : Super 91, Gasoil",
     nameLabel: "Produit",
     departmentLabel: "Station",
-    showPackaging: false,
     showPurchasePrice: true,
     defaultUnit: "LITER",
     units: ["LITER", "PIECE", "PACK"],
@@ -402,7 +402,7 @@ export function shouldShowCatalogCategory(
   return true;
 }
 
-/** Magasin alimentation : lots optionnels (pack sachets, carton de bidons). */
+/** Boutiques : vente en gros optionnelle (pack, carton, fagot). */
 export function usesOptionalProductLots(
   activityCode: string | null | undefined,
 ): boolean {
