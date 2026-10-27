@@ -44,6 +44,7 @@ export default async function CommandesOuvertesPage() {
       canManageOrders={workspace.canManageOrders}
       canOperateCashRegister={workspace.canOperateCashRegister}
       establishmentId={workspace.establishmentId}
+      activityCode={workspace.activityCode}
       deliveries={deliveries ? relevantDeliveries(deliveries) : undefined}
     />
   );

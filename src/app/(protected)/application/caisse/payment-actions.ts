@@ -190,7 +190,8 @@ export async function openCashSessionAction(
   return { error: mapRpcError(error) };
 }
 
-async function ensureImplicitAdminCashSession(): Promise<PaymentActionState | null> {
+/** Admin boutique : ouvre en silence sa session de caisse (aucune ouverture manuelle demandée). */
+export async function ensureImplicitAdminCashSession(): Promise<PaymentActionState | null> {
   const workspace = await requireCashRegisterOperatorMutationContext();
   if (!isRetailAdminDirectSeller(workspace)) return null;
 

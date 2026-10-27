@@ -85,7 +85,9 @@ export function FasoBarCashierProvider({
     const supabase = createClient();
 
     async function loadMetrics() {
-      const [sessionResult, ordersResult] = await Promise.all([
+      // Même périmètre que la page « Commandes du jour » : les tickets non payés de
+      // cette caisse + ses livraisons livrées pas encore encaissées (e-commerce).
+      const [sessionResult, ordersResult, deliveriesResult] = await Promise.all([
         userId
           ? supabase
               .from("cash_register_sessions")
@@ -95,13 +97,25 @@ export function FasoBarCashierProvider({
               .eq("status", "OPEN")
               .maybeSingle()
           : Promise.resolve({ data: null as { opened_at: string } | null }),
-        supabase
-          .from("orders")
-          .select("status")
-          .eq("establishment_id", establishmentId)
-          .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"])
-          .neq("payment_status", "PAID")
-          .limit(200),
+        userId
+          ? supabase
+              .from("orders")
+              .select("status")
+              .eq("establishment_id", establishmentId)
+              .eq("created_by", userId)
+              .in("status", ["OPEN", "READY_TO_PAY", "DRAFT"])
+              .neq("payment_status", "PAID")
+              .limit(200)
+          : Promise.resolve({ data: [] as { status: string }[] }),
+        userId
+          ? supabase
+              .from("delivery_orders")
+              .select("id", { count: "exact", head: true })
+              .eq("establishment_id", establishmentId)
+              .eq("created_by", userId)
+              .eq("status", "DELIVERED")
+              .is("cashed_at", null)
+          : Promise.resolve({ count: 0 }),
       ]);
 
       if (cancelled) return;
@@ -109,7 +123,7 @@ export function FasoBarCashierProvider({
       setHasSession(Boolean(sessionResult.data));
       setSessionOpenedAt(sessionResult.data?.opened_at);
       const rows = ordersResult.data ?? [];
-      setOpenOrdersCount(rows.length);
+      setOpenOrdersCount(rows.length + (deliveriesResult.count ?? 0));
       setReadyToPayCount(rows.filter((row) => row.status === "READY_TO_PAY").length);
     }
 
@@ -135,6 +149,18 @@ export function FasoBarCashierProvider({
           event: "*",
           schema: "public",
           table: "cash_register_sessions",
+          filter: `establishment_id=eq.${establishmentId}`,
+        },
+        () => {
+          void loadMetrics();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "delivery_orders",
           filter: `establishment_id=eq.${establishmentId}`,
         },
         () => {

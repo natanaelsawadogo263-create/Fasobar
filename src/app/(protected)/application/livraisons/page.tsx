@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { DeliveryDeskWorkspace } from "@/components/delivery/delivery-desk-workspace";
+import { isRetailAdminDirectSeller } from "@/lib/activity/ops-model";
 import { requireDeliveryOrderDeskContext } from "@/lib/auth/workspace-context";
 import { resolveDeliveryPeriod } from "@/lib/delivery/period";
 import { listDeliveryOrders, listDeliveryProducts } from "@/lib/delivery/queries";
@@ -59,7 +60,8 @@ export default async function LivraisonsPage({ searchParams }: LivraisonsPagePro
       establishmentId={workspace.establishmentId}
       products={products}
       orders={orders}
-      hasOpenCashSession={cashSession !== null}
+      // L'admin boutique encaisse sans ouvrir de session (ouverte automatiquement).
+      hasOpenCashSession={cashSession !== null || isRetailAdminDirectSeller(workspace)}
       showOrderForm={showOrderForm}
       history={
         periodOrders

@@ -1,4 +1,8 @@
-import { InstantLink as Link } from "@/components/layout/instant-link";
+"use client";
+
+import { useState } from "react";
+
+import { DeliveryCashModal } from "@/components/delivery/delivery-cash-modal";
 import { Badge } from "@/components/ui/badge";
 import {
   DELIVERY_ORDER_STAGE_LABELS,
@@ -15,6 +19,8 @@ function formatTime(iso: string): string {
 
 /** Commandes ouvertes (caisse e-commerce) : livraisons envoyées et leur statut réel. */
 export function OpenOrdersDeliveries({ deliveries }: { deliveries: DeliveryOrder[] }) {
+  const [cashing, setCashing] = useState<DeliveryOrder | null>(null);
+
   if (deliveries.length === 0) return null;
 
   return (
@@ -46,17 +52,20 @@ export function OpenOrdersDeliveries({ deliveries }: { deliveries: DeliveryOrder
               </span>
               <Badge tone={DELIVERY_ORDER_STAGE_TONES[stage]}>{DELIVERY_ORDER_STAGE_LABELS[stage]}</Badge>
               {stage === "TO_CASH" ? (
-                <Link
-                  href="/application/livraisons"
+                <button
+                  type="button"
+                  onClick={() => setCashing(order)}
                   className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
                 >
                   Encaisser
-                </Link>
+                </button>
               ) : null}
             </li>
           );
         })}
       </ul>
+
+      {cashing ? <DeliveryCashModal order={cashing} onClose={() => setCashing(null)} /> : null}
     </section>
   );
 }
