@@ -132,25 +132,34 @@ export function CourierOrderCard({
       </div>
 
       {order.customerPhone || order.deliveryAddress || actions ? (
-        <footer className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3">
-          {order.customerPhone ? (
-            <a href={`tel:${order.customerPhone}`} className={contactLink}>
-              <Phone className="h-4 w-4 text-emerald-600" />
-              Appeler
-            </a>
+        // Mobile : contacts sur une ligne, actions en pleine largeur en dessous.
+        <footer className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center">
+          {order.customerPhone || order.deliveryAddress ? (
+            <div className="flex gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
+              {order.customerPhone ? (
+                <a href={`tel:${order.customerPhone}`} className={contactLink}>
+                  <Phone className="h-4 w-4 text-emerald-600" />
+                  Appeler
+                </a>
+              ) : null}
+              {order.deliveryAddress ? (
+                <a
+                  href={mapsHref(order.deliveryAddress)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={contactLink}
+                >
+                  <Navigation className="h-4 w-4 text-sky-600" />
+                  Itinéraire
+                </a>
+              ) : null}
+            </div>
           ) : null}
-          {order.deliveryAddress ? (
-            <a
-              href={mapsHref(order.deliveryAddress)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={contactLink}
-            >
-              <Navigation className="h-4 w-4 text-sky-600" />
-              Itinéraire
-            </a>
+          {actions ? (
+            <div className="flex gap-2 [&>*]:flex-1 [&>*]:justify-center sm:ml-auto sm:flex-wrap sm:justify-end sm:[&>*]:flex-none">
+              {actions}
+            </div>
           ) : null}
-          {actions ? <div className="ml-auto flex flex-wrap justify-end gap-2">{actions}</div> : null}
         </footer>
       ) : null}
     </article>
