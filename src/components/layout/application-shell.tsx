@@ -2,6 +2,7 @@
 
 import { PrefetchRoutes } from "@/components/layout/prefetch-routes";
 import { NavigationProgress } from "@/components/layout/navigation-progress";
+import { PullToRefresh } from "@/components/layout/pull-to-refresh";
 import { EstablishmentLiveSync } from "@/components/ops/establishment-live-sync";
 import type { UserSpace } from "@/lib/auth/roles";
 import type { NavItem } from "@/lib/navigation/space-navigation";
@@ -237,6 +238,7 @@ export function ApplicationShell({
       {progress}
       {prefetch}
       {liveSync}
+      <PullToRefresh />
       {shell}
     </ToastProvider>
   );
