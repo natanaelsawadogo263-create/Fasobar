@@ -30,8 +30,8 @@ type ActiveOrderPanelProps = {
   retailMode?: boolean;
   ticketTitle?: string;
   clientPlaceholder?: string;
-  /** "delivery" (e-commerce) : le bouton principal envoie la commande aux livreurs. */
-  checkoutMode?: "cash" | "delivery";
+  /** E-commerce : « Livrer » envoie la commande aux livreurs, à côté d'« Encaisser » (vente directe). */
+  onDeliveryOrder?: () => void;
 };
 
 export function ActiveOrderPanel({
@@ -55,9 +55,8 @@ export function ActiveOrderPanel({
   retailMode = false,
   ticketTitle = "Commande active",
   clientPlaceholder,
-  checkoutMode = "cash",
+  onDeliveryOrder,
 }: ActiveOrderPanelProps) {
-  const deliveryMode = checkoutMode === "delivery";
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const isEmpty = cart.length === 0;
   const total = Math.max(subtotal - discountAmount, 0);
@@ -151,20 +150,30 @@ export function ActiveOrderPanel({
           </button>
         </div>
 
-        <button
-          type="button"
-          disabled={actionsDisabled}
-          onClick={onCheckout}
-          title={deliveryMode ? "Envoyer la commande aux livreurs (F8)" : "Encaisser maintenant (F8)"}
-          className="mt-2 inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-lg bg-[#059669] px-2 text-[13px] font-bold text-white transition active:bg-[#047857] disabled:cursor-not-allowed disabled:bg-[#e5e7eb] disabled:text-[#9ca3af]"
-        >
-          {deliveryMode ? (
-            <Send className="h-4 w-4 shrink-0" strokeWidth={2} />
-          ) : (
+        <div className={`mt-2 grid gap-2 ${onDeliveryOrder ? "grid-cols-2" : "grid-cols-1"}`}>
+          {onDeliveryOrder ? (
+            <button
+              type="button"
+              disabled={actionsDisabled}
+              onClick={onDeliveryOrder}
+              title="Envoyer la commande aux livreurs"
+              className="inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-lg border border-sky-300 bg-sky-50 px-2 text-[13px] font-bold text-sky-800 transition active:bg-sky-100 disabled:cursor-not-allowed disabled:border-[#e5e7eb] disabled:bg-white disabled:text-[#9ca3af]"
+            >
+              <Send className="h-4 w-4 shrink-0" strokeWidth={2} />
+              Livrer
+            </button>
+          ) : null}
+          <button
+            type="button"
+            disabled={actionsDisabled}
+            onClick={onCheckout}
+            title="Encaisser maintenant (F8)"
+            className="inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-lg bg-[#059669] px-2 text-[13px] font-bold text-white transition active:bg-[#047857] disabled:cursor-not-allowed disabled:bg-[#e5e7eb] disabled:text-[#9ca3af]"
+          >
             <Banknote className="h-4 w-4 shrink-0" strokeWidth={2} />
-          )}
-          {isPending ? "…" : deliveryMode ? "Commander" : "Encaisser"}
-        </button>
+            {isPending ? "…" : "Encaisser"}
+          </button>
+        </div>
       </div>
 
       <section className="flex min-h-0 flex-1 flex-col overflow-hidden">

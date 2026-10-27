@@ -363,8 +363,8 @@ export function PosWorkspace({
   const router = useRouter();
   const cashierCtx = useFasoBarCashier();
   const browseWithoutSession = Boolean(cashierCtx?.adminReturnHref);
-  // E-commerce : « Commander » envoie le panier aux livreurs ; l'encaissement
-  // se fait à la remise de l'argent par le livreur (page Livraisons).
+  // E-commerce : « Livrer » envoie le panier aux livreurs (encaissé à la remise
+  // de l'argent, page Livraisons) ; « Encaisser » reste la vente directe.
   const deliveryCheckout = isEcommerceActivity(activityCode);
   // Catalogue tenu à jour en direct (autre appareil du même établissement qui
   // modifie un produit/le stock pendant que la caisse est ouverte) — initialisé
@@ -951,12 +951,13 @@ export function PosWorkspace({
     router.replace(`/application/caisse?fresh=1&t=${Date.now()}`);
   }
 
+  function handleDeliveryOrder() {
+    if (cart.length === 0) return;
+    setDeliveryOrderOpen(true);
+  }
+
   function handleCheckout() {
     if (cart.length === 0) return;
-    if (deliveryCheckout) {
-      setDeliveryOrderOpen(true);
-      return;
-    }
     if (!session && !browseWithoutSession) {
       showToast("Ouvrez une session de caisse pour encaisser.", "error");
       return;
@@ -1092,7 +1093,7 @@ export function PosWorkspace({
     onHold: handleHold,
     onPrintAddition: handlePrintAddition,
     onCheckout: handleCheckout,
-    checkoutMode: deliveryCheckout ? ("delivery" as const) : ("cash" as const),
+    onDeliveryOrder: deliveryCheckout ? handleDeliveryOrder : undefined,
     onClear: clearCart,
     onNewOrder: handleNewOrder,
   };
@@ -1168,13 +1169,23 @@ export function PosWorkspace({
           >
             À encaisser
           </button>
+          {deliveryCheckout ? (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={handleDeliveryOrder}
+              className="min-h-12 shrink-0 rounded-xl border border-sky-300 bg-sky-50 px-3 py-3 text-sm font-bold text-sky-800 disabled:opacity-50"
+            >
+              Livrer
+            </button>
+          ) : null}
           <button
             type="button"
             disabled={isPending}
             onClick={handleCheckout}
             className="min-h-12 shrink-0 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
           >
-            {deliveryCheckout ? "Commander" : "Encaisser"}
+            Encaisser
           </button>
         </div>
       ) : null}
