@@ -47,7 +47,7 @@ export function CourierPage({
 }) {
   return (
     <div className="h-full min-h-0 overflow-y-auto">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-4 sm:px-4 sm:pt-5">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-3 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-4 sm:pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-4 sm:pt-5">
         <header className="flex flex-wrap items-end justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-[20px] font-bold tracking-tight text-slate-900 sm:text-[24px]">{title}</h1>
