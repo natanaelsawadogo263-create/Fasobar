@@ -8,6 +8,8 @@ import {
   createDeliveryOrderAction,
 } from "@/app/(protected)/application/livraisons/actions";
 import { DeliveryCashModal } from "@/components/delivery/delivery-cash-modal";
+import { DeliveryHistoryPanel } from "@/components/delivery/delivery-history-panel";
+import type { DeliveryPeriodValue } from "@/components/delivery/delivery-period-filter";
 import { DeliveryOrderCard } from "@/components/delivery/delivery-order-card";
 import { InstantLink } from "@/components/layout/instant-link";
 import { useToast } from "@/components/ui/toast";
@@ -22,7 +24,18 @@ type DeliveryDeskWorkspaceProps = {
   orders: DeliveryOrder[];
   /** Session de caisse ouverte : obligatoire pour encaisser. */
   hasOpenCashSession: boolean;
+  /** Formulaire « Nouvelle commande » (masqué pour l'admin : la caisse commande depuis le POS). */
+  showOrderForm: boolean;
+  /** Admin : livraisons effectuées sur la période choisie (vue « Livraisons effectuées »). */
+  history?: {
+    period: DeliveryPeriodValue;
+    orders: DeliveryOrder[];
+    /** Ouvrir directement cette vue (lien avec une période dans l'URL). */
+    initiallyOpen: boolean;
+  };
 };
+
+type DeskView = "live" | "history";
 
 type CartLine = { productId: string; quantity: number };
 
@@ -42,7 +55,10 @@ export function DeliveryDeskWorkspace({
   products,
   orders,
   hasOpenCashSession,
+  showOrderForm,
+  history,
 }: DeliveryDeskWorkspaceProps) {
+  const [view, setView] = useState<DeskView>(history?.initiallyOpen ? "history" : "live");
   useDeliveryOrdersLive(establishmentId);
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
@@ -150,16 +166,39 @@ export function DeliveryDeskWorkspace({
   return (
     <div className="h-full min-h-0 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-3 py-3 sm:gap-5 sm:px-4 sm:py-4 lg:px-6 lg:py-5">
-        <header>
+        <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
             Livraisons
           </h1>
-          <p className="mt-0.5 text-[12px] text-slate-500 sm:text-[13px]">
-            Créez la commande : tous les livreurs connectés la reçoivent. Une fois livrée, le
-            livreur vous remet l’argent et vous l’encaissez ici.
-          </p>
+          {history ? (
+            <div className="grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm" role="tablist">
+              {(
+                [
+                  { id: "live", label: "Suivi en cours" },
+                  { id: "history", label: "Livraisons effectuées" },
+                ] as const
+              ).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === item.id}
+                  onClick={() => setView(item.id)}
+                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
+                    view === item.id ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </header>
 
+        {history && view === "history" ? (
+          <DeliveryHistoryPanel period={history.period} orders={history.orders} />
+        ) : (
+        <>
         {counts.TO_CASH > 0 ? (
           <button
             type="button"
@@ -177,8 +216,11 @@ export function DeliveryDeskWorkspace({
           </button>
         ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div
+          className={`grid gap-4 ${showOrderForm ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : ""}`}
+        >
           {/* Nouvelle commande */}
+          {showOrderForm ? (
           <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
             <h2 className="text-[15px] font-semibold text-slate-900">Nouvelle commande</h2>
 
@@ -318,6 +360,7 @@ export function DeliveryDeskWorkspace({
               </button>
             </div>
           </section>
+          ) : null}
 
           {/* Suivi */}
           <section className="flex min-w-0 flex-col gap-3">
@@ -391,6 +434,8 @@ export function DeliveryDeskWorkspace({
             )}
           </section>
         </div>
+        </>
+        )}
       </div>
 
       {cashing ? <DeliveryCashModal order={cashing} onClose={() => setCashing(null)} /> : null}
