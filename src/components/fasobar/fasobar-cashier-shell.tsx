@@ -14,6 +14,7 @@ type FasoBarCashierShellProps = {
   adminReturnHref?: string | null;
   navItems?: NavItem[];
   showDeliveryLink?: boolean;
+  activityCode?: string | null;
   children: ReactNode;
 };
 
@@ -25,6 +26,7 @@ export function FasoBarCashierShell({
   adminReturnHref = null,
   navItems = [],
   showDeliveryLink = false,
+  activityCode = null,
   children,
 }: FasoBarCashierShellProps) {
   return (
@@ -35,7 +37,11 @@ export function FasoBarCashierShell({
       userId={userId}
       adminReturnHref={adminReturnHref}
     >
-      <FasoBarShell navItems={navItems} showDeliveryLink={showDeliveryLink}>
+      <FasoBarShell
+        navItems={navItems}
+        showDeliveryLink={showDeliveryLink}
+        activityCode={activityCode}
+      >
         {children}
       </FasoBarShell>
     </FasoBarCashierProvider>

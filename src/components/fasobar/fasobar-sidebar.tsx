@@ -24,15 +24,24 @@ const DEPARTMENTS: {
 type FasoBarSidebarProps = {
   collapsed?: boolean;
   onToggle?: () => void;
+  /** Type d'établissement, connu aussi hors de la page caisse. */
+  activityCode?: string | null;
 };
 
-export function FasoBarSidebar({ collapsed = false, onToggle }: FasoBarSidebarProps) {
+export function FasoBarSidebar({
+  collapsed = false,
+  onToggle,
+  activityCode = null,
+}: FasoBarSidebarProps) {
   const pathname = usePathname();
   const ctx = useFasoBarCashier();
   const filters = ctx?.caisseFilters;
   const serviceScope = filters?.serviceScope ?? "BOTH";
-  const retail = isRetailActivity(filters?.activityCode);
-  const catalog = getCatalogFormProfile(filters?.activityCode);
+  // Hors caisse, les filtres ne sont pas publiés : on se fie au type d'établissement
+  // pour ne pas afficher Boissons / Cuisine dans une boutique.
+  const activity = filters?.activityCode ?? activityCode;
+  const retail = isRetailActivity(activity);
+  const catalog = getCatalogFormProfile(activity);
   const departments = retail
     ? []
     : DEPARTMENTS.filter((dept) => {

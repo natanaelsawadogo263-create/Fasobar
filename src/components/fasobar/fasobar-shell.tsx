@@ -14,6 +14,7 @@ type FasoBarShellProps = {
   children: ReactNode;
   navItems?: NavItem[];
   showDeliveryLink?: boolean;
+  activityCode?: string | null;
 };
 
 const CASHIER_PRIMARY = [
@@ -27,6 +28,7 @@ export function FasoBarShell({
   children,
   navItems = [],
   showDeliveryLink = false,
+  activityCode = null,
 }: FasoBarShellProps) {
   const pathname = usePathname();
   const isCaisse =
@@ -40,7 +42,7 @@ export function FasoBarShell({
       {isCaisse ? <MobileCaisseFilters /> : null}
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className="hidden h-full shrink-0 md:flex">
-          <FasoBarSidebar collapsed={collapsed} onToggle={toggle} />
+          <FasoBarSidebar collapsed={collapsed} onToggle={toggle} activityCode={activityCode} />
         </div>
         <main
           className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${

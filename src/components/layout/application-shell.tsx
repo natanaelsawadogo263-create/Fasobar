@@ -112,6 +112,7 @@ export function ApplicationShell({
         establishmentName={establishmentName}
         cashierName={cashierName}
         adminReturnHref="/application/tableau-de-bord"
+        activityCode={activityCode}
       >
         {children}
       </FasoBarCashierShell>
@@ -154,6 +155,7 @@ export function ApplicationShell({
         cashierName={cashierName}
         navItems={navItems}
         showDeliveryLink={ecommerceCashier}
+        activityCode={activityCode}
       >
         {children}
       </FasoBarCashierShell>
