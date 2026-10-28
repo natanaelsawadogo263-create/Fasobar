@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { mapGenericError } from "@/lib/auth/errors";
 import { requireExpenseMutationContext } from "@/lib/auth/workspace-context";
 import { createClient } from "@/lib/supabase/server";
+import type { WorkspaceContext } from "@/lib/auth/workspace-context";
+import { parseCustomCategoryChoice } from "@/lib/expenses/constants";
 import {
   cancelExpenseSchema,
   createExpenseSchema,
@@ -50,14 +52,102 @@ function resolveAreaForSpace(
   return requested;
 }
 
+const NEW_CATEGORY_CHOICE = "__new__";
+
 /** Bar / Caisse–Cuisine : pas de catégorie côté UI (défaut OTHER à la création). */
 function resolveCategoryForSpace(
   space: UserSpace,
   requested: unknown,
 ) {
+  // Catégorie perso ou nouvelle catégorie : enregistrée en OTHER, rattachée ensuite.
+  if (requested === NEW_CATEGORY_CHOICE || parseCustomCategoryChoice(requested)) return "OTHER";
   if (space === "admin") return requested;
   if (typeof requested === "string" && requested.length > 0) return requested;
   return "OTHER";
+}
+
+const CUSTOM_CATEGORY_UNAVAILABLE =
+  "Les catégories personnalisées ne sont pas encore activées sur le serveur (migration 20261028120000_expense_custom_categories.sql).";
+
+type CustomCategoryResolution =
+  | { kind: "none" }
+  | { kind: "custom"; id: string }
+  | { kind: "error"; error: string };
+
+/**
+ * Admin uniquement : catégorie perso choisie (« custom:<id> ») ou créée à la volée
+ * (« __new__ » + newCategoryName). Les autres espaces ne touchent pas aux catégories.
+ */
+async function resolveCustomCategory(
+  workspace: WorkspaceContext,
+  formData: FormData,
+): Promise<CustomCategoryResolution> {
+  if (workspace.userSpace !== "admin") return { kind: "none" };
+  const requested = formData.get("category");
+
+  const existing = parseCustomCategoryChoice(requested);
+  if (existing) return { kind: "custom", id: existing };
+  if (requested !== NEW_CATEGORY_CHOICE) return { kind: "none" };
+
+  const name = String(formData.get("newCategoryName") ?? "").trim();
+  if (name.length < 2 || name.length > 60) {
+    return { kind: "error", error: "Le nom de la catégorie doit faire entre 2 et 60 caractères." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_expense_category", {
+    p_establishment_id: workspace.establishmentId,
+    p_name: name,
+  });
+  if (error || typeof data !== "string") {
+    const message = error?.message ?? "";
+    if (/could not find|does not exist/i.test(message)) {
+      return { kind: "error", error: CUSTOM_CATEGORY_UNAVAILABLE };
+    }
+    return { kind: "error", error: mapExpenseRpcError(message || "Catégorie non créée.") };
+  }
+  return { kind: "custom", id: data };
+}
+
+async function applyCustomCategory(
+  expenseId: string,
+  categoryId: string | null,
+): Promise<string | null> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_expense_custom_category", {
+    p_expense_id: expenseId,
+    p_category_id: categoryId,
+  });
+  if (!error) return null;
+  if (/could not find|does not exist/i.test(error.message ?? "")) {
+    // Sans la migration, rien à détacher ; rattacher est déjà bloqué plus haut.
+    return categoryId ? CUSTOM_CATEGORY_UNAVAILABLE : null;
+  }
+  return mapExpenseRpcError(error.message);
+}
+
+export async function deleteExpenseCategoryAction(
+  categoryId: string,
+): Promise<ExpenseActionState> {
+  const workspace = await requireExpenseMutationContext();
+  if (workspace.userSpace !== "admin") {
+    return { error: "Seul l'administrateur gère les catégories." };
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(categoryId)) return { error: "Catégorie invalide." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_expense_category", {
+    p_category_id: categoryId,
+  });
+  if (error) {
+    if (/could not find|does not exist/i.test(error.message ?? "")) {
+      return { error: CUSTOM_CATEGORY_UNAVAILABLE };
+    }
+    return { error: mapExpenseRpcError(error.message) };
+  }
+
+  revalidateExpensePages();
+  return { success: "Catégorie supprimée. Ses dépenses passent dans « Autres »." };
 }
 
 export async function createExpenseAction(
@@ -93,8 +183,12 @@ export async function createExpenseAction(
 
   const area = resolveAreaForSpace(workspace.userSpace, parsed.data.area);
 
+  // Avant la dépense : une catégorie impossible à créer ne laisse pas de dépense mal rangée.
+  const custom = await resolveCustomCategory(workspace, formData);
+  if (custom.kind === "error") return { error: custom.error };
+
   const supabase = await createClient();
-  const { error } = await supabase.rpc("record_expense", {
+  const { data: expenseId, error } = await supabase.rpc("record_expense", {
     p_establishment_id: workspace.establishmentId,
     p_category: parsed.data.category,
     p_label: parsed.data.label,
@@ -108,6 +202,14 @@ export async function createExpenseAction(
 
   if (error) {
     return { error: mapExpenseRpcError(error.message || mapGenericError(error)) };
+  }
+
+  if (custom.kind === "custom" && typeof expenseId === "string") {
+    const customError = await applyCustomCategory(expenseId, custom.id);
+    if (customError) {
+      revalidateExpensePages();
+      return { error: `Dépense enregistrée dans « Autres » : ${customError}` };
+    }
   }
 
   revalidateExpensePages();
@@ -138,6 +240,9 @@ export async function updateExpenseAction(
 
   const area = resolveAreaForSpace(workspace.userSpace, parsed.data.area);
 
+  const custom = await resolveCustomCategory(workspace, formData);
+  if (custom.kind === "error") return { error: custom.error };
+
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_expense", {
     p_expense_id: parsed.data.expenseId,
@@ -153,6 +258,18 @@ export async function updateExpenseAction(
 
   if (error) {
     return { error: mapExpenseRpcError(error.message || mapGenericError(error)) };
+  }
+
+  // L'admin choisit la catégorie : perso → rattache ; fixe → détache.
+  if (workspace.userSpace === "admin") {
+    const customError = await applyCustomCategory(
+      parsed.data.expenseId,
+      custom.kind === "custom" ? custom.id : null,
+    );
+    if (customError) {
+      revalidateExpensePages();
+      return { error: customError };
+    }
   }
 
   revalidateExpensePages();

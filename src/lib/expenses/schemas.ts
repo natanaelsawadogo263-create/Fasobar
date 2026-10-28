@@ -42,9 +42,14 @@ export const cancelExpenseSchema = z.object({
   reason: z.string().trim().min(3, "Le motif d'annulation est obligatoire."),
 });
 
+/** Catégorie perso choisie dans une liste : « custom:<uuid> ». */
+export const customCategoryChoiceSchema = z
+  .string()
+  .regex(/^custom:[0-9a-f-]{36}$/i, "Catégorie invalide.");
+
 export const expenseFiltersSchema = z.object({
   area: expenseAreaSchema.optional().or(z.literal("")),
-  category: expenseCategorySchema.optional().or(z.literal("")),
+  category: expenseCategorySchema.or(customCategoryChoiceSchema).optional().or(z.literal("")),
   status: z.enum(["all", "RECORDED", "CANCELLED"]).default("all"),
   search: z.string().trim().optional(),
   from: z.string().trim().optional(),

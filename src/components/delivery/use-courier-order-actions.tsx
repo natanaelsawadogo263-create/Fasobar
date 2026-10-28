@@ -7,6 +7,7 @@ import {
   completeDeliveryOrderAction,
   releaseDeliveryOrderAction,
 } from "@/app/(protected)/application/livreur/actions";
+import { PriceField } from "@/components/ui/form-controls";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { useToast } from "@/components/ui/toast";
@@ -30,6 +31,7 @@ export function useCourierOrderActions() {
   const [isPending, startTransition] = useTransition();
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<PendingConfirm | null>(null);
+  const [deliveryFee, setDeliveryFee] = useState("");
 
   function run(
     orderId: string,
@@ -62,10 +64,16 @@ export function useCourierOrderActions() {
   function submitConfirm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!confirm) return;
-    run(
-      confirm.order.id,
-      confirm.kind === "complete" ? completeDeliveryOrderAction : releaseDeliveryOrderAction,
-    );
+    if (confirm.kind === "complete") {
+      const fee = Number(deliveryFee);
+      if (deliveryFee.trim() === "" || !Number.isInteger(fee) || fee < 0) {
+        toast.error("Indiquez combien a coûté la course (0 si gratuite).");
+        return;
+      }
+      run(confirm.order.id, (id) => completeDeliveryOrderAction(id, fee));
+      return;
+    }
+    run(confirm.order.id, releaseDeliveryOrderAction);
   }
 
   const confirmDialog = confirm ? (
@@ -103,6 +111,19 @@ export function useCourierOrderActions() {
               {formatPriceXof(confirm.order.totalAmount)}
             </span>
           </div>
+          <PriceField
+            id="deliveryFee"
+            name="deliveryFee"
+            label="Frais de livraison (coût de la course)"
+            hint="Ce montant sera enregistré dans les dépenses de la boutique. 0 si la course n’a rien coûté."
+            required
+            min={0}
+            step={1}
+            value={deliveryFee}
+            onChange={(event) => setDeliveryFee(event.target.value)}
+            disabled={isPending}
+            autoFocus
+          />
           <p className="text-[12px] text-slate-500">
             Les articles livrés seront retirés de votre stock. Remettez ensuite cet argent à la
             caisse, qui encaissera la commande.
@@ -120,7 +141,10 @@ export function useCourierOrderActions() {
     isPending,
     busyOrderId,
     accept,
-    requestComplete: (order: DeliveryOrder) => setConfirm({ kind: "complete", order }),
+    requestComplete: (order: DeliveryOrder) => {
+      setDeliveryFee("");
+      setConfirm({ kind: "complete", order });
+    },
     requestRelease: (order: DeliveryOrder) => setConfirm({ kind: "release", order }),
     confirmDialog,
   };

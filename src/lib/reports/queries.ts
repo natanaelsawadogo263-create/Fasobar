@@ -332,7 +332,8 @@ async function buildDepensesReport(
   const rows: ReportRow[] = data.expenses.map((expense) => ({
     expenseDate: expense.expenseDate,
     area: EXPENSE_AREA_LABELS[expense.area],
-    category: EXPENSE_CATEGORY_LABELS[expense.category] ?? expense.category,
+    category:
+      expense.customCategoryName ?? EXPENSE_CATEGORY_LABELS[expense.category] ?? expense.category,
     label: expense.label,
     amount: expense.amount,
     status: expense.status === "CANCELLED" ? "Annulée" : "Enregistrée",

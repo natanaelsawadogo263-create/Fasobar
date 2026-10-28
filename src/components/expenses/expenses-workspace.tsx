@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Wallet, X } from "lucide-react";
+import { Plus, Search, Trash2, Wallet, X } from "lucide-react";
 
 import {
   cancelExpenseAction,
   createExpenseAction,
+  deleteExpenseCategoryAction,
   updateExpenseAction,
 } from "@/app/(protected)/application/depenses/actions";
 import { refreshSoon } from "@/lib/ops/client-refresh";
@@ -29,6 +30,7 @@ import {
   EXPENSE_CATEGORY_LABELS,
   EXPENSE_STATUS_LABELS,
   EXPENSE_STATUS_STYLES,
+  customCategoryChoice,
   formatPriceXof,
 } from "@/lib/expenses/constants";
 import type {
@@ -36,7 +38,7 @@ import type {
   ExpenseCategory,
   ExpenseFiltersInput,
 } from "@/lib/expenses/schemas";
-import type { ExpenseListItem } from "@/lib/expenses/types";
+import type { ExpenseCustomCategory, ExpenseListItem } from "@/lib/expenses/types";
 import { resolveOrderPeriodRange, toLocalIsoDate } from "@/lib/orders/period";
 import { getActivityPages } from "@/lib/activity/pages";
 import { hasBarService, type ServiceScope } from "@/lib/settings/service-scope";
@@ -60,7 +62,13 @@ type ExpensesWorkspaceProps = {
   canManage?: boolean;
   serviceScope?: ServiceScope;
   activityCode?: string | null;
+  /** Catégories créées par l'admin pour l'établissement. */
+  customCategories?: ExpenseCustomCategory[];
+  /** Admin : peut créer / supprimer des catégories. */
+  canManageCategories?: boolean;
 };
+
+const NEW_CATEGORY_CHOICE = "__new__";
 
 const AREA_OPTIONS = Object.entries(EXPENSE_AREA_LABELS);
 const PERIOD_OPTIONS: Array<{ id: ExpensePeriodFilter; label: string }> = [
@@ -89,6 +97,8 @@ export function ExpensesWorkspace({
   canManage = true,
   serviceScope = "BOTH",
   activityCode = null,
+  customCategories = [],
+  canManageCategories = false,
 }: ExpensesWorkspaceProps) {
   void _establishmentName;
   const router = useRouter();
@@ -98,7 +108,14 @@ export function ExpensesWorkspace({
     ...EXPENSE_CATEGORY_LABELS,
     KITCHEN_PURCHASE: pages.expenses.kitchenPurchase,
   } as const;
-  const categoryOptions = Object.entries(categoryLabels);
+  const categoryOptions: Array<[string, string]> = [
+    ...Object.entries(categoryLabels),
+    ...customCategories.map((item): [string, string] => [customCategoryChoice(item.id), item.name]),
+  ];
+  const categoryLabelOf = (item: ExpenseListItem) =>
+    item.customCategoryName ?? categoryLabels[item.category];
+  const [categoryChoice, setCategoryChoice] = useState<string>("KITCHEN_PURCHASE");
+  const [manageCategories, setManageCategories] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [modal, setModal] = useState<"create" | "edit" | "cancel" | null>(null);
@@ -115,13 +132,40 @@ export function ExpensesWorkspace({
   function openCreate() {
     setSelected(null);
     setFormError(null);
+    setCategoryChoice("KITCHEN_PURCHASE");
+    setManageCategories(false);
     setModal("create");
   }
 
   function openEdit(item: ExpenseListItem) {
     setSelected(item);
     setFormError(null);
+    setCategoryChoice(
+      item.customCategoryId ? customCategoryChoice(item.customCategoryId) : item.category,
+    );
+    setManageCategories(false);
     setModal("edit");
+  }
+
+  function handleDeleteCategory(category: ExpenseCustomCategory) {
+    if (
+      !window.confirm(
+        `Supprimer la catégorie « ${category.name} » ? Ses dépenses passeront dans « Autres ».`,
+      )
+    ) {
+      return;
+    }
+    setFormError(null);
+    startTransition(async () => {
+      const result = await deleteExpenseCategoryAction(category.id);
+      if (result.error) {
+        setFormError(result.error);
+        return;
+      }
+      if (categoryChoice === customCategoryChoice(category.id)) setCategoryChoice("OTHER");
+      setMessage(result.success ?? "Catégorie supprimée.");
+      refreshSoon(() => router.refresh());
+    });
   }
 
   function openCancel(item: ExpenseListItem) {
@@ -193,7 +237,7 @@ export function ExpensesWorkspace({
     });
   }
 
-  const stats = useMemo(() => {
+  const stats = (() => {
     if (lockedArea === "CAISSE") {
       return [
         {
@@ -252,18 +296,7 @@ export function ExpensesWorkspace({
         subtitle: `${cancelledCount} annulée${cancelledCount > 1 ? "s" : ""}`,
       },
     ];
-  }, [
-    lockedArea,
-    periodLabel,
-    periodTotal,
-    caisseTotal,
-    barTotal,
-    recordedCount,
-    cancelledCount,
-    showBarArea,
-    retail,
-    areaLabels,
-  ]);
+  })();
 
   return (
     <div
@@ -465,7 +498,7 @@ export function ExpensesWorkspace({
                           new Date(item.expenseDate),
                         )}
                         {!lockedArea
-                          ? ` · ${categoryLabels[item.category]}`
+                          ? ` · ${categoryLabelOf(item)}`
                           : ""}
                       </p>
                     </div>
@@ -547,7 +580,7 @@ export function ExpensesWorkspace({
                     ) : null}
                     {!lockedArea ? (
                       <td className="px-3 py-2.5 text-slate-700">
-                        {categoryLabels[item.category]}
+                        {categoryLabelOf(item)}
                       </td>
                     ) : null}
                     <td className="px-3 py-2.5 font-medium text-slate-900">{item.label}</td>
@@ -648,19 +681,69 @@ export function ExpensesWorkspace({
                   </p>
                 ) : null}
                 {!lockedArea ? (
-                  <SelectField
-                    id="category"
-                    name="category"
-                    label="Catégorie"
-                    defaultValue={selected?.category ?? "KITCHEN_PURCHASE"}
-                    required
-                  >
-                    {categoryOptions.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </SelectField>
+                  <div className="space-y-2">
+                    <SelectField
+                      id="category"
+                      name="category"
+                      label="Catégorie"
+                      value={categoryChoice}
+                      onChange={(event) => setCategoryChoice(event.target.value)}
+                      required
+                    >
+                      {categoryOptions.map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                      {canManageCategories ? (
+                        <option value={NEW_CATEGORY_CHOICE}>+ Nouvelle catégorie…</option>
+                      ) : null}
+                    </SelectField>
+                    {categoryChoice === NEW_CATEGORY_CHOICE ? (
+                      <TextField
+                        id="newCategoryName"
+                        name="newCategoryName"
+                        label="Nom de la nouvelle catégorie"
+                        placeholder="Ex. Publicité, Internet, Carburant…"
+                        minLength={2}
+                        maxLength={60}
+                        autoFocus
+                        required
+                      />
+                    ) : null}
+                    {canManageCategories && customCategories.length > 0 ? (
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setManageCategories((open) => !open)}
+                          className="text-[12px] font-medium text-emerald-700 hover:underline"
+                        >
+                          {manageCategories ? "Masquer mes catégories" : "Gérer mes catégories"}
+                        </button>
+                        {manageCategories ? (
+                          <ul className="mt-2 divide-y divide-slate-100 rounded-lg border border-slate-200">
+                            {customCategories.map((category) => (
+                              <li
+                                key={category.id}
+                                className="flex items-center justify-between gap-2 px-3 py-1.5 text-[13px] text-slate-700"
+                              >
+                                <span className="truncate">{category.name}</span>
+                                <button
+                                  type="button"
+                                  disabled={isPending}
+                                  onClick={() => handleDeleteCategory(category)}
+                                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                                  aria-label={`Supprimer la catégorie ${category.name}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
                   <input
                     type="hidden"

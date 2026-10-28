@@ -9,6 +9,9 @@ export type ExpenseListItem = {
   id: string;
   area: ExpenseArea;
   category: ExpenseCategory;
+  /** Catégorie créée par l'admin (category vaut alors OTHER). */
+  customCategoryId: string | null;
+  customCategoryName: string | null;
   label: string;
   amount: number;
   supplierName: string | null;
@@ -20,6 +23,11 @@ export type ExpenseListItem = {
   createdByName: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ExpenseCustomCategory = {
+  id: string;
+  name: string;
 };
 
 export type ExpensesPageData = {

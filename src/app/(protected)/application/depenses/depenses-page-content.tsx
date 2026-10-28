@@ -4,7 +4,7 @@ import { ExpensesWorkspace } from "@/components/expenses/expenses-workspace";
 import { PageLoadingShell } from "@/components/layout/page-loading-shell";
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import type { ExpenseArea, ExpenseFiltersInput } from "@/lib/expenses/schemas";
-import { listExpenses } from "@/lib/expenses/queries";
+import { listExpenseCustomCategories, listExpenses } from "@/lib/expenses/queries";
 
 type DepensesPageContentProps = {
   workspace: WorkspaceContext;
@@ -21,11 +21,18 @@ async function DepensesPageContent({
   periodFilter,
   periodLabel,
 }: DepensesPageContentProps) {
-  const data = await listExpenses(workspace, filters);
+  const [data, customCategories] = await Promise.all([
+    listExpenses(workspace, filters),
+    workspace.userSpace === "admin"
+      ? listExpenseCustomCategories(workspace)
+      : Promise.resolve([]),
+  ]);
 
   return (
     <ExpensesWorkspace
       {...data}
+      customCategories={customCategories}
+      canManageCategories={workspace.userSpace === "admin"}
       filters={filters}
       establishmentName={workspace.establishmentName}
       lockedArea={lockedArea}

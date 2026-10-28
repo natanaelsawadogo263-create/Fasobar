@@ -13,6 +13,20 @@ export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
   OTHER: "Autres",
 };
 
+export const CUSTOM_CATEGORY_PREFIX = "custom:";
+
+/** Valeur de liste d'une catégorie perso. */
+export function customCategoryChoice(id: string): string {
+  return `${CUSTOM_CATEGORY_PREFIX}${id}`;
+}
+
+/** « custom:<uuid> » → uuid ; sinon null. */
+export function parseCustomCategoryChoice(value: unknown): string | null {
+  if (typeof value !== "string" || !value.startsWith(CUSTOM_CATEGORY_PREFIX)) return null;
+  const id = value.slice(CUSTOM_CATEGORY_PREFIX.length);
+  return /^[0-9a-f-]{36}$/i.test(id) ? id : null;
+}
+
 export const EXPENSE_AREA_LABELS: Record<ExpenseArea, string> = {
   CAISSE: "Caisse",
   BAR: "Bar",
