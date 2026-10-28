@@ -72,11 +72,19 @@ export function useCourierOrderActions() {
         toast.error("Indiquez combien a coûté la course (0 si gratuite).");
         return;
       }
+      if (fee > confirm.order.totalAmount) {
+        toast.error("Les frais ne peuvent pas dépasser le montant de la commande.");
+        return;
+      }
       run(confirm.order.id, (id) => completeDeliveryOrderAction(id, fee));
       return;
     }
     run(confirm.order.id, releaseDeliveryOrderAction);
   }
+
+  const feeValue = deliveryFee.trim() === "" ? 0 : Number(deliveryFee);
+  const feeTooHigh = confirm?.kind === "complete" && feeValue > confirm.order.totalAmount;
+  const toHandOver = confirm ? Math.max(confirm.order.totalAmount - feeValue, 0) : 0;
 
   const confirmDialog = confirm ? (
     <ModalShell
@@ -107,9 +115,9 @@ export function useCourierOrderActions() {
     >
       {confirm.kind === "complete" ? (
         <div className="space-y-4">
-          <div className="flex items-baseline justify-between border-b border-slate-100 pb-3">
-            <span className="text-[13px] text-slate-500">À remettre à la caisse</span>
-            <span className="text-[18px] font-bold tabular-nums text-slate-900">
+          <div className="flex items-baseline justify-between text-[13px] text-slate-500">
+            <span>Payé par le client</span>
+            <span className="font-semibold tabular-nums text-slate-800">
               {formatPriceXof(confirm.order.totalAmount)}
             </span>
           </div>
@@ -156,9 +164,22 @@ export function useCourierOrderActions() {
                 );
               })}
             </div>
-            <p className="mt-2 text-[12px] text-slate-500">
-              Enregistré automatiquement dans les dépenses de la boutique.
-            </p>
+            {feeTooHigh ? (
+              <p className="mt-2 text-[12px] font-medium text-red-600">
+                Les frais ne peuvent pas dépasser le montant de la commande.
+              </p>
+            ) : (
+              <p className="mt-2 text-[12px] text-slate-500">
+                Vous gardez ce montant ; il est noté dans les dépenses de la boutique.
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-baseline justify-between rounded-xl bg-emerald-50 px-3 py-2.5">
+            <span className="text-[13px] font-semibold text-emerald-900">À remettre à la caisse</span>
+            <span className="text-[18px] font-bold tabular-nums text-emerald-800">
+              {formatPriceXof(toHandOver)}
+            </span>
           </div>
         </div>
       ) : (

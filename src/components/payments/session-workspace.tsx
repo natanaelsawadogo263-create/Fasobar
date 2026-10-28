@@ -12,6 +12,7 @@ import {
 
 import { closeCashSessionAction } from "@/app/(protected)/application/caisse/payment-actions";
 import { AlertMessage } from "@/components/auth/alert-message";
+import { SessionCashSummary } from "@/components/payments/session-cash-summary";
 import { getActivityPages } from "@/lib/activity/pages";
 import { formatPriceXof } from "@/lib/payments/constants";
 import type { CashSessionDetail } from "@/lib/payments/types";
@@ -96,14 +97,25 @@ export function SessionWorkspace({
         </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Montant théorique" value={formatPriceXof(theoreticalAmount)} large />
           <MetricCard
-            label="Reçu aujourd'hui"
-            value={formatPriceXof(session.cashCollected)}
-            sub={`${((session.cashCollected / Math.max(theoreticalAmount, 1)) * 100).toFixed(2)}%`}
+            label="Chiffre d’affaires de la session"
+            value={formatPriceXof(session.salesTotal)}
+            large
           />
-          <MetricCard label={pages.session.ticketsLabel} value="—" sub="Voir le détail" />
-          <MetricCard label="Paiements partiels" value="—" />
+          <MetricCard
+            label="Frais de livraison"
+            value={formatPriceXof(session.deliveryFeesTotal)}
+            sub={
+              session.deliveryFees.length > 0
+                ? `${session.deliveryFees.length} livraison${session.deliveryFees.length > 1 ? "s" : ""}`
+                : "Aucune"
+            }
+          />
+          <MetricCard
+            label="Espèces encaissées"
+            value={formatPriceXof(session.cashCollected)}
+          />
+          <MetricCard label="Total attendu en caisse" value={formatPriceXof(theoreticalAmount)} large />
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -155,6 +167,8 @@ export function SessionWorkspace({
         <form onSubmit={handleCloseSession} className="flex min-h-0 flex-1 flex-col">
           <div className="pos-scroll flex-1 space-y-4 overflow-y-auto px-5 py-4">
             {error ? <AlertMessage message={error} /> : null}
+
+            <SessionCashSummary session={session} />
 
             <div className="rounded-xl bg-emerald-50 p-4">
               <p className="text-xs text-slate-600">Montant théorique</p>

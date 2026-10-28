@@ -25,6 +25,7 @@ type OrderRow = {
   delivery_address: string | null;
   note: string | null;
   total_amount: number;
+  delivery_fee?: number | null;
   courier_id: string | null;
   created_at: string;
   accepted_at: string | null;
@@ -47,9 +48,17 @@ type OrderRow = {
 
 const ORDER_COLUMNS =
   "id, order_number, status, customer_name, customer_phone, delivery_address, note, total_amount, courier_id, created_at, accepted_at, delivered_at, cashed_at, cancelled_at, cancel_reason";
-const ORDER_SELECT = `${ORDER_COLUMNS}, delivery_order_items(product_id, product_name, unit_price, quantity, line_total, sale_unit_name, stock_quantity)`;
-/** Base sans la migration « formats en gros » : lignes à l'unité seulement. */
-const LEGACY_ORDER_SELECT = `${ORDER_COLUMNS}, delivery_order_items(product_id, product_name, unit_price, quantity, line_total)`;
+const ITEM_COLUMNS = "product_id, product_name, unit_price, quantity, line_total";
+const UNIT_ITEM_COLUMNS = `${ITEM_COLUMNS}, sale_unit_name, stock_quantity`;
+
+/**
+ * Sélection selon les migrations appliquées :
+ * `fee` = frais de livraison, `units` = formats en gros.
+ */
+function orderSelect(options: { fee: boolean; units: boolean }): string {
+  const columns = options.fee ? `${ORDER_COLUMNS}, delivery_fee` : ORDER_COLUMNS;
+  return `${columns}, delivery_order_items(${options.units ? UNIT_ITEM_COLUMNS : ITEM_COLUMNS})`;
+}
 
 /**
  * Noms des employés : la RLS `profiles` ne laisse lire que l'admin.
@@ -84,6 +93,7 @@ function mapOrder(row: OrderRow, names: Map<string, string>): DeliveryOrder {
     deliveryAddress: row.delivery_address,
     note: row.note,
     totalAmount: Number(row.total_amount),
+    deliveryFee: row.delivery_fee == null ? null : Number(row.delivery_fee),
     courierId: row.courier_id,
     courierName: row.courier_id ? (names.get(row.courier_id) ?? "Livreur") : null,
     createdAt: row.created_at,
@@ -195,9 +205,15 @@ export async function listDeliveryOrders(
     return query;
   };
 
-  let { data, error } = await run(ORDER_SELECT);
-  if (error && /sale_unit_name|stock_quantity/.test(error.message ?? "")) {
-    ({ data, error } = await run(LEGACY_ORDER_SELECT));
+  const select = { fee: true, units: true };
+  let { data, error } = await run(orderSelect(select));
+  // Migrations pas encore appliquées : on retire les colonnes manquantes.
+  for (let attempt = 0; error && attempt < 2; attempt += 1) {
+    const message = error.message ?? "";
+    if (select.fee && /delivery_fee/.test(message)) select.fee = false;
+    else if (select.units && /sale_unit_name|stock_quantity/.test(message)) select.units = false;
+    else break;
+    ({ data, error } = await run(orderSelect(select)));
   }
   if (error) {
     console.error("[listDeliveryOrders]", error.message);

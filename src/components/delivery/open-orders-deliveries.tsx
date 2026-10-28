@@ -7,7 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   DELIVERY_ORDER_STAGE_LABELS,
   DELIVERY_ORDER_STAGE_TONES,
+  deliveryNetToCash,
   deliveryOrderStage,
+  deliveryRetainedFee,
   formatDeliveryOrderNumber,
 } from "@/lib/delivery/constants";
 import type { DeliveryOrder } from "@/lib/delivery/types";
@@ -47,8 +49,13 @@ export function OpenOrdersDeliveries({ deliveries }: { deliveries: DeliveryOrder
                   {order.courierName ? ` · ${order.courierName}` : ""}
                 </p>
               </div>
-              <span className="pos-tabular text-[14px] font-bold text-slate-900">
-                {formatPriceXof(order.totalAmount)}
+              <span className="pos-tabular text-right text-[14px] font-bold text-slate-900">
+                {formatPriceXof(stage === "TO_CASH" ? deliveryNetToCash(order) : order.totalAmount)}
+                {stage === "TO_CASH" && deliveryRetainedFee(order) > 0 ? (
+                  <span className="block text-[11px] font-medium text-amber-700">
+                    frais livreur − {formatPriceXof(deliveryRetainedFee(order))}
+                  </span>
+                ) : null}
               </span>
               <Badge tone={DELIVERY_ORDER_STAGE_TONES[stage]}>{DELIVERY_ORDER_STAGE_LABELS[stage]}</Badge>
               {stage === "TO_CASH" ? (

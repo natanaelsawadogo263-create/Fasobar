@@ -11,6 +11,7 @@ import type {
   ReceiptDetail,
 } from "@/lib/payments/types";
 import type { PaymentMethod } from "@/lib/payments/schemas";
+import { summarizeSessionPayments } from "@/lib/payments/session-summary";
 import { ORDER_TYPE_LABELS } from "@/lib/orders/constants";
 import { createClient } from "@/lib/supabase/server";
 
@@ -90,15 +91,13 @@ export const getActiveCashSession = cache(async function getActiveCashSession(
     data.profiles as { full_name: string } | { full_name: string }[] | null,
   );
 
-  const { data: cashPayments } = await supabase
+  const { data: sessionPayments } = await supabase
     .from("payments")
-    .select("amount_applied")
+    .select("method, amount_applied, provider, transaction_reference")
     .eq("cash_register_session_id", data.id)
-    .eq("method", "CASH")
     .eq("status", "CONFIRMED");
 
-  const cashCollected =
-    cashPayments?.reduce((sum, row) => sum + row.amount_applied, 0) ?? 0;
+  const summary = summarizeSessionPayments(sessionPayments ?? []);
 
   return {
     id: data.id,
@@ -112,7 +111,7 @@ export const getActiveCashSession = cache(async function getActiveCashSession(
     openedAt: data.opened_at,
     closedAt: data.closed_at,
     openedByName: profile?.full_name ?? workspace.ownerName,
-    cashCollected,
+    ...summary,
   };
 });
 
@@ -139,15 +138,13 @@ export async function getCashSessionById(
     data.profiles as { full_name: string } | { full_name: string }[] | null,
   );
 
-  const { data: cashPayments } = await supabase
+  const { data: sessionPayments } = await supabase
     .from("payments")
-    .select("amount_applied")
+    .select("method, amount_applied, provider, transaction_reference")
     .eq("cash_register_session_id", data.id)
-    .eq("method", "CASH")
     .eq("status", "CONFIRMED");
 
-  const cashCollected =
-    cashPayments?.reduce((sum, row) => sum + row.amount_applied, 0) ?? 0;
+  const summary = summarizeSessionPayments(sessionPayments ?? []);
 
   return {
     id: data.id,
@@ -161,7 +158,7 @@ export async function getCashSessionById(
     openedAt: data.opened_at,
     closedAt: data.closed_at,
     openedByName: profile?.full_name ?? null,
-    cashCollected,
+    ...summary,
   };
 }
 

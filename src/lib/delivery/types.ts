@@ -34,6 +34,8 @@ export type DeliveryOrder = {
   deliveryAddress: string | null;
   note: string | null;
   totalAmount: number;
+  /** Coût de la course déclaré par le livreur (retenu sur l'argent du client). */
+  deliveryFee: number | null;
   courierId: string | null;
   courierName: string | null;
   createdAt: string;

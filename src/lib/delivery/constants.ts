@@ -64,6 +64,16 @@ export function formatDeliveryLineName(item: {
   return item.saleUnitName ? `${item.productName} · ${item.saleUnitName}` : item.productName;
 }
 
+/** Frais retenus par le livreur, plafonnés au total de la commande. */
+export function deliveryRetainedFee(order: { totalAmount: number; deliveryFee: number | null }): number {
+  return Math.min(Math.max(order.deliveryFee ?? 0, 0), order.totalAmount);
+}
+
+/** Ce que la caisse reçoit réellement : total − frais retenus par le livreur. */
+export function deliveryNetToCash(order: { totalAmount: number; deliveryFee: number | null }): number {
+  return order.totalAmount - deliveryRetainedFee(order);
+}
+
 export function formatDeliveryOrderNumber(orderNumber: number): string {
   return `L-${String(orderNumber).padStart(4, "0")}`;
 }

@@ -15,6 +15,7 @@ function mapSessionRow(
   row: Record<string, unknown>,
   cashCollected: number,
   openedByName: string | null,
+  salesTotal: number = cashCollected,
 ): CashSessionDetail {
   return {
     id: String(row.id),
@@ -35,7 +36,22 @@ function mapSessionRow(
     closedAt: (row.closed_at as string | null) ?? null,
     openedByName,
     cashCollected,
+    salesTotal,
+    deliveryFees: [],
+    deliveryFeesTotal: 0,
   };
+}
+
+function sessionSalesTotal(db: SqlDatabase, sessionId: string): number {
+  const row = db
+    .prepare(
+      `SELECT COALESCE(SUM(COALESCE(amount_applied, amount)), 0) AS total
+       FROM local_payments
+       WHERE session_id = ?
+         AND status = 'CONFIRMED'`,
+    )
+    .get(sessionId);
+  return moneyXof(Number(row?.total ?? 0));
 }
 
 function sessionCashCollected(db: SqlDatabase, sessionId: string): number {
@@ -73,6 +89,7 @@ export function getLocalActiveCashSession(
     row,
     sessionCashCollected(db, String(row.id)),
     workspace.ownerName,
+    sessionSalesTotal(db, String(row.id)),
   );
 }
 

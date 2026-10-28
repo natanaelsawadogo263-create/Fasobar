@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   DELIVERY_ORDER_STAGE_LABELS,
   DELIVERY_ORDER_STAGE_TONES,
+  deliveryNetToCash,
   deliveryOrderStage,
+  deliveryRetainedFee,
   formatDeliveryLineName,
   formatDeliveryOrderNumber,
   formatDeliveryQuantity,
@@ -36,6 +38,14 @@ export function DeliveryOrderCard({ order, showCourier = false, actions }: Deliv
             {DELIVERY_ORDER_STAGE_LABELS[deliveryOrderStage(order)]}
           </Badge>
           <p className="text-[15px] font-bold text-slate-900">{formatPriceXof(order.totalAmount)}</p>
+          {deliveryRetainedFee(order) > 0 ? (
+            <p className="text-[11px] text-slate-500">
+              Frais livreur − {formatPriceXof(deliveryRetainedFee(order))} · caisse{" "}
+              <span className="font-semibold text-slate-700">
+                {formatPriceXof(deliveryNetToCash(order))}
+              </span>
+            </p>
+          ) : null}
         </div>
       </header>
 

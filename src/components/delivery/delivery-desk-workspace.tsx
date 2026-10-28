@@ -14,7 +14,11 @@ import { DeliveryOrderCard } from "@/components/delivery/delivery-order-card";
 import { InstantLink } from "@/components/layout/instant-link";
 import { useToast } from "@/components/ui/toast";
 import { useDeliveryOrdersLive } from "@/hooks/use-delivery-orders-live";
-import { deliveryOrderStage, type DeliveryOrderStage } from "@/lib/delivery/constants";
+import {
+  deliveryNetToCash,
+  deliveryOrderStage,
+  type DeliveryOrderStage,
+} from "@/lib/delivery/constants";
 import type { DeliveryOrder, DeliveryProductOption } from "@/lib/delivery/types";
 import { formatPriceXof } from "@/lib/products/constants";
 
@@ -103,7 +107,7 @@ export function DeliveryDeskWorkspace({
   const visibleOrders = orders.filter((order) => deliveryOrderStage(order) === tab);
   const toCashTotal = orders
     .filter((order) => deliveryOrderStage(order) === "TO_CASH")
-    .reduce((sum, order) => sum + order.totalAmount, 0);
+    .reduce((sum, order) => sum + deliveryNetToCash(order), 0);
 
   function addProduct(productId: string) {
     setCart((current) => {

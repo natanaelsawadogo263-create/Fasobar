@@ -6,7 +6,11 @@ import { cashDeliveryOrderAction } from "@/app/(protected)/application/livraison
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { useToast } from "@/components/ui/toast";
-import { formatDeliveryOrderNumber } from "@/lib/delivery/constants";
+import {
+  deliveryNetToCash,
+  deliveryRetainedFee,
+  formatDeliveryOrderNumber,
+} from "@/lib/delivery/constants";
 import type { DeliveryOrder } from "@/lib/delivery/types";
 import {
   calculateChange,
@@ -36,10 +40,13 @@ export function DeliveryCashModal({ order, onClose }: DeliveryCashModalProps) {
   const [reference, setReference] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Le livreur a gardé ses frais de course : la caisse ne reçoit que le reste.
+  const fee = deliveryRetainedFee(order);
+  const due = deliveryNetToCash(order);
   const received = Number(amountReceived);
   const hasReceived = method === "CASH" && amountReceived !== "" && Number.isFinite(received);
-  const insufficient = hasReceived && received < order.totalAmount;
-  const change = hasReceived ? calculateChange(received, order.totalAmount) : 0;
+  const insufficient = hasReceived && received < due;
+  const change = hasReceived ? calculateChange(received, due) : 0;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -83,7 +90,7 @@ export function DeliveryCashModal({ order, onClose }: DeliveryCashModalProps) {
       footer={
         <ModalFooter
           onCancel={onClose}
-          submitLabel={`Encaisser ${formatPriceXof(order.totalAmount)}`}
+          submitLabel={`Encaisser ${formatPriceXof(due)}`}
           pendingLabel="Encaissement…"
           isPending={isPending}
           submitDisabled={insufficient}
@@ -91,11 +98,29 @@ export function DeliveryCashModal({ order, onClose }: DeliveryCashModalProps) {
       }
     >
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3">
-          <span className="text-[13px] font-semibold text-emerald-900">Montant à encaisser</span>
-          <span className="text-[20px] font-bold tabular-nums text-emerald-800">
-            {formatPriceXof(order.totalAmount)}
-          </span>
+        <div className="overflow-hidden rounded-xl border border-emerald-100">
+          {fee > 0 ? (
+            <dl className="space-y-1.5 px-4 py-3 text-[13px]">
+              <div className="flex items-center justify-between">
+                <dt className="text-slate-500">Vente (payée par le client)</dt>
+                <dd className="font-semibold tabular-nums text-slate-800">
+                  {formatPriceXof(order.totalAmount)}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-slate-500">Frais de livraison (gardés par le livreur)</dt>
+                <dd className="font-semibold tabular-nums text-amber-700">
+                  − {formatPriceXof(fee)}
+                </dd>
+              </div>
+            </dl>
+          ) : null}
+          <div className="flex items-center justify-between bg-emerald-50 px-4 py-3">
+            <span className="text-[13px] font-semibold text-emerald-900">Montant à encaisser</span>
+            <span className="text-[20px] font-bold tabular-nums text-emerald-800">
+              {formatPriceXof(due)}
+            </span>
+          </div>
         </div>
 
         <fieldset className="flex flex-col gap-2">
@@ -132,12 +157,12 @@ export function DeliveryCashModal({ order, onClose }: DeliveryCashModalProps) {
               min={0}
               value={amountReceived}
               onChange={(event) => setAmountReceived(event.target.value)}
-              placeholder={String(order.totalAmount)}
+              placeholder={String(due)}
               className={`${inputClass} input-no-spinner`}
             />
             {insufficient ? (
               <span className="text-[12px] font-medium text-red-600">
-                Montant inférieur au total de la commande.
+                Montant inférieur à la somme à encaisser.
               </span>
             ) : hasReceived ? (
               <span className="text-[12px] font-medium text-slate-600">

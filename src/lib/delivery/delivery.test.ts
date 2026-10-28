@@ -10,7 +10,9 @@ import {
 } from "@/lib/auth/roles";
 import {
   courierHistoryStart,
+  deliveryNetToCash,
   deliveryOrderStage,
+  deliveryRetainedFee,
   parseCourierHistoryPeriod,
 } from "@/lib/delivery/constants";
 import {
@@ -194,5 +196,22 @@ describe("encaissement des livraisons par la caisse", () => {
 
     expect(cashDeliveryOrderSchema.safeParse({ orderId: ORDER_ID, method: "BITCOIN" }).success).toBe(false);
     expect(cashDeliveryOrderSchema.safeParse({ orderId: "x", method: "CASH" }).success).toBe(false);
+  });
+});
+
+describe("frais de livraison retenus par le livreur", () => {
+  it("la caisse n'attend que le total moins les frais", () => {
+    expect(deliveryNetToCash({ totalAmount: 1000, deliveryFee: 300 })).toBe(700);
+    expect(deliveryRetainedFee({ totalAmount: 1000, deliveryFee: 300 })).toBe(300);
+  });
+
+  it("sans frais déclarés, la caisse attend tout le montant", () => {
+    expect(deliveryNetToCash({ totalAmount: 1000, deliveryFee: null })).toBe(1000);
+    expect(deliveryNetToCash({ totalAmount: 1000, deliveryFee: 0 })).toBe(1000);
+  });
+
+  it("les frais ne dépassent jamais le montant de la commande", () => {
+    expect(deliveryRetainedFee({ totalAmount: 500, deliveryFee: 800 })).toBe(500);
+    expect(deliveryNetToCash({ totalAmount: 500, deliveryFee: 800 })).toBe(0);
   });
 });

@@ -8,6 +8,7 @@ import { AlertMessage } from "@/components/auth/alert-message";
 import { PriceField, TextField } from "@/components/ui/form-controls";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { ModalShell } from "@/components/ui/modal-shell";
+import { SessionCashSummary } from "@/components/payments/session-cash-summary";
 import { formatPriceXof } from "@/lib/payments/constants";
 import type { CashSessionDetail } from "@/lib/payments/types";
 
@@ -95,26 +96,7 @@ export function CloseSessionModal({
       ) : null}
 
       <div className="space-y-4">
-        <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 text-[13px]">
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <dt className="text-slate-500">Fond initial</dt>
-            <dd className="pos-tabular font-medium text-slate-800">
-              {formatPriceXof(session.openingCashAmount)}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <dt className="text-slate-500">Espèces encaissées</dt>
-            <dd className="pos-tabular font-medium text-slate-800">
-              + {formatPriceXof(session.cashCollected)}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between bg-slate-50 px-4 py-3">
-            <dt className="font-semibold text-slate-700">Attendu en caisse</dt>
-            <dd className="pos-tabular text-[17px] font-bold text-slate-900">
-              {formatPriceXof(theoreticalAmount)}
-            </dd>
-          </div>
-        </dl>
+        <SessionCashSummary session={session} />
 
         <div>
           <PriceField
