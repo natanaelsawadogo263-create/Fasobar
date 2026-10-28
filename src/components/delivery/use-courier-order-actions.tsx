@@ -7,7 +7,6 @@ import {
   completeDeliveryOrderAction,
   releaseDeliveryOrderAction,
 } from "@/app/(protected)/application/livreur/actions";
-import { PriceField } from "@/components/ui/form-controls";
 import { ModalFooter } from "@/components/ui/modal-footer";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { useToast } from "@/components/ui/toast";
@@ -16,6 +15,9 @@ import type { DeliveryOrder } from "@/lib/delivery/types";
 import { formatPriceXof } from "@/lib/products/constants";
 
 type ActionResult = { success?: string; error?: string };
+
+/** Montants de course les plus courants, en un toucher. */
+const QUICK_FEES = [0, 500, 1000, 1500, 2000];
 
 type PendingConfirm = {
   kind: "complete" | "release";
@@ -82,12 +84,12 @@ export function useCourierOrderActions() {
       compact
       title={
         confirm.kind === "complete"
-          ? `Confirmer la livraison ${formatDeliveryOrderNumber(confirm.order.orderNumber)}`
+          ? `Livraison ${formatDeliveryOrderNumber(confirm.order.orderNumber)}`
           : `Se désister de ${formatDeliveryOrderNumber(confirm.order.orderNumber)}`
       }
       subtitle={
         confirm.kind === "complete"
-          ? "La commande a été remise au client et vous avez reçu le paiement."
+          ? "Commande remise et paiement reçu."
           : "La commande redeviendra disponible pour les autres livreurs."
       }
       onClose={() => {
@@ -97,37 +99,67 @@ export function useCourierOrderActions() {
       footer={
         <ModalFooter
           onCancel={() => setConfirm(null)}
-          submitLabel={confirm.kind === "complete" ? "Oui, c’est livré" : "Oui, me désister"}
+          submitLabel={confirm.kind === "complete" ? "Confirmer la livraison" : "Oui, me désister"}
           pendingLabel="Enregistrement…"
           isPending={isPending}
         />
       }
     >
       {confirm.kind === "complete" ? (
-        <div className="grid gap-2 text-[13px] text-slate-700">
-          <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2.5">
-            <span className="font-semibold text-emerald-900">Montant reçu du client</span>
-            <span className="text-[16px] font-bold tabular-nums text-emerald-800">
+        <div className="space-y-4">
+          <div className="flex items-baseline justify-between border-b border-slate-100 pb-3">
+            <span className="text-[13px] text-slate-500">À remettre à la caisse</span>
+            <span className="text-[18px] font-bold tabular-nums text-slate-900">
               {formatPriceXof(confirm.order.totalAmount)}
             </span>
           </div>
-          <PriceField
-            id="deliveryFee"
-            name="deliveryFee"
-            label="Frais de livraison (coût de la course)"
-            hint="Ce montant sera enregistré dans les dépenses de la boutique. 0 si la course n’a rien coûté."
-            required
-            min={0}
-            step={1}
-            value={deliveryFee}
-            onChange={(event) => setDeliveryFee(event.target.value)}
-            disabled={isPending}
-            autoFocus
-          />
-          <p className="text-[12px] text-slate-500">
-            Les articles livrés seront retirés de votre stock. Remettez ensuite cet argent à la
-            caisse, qui encaissera la commande.
-          </p>
+
+          <div>
+            <label htmlFor="deliveryFee" className="text-[13px] font-semibold text-slate-800">
+              Coût de la course
+            </label>
+            <div className="mt-1.5 flex h-12 items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+              <input
+                id="deliveryFee"
+                name="deliveryFee"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="off"
+                placeholder="0"
+                required
+                value={deliveryFee}
+                onChange={(event) => setDeliveryFee(event.target.value.replace(/\D/g, ""))}
+                disabled={isPending}
+                autoFocus
+                className="min-w-0 flex-1 bg-transparent text-[16px] font-semibold tabular-nums text-slate-900 outline-none placeholder:text-slate-300"
+              />
+              <span className="text-[13px] text-slate-400">F CFA</span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {QUICK_FEES.map((fee) => {
+                const active = deliveryFee === String(fee);
+                return (
+                  <button
+                    key={fee}
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => setDeliveryFee(String(fee))}
+                    className={`h-8 rounded-full border px-3 text-[12px] font-semibold tabular-nums transition ${
+                      active
+                        ? "border-emerald-600 bg-emerald-600 text-white"
+                        : "border-slate-200 bg-white text-slate-600 active:bg-slate-50 sm:hover:border-emerald-400"
+                    }`}
+                  >
+                    {fee === 0 ? "Gratuit" : formatPriceXof(fee)}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[12px] text-slate-500">
+              Enregistré automatiquement dans les dépenses de la boutique.
+            </p>
+          </div>
         </div>
       ) : (
         <p className="text-[13px] text-slate-600">
