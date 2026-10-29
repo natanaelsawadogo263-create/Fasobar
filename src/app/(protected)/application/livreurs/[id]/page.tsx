@@ -58,7 +58,6 @@ export default async function LivreurDetailPage({ params, searchParams }: Livreu
     <CourierDetailWorkspace
       establishmentId={workspace.establishmentId}
       courier={courier}
-      daily={report.daily}
       period={{ preset: period.preset, from: period.from, to: period.to }}
       stock={stock}
       movements={movements}

@@ -2,13 +2,14 @@
 
 import { useMemo, useTransition, type ComponentType } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, CheckCircle2, ChevronDown, Loader2, MapPin, Wallet } from "lucide-react";
+import { CheckCircle2, ChevronDown, HandCoins, Loader2, MapPin, Wallet } from "lucide-react";
 
 import { CourierPage, useNow } from "@/components/delivery/courier-ui";
 import { Badge } from "@/components/ui/badge";
 import {
   COURIER_HISTORY_LIMIT,
   COURIER_HISTORY_PERIODS,
+  deliveryNetToCash,
   formatDeliveryLineName,
   formatDeliveryOrderNumber,
   formatDeliveryQuantity,
@@ -88,7 +89,10 @@ export function CourierHistory({ history, period, limitReached }: CourierHistory
   }, [history]);
 
   const totalValue = history.reduce((sum, order) => sum + order.totalAmount, 0);
-  const activeDays = groups.length;
+  // Ce que le livreur doit encore remettre à la caisse (frais de course déduits).
+  const toHandOver = history
+    .filter((order) => !order.cashedAt)
+    .reduce((sum, order) => sum + deliveryNetToCash(order), 0);
   const periodLabel = COURIER_HISTORY_PERIODS.find((item) => item.id === period)?.label ?? "";
 
   function selectPeriod(id: CourierHistoryPeriodId) {
@@ -137,12 +141,14 @@ export function CourierHistory({ history, period, limitReached }: CourierHistory
       <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
         <Summary icon={CheckCircle2} label="Livraisons" value={String(history.length)} />
         <Summary icon={Wallet} label="Montant livré" value={formatPriceXof(totalValue)} />
-        <Summary icon={CalendarDays} label="Jours actifs" value={String(activeDays)} />
+        <Summary
+          icon={HandCoins}
+          label="À remettre"
+          value={formatPriceXof(toHandOver)}
+          tone={toHandOver > 0 ? "orange" : "default"}
+        />
         <p className="col-span-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
           Période : {periodLabel.toLowerCase()}
-          {activeDays > 0
-            ? ` · moyenne ${formatDeliveryQuantity(Math.round((history.length / activeDays) * 10) / 10)} livraison(s) par jour actif`
-            : ""}
         </p>
       </div>
 
@@ -256,10 +262,12 @@ function Summary({
   icon: Icon,
   label,
   value,
+  tone = "default",
 }: {
   icon: ComponentType<{ className?: string }>;
   label: string;
   value: string;
+  tone?: "default" | "orange";
 }) {
   return (
     <div className="min-w-0">
@@ -267,7 +275,13 @@ function Summary({
         <Icon className="h-3 w-3" />
         {label}
       </p>
-      <p className="truncate text-[16px] font-bold tabular-nums text-slate-900">{value}</p>
+      <p
+        className={`truncate text-[15px] font-bold tabular-nums sm:text-[16px] ${
+          tone === "orange" ? "text-orange-700" : "text-slate-900"
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }

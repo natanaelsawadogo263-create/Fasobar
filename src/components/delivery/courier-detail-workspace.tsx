@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, PackageMinus, PackagePlus } from "lucide-react";
+import { ArrowLeft, PackageMinus, PackagePlus, Phone } from "lucide-react";
 
 import {
   CourierStockModal,
@@ -10,7 +10,6 @@ import {
 } from "@/components/delivery/courier-stock-modal";
 import { DeliveryOrderCard } from "@/components/delivery/delivery-order-card";
 import {
-  DeliveryDailyTable,
   DeliveryPeriodFilter,
   type DeliveryPeriodValue,
 } from "@/components/delivery/delivery-period-filter";
@@ -26,7 +25,6 @@ import type {
   CourierMovement,
   CourierStockLine,
   CourierSummary,
-  DeliveryDailyTotal,
   DeliveryOrder,
 } from "@/lib/delivery/types";
 import { formatPriceXof } from "@/lib/products/constants";
@@ -35,7 +33,6 @@ import { formatDateTimeFr } from "@/lib/sales/constants";
 type CourierDetailWorkspaceProps = {
   establishmentId: string;
   courier: CourierSummary;
-  daily: DeliveryDailyTotal[];
   period: DeliveryPeriodValue;
   stock: CourierStockLine[];
   movements: CourierMovement[];
@@ -43,7 +40,7 @@ type CourierDetailWorkspaceProps = {
   allocateOptions: CourierStockOption[];
 };
 
-type Tab = "daily" | "deliveries" | "history" | "stock";
+type Tab = "deliveries" | "stock" | "history";
 
 const MOVEMENT_TONES = {
   ALLOCATION: "emerald",
@@ -62,7 +59,6 @@ const CARD_TONES: Record<CardTone, { box: string; value: string }> = {
 export function CourierDetailWorkspace({
   establishmentId,
   courier,
-  daily,
   period,
   stock,
   movements,
@@ -70,7 +66,7 @@ export function CourierDetailWorkspace({
   allocateOptions,
 }: CourierDetailWorkspaceProps) {
   useDeliveryOrdersLive(establishmentId);
-  const [tab, setTab] = useState<Tab>("daily");
+  const [tab, setTab] = useState<Tab>("deliveries");
   const [modal, setModal] = useState<"allocate" | "return" | null>(null);
 
   const returnOptions: CourierStockOption[] = stock
@@ -82,10 +78,29 @@ export function CourierDetailWorkspace({
     .filter((option) => option.available > 0);
 
   const tabs: Array<{ id: Tab; label: string }> = [
-    { id: "daily", label: "Par jour" },
     { id: "deliveries", label: `Livraisons (${orders.length})` },
+    { id: "stock", label: "Stock" },
     { id: "history", label: "Mouvements" },
-    { id: "stock", label: "Stock actuel" },
+  ];
+
+  const cards: Array<{ label: string; value: string; hint: string; tone?: CardTone }> = [
+    {
+      label: "Doit encore",
+      value: formatPriceXof(courier.toCashValue),
+      hint: `${courier.toCashCount} livraison${courier.toCashCount > 1 ? "s" : ""} à encaisser`,
+      tone: courier.toCashValue > 0 ? "orange" : "default",
+    },
+    {
+      label: "Articles en main",
+      value: formatDeliveryQuantity(courier.inHand),
+      hint: "actuellement",
+    },
+    {
+      label: "Livraisons",
+      value: String(courier.deliveriesCount),
+      hint: `${formatPriceXof(courier.cashedValue)} encaissés`,
+      tone: "emerald",
+    },
   ];
 
   return (
@@ -99,21 +114,30 @@ export function CourierDetailWorkspace({
           Tous les livreurs
         </Link>
 
-        <header className="flex flex-wrap items-center justify-between gap-2">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <h1 className="flex items-center gap-2 text-[18px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
-              {courier.name}
+            <h1 className="flex flex-wrap items-center gap-2 text-[18px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
+              <span className="truncate">{courier.name}</span>
               {!courier.active ? <Badge>Désactivé</Badge> : null}
+              {courier.inProgressCount > 0 ? (
+                <Badge tone="sky">{courier.inProgressCount} en cours</Badge>
+              ) : null}
             </h1>
             {courier.phone ? (
-              <p className="mt-0.5 text-[12px] text-slate-500">{courier.phone}</p>
+              <a
+                href={`tel:${courier.phone}`}
+                className="mt-0.5 inline-flex items-center gap-1 text-[12px] text-slate-500"
+              >
+                <Phone className="h-3 w-3" />
+                {courier.phone}
+              </a>
             ) : null}
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <button
               type="button"
               onClick={() => setModal("return")}
-              className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               <PackageMinus className="h-4 w-4" />
               Retour
@@ -122,56 +146,44 @@ export function CourierDetailWorkspace({
               type="button"
               onClick={() => setModal("allocate")}
               disabled={!courier.active}
-              className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[13px] font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+              className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 text-[13px] font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
             >
               <PackagePlus className="h-4 w-4" />
-              Remettre du stock
+              Remettre
             </button>
           </div>
         </header>
 
         <DeliveryPeriodFilter period={period} basePath={`/application/livreurs/${courier.id}`} />
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {([
-            {
-              label: "Chiffre d’affaires encaissé",
-              value: formatPriceXof(courier.cashedValue),
-              hint: `sur ${formatPriceXof(courier.deliveredValue)} livrés`,
-              tone: "emerald",
-            },
-            {
-              label: "Reste à encaisser",
-              value: formatPriceXof(courier.toCashValue),
-              hint: `${courier.toCashCount} livraison${courier.toCashCount > 1 ? "s" : ""} · actuellement`,
-              tone: courier.toCashValue > 0 ? "orange" : "default",
-            },
-            { label: "Livraisons effectuées", value: String(courier.deliveriesCount), hint: "sur la période" },
-            { label: "Articles remis", value: formatDeliveryQuantity(courier.allocated), hint: "sur la période" },
-            { label: "Articles livrés", value: formatDeliveryQuantity(courier.delivered), hint: "sur la période" },
-            { label: "Articles rendus", value: formatDeliveryQuantity(courier.returned), hint: "sur la période" },
-            { label: "Doit lui rester", value: formatDeliveryQuantity(courier.inHand), hint: "actuellement" },
-          ] as Array<{ label: string; value: string; hint: string; tone?: CardTone }>).map((card) => (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+          {cards.map((card, index) => (
             <div
               key={card.label}
-              className={`rounded-xl border px-4 py-3.5 shadow-sm ${CARD_TONES[card.tone ?? "default"].box}`}
+              className={`min-w-0 rounded-xl border px-3 py-3 shadow-sm sm:px-4 sm:py-3.5 ${
+                CARD_TONES[card.tone ?? "default"].box
+              } ${index === 0 ? "col-span-2 sm:col-span-1" : ""}`}
             >
               <p className="text-[11px] font-medium text-slate-500">{card.label}</p>
-              <p className={`mt-1 text-[18px] font-bold ${CARD_TONES[card.tone ?? "default"].value}`}>
+              <p
+                className={`mt-1 truncate text-[18px] font-bold tabular-nums ${
+                  CARD_TONES[card.tone ?? "default"].value
+                }`}
+              >
                 {card.value}
               </p>
-              <p className="text-[10px] text-slate-400">{card.hint}</p>
+              <p className="truncate text-[10px] text-slate-400">{card.hint}</p>
             </div>
           ))}
         </div>
 
-        <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <div className="grid grid-cols-3 gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
           {tabs.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setTab(item.id)}
-              className={`flex-1 rounded-lg px-2 py-2 text-[13px] font-semibold transition ${
+              className={`truncate rounded-lg px-2 py-2 text-[13px] font-semibold transition ${
                 tab === item.id ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-50"
               }`}
             >
@@ -179,92 +191,6 @@ export function CourierDetailWorkspace({
             </button>
           ))}
         </div>
-
-        {tab === "daily" ? <DeliveryDailyTable daily={daily} /> : null}
-
-        {tab === "stock" ? (
-          stock.length === 0 ? (
-            <Empty text="Ce livreur n’a aucun article en main." />
-          ) : (
-            <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-              <table className="w-full text-[13px]">
-                <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2 font-semibold">Article</th>
-                    <th className="px-3 py-2 text-right font-semibold">Doit lui rester</th>
-                    <th className="px-3 py-2 text-right font-semibold">Réservé (en cours)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {stock.map((line) => (
-                    <tr key={line.productId}>
-                      <td className="px-3 py-2.5 font-medium text-slate-800">{line.productName}</td>
-                      <td className="px-3 py-2.5 text-right font-semibold text-emerald-700">
-                        {formatDeliveryQuantity(line.quantity)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-sky-700">
-                        {formatDeliveryQuantity(line.reserved)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          )
-        ) : null}
-
-        {tab === "history" ? (
-          movements.length === 0 ? (
-            <Empty text="Aucun mouvement sur cette période." />
-          ) : (
-            <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-              <table className="w-full min-w-[640px] text-[13px]">
-                <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2 font-semibold">Date</th>
-                    <th className="px-3 py-2 font-semibold">Type</th>
-                    <th className="px-3 py-2 font-semibold">Article</th>
-                    <th className="px-3 py-2 text-right font-semibold">Quantité</th>
-                    <th className="px-3 py-2 text-right font-semibold">Avant → après</th>
-                    <th className="px-3 py-2 font-semibold">Détail</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {movements.map((movement) => (
-                    <tr key={movement.id}>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
-                        {formatDateTimeFr(movement.createdAt)}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <Badge tone={MOVEMENT_TONES[movement.type]}>
-                          {COURIER_MOVEMENT_LABELS[movement.type]}
-                        </Badge>
-                      </td>
-                      <td className="px-3 py-2.5 font-medium text-slate-800">{movement.productName}</td>
-                      <td
-                        className={`px-3 py-2.5 text-right font-semibold ${
-                          movement.quantity > 0 ? "text-emerald-700" : "text-slate-700"
-                        }`}
-                      >
-                        {movement.quantity > 0 ? "+" : ""}
-                        {formatDeliveryQuantity(movement.quantity)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-right text-slate-500">
-                        {formatDeliveryQuantity(movement.quantityBefore)} →{" "}
-                        {formatDeliveryQuantity(movement.quantityAfter)}
-                      </td>
-                      <td className="px-3 py-2.5 text-slate-500">
-                        {movement.orderNumber !== null
-                          ? formatDeliveryOrderNumber(movement.orderNumber)
-                          : (movement.note ?? "—")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          )
-        ) : null}
 
         {tab === "deliveries" ? (
           orders.length === 0 ? (
@@ -275,6 +201,84 @@ export function CourierDetailWorkspace({
                 <DeliveryOrderCard key={order.id} order={order} />
               ))}
             </div>
+          )
+        ) : null}
+
+        {tab === "stock" ? (
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <p className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-[12px] text-slate-600">
+              Sur la période : remis {formatDeliveryQuantity(courier.allocated)} · livrés{" "}
+              {formatDeliveryQuantity(courier.delivered)} · rendus{" "}
+              {formatDeliveryQuantity(courier.returned)}
+            </p>
+            {stock.length === 0 ? (
+              <p className="px-4 py-8 text-center text-[13px] text-slate-500">
+                Ce livreur n’a aucun article en main.
+              </p>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {stock.map((line) => (
+                  <li key={line.productId} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                    <span className="min-w-0 truncate text-[13px] font-medium text-slate-800">
+                      {line.productName}
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-[14px] font-bold tabular-nums text-emerald-700">
+                        {formatDeliveryQuantity(line.quantity)}
+                      </span>
+                      {line.reserved > 0 ? (
+                        <span className="block text-[11px] text-sky-700">
+                          dont {formatDeliveryQuantity(line.reserved)} en livraison
+                        </span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ) : null}
+
+        {tab === "history" ? (
+          movements.length === 0 ? (
+            <Empty text="Aucun mouvement sur cette période." />
+          ) : (
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              {movements.map((movement) => (
+                <li key={movement.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                  <div className="min-w-0">
+                    <p className="flex min-w-0 items-center gap-2 text-[13px] font-medium text-slate-800">
+                      <Badge tone={MOVEMENT_TONES[movement.type]}>
+                        {COURIER_MOVEMENT_LABELS[movement.type]}
+                      </Badge>
+                      <span className="truncate">{movement.productName}</span>
+                    </p>
+                    <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                      {formatDateTimeFr(movement.createdAt)}
+                      {movement.orderNumber !== null
+                        ? ` · ${formatDeliveryOrderNumber(movement.orderNumber)}`
+                        : movement.note
+                          ? ` · ${movement.note}`
+                          : ""}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p
+                      className={`text-[14px] font-bold tabular-nums ${
+                        movement.quantity > 0 ? "text-emerald-700" : "text-slate-700"
+                      }`}
+                    >
+                      {movement.quantity > 0 ? "+" : ""}
+                      {formatDeliveryQuantity(movement.quantity)}
+                    </p>
+                    <p className="text-[11px] tabular-nums text-slate-400">
+                      {formatDeliveryQuantity(movement.quantityBefore)} →{" "}
+                      {formatDeliveryQuantity(movement.quantityAfter)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )
         ) : null}
       </div>

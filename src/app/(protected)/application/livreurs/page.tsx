@@ -28,7 +28,6 @@ export default async function LivreursPage({ searchParams }: LivreursPageProps) 
     <CouriersAdminWorkspace
       establishmentId={workspace.establishmentId}
       couriers={report.couriers}
-      daily={report.daily}
       period={{ preset: period.preset, from: period.from, to: period.to }}
       stockOptions={products
         .filter((product) => product.stockQuantity > 0)

@@ -180,79 +180,24 @@ export function DeliveryHistoryPanel({ period, orders }: DeliveryHistoryPanelPro
         </p>
       ) : (
         <>
-          <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
-            {activeFilter === ALL ? (
-              <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <h2 className="border-b border-slate-100 px-4 py-3 text-[14px] font-bold text-slate-900">
-                  Par livreur
-                </h2>
-                <table className="w-full text-[13px]">
-                  <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-4 py-2 font-semibold">Livreur</th>
-                      <th className="px-2 py-2 text-right font-semibold">Livr.</th>
-                      <th className="px-2 py-2 text-right font-semibold">Montant</th>
-                      <th className="px-4 py-2 text-right font-semibold">Encaissé</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {byCourier.map((courier) => (
-                      <tr
-                        key={courier.id}
-                        onClick={() => setCourierFilter(courier.id)}
-                        className="cursor-pointer transition hover:bg-slate-50"
-                      >
-                        <td className="max-w-[140px] truncate px-4 py-2.5 font-medium text-slate-800">
-                          {courier.name}
-                        </td>
-                        <td className="px-2 py-2.5 text-right tabular-nums">{courier.deliveries}</td>
-                        <td className="whitespace-nowrap px-2 py-2.5 text-right tabular-nums text-slate-600">
-                          {formatPriceXof(courier.value)}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums text-emerald-700">
-                          {formatPriceXof(courier.cashedValue)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </section>
-            ) : null}
-
-            <section
-              className={`overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${
-                activeFilter === ALL ? "" : "lg:col-span-2"
-              }`}
-            >
-              <h2 className="border-b border-slate-100 px-4 py-3 text-[14px] font-bold text-slate-900">
-                Produits livrés
-              </h2>
-              <table className="w-full text-[13px]">
-                <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-4 py-2 font-semibold">Produit</th>
-                    <th className="px-2 py-2 text-right font-semibold">Qté</th>
-                    <th className="px-4 py-2 text-right font-semibold">Montant</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {products.map((product) => (
-                    <tr key={product.name}>
-                      <td className="max-w-[180px] truncate px-4 py-2.5 font-medium text-slate-800">
-                        {product.name}
-                      </td>
-                      <td className="px-2 py-2.5 text-right font-semibold tabular-nums">
-                        {formatDeliveryQuantity(product.quantity)}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-600">
-                        {formatPriceXof(product.value)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          </div>
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <h2 className="border-b border-slate-100 px-4 py-3 text-[14px] font-bold text-slate-900">
+              Produits livrés
+            </h2>
+            <ul className="divide-y divide-slate-100">
+              {products.map((product) => (
+                <li key={product.name} className="flex items-center justify-between gap-3 px-4 py-2.5 text-[13px]">
+                  <span className="min-w-0 truncate font-medium text-slate-800">
+                    <span className="font-bold tabular-nums">{formatDeliveryQuantity(product.quantity)} ×</span>{" "}
+                    {product.name}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-slate-600">
+                    {formatPriceXof(product.value)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
           <section className="flex flex-col gap-3">
             <h2 className="text-[15px] font-bold text-slate-900">Détail des livraisons</h2>
