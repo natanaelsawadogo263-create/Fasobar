@@ -340,6 +340,8 @@ const RETAIL_OVERRIDES: Partial<
   },
   ecommerce: {
     namePlaceholder: "Ex : nom de l’article",
+    // Sans appro systématique : le prix d'achat de la fiche sert au bénéfice.
+    showPurchasePrice: true,
     units: SHOP_UNITS,
     suggestedCategories: ["Général", "Autre"],
   },
