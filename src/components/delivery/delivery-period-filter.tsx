@@ -28,6 +28,8 @@ export function DeliveryPeriodFilter({ period, basePath }: DeliveryPeriodFilterP
   const [isLoading, startTransition] = useTransition();
   const [from, setFrom] = useState(period.from);
   const [to, setTo] = useState(period.to);
+  // Mobile : les champs « Du / Au » ne s'affichent qu'à la demande.
+  const [showRange, setShowRange] = useState(period.preset === "personnalise");
 
   // Champs resynchronisés quand la période change (préréglage, navigation).
   const [syncedKey, setSyncedKey] = useState(`${period.from}|${period.to}`);
@@ -83,10 +85,22 @@ export function DeliveryPeriodFilter({ period, basePath }: DeliveryPeriodFilterP
               </button>
             );
           })}
+          <button
+            type="button"
+            aria-expanded={showRange}
+            onClick={() => setShowRange((current) => !current)}
+            className={`inline-flex h-10 shrink-0 items-center rounded-lg px-3 text-[12px] font-semibold transition sm:hidden ${
+              period.preset === "personnalise"
+                ? "bg-emerald-600 text-white"
+                : "bg-slate-100 text-slate-600 active:bg-slate-200"
+            }`}
+          >
+            Dates…
+          </button>
         </div>
 
         <div
-          className={`grid grid-cols-2 gap-2 rounded-lg sm:flex sm:items-center sm:px-1 ${
+          className={`${showRange ? "grid" : "hidden"} grid-cols-2 gap-2 rounded-lg sm:flex sm:items-center sm:px-1 ${
             period.preset === "personnalise" ? "sm:bg-emerald-50 sm:py-0.5" : ""
           }`}
         >

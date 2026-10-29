@@ -168,8 +168,8 @@ export function DeliveryDeskWorkspace({
   }
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-3 py-3 sm:gap-5 sm:px-4 sm:py-4 lg:px-6 lg:py-5">
+    <div className="app-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-3 pb-8 pt-3 sm:gap-5 sm:px-4 sm:pb-8 sm:pt-4 lg:px-6 lg:pt-5">
         <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-[18px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
             Livraisons
