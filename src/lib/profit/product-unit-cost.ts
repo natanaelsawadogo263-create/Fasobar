@@ -67,6 +67,7 @@ export async function loadProductUnitCostsFromSupply(
     return unitCostByProduct;
   }
 
+
   // 2) Repli : unit_cost du mouvement PURCHASE du stock lié à CE produit.
   const { data: stockRows } = await client
     .from("stock_items")
@@ -83,7 +84,7 @@ export async function loadProductUnitCostsFromSupply(
 
   const stockIds = [...stockIdByProduct.values()];
   if (stockIds.length === 0) {
-    return unitCostByProduct;
+    return withProductPurchasePrices(client, establishmentId, productIds, unitCostByProduct);
   }
 
   const { data: movements } = await client
@@ -112,6 +113,30 @@ export async function loadProductUnitCostsFromSupply(
     }
   }
 
+  return withProductPurchasePrices(client, establishmentId, productIds, unitCostByProduct);
+}
+
+/** 3) Dernier repli : prix d'achat saisi sur la fiche produit à la création. */
+async function withProductPurchasePrices(
+  client: Awaited<ReturnType<typeof createClient>>,
+  establishmentId: string,
+  productIds: string[],
+  unitCostByProduct: Map<string, number>,
+): Promise<Map<string, number>> {
+  const missing = productIds.filter((id) => !unitCostByProduct.has(id));
+  if (missing.length === 0) return unitCostByProduct;
+
+  const { data } = await client
+    .from("products")
+    .select("id, purchase_price")
+    .eq("establishment_id", establishmentId)
+    .in("id", missing)
+    .gt("purchase_price", 0);
+
+  for (const row of data ?? []) {
+    const cost = Number(row.purchase_price);
+    if (cost > 0) unitCostByProduct.set(row.id as string, cost);
+  }
   return unitCostByProduct;
 }
 

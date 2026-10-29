@@ -9,7 +9,8 @@ const SUPPLY_HISTORY_TTL_MS = 60_000;
 const supplyHistoryUntil = new Map<string, { until: number; value: boolean }>();
 
 /**
- * True si au moins un produit a un coût d’achat unitaire via appro validé.
+ * True si au moins un produit a un coût d’achat connu : appro validé, achat
+ * en stock, ou prix d’achat saisi sur la fiche produit.
  */
 export const hasEstablishmentSupplyHistory = cache(
   async function hasEstablishmentSupplyHistory(
@@ -25,7 +26,7 @@ export const hasEstablishmentSupplyHistory = cache(
     const org = workspace.organizationId;
     const est = workspace.establishmentId;
 
-    const [supplyLines, purchaseMovements] = await Promise.all([
+    const [supplyLines, purchaseMovements, pricedProducts] = await Promise.all([
       supabase
         .from("supply_receipt_lines")
         .select("id, supply_receipts!inner(status)", { count: "exact", head: true })
@@ -43,15 +44,23 @@ export const hasEstablishmentSupplyHistory = cache(
         .not("unit_cost", "is", null)
         .gt("unit_cost", 0)
         .limit(1),
+      supabase
+        .from("products")
+        .select("id", { count: "exact", head: true })
+        .eq("establishment_id", est)
+        .gt("purchase_price", 0)
+        .limit(1),
     ]);
 
-    if (supplyLines.error && purchaseMovements.error) {
+    if (supplyLines.error && purchaseMovements.error && pricedProducts.error) {
       supplyHistoryUntil.set(key, { until: Date.now() + 15_000, value: false });
       return false;
     }
 
     const value =
-      (supplyLines.count ?? 0) > 0 || (purchaseMovements.count ?? 0) > 0;
+      (supplyLines.count ?? 0) > 0 ||
+      (purchaseMovements.count ?? 0) > 0 ||
+      (pricedProducts.count ?? 0) > 0;
 
     supplyHistoryUntil.set(key, {
       until: Date.now() + SUPPLY_HISTORY_TTL_MS,

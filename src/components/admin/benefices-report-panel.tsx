@@ -161,6 +161,9 @@ export function BeneficesReportPanel({
       : Number(totalRow.profit);
   const totalRevenue = Number(totalRow?.revenue ?? 0);
   const totalCost = Number(totalRow?.supplyCost ?? 0);
+  const totalExpenses = Number(totalRow?.expenses ?? 0);
+  const totalNet =
+    totalProfit === null ? null : totalProfit - totalExpenses;
 
   const ProfitIcon =
     profitAvailable && totalProfit !== null && totalProfit >= 0
@@ -190,7 +193,7 @@ export function BeneficesReportPanel({
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              Surplus cumulé
+              Bénéfice brut
             </p>
             <p
               className={`mt-1 text-[26px] font-bold tabular-nums tracking-tight sm:text-[32px] ${
@@ -209,7 +212,7 @@ export function BeneficesReportPanel({
             </p>
           </div>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-200/60 pt-3 text-left">
+        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-200/60 pt-3 text-left sm:grid-cols-4">
           <div>
             <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
               Ventes
@@ -226,6 +229,28 @@ export function BeneficesReportPanel({
                 {formatReportCell(totalCost, "currency")}
               </p>
             </div>
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+              Dépenses (livraisons comprises)
+            </p>
+            <p className="mt-0.5 text-[13px] font-bold tabular-nums text-slate-800">
+              − {formatReportCell(totalExpenses, "currency")}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+              Bénéfice net
+            </p>
+            <p
+              className={`mt-0.5 text-[15px] font-bold tabular-nums ${
+                profitAvailable && totalNet !== null ? moneyClass(totalNet) : "text-slate-400"
+              }`}
+            >
+              {profitAvailable && totalNet !== null
+                ? formatReportCell(totalNet, "currency")
+                : "—"}
+            </p>
+          </div>
         </div>
       </section>
 
@@ -256,8 +281,9 @@ export function BeneficesReportPanel({
       <p className="text-[11px] leading-relaxed text-slate-500">
         Pour chaque produit vendu : surplus = prix de vente de ce produit − coût
         unitaire d&apos;achat de ce même produit à l&apos;appro. On ne soustrait
-        jamais le montant total du bon d&apos;approvisionnement. Le bénéfice total
-        est la somme de ces surplus, vente après vente.
+        jamais le montant total du bon d&apos;approvisionnement. Le bénéfice brut
+        est la somme de ces surplus, vente après vente ; le bénéfice net retire
+        ensuite les dépenses de la période (frais de livraison compris).
       </p>
     </div>
   );

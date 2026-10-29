@@ -429,8 +429,9 @@ async function buildBeneficesReport(
     { key: "space", label: "Espace" },
     { key: "revenue", label: "Chiffre d'affaires", format: "currency" },
     { key: "supplyCost", label: "Coût appro. vendu", format: "currency" },
+    { key: "profit", label: "Bénéfice brut", format: "currency" },
     { key: "expenses", label: "Dépenses", format: "currency" },
-    { key: "profit", label: "Bénéfice", format: "currency" },
+    { key: "netProfit", label: "Bénéfice net", format: "currency" },
   ];
 
   const meta: ReportMeta = { profitAvailable, saleSurpluses };
@@ -438,8 +439,10 @@ async function buildBeneficesReport(
   if (retail) {
     const totalRevenue = sales.summary.totalRevenue;
     const totalExpenses = expenses.periodTotal;
-    // Bénéfice = ventes − coût d’achat des produits vendus (pas les dépenses).
+    // Brut = ventes − coût d’achat des produits vendus ; net = brut − dépenses
+    // (frais de livraison compris).
     const totalProfit = totalRevenue - totalCogs;
+    const totalNet = totalProfit - totalExpenses;
 
     return buildResult(
       "benefices",
@@ -451,11 +454,15 @@ async function buildBeneficesReport(
           supplyCost: totalCogs,
           expenses: totalExpenses,
           profit: profitAvailable ? totalProfit : null,
+          netProfit: profitAvailable ? totalNet : null,
         },
       ],
       [
         ...(profitAvailable
-          ? [{ label: "Bénéfice total", value: formatPriceXof(totalProfit) }]
+          ? [
+              { label: "Bénéfice brut", value: formatPriceXof(totalProfit) },
+              { label: "Bénéfice net", value: formatPriceXof(totalNet) },
+            ]
           : []),
         { label: "CA total", value: formatPriceXof(totalRevenue) },
         { label: "Coût appro. vendu", value: formatPriceXof(totalCogs) },
@@ -486,6 +493,7 @@ async function buildBeneficesReport(
       supplyCost: barCogs,
       expenses: barExpenses,
       profit: profitAvailable ? barProfit : null,
+      netProfit: profitAvailable ? barProfit - barExpenses : null,
     });
   }
   if (includeKitchen) {
@@ -495,6 +503,7 @@ async function buildBeneficesReport(
       supplyCost: kitchenCogs,
       expenses: kitchenExpenses,
       profit: profitAvailable ? kitchenProfit : null,
+      netProfit: profitAvailable ? kitchenProfit - kitchenExpenses : null,
     });
   }
   rows.push({
@@ -503,6 +512,7 @@ async function buildBeneficesReport(
     supplyCost: totalCogsCombined,
     expenses: totalExpenses,
     profit: profitAvailable ? totalProfit : null,
+    netProfit: profitAvailable ? totalProfit - totalExpenses : null,
   });
 
   return buildResult(
@@ -511,7 +521,10 @@ async function buildBeneficesReport(
     rows,
     [
       ...(profitAvailable
-        ? [{ label: "Bénéfice total", value: formatPriceXof(totalProfit) }]
+        ? [
+            { label: "Bénéfice brut", value: formatPriceXof(totalProfit) },
+            { label: "Bénéfice net", value: formatPriceXof(totalProfit - totalExpenses) },
+          ]
         : []),
       { label: "CA total", value: formatPriceXof(totalRevenue) },
       { label: "Coût appro. vendu", value: formatPriceXof(totalCogsCombined) },

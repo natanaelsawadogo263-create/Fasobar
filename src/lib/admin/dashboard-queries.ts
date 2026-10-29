@@ -34,7 +34,10 @@ export type AdminDashboardKpis = {
   openCashOpenedAt: string | null;
   stockAlertCount: number;
   expensesToday: number;
+  /** Bénéfice brut du jour : ventes − coût d’achat des produits vendus. */
   profitToday: number | null;
+  /** Bénéfice net du jour : brut − dépenses du jour (frais de livraison compris). */
+  netProfitToday: number | null;
   profitAvailable: boolean;
   /** Ventes payées et chiffre d'affaires de la période d'analyse (jour, semaine ou mois). */
   periodOrders: number;
@@ -532,6 +535,7 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
       stockAlertCount: stockAlertsResult.alertCount,
       expensesToday,
       profitToday,
+      netProfitToday: profitToday === null ? null : profitToday - expensesToday,
       profitAvailable: canShowProfit,
       periodOrders: paidForAnalysis.length,
       periodSales: paidForAnalysis.reduce((sum, row) => sum + (row.total_amount ?? 0), 0),

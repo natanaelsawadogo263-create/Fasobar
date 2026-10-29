@@ -126,11 +126,18 @@ export function AdminDashboardWorkspace({
 
   const deptTotal = salesByDept.bar + salesByDept.kitchen + salesByDept.other;
   const hasSeriesSales = salesSeries.values.some((value) => value > 0);
+  // Bénéfice net = bénéfice brut − dépenses du jour (frais de livraison compris).
+  const grossProfit =
+    kpis.profitAvailable && kpis.profitToday !== null ? kpis.profitToday : null;
+  const netProfit = grossProfit === null ? null : kpis.netProfitToday;
+  const shownProfit = netProfit;
   // Bénéfice indisponible : sans vente, ou sans prix d'achat connu (approvisionnement).
   const profitHint = kpis.profitAvailable
-    ? "Ventes − coût d’achat (appro)"
+    ? grossProfit !== null
+      ? `Brut ${formatPriceXof(grossProfit)} − dépenses`
+      : "Ventes − coût d’achat (appro)"
     : kpis.salesToday > 0
-      ? "Ajoutez un approvisionnement"
+      ? "Renseignez le prix d’achat des produits"
       : "Après la 1re vente";
 
   function setPeriod(period: AdminDashboardPeriod) {
@@ -213,11 +220,11 @@ export function AdminDashboardWorkspace({
         />
         <MobileKpi
           accent="border-l-teal-500"
-          label={retail ? "Bénéfice" : "Caisses"}
+          label={retail ? "Bénéfice net" : "Caisses"}
           value={
             retail
-              ? kpis.profitAvailable && kpis.profitToday !== null
-                ? formatPriceXof(kpis.profitToday)
+              ? shownProfit !== null
+                ? formatPriceXof(shownProfit)
                 : "—"
               : formatPriceXof(kpis.openCashBalance ?? 0)
           }
@@ -273,11 +280,13 @@ export function AdminDashboardWorkspace({
           accent="border-l-teal-500"
           icon={retail ? <Wallet className="h-3.5 w-3.5" /> : <Banknote className="h-3.5 w-3.5" />}
           iconClass="bg-teal-50 text-teal-700"
-          label={retail ? "Bénéfice du jour" : "Solde caisses"}
+          label={
+            retail ? "Bénéfice net du jour" : "Solde caisses"
+          }
           value={
             retail
-              ? kpis.profitAvailable && kpis.profitToday !== null
-                ? formatPriceXof(kpis.profitToday)
+              ? shownProfit !== null
+                ? formatPriceXof(shownProfit)
                 : "—"
               : formatPriceXof(kpis.openCashBalance ?? 0)
           }
@@ -397,12 +406,12 @@ export function AdminDashboardWorkspace({
                       <>
                         <MiniStat label="Dépenses" value={formatPriceXof(kpis.expensesToday)} />
                         <MiniStat
-                          label="Bénéfice"
-                          value={
-                            kpis.profitAvailable && kpis.profitToday !== null
-                              ? formatPriceXof(kpis.profitToday)
-                              : "—"
-                          }
+                          label="Bénéfice brut"
+                          value={grossProfit !== null ? formatPriceXof(grossProfit) : "—"}
+                        />
+                        <MiniStat
+                          label="Bénéfice net"
+                          value={netProfit !== null ? formatPriceXof(netProfit) : "—"}
                         />
                       </>
                     ) : null}
