@@ -12,6 +12,7 @@ import type {
   DeliveryOrderStatus,
   DeliveryProductOption,
 } from "@/lib/delivery/types";
+import { deliveryNetToCash } from "@/lib/delivery/constants";
 import { toLocalIsoDate } from "@/lib/delivery/period";
 import { createAdminClient, isAdminClientConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -372,7 +373,11 @@ export async function getCourierPeriodReport(
     delivered_at: string | null;
     cashed_at: string | null;
   };
-  type ToCashRow = { courier_id: string | null; total_amount: number | string };
+  type ToCashRow = {
+    courier_id: string | null;
+    total_amount: number | string;
+    delivery_fee: number | string | null;
+  };
 
   const [allCouriers, movements, stockRows, inProgressRows, deliveredRows, toCashRows] = await Promise.all([
     listCouriers(workspace),
@@ -416,7 +421,7 @@ export async function getCourierPeriodReport(
     fetchAllRows<ToCashRow>("[getCourierPeriodReport:toCash]", (from, to) => {
       let query = supabase
         .from("delivery_orders")
-        .select("courier_id, total_amount")
+        .select("courier_id, total_amount, delivery_fee")
         .eq("establishment_id", workspace.establishmentId)
         .eq("status", "DELIVERED")
         .is("cashed_at", null);
@@ -486,7 +491,11 @@ export async function getCourierPeriodReport(
     if (!row.courier_id) continue;
     const entry = ensure(row.courier_id);
     entry.toCashCount += 1;
-    entry.toCashValue += Number(row.total_amount);
+    // Le livreur garde ses frais de course : il ne remet que le reste.
+    entry.toCashValue += deliveryNetToCash({
+      totalAmount: Number(row.total_amount),
+      deliveryFee: row.delivery_fee == null ? null : Number(row.delivery_fee),
+    });
   }
 
   const couriers = (courierId ? allCouriers.filter((item) => item.id === courierId) : allCouriers).map(

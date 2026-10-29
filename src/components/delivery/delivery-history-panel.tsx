@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, MapPin, Phone, User } from "lucide-react";
+import { MapPin, Phone } from "lucide-react";
 
 import {
   DeliveryPeriodFilter,
@@ -11,10 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import {
   DELIVERY_ORDER_STAGE_LABELS,
   DELIVERY_ORDER_STAGE_TONES,
+  deliveryNetToCash,
   deliveryOrderStage,
+  deliveryRetainedFee,
   formatDeliveryLineName,
   formatDeliveryOrderNumber,
   formatDeliveryQuantity,
+  type DeliveryOrderStage,
 } from "@/lib/delivery/constants";
 import { toLocalIsoDate } from "@/lib/delivery/period";
 import type { DeliveryOrder } from "@/lib/delivery/types";
@@ -27,6 +30,12 @@ type DeliveryHistoryPanelProps = {
 };
 
 const ALL = "all";
+
+/** Libellés courts : ici toutes les commandes sont déjà livrées. */
+const HISTORY_STAGE_LABELS: Partial<Record<DeliveryOrderStage, string>> = {
+  TO_CASH: "À encaisser",
+  CASHED: "Encaissée",
+};
 
 type CourierTotals = {
   id: string;
@@ -103,11 +112,14 @@ export function DeliveryHistoryPanel({ period, orders }: DeliveryHistoryPanelPro
   const totals = useMemo(() => {
     let value = 0;
     let cashed = 0;
+    let toCash = 0;
     for (const order of visible) {
       value += order.totalAmount;
       if (order.cashedAt) cashed += order.totalAmount;
+      // Le livreur garde ses frais de course : la caisse ne recevra que le reste.
+      else toCash += deliveryNetToCash(order);
     }
-    return { value, cashed, toCash: value - cashed };
+    return { value, cashed, toCash };
   }, [visible]);
 
   const products = useMemo(() => {
@@ -204,78 +216,80 @@ export function DeliveryHistoryPanel({ period, orders }: DeliveryHistoryPanelPro
             {days.map(([date, dayOrders]) => (
               <div key={date} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <header className="flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2">
-                  <p className="text-[12px] font-semibold text-slate-700">{formatDayHeading(date)}</p>
-                  <p className="text-[12px] tabular-nums text-slate-500">
+                  <p className="min-w-0 truncate text-[12px] font-semibold text-slate-700">{formatDayHeading(date)}</p>
+                  <p className="shrink-0 text-[12px] tabular-nums text-slate-500">
                     {dayOrders.length} · {formatPriceXof(dayOrders.reduce((sum, order) => sum + order.totalAmount, 0))}
                   </p>
                 </header>
                 <ul className="divide-y divide-slate-100">
-                  {dayOrders.map((order) => (
-                    <li key={order.id}>
-                      <details className="group">
-                        <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
-                          <div className="min-w-0 flex-1">
-                            <p className="flex flex-wrap items-center gap-x-2 text-[13px] font-semibold text-slate-900">
-                              {formatDeliveryOrderNumber(order.orderNumber)}
-                              <span className="font-normal text-slate-400">{formatTime(order.deliveredAt)}</span>
-                            </p>
-                            <p className="truncate text-[12px] text-slate-500">
-                              {order.courierName ?? "Sans livreur"}
-                              {order.customerName ? ` · ${order.customerName}` : ""}
-                              {` · ${order.items.length} produit${order.items.length > 1 ? "s" : ""}`}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1">
-                            <span className="text-[13px] font-bold tabular-nums text-slate-900">
-                              {formatPriceXof(order.totalAmount)}
-                            </span>
-                            <Badge tone={DELIVERY_ORDER_STAGE_TONES[deliveryOrderStage(order)]}>
-                              {DELIVERY_ORDER_STAGE_LABELS[deliveryOrderStage(order)]}
-                            </Badge>
-                          </div>
-                          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition group-open:rotate-180" />
-                        </summary>
-
-                        <div className="flex flex-col gap-2 px-4 pb-3">
-                          <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-slate-50/60 text-[13px]">
-                            {order.items.map((item) => (
-                              <li key={`${item.productId}:${item.saleUnitName ?? ""}`} className="flex items-center justify-between gap-3 px-3 py-2">
-                                <span className="min-w-0 truncate text-slate-800">
-                                  <span className="font-semibold">{formatDeliveryQuantity(item.quantity)} ×</span>{" "}
-                                  {formatDeliveryLineName(item)}
-                                </span>
-                                <span className="shrink-0 tabular-nums text-slate-600">
-                                  {formatPriceXof(item.lineTotal)}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                          {order.customerPhone || order.deliveryAddress ? (
-                            <dl className="grid gap-1 text-[12px] text-slate-600">
-                              {order.customerName ? (
-                                <div className="flex items-center gap-2">
-                                  <User className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                                  <dd>{order.customerName}</dd>
-                                </div>
-                              ) : null}
-                              {order.customerPhone ? (
-                                <div className="flex items-center gap-2">
-                                  <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                                  <dd>{order.customerPhone}</dd>
-                                </div>
-                              ) : null}
-                              {order.deliveryAddress ? (
-                                <div className="flex items-start gap-2">
-                                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                                  <dd>{order.deliveryAddress}</dd>
-                                </div>
-                              ) : null}
-                            </dl>
-                          ) : null}
+                  {dayOrders.map((order) => {
+                    const stage = deliveryOrderStage(order);
+                    const fee = deliveryRetainedFee(order);
+                    return (
+                      <li key={order.id} className="flex flex-col gap-2 px-4 py-3">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <p className="text-[14px] font-bold text-slate-900">
+                            {formatDeliveryOrderNumber(order.orderNumber)}
+                          </p>
+                          <p className="shrink-0 text-[14px] font-bold tabular-nums text-slate-900">
+                            {formatPriceXof(order.totalAmount)}
+                          </p>
                         </div>
-                      </details>
-                    </li>
-                  ))}
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="min-w-0 truncate text-[12px] text-slate-500">
+                            {formatTime(order.deliveredAt)} · {order.courierName ?? "Sans livreur"}
+                            {order.customerName ? ` · ${order.customerName}` : ""}
+                          </p>
+                          <Badge tone={DELIVERY_ORDER_STAGE_TONES[stage]}>
+                            {HISTORY_STAGE_LABELS[stage] ?? DELIVERY_ORDER_STAGE_LABELS[stage]}
+                          </Badge>
+                        </div>
+                        <ul className="divide-y divide-slate-100 rounded-lg bg-slate-50 text-[12px]">
+                          {order.items.map((item) => (
+                            <li
+                              key={`${item.productId}:${item.saleUnitName ?? ""}`}
+                              className="flex items-center justify-between gap-3 px-3 py-1.5"
+                            >
+                              <span className="min-w-0 truncate text-slate-700">
+                                <span className="font-semibold">{formatDeliveryQuantity(item.quantity)} ×</span>{" "}
+                                {formatDeliveryLineName(item)}
+                              </span>
+                              <span className="shrink-0 tabular-nums text-slate-500">
+                                {formatPriceXof(item.lineTotal)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                        {fee > 0 || order.customerPhone || order.deliveryAddress ? (
+                          <div className="flex flex-col gap-1 text-[12px] text-slate-600">
+                            {fee > 0 ? (
+                              <p>
+                                Frais livreur − {formatPriceXof(fee)} · caisse{" "}
+                                <span className="font-semibold text-slate-800">
+                                  {formatPriceXof(deliveryNetToCash(order))}
+                                </span>
+                              </p>
+                            ) : null}
+                            {order.customerPhone ? (
+                              <a
+                                href={`tel:${order.customerPhone}`}
+                                className="inline-flex w-fit items-center gap-1.5 text-emerald-700"
+                              >
+                                <Phone className="h-3.5 w-3.5 shrink-0" />
+                                {order.customerPhone}
+                              </a>
+                            ) : null}
+                            {order.deliveryAddress ? (
+                              <p className="flex items-start gap-1.5">
+                                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                <span className="min-w-0 break-words">{order.deliveryAddress}</span>
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}
