@@ -170,7 +170,7 @@ export function useCourierOrderActions() {
               </p>
             ) : (
               <p className="mt-2 text-[12px] text-slate-500">
-                Vous gardez ce montant ; il est noté dans les dépenses de la boutique.
+                Vous gardez ce montant ; il sera noté dans les dépenses à l’encaissement.
               </p>
             )}
           </div>

@@ -22,6 +22,7 @@ const CASH_IN_PATHS = [
   "/application/commandes-ouvertes",
   "/application/ventes",
   "/application/tableau-de-bord",
+  "/application/depenses",
 ] as const;
 
 function revalidateDelivery() {

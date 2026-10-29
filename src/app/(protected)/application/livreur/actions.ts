@@ -53,7 +53,7 @@ export async function releaseDeliveryOrderAction(orderId: string) {
 
 /**
  * Finalise la livraison et déclare le coût de la course : s'il est > 0,
- * il devient une dépense « Transport » de la boutique (côté serveur).
+ * il deviendra une dépense « Transport » à l'encaissement par la caisse.
  */
 export async function completeDeliveryOrderAction(
   orderId: string,
@@ -98,7 +98,7 @@ export async function completeDeliveryOrderAction(
   return {
     success:
       deliveryFee > 0
-        ? "Livraison finalisée, frais de course enregistrés en dépense. Remettez l’argent à la caisse."
+        ? "Livraison finalisée, frais de course notés. Remettez l’argent à la caisse."
         : "Livraison finalisée. Remettez l’argent à la caisse pour l’encaissement.",
   };
 }
