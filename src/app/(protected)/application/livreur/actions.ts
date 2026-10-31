@@ -16,7 +16,7 @@ function revalidateDelivery() {
 }
 
 async function runCourierRpc(
-  rpc: "accept_delivery_order" | "release_delivery_order" | "complete_delivery_order",
+  rpc: "accept_delivery_order" | "release_delivery_order",
   orderId: string,
   successMessage: string,
 ): Promise<DeliveryActionResult> {
@@ -75,20 +75,8 @@ export async function completeDeliveryOrderAction(
     p_delivery_fee: deliveryFee,
   });
 
+  // Pas de repli sans frais : la livraison n'est finalisée qu'avec ses frais notés.
   if (error) {
-    // Migration des frais non appliquée : on finalise quand même la livraison.
-    if (/could not find|does not exist/i.test(error.message ?? "")) {
-      const fallback = await runCourierRpc(
-        "complete_delivery_order",
-        parsed.data.orderId,
-        "Livraison finalisée. Remettez l’argent à la caisse pour l’encaissement.",
-      );
-      if (fallback.error || deliveryFee === 0) return fallback;
-      return {
-        success:
-          "Livraison finalisée. Les frais de course n’ont pas pu être notés en dépense : signalez-les à la caisse.",
-      };
-    }
     console.error("[complete_delivery_order_with_fee]", error.message);
     return { error: toUserFacingError(error.message) };
   }
