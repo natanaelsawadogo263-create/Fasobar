@@ -52,7 +52,10 @@ export type StockStats = {
   barItemCount: number;
   kitchenItemCount: number;
   alertCount: number;
+  /** Valeur au coût d'achat. */
   estimatedValue: number;
+  /** Commerce : valeur au prix de vente (stock livreurs compris) ; null ailleurs. */
+  saleValue: number | null;
 };
 
 export type InventorySessionItem = {

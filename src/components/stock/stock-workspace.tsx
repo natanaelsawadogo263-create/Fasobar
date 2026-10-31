@@ -367,9 +367,15 @@ export function StockWorkspace({
           compact={drinksOnly || retail}
         />
         <StatCard
-          title={drinksOnly || retail ? "Valeur" : "Valeur estimée"}
-          value={formatPriceXof(stats.estimatedValue)}
-          subtitle={drinksOnly || retail ? "estimée" : "basée sur derniers coûts"}
+          title={stats.saleValue !== null ? "Valeur de vente" : drinksOnly || retail ? "Valeur" : "Valeur estimée"}
+          value={formatPriceXof(stats.saleValue ?? stats.estimatedValue)}
+          subtitle={
+            stats.saleValue !== null
+              ? `achat ${formatPriceXof(stats.estimatedValue)}`
+              : drinksOnly || retail
+                ? "estimée"
+                : "basée sur derniers coûts"
+          }
           icon={drinksOnly || retail ? Wallet : Package}
           tone="emerald"
           compact={drinksOnly || retail}

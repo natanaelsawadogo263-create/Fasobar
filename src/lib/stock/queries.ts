@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isRetailActivity } from "@/lib/activity/profile";
+import { isEcommerceActivity } from "@/lib/auth/activities";
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { getDepartmentIdByCode } from "@/lib/products/queries";
 import { computeStockStatus } from "@/lib/stock/constants";
@@ -299,6 +301,15 @@ export async function getStockStats(
   const alertCount = stockItems.filter(
     (item) => item.status === "low" || item.status === "out",
   ).length;
+  if (isRetailActivity(workspace.activityCode)) {
+    return {
+      barItemCount,
+      kitchenItemCount,
+      alertCount,
+      ...(await getRetailStockValues(workspace, stockItems)),
+    };
+  }
+
   const estimatedValue = stockItems.reduce((total, item) => {
     if (item.estimatedUnitCost === null) {
       return total;
@@ -312,7 +323,86 @@ export async function getStockStats(
     kitchenItemCount,
     alertCount,
     estimatedValue,
+    saleValue: null,
   };
+}
+
+/**
+ * Commerce : valeur des articles restants au prix de vente (ce qu'ils
+ * rapporteront), y compris le stock confié aux livreurs (e-commerce), qui a
+ * quitté la boutique sans être vendu. Le coût d'achat reprend le prix de la
+ * fiche produit quand aucun coût d'appro n'est connu.
+ */
+async function getRetailStockValues(
+  workspace: WorkspaceContext,
+  stockItems: StockListItem[],
+): Promise<Pick<StockStats, "estimatedValue" | "saleValue">> {
+  const supabase =
+    workspace.canManageStock && isAdminClientConfigured()
+      ? createAdminClient()
+      : await createClient();
+
+  const courierResult = isEcommerceActivity(workspace.activityCode)
+    ? await supabase
+        .from("courier_stock")
+        .select("product_id, quantity")
+        .eq("establishment_id", workspace.establishmentId)
+        .gt("quantity", 0)
+    : null;
+  if (courierResult?.error) {
+    console.error("[getRetailStockValues:courier]", courierResult.error.message);
+  }
+
+  const quantityByProduct = new Map<string, number>();
+  const costByProduct = new Map<string, number | null>();
+  for (const item of stockItems) {
+    if (!item.productId) continue;
+    quantityByProduct.set(
+      item.productId,
+      (quantityByProduct.get(item.productId) ?? 0) + item.currentQuantity,
+    );
+    if (item.estimatedUnitCost !== null) costByProduct.set(item.productId, item.estimatedUnitCost);
+  }
+  for (const row of courierResult?.data ?? []) {
+    const productId = row.product_id as string;
+    quantityByProduct.set(
+      productId,
+      (quantityByProduct.get(productId) ?? 0) + Number(row.quantity),
+    );
+  }
+
+  // Par paquets : une longue liste d'identifiants dépasserait la taille d'URL.
+  const productIds = [...quantityByProduct.keys()];
+  const chunks: string[][] = [];
+  for (let index = 0; index < productIds.length; index += 150) {
+    chunks.push(productIds.slice(index, index + 150));
+  }
+  const results = await Promise.all(
+    chunks.map((ids) =>
+      supabase
+        .from("products")
+        .select("id, selling_price, purchase_price")
+        .eq("establishment_id", workspace.establishmentId)
+        .in("id", ids),
+    ),
+  );
+  const products = results.flatMap((result) => {
+    if (result.error) console.error("[getRetailStockValues:products]", result.error.message);
+    return result.data ?? [];
+  });
+
+  let saleValue = 0;
+  let estimatedValue = 0;
+  for (const product of products) {
+    const quantity = Math.max(quantityByProduct.get(product.id as string) ?? 0, 0);
+    if (quantity === 0) continue;
+    saleValue += quantity * Math.max(Number(product.selling_price) || 0, 0);
+    const unitCost =
+      costByProduct.get(product.id as string) ?? (Number(product.purchase_price) || 0);
+    estimatedValue += quantity * Math.max(unitCost, 0);
+  }
+
+  return { saleValue: Math.round(saleValue), estimatedValue: Math.round(estimatedValue) };
 }
 
 export async function listSuppliers(
