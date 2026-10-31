@@ -217,7 +217,23 @@ export async function purgeClientOrganizationAction(input: {
     };
   }
 
-  return callAdminRpc(
+  await requirePlatformAdmin();
+  const { createAdminClient, isAdminClientConfigured } = await import(
+    "@/lib/supabase/admin"
+  );
+  const admin = isAdminClientConfigured() ? createAdminClient() : null;
+
+  // Membres à lire avant la purge : leurs adhésions disparaissent avec l'organisation.
+  let memberIds: string[] = [];
+  if (admin) {
+    const { data } = await admin
+      .from("organization_memberships")
+      .select("user_id")
+      .eq("organization_id", input.organizationId);
+    memberIds = [...new Set((data ?? []).map((row) => row.user_id as string))];
+  }
+
+  const result = await callAdminRpc(
     "purge_client_organization",
     {
       p_organization_id: input.organizationId,
@@ -225,6 +241,49 @@ export async function purgeClientOrganizationAction(input: {
     },
     ["/platform/clients", "/platform"],
   );
+
+  if (!result.ok || !admin) {
+    return result;
+  }
+
+  // Comptes de connexion : supprimés s'ils n'appartiennent à aucune autre organisation.
+  for (const userId of memberIds) {
+    try {
+      const [{ count: otherOrgs }, { count: platformAdmin }] = await Promise.all([
+        admin
+          .from("organization_memberships")
+          .select("user_id", { count: "exact", head: true })
+          .eq("user_id", userId),
+        admin
+          .from("platform_admins")
+          .select("user_id", { count: "exact", head: true })
+          .eq("user_id", userId),
+      ]);
+      if ((otherOrgs ?? 0) > 0 || (platformAdmin ?? 0) > 0) continue;
+      await deleteOrDisableAuthUser(admin, userId);
+    } catch {
+      // Organisation déjà purgée ; le profil est désactivé côté base.
+    }
+  }
+
+  return result;
+}
+
+/** Supprime le compte Auth ; s'il est encore référencé, le bloque définitivement. */
+async function deleteOrDisableAuthUser(
+  admin: ReturnType<typeof import("@/lib/supabase/admin").createAdminClient>,
+  userId: string,
+): Promise<void> {
+  const { randomUUID } = await import("node:crypto");
+  const { error: deleteAuthError } = await admin.auth.admin.deleteUser(userId);
+  if (deleteAuthError) {
+    await admin.auth.admin.updateUserById(userId, {
+      ban_duration: "876600h",
+      email: `deleted-${userId.slice(0, 8)}@users.fasobar.app`,
+      email_confirm: true,
+      password: `${randomUUID()}-Aa1!`,
+    });
+  }
 }
 
 export async function purgeClientOrganizationMemberAction(input: {
@@ -258,20 +317,8 @@ export async function purgeClientOrganizationMemberAction(input: {
     const { createAdminClient, isAdminClientConfigured } = await import(
       "@/lib/supabase/admin"
     );
-    const { randomUUID } = await import("node:crypto");
     if (isAdminClientConfigured()) {
-      const admin = createAdminClient();
-      const { error: deleteAuthError } = await admin.auth.admin.deleteUser(
-        input.userId,
-      );
-      if (deleteAuthError) {
-        await admin.auth.admin.updateUserById(input.userId, {
-          ban_duration: "876600h",
-          email: `deleted-${input.userId.slice(0, 8)}@users.fasobar.app`,
-          email_confirm: true,
-          password: `${randomUUID()}-Aa1!`,
-        });
-      }
+      await deleteOrDisableAuthUser(createAdminClient(), input.userId);
     }
   } catch {
     // Memberships already removed.

@@ -354,11 +354,6 @@ export function PlatformClientDetailView({
     payments: payments.length,
   };
 
-  const hasSensitiveActions =
-    identity.ownerProfileStatus !== "INACTIVE" ||
-    (access.status !== "SUSPENDED" && access.status !== "PENDING_DELETION") ||
-    access.status === "PENDING_DELETION";
-
   useEffect(() => {
     if (!actionsOpen) return;
     function onPointerDown(event: MouseEvent) {
@@ -476,60 +471,57 @@ export function PlatformClientDetailView({
                   </PlatformButton>
                 ) : null}
 
-                {hasSensitiveActions ? (
-                  <div ref={actionsRef} className="relative">
-                    <PlatformButton
-                      tone="secondary"
-                      onClick={() => setActionsOpen((open) => !open)}
-                      className="gap-1.5"
-                    >
-                      Actions
-                      <ChevronDown
-                        className={`h-3.5 w-3.5 transition ${actionsOpen ? "rotate-180" : ""}`}
-                      />
-                    </PlatformButton>
-                    {actionsOpen ? (
-                      <div className="absolute right-0 z-20 mt-1.5 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-slate-900/5">
-                        {identity.ownerProfileStatus !== "INACTIVE" ? (
-                          <button
-                            type="button"
-                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
-                            onClick={() => openModal("deactivateOwner")}
-                          >
-                            Désactiver le compte
-                          </button>
-                        ) : null}
-                        {access.status !== "SUSPENDED" &&
-                        access.status !== "PENDING_DELETION" ? (
-                          <button
-                            type="button"
-                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
-                            onClick={() => openModal("suspend")}
-                          >
-                            Suspendre SaaS
-                          </button>
-                        ) : null}
-                        {access.status !== "PENDING_DELETION" ? (
-                          <button
-                            type="button"
-                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
-                            onClick={() => openModal("delete")}
-                          >
-                            Planifier suppression
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
-                            onClick={() => openModal("purge")}
-                          >
-                            Supprimer définitivement
-                          </button>
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
+                <div ref={actionsRef} className="relative">
+                  <PlatformButton
+                    tone="secondary"
+                    onClick={() => setActionsOpen((open) => !open)}
+                    className="gap-1.5"
+                  >
+                    Actions
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 transition ${actionsOpen ? "rotate-180" : ""}`}
+                    />
+                  </PlatformButton>
+                  {actionsOpen ? (
+                    <div className="absolute right-0 z-20 mt-1.5 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-slate-900/5">
+                      {identity.ownerProfileStatus !== "INACTIVE" ? (
+                        <button
+                          type="button"
+                          className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
+                          onClick={() => openModal("deactivateOwner")}
+                        >
+                          Désactiver le compte
+                        </button>
+                      ) : null}
+                      {access.status !== "SUSPENDED" &&
+                      access.status !== "PENDING_DELETION" ? (
+                        <button
+                          type="button"
+                          className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
+                          onClick={() => openModal("suspend")}
+                        >
+                          Suspendre SaaS
+                        </button>
+                      ) : null}
+                      {access.status !== "PENDING_DELETION" ? (
+                        <button
+                          type="button"
+                          className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-medium text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
+                          onClick={() => openModal("delete")}
+                        >
+                          Planifier suppression
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="flex w-full px-3.5 py-2.5 text-left text-[13px] font-semibold text-rose-700 transition hover:bg-rose-50 active:bg-rose-100"
+                        onClick={() => openModal("purge")}
+                      >
+                        Supprimer définitivement
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
@@ -1055,8 +1047,8 @@ export function PlatformClientDetailView({
             ) : null}
             {modal === "purge" ? (
               <p className="mt-3 text-[12px] leading-relaxed text-rose-700">
-                Irréversible. Disponible uniquement après le délai de
-                récupération. Supprime toute la structure du client.
+                Irréversible et immédiat. Supprime le client, toutes ses
+                données et les comptes de connexion de ses membres.
               </p>
             ) : null}
             <div className="mt-6 flex justify-end gap-2">
