@@ -93,7 +93,7 @@ export const getActiveCashSession = cache(async function getActiveCashSession(
 
   const { data: sessionPayments } = await supabase
     .from("payments")
-    .select("method, amount_applied, provider, transaction_reference")
+    .select("method, amount_applied, provider, transaction_reference, order_id, idempotency_key, notes")
     .eq("cash_register_session_id", data.id)
     .eq("status", "CONFIRMED");
 
@@ -140,7 +140,7 @@ export async function getCashSessionById(
 
   const { data: sessionPayments } = await supabase
     .from("payments")
-    .select("method, amount_applied, provider, transaction_reference")
+    .select("method, amount_applied, provider, transaction_reference, order_id, idempotency_key, notes")
     .eq("cash_register_session_id", data.id)
     .eq("status", "CONFIRMED");
 

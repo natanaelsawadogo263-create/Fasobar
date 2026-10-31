@@ -106,8 +106,8 @@ export function SessionWorkspace({
             label="Frais de livraison"
             value={formatPriceXof(session.deliveryFeesTotal)}
             sub={
-              session.deliveryFees.length > 0
-                ? `${session.deliveryFees.length} livraison${session.deliveryFees.length > 1 ? "s" : ""}`
+              session.deliveries.length > 0
+                ? `${session.deliveries.length} livraison${session.deliveries.length > 1 ? "s" : ""}`
                 : "Aucune"
             }
           />

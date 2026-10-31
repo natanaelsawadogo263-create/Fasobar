@@ -37,7 +37,10 @@ function mapSessionRow(
     openedByName,
     cashCollected,
     salesTotal,
-    deliveryFees: [],
+    onSiteSalesCount: 0,
+    onSiteSalesTotal: salesTotal,
+    deliveries: [],
+    deliverySalesTotal: 0,
     deliveryFeesTotal: 0,
   };
 }

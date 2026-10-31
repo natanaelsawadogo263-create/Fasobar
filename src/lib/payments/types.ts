@@ -1,5 +1,5 @@
 import type { PaymentMethod } from "@/lib/payments/schemas";
-import type { SessionDeliveryFee } from "@/lib/payments/session-summary";
+import type { SessionPaymentsSummary } from "@/lib/payments/session-summary";
 
 export type PaymentActionState = {
   error?: string;
@@ -23,13 +23,7 @@ export type CashSessionDetail = {
   openedAt: string;
   closedAt: string | null;
   openedByName: string | null;
-  cashCollected: number;
-  /** Chiffre d'affaires encaissé dans la session (tous modes). */
-  salesTotal: number;
-  /** Frais de course gardés par les livreurs, par commande. */
-  deliveryFees: SessionDeliveryFee[];
-  deliveryFeesTotal: number;
-};
+} & SessionPaymentsSummary;
 
 export type OrderPaymentSummary = {
   orderId: string;
