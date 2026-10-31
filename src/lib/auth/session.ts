@@ -52,13 +52,22 @@ async function getLocalSessionUser(): Promise<User | null> {
 
 export const getAuthenticatedUser = cache(async () => {
   const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  // Jeton vérifié localement (clé ES256) : pas d'appel réseau à chaque page.
+  // Seuls id et e-mail sont lus par l'app ; statut et rôles sont contrôlés en base.
+  const { data, error } = await supabase.auth.getClaims();
+  const claims = data?.claims;
 
-  if (!error && user) {
-    return user;
+  if (!error && claims?.sub) {
+    return {
+      id: claims.sub,
+      email: claims.email,
+      phone: claims.phone,
+      app_metadata: claims.app_metadata ?? {},
+      user_metadata: claims.user_metadata ?? {},
+      aud: Array.isArray(claims.aud) ? (claims.aud[0] ?? "authenticated") : claims.aud,
+      role: claims.role,
+      created_at: "",
+    } as User;
   }
 
   return getLocalSessionUser();

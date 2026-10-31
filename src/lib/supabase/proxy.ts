@@ -61,9 +61,10 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims : jeton vérifié localement (clé publique ES256 en cache), sans
+  // aller-retour vers Supabase Auth à chaque requête ; rafraîchit la session si besoin.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims?.sub ? claimsData.claims : null;
 
   const { pathname } = request.nextUrl;
 
