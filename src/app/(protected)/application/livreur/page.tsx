@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { CourierWorkspace } from "@/components/delivery/courier-workspace";
 import { requireDeliveryCourierContext } from "@/lib/auth/workspace-context";
+import { deliveryNetToCash } from "@/lib/delivery/constants";
 import { getCourierStock, listDeliveryOrders } from "@/lib/delivery/queries";
 import { requireCloudOnlineForDesktop } from "@/lib/desktop/require-cloud-online";
 
@@ -45,7 +46,7 @@ export default async function LivreurPage({ searchParams }: LivreurPageProps) {
       orderBy: "delivered_at",
       limit: 500,
     }),
-    // Livrées mais pas encore encaissées par la caisse : argent à remettre.
+    // Livrées mais pas encore encaissées : argent à remettre (frais de course déduits).
     listDeliveryOrders(workspace, {
       statuses: ["DELIVERED"],
       courierId: workspace.userId,
@@ -63,7 +64,7 @@ export default async function LivreurPage({ searchParams }: LivreurPageProps) {
       toCollectValue={myOrders.reduce((sum, order) => sum + order.totalAmount, 0)}
       deliveredTodayCount={deliveredToday.length}
       toRemitCount={toRemit.length}
-      toRemitValue={toRemit.reduce((sum, order) => sum + order.totalAmount, 0)}
+      toRemitValue={toRemit.reduce((sum, order) => sum + deliveryNetToCash(order), 0)}
       stock={stock}
     />
   );
