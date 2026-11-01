@@ -394,7 +394,7 @@ export function AdminDashboardWorkspace({
               hint="L’analyse se remplit dès les premières ventes."
             />
           ) : (
-            <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden p-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
               {retail ? (
                 <>
                   <SalesBars series={salesSeries} />
@@ -412,6 +412,7 @@ export function AdminDashboardWorkspace({
                         <MiniStat
                           label="Bénéfice net"
                           value={netProfit !== null ? formatPriceXof(netProfit) : "—"}
+                          wide
                         />
                       </>
                     ) : null}
@@ -543,10 +544,13 @@ function QuickLink({
 
 /** Ventes de la période : barres par heure (jour) ou par jour (semaine, mois). */
 function SalesBars({ series }: { series: AdminDashboardData["salesSeries"] }) {
-  // Jour : seules les heures d'ouverture habituelles, pour des barres lisibles.
+  // Jour : à partir de 6h pour des barres lisibles, ou plus tôt s'il y a eu
+  // des ventes la nuit (sinon elles disparaissent du graphique).
+  const firstSaleHour = series.values.findIndex((value) => value > 0);
+  const startHour = firstSaleHour >= 0 ? Math.min(6, firstSaleHour) : 6;
   const entries = series.values
     .map((value, index) => ({ value, label: series.labels[index] ?? "" }))
-    .filter((_, index) => series.granularity !== "hour" || (index >= 6 && index <= 23));
+    .filter((_, index) => series.granularity !== "hour" || index >= startHour);
   const max = Math.max(...entries.map((entry) => entry.value), 1);
   const step = Math.ceil(entries.length / 6);
 
@@ -574,11 +578,12 @@ function SalesBars({ series }: { series: AdminDashboardData["salesSeries"] }) {
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function MiniStat({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
   return (
-    <div className="rounded-xl bg-slate-50 px-2.5 py-2">
+    <div className={`min-w-0 rounded-xl bg-slate-50 px-2.5 py-2 ${wide ? "col-span-2" : ""}`}>
       <p className="text-[10px] font-medium text-slate-500">{label}</p>
-      <p className="mt-0.5 truncate text-[13px] font-bold tabular-nums text-slate-900">
+      {/* Montant complet, jamais coupé : il passe à la ligne si la carte est étroite. */}
+      <p className="mt-0.5 break-words text-[13px] font-bold leading-tight tabular-nums text-slate-900">
         {value}
       </p>
     </div>
