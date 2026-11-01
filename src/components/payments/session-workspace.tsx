@@ -14,6 +14,7 @@ import { closeCashSessionAction } from "@/app/(protected)/application/caisse/pay
 import { AlertMessage } from "@/components/auth/alert-message";
 import { SessionCashSummary } from "@/components/payments/session-cash-summary";
 import { getActivityPages } from "@/lib/activity/pages";
+import { isEcommerceActivity } from "@/lib/auth/activities";
 import { formatPriceXof } from "@/lib/payments/constants";
 import type { CashSessionDetail } from "@/lib/payments/types";
 
@@ -168,7 +169,7 @@ export function SessionWorkspace({
           <div className="pos-scroll flex-1 space-y-4 overflow-y-auto px-5 py-4">
             {error ? <AlertMessage message={error} /> : null}
 
-            <SessionCashSummary session={session} />
+            <SessionCashSummary session={session} withDeliveries={isEcommerceActivity(activityCode)} />
 
             <div className="rounded-xl bg-emerald-50 p-4">
               <p className="text-xs text-slate-600">Montant théorique</p>

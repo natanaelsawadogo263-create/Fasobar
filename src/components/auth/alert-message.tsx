@@ -74,6 +74,7 @@ export function AlertMessage({
       tone={tone}
       dismissible={dismissible}
       onDismiss={onDismiss}
+      onHidden={toast ? () => toast.show(displayMessage, tone) : undefined}
     />
   );
 }
@@ -83,14 +84,22 @@ function InlineAlert({
   tone,
   dismissible,
   onDismiss,
+  onHidden,
 }: {
   message: string;
   tone: "error" | "success";
   dismissible: boolean;
   onDismiss?: () => void;
+  /** Appelé si le bandeau reste invisible malgré le défilement (panneau caché, modale…). */
+  onHidden?: () => void;
 }) {
   const [visible, setVisible] = useState(true);
+  const [flash, setFlash] = useState(true);
   const boxRef = useRef<HTMLDivElement>(null);
+  const onHiddenRef = useRef(onHidden);
+  useEffect(() => {
+    onHiddenRef.current = onHidden;
+  }, [onHidden]);
 
   useEffect(() => {
     setVisible(true);
@@ -100,11 +109,23 @@ function InlineAlert({
     if (!visible) return;
     const box = boxRef.current;
     if (!box) return;
+    setFlash(true);
     const frame = window.requestAnimationFrame(() => {
       box.scrollIntoView({ behavior: "smooth", block: "center" });
       box.focus({ preventScroll: true });
     });
-    return () => window.cancelAnimationFrame(frame);
+    // Après le défilement : si le message n'est toujours pas réellement à l'écran
+    // (zone coupée, recouverte ou hors champ), on le répète en haut de l'écran
+    // pour que l'utilisateur comprenne pourquoi rien ne s'est passé.
+    const check = window.setTimeout(() => {
+      if (!isActuallyOnScreen(box)) onHiddenRef.current?.();
+    }, 600);
+    const unflash = window.setTimeout(() => setFlash(false), 1600);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(check);
+      window.clearTimeout(unflash);
+    };
   }, [message, visible]);
 
   if (!visible) return null;
@@ -130,7 +151,9 @@ function InlineAlert({
       role="alert"
       aria-live="assertive"
       tabIndex={-1}
-      className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm outline-none ${styles}`}
+      className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm outline-none transition-shadow duration-500 ${styles} ${
+        flash ? (tone === "success" ? "ring-4 ring-emerald-300/60" : "ring-4 ring-red-300/70") : ""
+      }`}
     >
       <p className="min-w-0 flex-1">{message}</p>
       {dismissible ? (
@@ -145,6 +168,17 @@ function InlineAlert({
       ) : null}
     </div>
   );
+}
+
+/** Le bandeau est-il vraiment visible (dans l'écran et pas recouvert ni coupé) ? */
+function isActuallyOnScreen(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return false;
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + Math.min(rect.height / 2, 12);
+  if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return false;
+  const hit = document.elementFromPoint(x, y);
+  return Boolean(hit && element.contains(hit));
 }
 
 /** Fallback si le provider n’est pas encore monté (pages auth hors shell). */

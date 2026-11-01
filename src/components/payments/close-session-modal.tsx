@@ -16,12 +16,15 @@ type CloseSessionModalProps = {
   session: CashSessionDetail;
   onClose: () => void;
   onClosed?: () => void;
+  /** E-commerce : bilan avec lignes livraisons et frais livreurs. */
+  withDeliveries?: boolean;
 };
 
 export function CloseSessionModal({
   session,
   onClose,
   onClosed,
+  withDeliveries = false,
 }: CloseSessionModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -96,7 +99,7 @@ export function CloseSessionModal({
       ) : null}
 
       <div className="space-y-4">
-        <SessionCashSummary session={session} />
+        <SessionCashSummary session={session} withDeliveries={withDeliveries} />
 
         <div>
           <PriceField

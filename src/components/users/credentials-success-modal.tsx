@@ -10,24 +10,6 @@ type CredentialsSuccessModalProps = {
   retail?: boolean;
 };
 
-function buildCopyText(summary: CreatedCredentialsSummary, retail: boolean): string {
-  return [
-    "FasoBar — Identifiants de connexion",
-    "",
-    `Nom : ${summary.fullName}`,
-    `Identifiant FasoBar : ${summary.loginIdentifier}`,
-    `Mot de passe temporaire : ${summary.temporaryPassword}`,
-    `Espace : ${summary.spaceLabel}`,
-    `Établissement : ${summary.establishmentName}`,
-    "",
-    "Connexion : utilisez l'identifiant FasoBar (pas un e-mail).",
-    retail
-      ? "Valable pour tous les comptes créés par l'admin (Admin, Caissier / Vendeur)."
-      : "Valable pour tous les comptes créés par l'admin (Admin, Cuisine, Bar).",
-    "À votre première connexion, vous devrez créer un nouveau mot de passe.",
-  ].join("\n");
-}
-
 export function CredentialsSuccessModal({
   summary,
   onClose,
@@ -36,7 +18,8 @@ export function CredentialsSuccessModal({
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(buildCopyText(summary, retail));
+    // Uniquement l'identifiant, sans aucun autre texte : il se colle tel quel.
+    await navigator.clipboard.writeText(summary.loginIdentifier.trim());
     setCopied(true);
   }
 
@@ -92,7 +75,7 @@ export function CredentialsSuccessModal({
             onClick={handleCopy}
             className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            {copied ? "Identifiants copiés" : "Copier les identifiants"}
+            {copied ? "Identifiant copié" : "Copier l’identifiant"}
           </button>
           <button
             type="button"

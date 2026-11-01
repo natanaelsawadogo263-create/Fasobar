@@ -1364,6 +1364,7 @@ export function PosWorkspace({
       {session && showCloseModal ? (
         <CloseSessionModal
           session={session}
+          withDeliveries={isEcommerceActivity(activityCode)}
           onClose={() => setShowCloseModal(false)}
           onClosed={() => {
             setShowCloseModal(false);
