@@ -60,7 +60,7 @@ import {
   shouldUseDemoCart,
 } from "@/lib/caisse/demo-cart";
 import { sortCaisseProducts } from "@/lib/caisse/sort-products";
-import { isProductOutOfStock } from "@/lib/orders/stock-availability";
+import { isProductOutOfStock, isShopStockEmpty } from "@/lib/orders/stock-availability";
 import { createClient } from "@/lib/supabase/client";
 import { bindRealtimeAuth } from "@/lib/supabase/realtime-session";
 import type {
@@ -985,6 +985,19 @@ export function PosWorkspace({
     if (cart.length === 0) return;
     if (!session && !browseWithoutSession) {
       showToast("Ouvrez une session de caisse pour encaisser.", "error");
+      return;
+    }
+    // E-commerce : un article absent de la boutique (seulement chez un livreur)
+    // ne peut partir qu'en livraison.
+    const courierOnlyLine = cart.find((line) => {
+      const product = liveProducts.find((item) => item.id === line.productId);
+      return product ? isShopStockEmpty(product) && !isProductOutOfStock(product) : false;
+    });
+    if (courierOnlyLine) {
+      showToast(
+        `${courierOnlyLine.name} : boutique vide, stock chez le livreur — envoyez la vente en livraison.`,
+        "error",
+      );
       return;
     }
 

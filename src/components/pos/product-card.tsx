@@ -6,7 +6,7 @@ import { ProductImageThumb } from "@/components/products/product-image-thumb";
 import { POS_DEPARTMENT_BADGE } from "@/components/pos/constants";
 import { buildCashierSaleChoices } from "@/lib/catalog/sale-choices";
 import { formatPriceXof } from "@/lib/orders/constants";
-import { isProductOutOfStock } from "@/lib/orders/stock-availability";
+import { isProductOutOfStock, isShopStockEmpty } from "@/lib/orders/stock-availability";
 import { getProductImage } from "@/lib/fasobar/product-images";
 import type { CashierProduct } from "@/lib/orders/types";
 import type { DepartmentCode } from "@/lib/products/schemas";
@@ -35,6 +35,8 @@ export function ProductCard({
   };
   const imageUrl = getProductImage(product.name, product.imageUrl);
   const outOfStock = isProductOutOfStock(product);
+  // E-commerce : boutique vide mais stock chez un livreur → vendable en livraison.
+  const courierOnly = !outOfStock && isShopStockEmpty(product);
   const locked = Boolean(disabled || outOfStock);
   const saleChoices = buildCashierSaleChoices(
     product,
@@ -75,6 +77,8 @@ export function ProductCard({
           <p className="truncate text-[10px] text-slate-500">{product.categoryName}</p>
           {outOfStock ? (
             <p className="mt-0.5 text-[9px] font-medium text-red-600">Rupture</p>
+          ) : courierOnly ? (
+            <p className="mt-0.5 text-[9px] font-medium text-amber-700">Chez livreur</p>
           ) : null}
         </div>
           <p className="pos-tabular shrink-0 text-sm font-bold text-emerald-600">
@@ -137,6 +141,8 @@ export function ProductCard({
         <div className="mt-1.5 flex items-end justify-between gap-2">
           {outOfStock ? (
             <span className="text-[9px] font-medium leading-none text-red-600">Rupture</span>
+          ) : courierOnly ? (
+            <span className="text-[9px] font-medium leading-none text-amber-700">Chez livreur</span>
           ) : (
             <span />
           )}

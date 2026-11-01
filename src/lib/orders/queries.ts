@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isEcommerceActivity } from "@/lib/auth/activities";
 import type { WorkspaceContext } from "@/lib/auth/workspace-context";
 import { isDesktopServerRuntime } from "@/lib/desktop/runtime";
 import type {
@@ -147,11 +148,35 @@ export async function listCashierProducts(
     .order("sort_order")
     .limit(2000);
 
-  const [productsResult, stockResult, saleUnitsResultInitial] = await Promise.all([
-    productsQueryPromise,
-    stockQueryPromise,
-    saleUnitsQueryPromise,
-  ]);
+  // E-commerce : le stock en main chez les livreurs reste vendable en livraison.
+  const courierStockQueryPromise = isEcommerceActivity(workspace.activityCode)
+    ? stockClient
+        .from("courier_stock")
+        .select("product_id, quantity")
+        .eq("establishment_id", workspace.establishmentId)
+        .gt("quantity", 0)
+        .limit(2000)
+    : null;
+
+  const [productsResult, stockResult, saleUnitsResultInitial, courierStockResult] =
+    await Promise.all([
+      productsQueryPromise,
+      stockQueryPromise,
+      saleUnitsQueryPromise,
+      courierStockQueryPromise,
+    ]);
+  if (courierStockResult?.error) {
+    console.error("[listCashierProducts:courier_stock]", courierStockResult.error.message);
+  }
+  const courierQtyByProductId = new Map<string, number>();
+  for (const item of courierStockResult?.data ?? []) {
+    const qty = Number(item.quantity);
+    if (!item.product_id || !Number.isFinite(qty)) continue;
+    courierQtyByProductId.set(
+      item.product_id,
+      (courierQtyByProductId.get(item.product_id) ?? 0) + qty,
+    );
+  }
 
   // Repli si la migration barcode sur product_unit_levels n'est pas encore appliquée.
   const saleUnitsResult = saleUnitsResultInitial.error?.message?.includes("barcode")
@@ -264,6 +289,9 @@ export async function listCashierProducts(
         categoryId: row.category_id as string,
         categoryName: category.name,
         stockQuantity,
+        courierStockQuantity: courierStockResult
+          ? (courierQtyByProductId.get(row.id as string) ?? 0)
+          : null,
         fractionable: Boolean(row.fractionable),
         barcode: (row.barcode as string | null | undefined) ?? null,
       },

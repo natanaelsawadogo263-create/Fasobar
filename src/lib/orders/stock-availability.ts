@@ -37,11 +37,19 @@ export function resolveCashierStockQuantity(
   return null;
 }
 
-/** Produit avec stock à 0 ou moins : non vendable en caisse. */
-export function isProductOutOfStock(product: CashierProduct): boolean {
+/** Stock boutique à 0 ou moins (le stock livreurs n'est pas compté). */
+export function isShopStockEmpty(product: CashierProduct): boolean {
   return (
     typeof product.stockQuantity === "number" && product.stockQuantity <= 0
   );
+}
+
+/**
+ * Produit non vendable en caisse : boutique vide et rien chez les livreurs.
+ * E-commerce : un article encore en main chez un livreur reste vendable en livraison.
+ */
+export function isProductOutOfStock(product: CashierProduct): boolean {
+  return isShopStockEmpty(product) && !((product.courierStockQuantity ?? 0) > 0);
 }
 
 export function isBarProductOutOfStock(product: CashierProduct): boolean {

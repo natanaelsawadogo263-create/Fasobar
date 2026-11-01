@@ -30,6 +30,11 @@ describe("isProductOutOfStock", () => {
     expect(isProductOutOfStock(product({ stockQuantity: 2 }))).toBe(false);
   });
 
+  it("e-commerce : boutique vide mais stock chez un livreur = vendable", () => {
+    expect(isProductOutOfStock(product({ stockQuantity: 0, courierStockQuantity: 3 }))).toBe(false);
+    expect(isProductOutOfStock(product({ stockQuantity: 0, courierStockQuantity: 0 }))).toBe(true);
+  });
+
   it("bloque un produit cuisine à 0", () => {
     expect(
       isProductOutOfStock(

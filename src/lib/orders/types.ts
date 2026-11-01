@@ -18,6 +18,8 @@ export type CashierProduct = {
   categoryName: string;
   /** Quantité stock suivie ; null/absent = non suivi (ex. plats cuisine). */
   stockQuantity?: number | null;
+  /** E-commerce : quantité en main chez les livreurs (vendable en livraison). */
+  courierStockQuantity?: number | null;
   fractionable?: boolean;
   barcode?: string | null;
   saleUnits?: Array<{
