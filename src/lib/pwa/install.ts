@@ -17,6 +17,31 @@ export function isIosDevice(): boolean {
   );
 }
 
+/**
+ * Où l'utilisateur se trouve, pour lui donner les bonnes étapes d'installation.
+ * - in-app : navigateur intégré (WhatsApp, Facebook…) qui ne sait pas installer ;
+ * - ios-safari / ios-other : iPhone/iPad (installation manuelle uniquement) ;
+ * - android : Android sans fenêtre d'installation automatique (menu ⋮) ;
+ * - desktop : ordinateur.
+ */
+export type InstallEnvironment = "in-app" | "ios-safari" | "ios-other" | "android" | "desktop";
+
+export function detectInstallEnvironment(): InstallEnvironment {
+  if (typeof navigator === "undefined") return "desktop";
+  const ua = navigator.userAgent;
+  if (/FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|Snapchat|TikTok|musical_ly|Messenger|GSA\//i.test(ua)) {
+    return "in-app";
+  }
+  if (isIosDevice()) {
+    return /CriOS|FxiOS|EdgiOS|OPiOS|OPT\//.test(ua) ? "ios-other" : "ios-safari";
+  }
+  if (/Android/i.test(ua)) {
+    // WebView Android (applis intégrées non reconnues ci-dessus).
+    return /; wv\)/.test(ua) ? "in-app" : "android";
+  }
+  return "desktop";
+}
+
 export function downloadFasoBarUrlShortcut(origin?: string) {
   if (typeof window === "undefined") return;
   const base = origin ?? window.location.origin;
@@ -36,6 +61,7 @@ export type FasoBarInstallOutcome =
   | "dismissed"
   | "already-installed"
   | "ios-help"
+  | "manual-help"
   | "shortcut-download";
 
 export type BeforeInstallPromptEvent = Event & {

@@ -35,12 +35,12 @@ export default function TelechargerPage() {
           <InstallCard
             icon={Smartphone}
             title="Android"
-            body="Le bouton ouvre l’installation native de l’application web (PWA)."
+            body="Le bouton ouvre l’installation. Sinon : menu ⋮ → « Installer l’application » ou « Ajouter à l’écran d’accueil »."
           />
           <InstallCard
             icon={Share}
             title="iPhone / iPad"
-            body="Safari → Partager → Sur l’écran d’accueil → Ajouter."
+            body="Safari ou Chrome → Partager (iPhone récents : ⋯ puis Partager) → Sur l’écran d’accueil → Ajouter. Lien reçu sur WhatsApp ou Facebook : ouvrez-le d’abord dans Safari."
           />
         </div>
 
