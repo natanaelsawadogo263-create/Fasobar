@@ -336,7 +336,7 @@ export async function quickCashCheckoutAction(
 
   if (received < remaining) {
     return {
-      error: "Le montant reçu doit couvrir le total à payer.",
+      error: `Le montant reçu doit couvrir le total à payer (${remaining.toLocaleString("fr-FR")} FCFA).`,
     };
   }
 

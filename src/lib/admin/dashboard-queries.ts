@@ -305,6 +305,7 @@ export const getAdminDashboardData = cache(async function getAdminDashboardData(
       .from("payments")
       .select("amount_applied, cash_register_session_id, cash_register_sessions!inner(status)")
       .eq("organization_id", workspace.organizationId).eq("establishment_id", workspace.establishmentId)
+      .eq("method", "CASH")
       .eq("status", "CONFIRMED")
       .eq("cash_register_sessions.status", "OPEN")
       .limit(80),

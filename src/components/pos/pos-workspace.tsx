@@ -863,6 +863,7 @@ export function PosWorkspace({
 
     const snapshot = cart;
     const snapshotType = orderType;
+    const snapshotTable = tableReference;
     const formData = buildFormData(targetStatus);
     if (!onSuccess) {
       clearCart();
@@ -877,7 +878,9 @@ export function PosWorkspace({
           if (!onSuccess) {
             setCart(snapshot);
             setOrderType(snapshotType);
+            setTableReference(snapshotTable);
           }
+          if (result.orderId) setOrderId(result.orderId);
           onError?.();
           showToast(result.error, "error");
           return;
@@ -887,6 +890,7 @@ export function PosWorkspace({
           if (!onSuccess) {
             setCart(snapshot);
             setOrderType(snapshotType);
+            setTableReference(snapshotTable);
           }
           onError?.();
           showToast(
@@ -912,6 +916,7 @@ export function PosWorkspace({
         if (!onSuccess) {
           setCart(snapshot);
           setOrderType(snapshotType);
+          setTableReference(snapshotTable);
         }
         onError?.();
         showToast(
@@ -1044,6 +1049,7 @@ export function PosWorkspace({
           }
 
           const saved = await saveOrderAction({}, buildFormData("READY_TO_PAY"));
+          if (saved.orderId) setOrderId(saved.orderId);
           if (saved.error || !saved.orderId) {
             setCheckoutError(
               saved.error ??

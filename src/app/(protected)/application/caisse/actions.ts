@@ -142,6 +142,10 @@ function mapRpcError(error: {
   }
 
   if (message.includes("Stock insuffisant") || message.includes("stock insuffisant")) {
+    // Message détaillé de save_order_items (produit, disponible, demandé).
+    if (error?.message?.startsWith("Stock insuffisant pour «")) {
+      return error.message;
+    }
     return "Stock insuffisant pour cet article.";
   }
 
@@ -255,6 +259,7 @@ export async function saveOrderAction(
   }
 
   const supabase = await createClient();
+  let createdNow = false;
 
   if (orderId) {
     const existing = await getOrderById(workspace, orderId);
@@ -295,6 +300,7 @@ export async function saveOrderAction(
     }
 
     orderId = createdId as string;
+    createdNow = true;
   }
 
   if (items.length > 0 || orderId) {
@@ -314,7 +320,11 @@ export async function saveOrderAction(
     });
 
     if (saveError) {
-      return { error: mapRpcError(saveError) };
+      // La commande vient d'être créée : on renvoie son id pour que la caisse
+      // la réutilise au prochain essai au lieu d'en créer une nouvelle vide.
+      return createdNow
+        ? { error: mapRpcError(saveError), orderId }
+        : { error: mapRpcError(saveError) };
     }
   }
 
