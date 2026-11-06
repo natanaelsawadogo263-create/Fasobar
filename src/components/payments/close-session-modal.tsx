@@ -75,21 +75,21 @@ export function CloseSessionModal({
     <ModalShell
       formId="close-session-form"
       compact
-      title="Fermer la caisse"
+      title="Fermer la session"
       subtitle="Vous serez déconnecté après la clôture."
       onClose={onClose}
       onSubmit={handleSubmit}
       footer={
         <ModalFooter
           onCancel={onClose}
-          submitLabel="Fermer la caisse"
+          submitLabel="Fermer la session"
           pendingLabel="Fermeture…"
           isPending={isPending}
         />
       }
     >
       <input type="hidden" name="sessionId" value={session.id} />
-      {/* Le bouton « Fermer la caisse » vaut confirmation. */}
+      {/* Le bouton « Fermer la session » vaut confirmation. */}
       <input type="hidden" name="confirmed" value="on" />
 
       {error ? (

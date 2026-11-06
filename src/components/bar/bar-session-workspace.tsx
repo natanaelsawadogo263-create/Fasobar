@@ -21,7 +21,6 @@ export function BarSessionWorkspace({
 }: BarSessionWorkspaceProps) {
   const [error, setError] = useState<string | null>(null);
   const [closingNote, setClosingNote] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleClose(event: React.FormEvent) {
@@ -29,9 +28,8 @@ export function BarSessionWorkspace({
     const formData = new FormData();
     formData.set("sessionId", session.id);
     formData.set("closingNote", closingNote);
-    if (confirmed) {
-      formData.set("confirmed", "on");
-    }
+    // Le bouton « Fermer la session » vaut confirmation, comme à la caisse.
+    formData.set("confirmed", "on");
 
     startTransition(async () => {
       const result = await closeBarSessionAction({}, formData);
@@ -82,7 +80,7 @@ export function BarSessionWorkspace({
 
       <section className="space-y-3">
         <h2 className="text-[15px] font-semibold text-slate-900">
-          Bilan calculé par FasoBar
+          Bilan de la session
         </h2>
 
         {summary ? (
@@ -110,7 +108,7 @@ export function BarSessionWorkspace({
       >
         <div>
           <h2 className="text-[15px] font-semibold text-slate-900">
-            Fermer ma session Bar
+            Fermer la session
           </h2>
           <p className="mt-0.5 text-[12px] text-slate-500">
             La session sera verrouillée, le bilan conservé pour l&apos;admin, puis
@@ -130,19 +128,6 @@ export function BarSessionWorkspace({
           disabled={isPending}
         />
 
-        <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-[13px] text-slate-700">
-          <input
-            type="checkbox"
-            checked={confirmed}
-            onChange={(event) => setConfirmed(event.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-            disabled={isPending}
-          />
-          <span>
-            Je confirme avoir vérifié ce bilan
-          </span>
-        </label>
-
         <div className="flex flex-wrap justify-end gap-2">
           <Link
             href="/application/bar"
@@ -152,10 +137,10 @@ export function BarSessionWorkspace({
           </Link>
           <button
             type="submit"
-            disabled={isPending || !confirmed}
+            disabled={isPending}
             className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-[13px] font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isPending ? "Fermeture et déconnexion…" : "Fermer et me déconnecter"}
+            {isPending ? "Fermeture et déconnexion…" : "Fermer la session"}
           </button>
         </div>
       </form>

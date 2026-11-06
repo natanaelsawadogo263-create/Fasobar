@@ -117,8 +117,8 @@ export function FasoBarTopbar({ showDeliveryLink = false }: FasoBarTopbarProps) 
             type="button"
             onClick={() => ctx.onCloseSession?.()}
             className={`${iconBtn} text-red-400 md:hover:bg-red-500/10`}
-            title="Fermer la caisse"
-            aria-label="Fermer la caisse"
+            title="Fermer la session"
+            aria-label="Fermer la session"
           >
             <Lock className="h-4 w-4" />
           </button>
@@ -127,8 +127,8 @@ export function FasoBarTopbar({ showDeliveryLink = false }: FasoBarTopbarProps) 
           <InstantLink
             href="/application/caisse/session"
             className={`${iconBtn} text-red-400 md:hover:bg-red-500/10`}
-            title="Fermer la caisse"
-            aria-label="Fermer la caisse"
+            title="Fermer la session"
+            aria-label="Fermer la session"
           >
             <Lock className="h-4 w-4" />
           </InstantLink>

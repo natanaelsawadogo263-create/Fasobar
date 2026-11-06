@@ -162,7 +162,7 @@ export function SessionWorkspace({
 
       <aside className="flex w-full shrink-0 flex-col border-t border-slate-200 bg-white lg:h-full lg:w-[360px] lg:border-l lg:border-t-0">
         <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="text-base font-bold text-slate-900">Clôture de la caisse</h2>
+          <h2 className="text-base font-bold text-slate-900">Bilan de la session</h2>
         </div>
 
         <form onSubmit={handleCloseSession} className="flex min-h-0 flex-1 flex-col">
@@ -235,7 +235,7 @@ export function SessionWorkspace({
               className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-red-600 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
             >
               <Lock className="h-4 w-4" />
-              {isPending ? "Fermeture et déconnexion…" : "Fermer et me déconnecter"}
+              {isPending ? "Fermeture et déconnexion…" : "Fermer la session"}
             </button>
             <InstantLink
               href="/application/caisse"

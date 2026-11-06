@@ -75,7 +75,7 @@ export function BarSessionGate({
               href="/application/bar/session"
               className="inline-flex h-9 items-center justify-center rounded-lg border border-emerald-300 bg-white px-3.5 text-[12px] font-semibold text-emerald-800 transition hover:bg-emerald-50"
             >
-              Bilan / Clôturer
+              Fermer la session
             </Link>
           </div>
         </div>

@@ -107,7 +107,7 @@ export function BarDashboardWorkspace({
                 href="/application/bar/session"
                 className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 text-[12px] font-semibold text-white transition hover:bg-slate-800"
               >
-                Bilan / Clôturer
+                Fermer la session
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>

@@ -60,10 +60,10 @@ export function PosHeader({
             type="button"
             onClick={onCloseSession}
             className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700/80 text-slate-400 transition hover:border-red-900/50 hover:bg-red-950/40 hover:text-red-200 lg:w-auto lg:px-2.5 lg:gap-1.5"
-            title="Fermer la caisse"
+            title="Fermer la session"
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            <span className="hidden lg:inline text-xs font-medium">Fermer</span>
+            <span className="hidden lg:inline text-xs font-medium">Fermer la session</span>
           </button>
         ) : null}
         <Link

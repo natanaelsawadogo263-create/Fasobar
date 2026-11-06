@@ -91,7 +91,7 @@ export function CashSessionGate({
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:w-auto"
                 >
                   <Clock className="h-4 w-4" />
-                  Fermer la caisse
+                  Fermer la session
                 </button>
               </div>
             </div>
