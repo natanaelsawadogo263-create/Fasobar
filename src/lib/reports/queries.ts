@@ -474,8 +474,14 @@ async function buildBeneficesReport(
 
   const barRevenue = includeBar ? sales.summary.barRevenue : 0;
   const kitchenRevenue = includeKitchen ? sales.summary.kitchenRevenue : 0;
-  const barExpenses = includeBar ? expenses.barTotal : 0;
-  const kitchenExpenses = includeKitchen ? expenses.caisseTotal : 0;
+  // Un seul service (ex. buvette sans cuisine) : les dépenses de l'autre zone
+  // (« Caisse » par défaut) lui reviennent, sinon elles sortiraient du bénéfice net.
+  const barExpenses = includeBar
+    ? expenses.barTotal + (includeKitchen ? 0 : expenses.caisseTotal)
+    : 0;
+  const kitchenExpenses = includeKitchen
+    ? expenses.caisseTotal + (includeBar ? 0 : expenses.barTotal)
+    : 0;
 
   const barProfit = barRevenue - barCogs;
   const kitchenProfit = kitchenRevenue - kitchenCogs;

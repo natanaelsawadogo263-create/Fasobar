@@ -40,6 +40,9 @@ export const listKitchenOrders = cache(async function listKitchenOrders(
   workspace: WorkspaceContext,
 ): Promise<KitchenOrderTicket[]> {
   const supabase = await createClient();
+  // À emporter payé d'avance : reste en cuisine jusqu'à « Servie »
+  // (fenêtre de 12 h pour ne pas faire remonter d'anciennes commandes).
+  const takeawaySince = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
 
   const { data, error } = await supabase
     .from("orders")
@@ -67,7 +70,9 @@ export const listKitchenOrders = cache(async function listKitchenOrders(
     .eq("establishment_id", workspace.establishmentId)
     .not("kitchen_status", "is", null)
     .neq("status", "CANCELLED")
-    .neq("payment_status", "PAID")
+    .or(
+      `payment_status.neq.PAID,and(order_type.eq.TAKEAWAY,kitchen_status.in.(TO_PREPARE,IN_PREPARATION,READY),created_at.gte."${takeawaySince}")`,
+    )
     .order("kitchen_status_updated_at", { ascending: true })
     .limit(120);
 
