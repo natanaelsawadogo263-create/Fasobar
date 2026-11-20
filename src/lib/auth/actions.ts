@@ -137,7 +137,7 @@ async function signUpWithEmailConfirmation(input: {
   }
 
   return {
-    success: `Un e-mail de confirmation a été envoyé à ${input.email}. Ouvrez le lien qu'il contient pour activer votre compte et continuer.`,
+    success: `Un e-mail de confirmation a été envoyé à ${input.email}. Saisissez le code qu'il contient pour activer votre compte et continuer.`,
     pendingConfirmationEmail: input.email,
   };
 }
@@ -179,6 +179,52 @@ export async function signUpAction(
   });
 }
 
+/**
+ * Confirme l'inscription avec le code reçu par e-mail (alternative au lien) :
+ * ouvre la session puis envoie vers l'onboarding / l'attente de validation.
+ */
+export async function verifySignUpCodeAction(
+  email: string,
+  rawCode: string,
+): Promise<AuthActionState> {
+  const parsed = resetPasswordRequestSchema.safeParse({ email });
+  if (!parsed.success) {
+    return { error: "Adresse e-mail invalide." };
+  }
+
+  const code = rawCode.replace(/\s+/g, "");
+  if (!/^\d{6,8}$/.test(code)) {
+    return { error: "Saisissez le code à chiffres reçu par e-mail." };
+  }
+
+  // Anti-devinette du code : 5 essais ratés / 15 min par adresse.
+  const codeRules: RateLimitRule[] = [
+    { scope: "signup-code:email", key: parsed.data.email, max: 5, windowSeconds: FIFTEEN_MINUTES },
+    { scope: "signup-code:ip", key: await getClientIp(), max: 30, windowSeconds: FIFTEEN_MINUTES },
+  ];
+  if (await isRateLimited(codeRules)) {
+    return { error: RATE_LIMIT_MESSAGE };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: parsed.data.email,
+    token: code,
+    type: "email",
+  });
+
+  if (error || !data.user) {
+    await recordRateLimitHit(codeRules);
+    console.error("[signUp:verifyCode]", error?.code, error?.message);
+    return {
+      error:
+        "Code incorrect ou expiré. Vérifiez le dernier e-mail reçu, ou demandez un nouveau code.",
+    };
+  }
+
+  return redirectAfterLogin(data.user.id);
+}
+
 /** Renvoie l'e-mail de confirmation d'inscription (limité anti-abus). */
 export async function resendSignUpConfirmationAction(
   email: string,
@@ -207,7 +253,7 @@ export async function resendSignUpConfirmationAction(
     return { error: mapAuthError(error) };
   }
 
-  return { success: "E-mail de confirmation renvoyé. Pensez à vérifier vos spams." };
+  return { success: "Nouveau code envoyé. Utilisez le plus récent et pensez à vérifier vos spams." };
 }
 
 export async function signInAction(

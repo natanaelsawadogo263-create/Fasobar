@@ -5,7 +5,7 @@ import { toUserFacingError } from "@/lib/errors/user-facing";
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   invalid_credentials: "Identifiant, e-mail ou mot de passe incorrect.",
   email_not_confirmed:
-    "Veuillez confirmer votre adresse e-mail avant de vous connecter.",
+    "Adresse e-mail pas encore confirmée. Saisissez le code reçu par e-mail ci-dessous, ou demandez-en un nouveau.",
   user_already_exists: "Un compte existe déjà avec cette adresse e-mail.",
   weak_password: "Le mot de passe ne respecte pas les critères de sécurité.",
   over_request_rate_limit:

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 
-import { resendSignUpConfirmationAction, signUpAction } from "@/lib/auth/actions";
+import { signUpAction } from "@/lib/auth/actions";
+import { ConfirmSignUpCode } from "@/components/auth/confirm-signup-code";
 import type { AuthActionState } from "@/lib/auth/types";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { FormField } from "@/components/auth/form-field";
@@ -21,18 +22,8 @@ export function SignUpForm({ activityLabel }: SignUpFormProps) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
-  const [resendState, setResendState] = useState<AuthActionState>({});
-  const [isResending, startResend] = useTransition();
 
   const pendingEmail = state.pendingConfirmationEmail;
-
-  function handleResend() {
-    if (!pendingEmail) return;
-    startResend(async () => {
-      setResendState({});
-      setResendState(await resendSignUpConfirmationAction(pendingEmail));
-    });
-  }
 
   if (pendingEmail) {
     return (
@@ -45,31 +36,17 @@ export function SignUpForm({ activityLabel }: SignUpFormProps) {
             Vérifiez votre boîte mail
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            Un lien de confirmation a été envoyé à{" "}
+            Un code de confirmation a été envoyé à{" "}
             <span className="font-semibold text-slate-900">{pendingEmail}</span>.
-            Ouvrez-le pour activer votre compte : vous serez connecté et pourrez
-            renseigner votre établissement.
+            Copiez-le ci-dessous pour activer votre compte et continuer.
           </p>
           <p className="mt-2 text-xs text-slate-500">
-            Rien reçu ? Vérifiez vos spams ou renvoyez l&apos;e-mail.
+            Rien reçu ? Vérifiez vos spams ou demandez un nouveau code.
           </p>
 
-          <div className="mt-6 space-y-3 text-left">
-            {resendState.error ? <AlertMessage message={resendState.error} /> : null}
-            {resendState.success ? (
-              <AlertMessage message={resendState.success} tone="success" />
-            ) : null}
+          <div className="mt-6">
+            <ConfirmSignUpCode email={pendingEmail} />
           </div>
-
-          <button
-            type="button"
-            onClick={handleResend}
-            disabled={isResending}
-            aria-busy={isResending}
-            className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-emerald-600 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {isResending ? "Envoi..." : "Renvoyer l'e-mail"}
-          </button>
 
           <p className="mt-6 text-sm text-slate-600">
             <Link href="/connexion" className="font-medium text-emerald-700 hover:underline">
