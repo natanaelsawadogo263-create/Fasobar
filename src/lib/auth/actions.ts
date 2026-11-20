@@ -25,6 +25,7 @@ import {
   TENANT_ORGANIZATION_COOKIE,
 } from "@/lib/auth/tenant";
 import { createClient } from "@/lib/supabase/server";
+import { ACTIVITY_COOKIE, isSelectableActivityId } from "@/lib/auth/activities";
 import {
   getClientIp,
   isRateLimited,
@@ -76,6 +77,12 @@ async function signUpWithEmailConfirmation(input: {
   const headerStore = await headers();
   const origin = getAuthRedirectOrigin(headerStore);
 
+  // L'activité choisie à l'étape 1 est gardée dans le compte : le lien
+  // e-mail est souvent ouvert dans un autre navigateur (appli mail du
+  // téléphone) où le cookie n'existe pas, et l'activité était redemandée.
+  const cookieStore = await cookies();
+  const activityCode = cookieStore.get(ACTIVITY_COOKIE)?.value;
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email: input.email,
@@ -84,6 +91,9 @@ async function signUpWithEmailConfirmation(input: {
       emailRedirectTo: `${origin}/auth/callback?flow=signup`,
       data: {
         full_name: input.fullName,
+        ...(isSelectableActivityId(activityCode)
+          ? { activity_code: activityCode }
+          : {}),
       },
     },
   });

@@ -168,6 +168,7 @@ export function OnboardingForm({ initialActivity = "" }: OnboardingFormProps) {
                   id="organizationName"
                   name="organizationName"
                   label="Nom commercial"
+                  autoComplete="organization"
                   placeholder="Ex. Boutique du Centre"
                   value={organizationName}
                   onChange={(event) => setOrganizationName(event.target.value)}
@@ -178,6 +179,8 @@ export function OnboardingForm({ initialActivity = "" }: OnboardingFormProps) {
                   id="establishmentName"
                   name="establishmentName"
                   label="Nom de l'établissement"
+                  // Sans ça, le navigateur y colle le nom de la personne.
+                  autoComplete="off"
                   placeholder="Ex. Boutique du Centre — Ouaga 2000"
                   value={resolvedEstablishmentName}
                   onChange={(event) => {

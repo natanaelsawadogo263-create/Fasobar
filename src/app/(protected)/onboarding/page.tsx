@@ -18,8 +18,15 @@ export default async function OnboardingPage() {
   }
 
   const cookieStore = await cookies();
-  const saved = cookieStore.get(ACTIVITY_COOKIE)?.value;
-  const initialActivity = isSelectableActivityId(saved) ? saved : "";
+  // Cookie du navigateur d'inscription, sinon l'activité enregistrée dans le
+  // compte (lien de confirmation ouvert sur un autre appareil).
+  const fromCookie = cookieStore.get(ACTIVITY_COOKIE)?.value;
+  const fromAccount = user.user_metadata?.activity_code as string | undefined;
+  const initialActivity = isSelectableActivityId(fromCookie)
+    ? fromCookie
+    : isSelectableActivityId(fromAccount)
+      ? fromAccount
+      : "";
 
   return (
     <div className="h-dvh overflow-x-hidden overflow-y-auto overscroll-y-contain bg-slate-50">
