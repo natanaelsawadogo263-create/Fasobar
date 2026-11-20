@@ -47,7 +47,8 @@ export function SignUpForm({ activityLabel }: SignUpFormProps) {
           <p className="mt-3 text-sm leading-relaxed text-slate-600">
             Un lien de confirmation a été envoyé à{" "}
             <span className="font-semibold text-slate-900">{pendingEmail}</span>.
-            Cliquez dessus pour activer votre compte, puis connectez-vous.
+            Ouvrez-le pour activer votre compte : vous serez connecté et pourrez
+            renseigner votre établissement.
           </p>
           <p className="mt-2 text-xs text-slate-500">
             Rien reçu ? Vérifiez vos spams ou renvoyez l&apos;e-mail.

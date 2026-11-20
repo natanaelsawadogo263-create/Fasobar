@@ -127,7 +127,7 @@ async function signUpWithEmailConfirmation(input: {
   }
 
   return {
-    success: `Un e-mail de confirmation a été envoyé à ${input.email}. Cliquez sur le lien qu'il contient pour activer votre compte, puis connectez-vous.`,
+    success: `Un e-mail de confirmation a été envoyé à ${input.email}. Ouvrez le lien qu'il contient pour activer votre compte et continuer.`,
     pendingConfirmationEmail: input.email,
   };
 }
