@@ -164,10 +164,17 @@ export const getWorkspaceContext = cache(async function getWorkspaceContext(
   }
 
   const resolved = await loadWorkspaceContext(userId);
-  workspaceProcessCache.set(userId, {
-    until: Date.now() + WORKSPACE_PROCESS_TTL_MS,
-    value: resolved,
-  });
+  // On ne garde jamais « aucun espace » en cache : juste après l'onboarding,
+  // l'organisation vient d'être créée et doit être vue immédiatement
+  // (sinon /attente-validation renvoie au formulaire pendant 25 s).
+  if (resolved) {
+    workspaceProcessCache.set(userId, {
+      until: Date.now() + WORKSPACE_PROCESS_TTL_MS,
+      value: resolved,
+    });
+  } else {
+    workspaceProcessCache.delete(userId);
+  }
   return resolved;
 });
 

@@ -8,7 +8,6 @@ import { mapActivityToEstablishmentType } from "@/lib/auth/activities";
 import { getActivityProfile } from "@/lib/activity/profile";
 import type { AuthActionState } from "@/lib/auth/types";
 import { requireAuthenticatedUser, userHasActiveOrganization } from "@/lib/auth/session";
-import { getBootstrapBlockedMessage } from "@/lib/auth/routes";
 import { withUniqueSlugSuffix } from "@/lib/auth/slugs";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,8 +17,10 @@ export async function bootstrapOrganizationAction(
 ): Promise<AuthActionState> {
   const user = await requireAuthenticatedUser();
 
+  // Déjà créée (double envoi, retour arrière…) : on poursuit vers l'attente
+  // de validation au lieu d'afficher une erreur bloquante.
   if (await userHasActiveOrganization(user.id)) {
-    return { error: getBootstrapBlockedMessage(true)! };
+    redirect("/attente-validation");
   }
 
   const parsed = onboardingSchema.safeParse({
