@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 
-import { signInAction } from "@/lib/auth/actions";
+import { resendSignUpConfirmationAction, signInAction } from "@/lib/auth/actions";
 import type { AuthActionState } from "@/lib/auth/types";
 import { AlertMessage } from "@/components/auth/alert-message";
 import { FormField } from "@/components/auth/form-field";
@@ -90,6 +90,9 @@ export function SignInForm({
           {authError ? <AlertMessage message={authError} /> : null}
           {authNotice ? <AlertMessage message={authNotice} tone="success" /> : null}
           {state.error ? <AlertMessage message={state.error} /> : null}
+          {state.pendingConfirmationEmail ? (
+            <ResendConfirmationButton email={state.pendingConfirmationEmail} />
+          ) : null}
 
           <FormField
             id="identifier"
@@ -144,6 +147,32 @@ export function SignInForm({
           </p>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function ResendConfirmationButton({ email }: { email: string }) {
+  const [result, setResult] = useState<AuthActionState>({});
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <div className="space-y-2">
+      {result.error ? <AlertMessage message={result.error} /> : null}
+      {result.success ? <AlertMessage message={result.success} tone="success" /> : null}
+      <button
+        type="button"
+        disabled={isPending}
+        aria-busy={isPending}
+        onClick={() =>
+          startTransition(async () => {
+            setResult({});
+            setResult(await resendSignUpConfirmationAction(email));
+          })
+        }
+        className="inline-flex w-full items-center justify-center rounded-xl border border-emerald-600 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-70"
+      >
+        {isPending ? "Envoi..." : "Renvoyer le lien de confirmation"}
+      </button>
     </div>
   );
 }

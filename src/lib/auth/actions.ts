@@ -47,6 +47,22 @@ function formDataToObject(formData: FormData): Record<string, FormDataEntryValue
   return Object.fromEntries(formData.entries());
 }
 
+type ServerSupabase = Awaited<ReturnType<typeof createClient>>;
+
+async function resendSignupLink(supabase: ServerSupabase, email: string, origin: string) {
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: `${origin}/auth/callback?flow=signup` },
+  });
+  return error;
+}
+
+/** « Vous ne pouvez redemander qu'après N secondes » : un lien vient de partir. */
+function isEmailFrequencyError(error: { message: string }): boolean {
+  return /after \d+ seconds?/i.test(error.message);
+}
+
 /**
  * Inscription propriétaire avec confirmation obligatoire de l'e-mail :
  * Supabase envoie un lien, le compte ne peut pas se connecter avant le clic.
@@ -87,8 +103,29 @@ async function signUpWithEmailConfirmation(input: {
     redirect("/onboarding");
   }
 
-  // Message identique que l'adresse soit nouvelle ou déjà inscrite
-  // (Supabase ne révèle pas les comptes existants).
+  // Adresse déjà inscrite ET confirmée : Supabase renvoie un faux utilisateur
+  // sans identité et n'envoie aucun e-mail. Sans ce cas, la personne attend
+  // un lien qui n'arrivera jamais (ex. lien déjà « cliqué » par l'antivirus
+  // de la messagerie).
+  if (data.user && (data.user.identities?.length ?? 0) === 0) {
+    return {
+      error:
+        "Un compte confirmé existe déjà avec cette adresse. Connectez-vous, ou utilisez « Mot de passe oublié ? ».",
+    };
+  }
+
+  // Nouvel essai sur un compte jamais confirmé : on renvoie explicitement le
+  // lien, Supabase ne le refait pas toujours lors d'un second signUp.
+  const createdAt = data.user?.created_at ? Date.parse(data.user.created_at) : NaN;
+  const isRetry = Number.isFinite(createdAt) && Date.now() - createdAt > 30_000;
+  if (isRetry) {
+    const resendError = await resendSignupLink(supabase, input.email, origin);
+    if (resendError && !isEmailFrequencyError(resendError)) {
+      console.error("[signUp:retry-resend]", resendError.code, resendError.message);
+      return { error: mapAuthError(resendError) };
+    }
+  }
+
   return {
     success: `Un e-mail de confirmation a été envoyé à ${input.email}. Cliquez sur le lien qu'il contient pour activer votre compte, puis connectez-vous.`,
     pendingConfirmationEmail: input.email,
@@ -153,11 +190,7 @@ export async function resendSignUpConfirmationAction(
   const headerStore = await headers();
   const origin = getAuthRedirectOrigin(headerStore);
   const supabase = await createClient();
-  const { error } = await supabase.auth.resend({
-    type: "signup",
-    email: parsed.data.email,
-    options: { emailRedirectTo: `${origin}/auth/callback?flow=signup` },
-  });
+  const error = await resendSignupLink(supabase, parsed.data.email, origin);
 
   if (error) {
     console.error("[signUp:resend]", error.code, error.message);
@@ -231,7 +264,16 @@ export async function signInAction(
 
   if (!result.ok) {
     await recordRateLimitHit(rateLimitRules);
-    return { error: mapAuthError(result.error as never) };
+    const message = mapAuthError(result.error as never);
+    const rawError = result.error as { code?: string; message?: string } | null;
+    const notConfirmed =
+      rawError?.code === "email_not_confirmed" ||
+      (rawError?.message ?? "").toLowerCase().includes("email not confirmed");
+    if (notConfirmed && parsed.data.identifier.includes("@")) {
+      // Propose de renvoyer le lien de confirmation depuis l'écran de connexion.
+      return { error: message, pendingConfirmationEmail: parsed.data.identifier.trim().toLowerCase() };
+    }
+    return { error: message };
   }
 
   return redirectAfterLogin(result.userId);

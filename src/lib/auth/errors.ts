@@ -24,6 +24,12 @@ export function mapAuthError(error: AuthError | null): string {
     return "Une erreur inattendue est survenue.";
   }
 
+  // « For security purposes, you can only request this after 42 seconds. »
+  const waitSeconds = /after (\d+) seconds?/i.exec(error.message)?.[1];
+  if (waitSeconds) {
+    return `Un lien vient d'être envoyé. Patientez ${waitSeconds} secondes avant d'en demander un nouveau.`;
+  }
+
   if (error.code && AUTH_ERROR_MESSAGES[error.code]) {
     return AUTH_ERROR_MESSAGES[error.code];
   }
